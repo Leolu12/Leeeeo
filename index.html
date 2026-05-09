@@ -3,153 +3,203 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Planta Apartamento 290m² — Customizador</title>
+  <title>Planta Apartamento 290m² — Customizador Pro</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="theme-dark">
+
+  <!-- ══ HEADER ══════════════════════════════════════════════════ -->
   <header class="app-header">
     <div class="header-left">
       <span class="logo">⬛</span>
       <h1>Planta Tipo · 3 Suítes · 290m²</h1>
     </div>
+    <div class="header-center">
+      <select id="theme-select" title="Tema visual">
+        <option value="dark">🌙 Dark</option>
+        <option value="light">☀ Light</option>
+        <option value="blueprint">📐 Blueprint</option>
+        <option value="sepia">📜 Sepia</option>
+        <option value="mono">⬛ Mono</option>
+      </select>
+      <button id="btn-units" title="Alternar unidades">m</button>
+      <button id="btn-ruler" title="Mostrar régua">📏 Régua</button>
+      <button id="btn-stats" title="Estatísticas">📊</button>
+      <button id="btn-inventory" title="Inventário de itens">📋</button>
+      <button id="btn-shortcuts" title="Atalhos de teclado">⌨</button>
+      <button id="btn-fullscreen" title="Tela cheia (F)">⛶</button>
+    </div>
     <div class="header-actions">
-      <button id="btn-undo" title="Desfazer (Ctrl+Z)">↩ Desfazer</button>
-      <button id="btn-redo" title="Refazer (Ctrl+Y)">↪ Refazer</button>
-      <button id="btn-reset" class="btn-danger">🗑 Limpar tudo</button>
-      <button id="btn-export" class="btn-primary">⬇ Exportar PNG</button>
+      <button id="btn-undo" title="Desfazer (Ctrl+Z)">↩</button>
+      <button id="btn-redo" title="Refazer (Ctrl+Y)">↪</button>
+      <div class="btn-group">
+        <button id="btn-export-png" class="btn-primary" title="Exportar PNG">⬇ PNG</button>
+        <button id="btn-export-svg" title="Exportar SVG">SVG</button>
+        <button id="btn-export-json" title="Salvar JSON">JSON</button>
+        <button id="btn-import-json" title="Importar JSON">📂</button>
+        <button id="btn-print" title="Imprimir (Ctrl+P)">🖨</button>
+      </div>
+      <button id="btn-reset" class="btn-danger" title="Limpar tudo">🗑</button>
     </div>
   </header>
 
   <div class="app-body">
-    <!-- PAINEL ESQUERDO -->
+
+    <!-- ══ SIDEBAR ══════════════════════════════════════════════ -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-tabs">
-        <button class="tab-btn active" data-tab="moveis">🛋 Móveis</button>
-        <button class="tab-btn" data-tab="paredes">🧱 Paredes</button>
-        <button class="tab-btn" data-tab="quartos">🎨 Cômodos</button>
-        <button class="tab-btn" data-tab="config">⚙ Config</button>
+        <button class="tab-btn active" data-tab="moveis" title="Móveis">🛋</button>
+        <button class="tab-btn" data-tab="tecnico" title="Técnico">⚡</button>
+        <button class="tab-btn" data-tab="paredes" title="Paredes">🧱</button>
+        <button class="tab-btn" data-tab="quartos" title="Cômodos">🎨</button>
+        <button class="tab-btn" data-tab="anotacoes" title="Anotações">📌</button>
+        <button class="tab-btn" data-tab="config" title="Config">⚙</button>
       </div>
 
-      <!-- TAB MÓVEIS -->
+      <!-- ── TAB MÓVEIS ── -->
       <div class="tab-content active" id="tab-moveis">
-        <p class="tab-hint">Clique para selecionar, depois clique na planta para posicionar.</p>
+        <input type="text" id="furniture-search" placeholder="🔍 Buscar móvel..." class="search-input">
+        <div id="furniture-list">
+
+          <div class="furniture-section">
+            <h4>Sala / Estar</h4>
+            <div class="furniture-grid">
+              <div class="furniture-item" data-type="sofa-3" data-w="180" data-h="80" data-label="Sofá 3L" data-cat="sala"><div class="fi sofa3"></div><span>Sofá 3L</span></div>
+              <div class="furniture-item" data-type="sofa-2" data-w="130" data-h="80" data-label="Sofá 2L" data-cat="sala"><div class="fi sofa2"></div><span>Sofá 2L</span></div>
+              <div class="furniture-item" data-type="poltrona" data-w="80" data-h="80" data-label="Poltrona" data-cat="sala"><div class="fi poltrona"></div><span>Poltrona</span></div>
+              <div class="furniture-item" data-type="mesa-centro" data-w="100" data-h="60" data-label="Mesa Centro" data-cat="sala"><div class="fi mesa-centro"></div><span>Mesa Centro</span></div>
+              <div class="furniture-item" data-type="tv" data-w="130" data-h="18" data-label="TV" data-cat="sala"><div class="fi tv"></div><span>TV</span></div>
+              <div class="furniture-item" data-type="rack" data-w="130" data-h="40" data-label="Rack" data-cat="sala"><div class="fi rack"></div><span>Rack</span></div>
+              <div class="furniture-item" data-type="estante" data-w="120" data-h="35" data-label="Estante" data-cat="sala"><div class="fi estante"></div><span>Estante</span></div>
+              <div class="furniture-item" data-type="lareira" data-w="120" data-h="45" data-label="Lareira" data-cat="sala"><div class="fi lareira"></div><span>Lareira</span></div>
+              <div class="furniture-item" data-type="piano" data-w="150" data-h="80" data-label="Piano" data-cat="sala"><div class="fi piano"></div><span>Piano</span></div>
+              <div class="furniture-item" data-type="home-bar" data-w="120" data-h="50" data-label="Bar" data-cat="sala"><div class="fi home-bar"></div><span>Bar</span></div>
+              <div class="furniture-item" data-type="aquario" data-w="120" data-h="40" data-label="Aquário" data-cat="sala"><div class="fi aquario"></div><span>Aquário</span></div>
+              <div class="furniture-item" data-type="mesa-lateral" data-w="50" data-h="50" data-label="Mesa Lat." data-cat="sala"><div class="fi mesa-lateral"></div><span>Mesa Lat.</span></div>
+            </div>
+          </div>
+
+          <div class="furniture-section">
+            <h4>Quarto</h4>
+            <div class="furniture-grid">
+              <div class="furniture-item" data-type="cama-casal" data-w="140" data-h="190" data-label="Cama Casal" data-cat="quarto"><div class="fi cama-casal"></div><span>Cama Casal</span></div>
+              <div class="furniture-item" data-type="cama-queen" data-w="155" data-h="200" data-label="Cama Queen" data-cat="quarto"><div class="fi cama-casal"></div><span>Cama Queen</span></div>
+              <div class="furniture-item" data-type="cama-solteiro" data-w="100" data-h="190" data-label="Cama Solteiro" data-cat="quarto"><div class="fi cama-solteiro"></div><span>Solteiro</span></div>
+              <div class="furniture-item" data-type="beliche" data-w="100" data-h="190" data-label="Beliche" data-cat="quarto"><div class="fi beliche"></div><span>Beliche</span></div>
+              <div class="furniture-item" data-type="berco" data-w="80" data-h="130" data-label="Berço" data-cat="quarto"><div class="fi berco"></div><span>Berço</span></div>
+              <div class="furniture-item" data-type="guarda-roupa" data-w="160" data-h="55" data-label="Guarda-Roupa" data-cat="quarto"><div class="fi guarda-roupa"></div><span>Gd. Roupa</span></div>
+              <div class="furniture-item" data-type="criado-mudo" data-w="50" data-h="50" data-label="Criado-Mudo" data-cat="quarto"><div class="fi criado-mudo"></div><span>Criado</span></div>
+              <div class="furniture-item" data-type="escrivaninha" data-w="120" data-h="60" data-label="Escrivaninha" data-cat="quarto"><div class="fi escrivaninha"></div><span>Escrivaninha</span></div>
+              <div class="furniture-item" data-type="cofre" data-w="50" data-h="45" data-label="Cofre" data-cat="quarto"><div class="fi cofre"></div><span>Cofre</span></div>
+            </div>
+          </div>
+
+          <div class="furniture-section">
+            <h4>Cozinha / Jantar</h4>
+            <div class="furniture-grid">
+              <div class="furniture-item" data-type="mesa-jantar-8" data-w="200" data-h="100" data-label="Mesa 8L" data-cat="cozinha"><div class="fi mesa-jantar"></div><span>Mesa 8L</span></div>
+              <div class="furniture-item" data-type="mesa-jantar-6" data-w="160" data-h="90" data-label="Mesa 6L" data-cat="cozinha"><div class="fi mesa-jantar"></div><span>Mesa 6L</span></div>
+              <div class="furniture-item" data-type="mesa-jantar-4" data-w="120" data-h="80" data-label="Mesa 4L" data-cat="cozinha"><div class="fi mesa-jantar"></div><span>Mesa 4L</span></div>
+              <div class="furniture-item" data-type="mesa-redonda" data-w="100" data-h="100" data-label="Mesa Redonda" data-cat="cozinha"><div class="fi mesa-redonda"></div><span>Mesa Redonda</span></div>
+              <div class="furniture-item" data-type="cadeira" data-w="45" data-h="45" data-label="Cadeira" data-cat="cozinha"><div class="fi cadeira"></div><span>Cadeira</span></div>
+              <div class="furniture-item" data-type="bancada" data-w="120" data-h="55" data-label="Bancada" data-cat="cozinha"><div class="fi bancada"></div><span>Bancada</span></div>
+              <div class="furniture-item" data-type="ilha" data-w="100" data-h="70" data-label="Ilha" data-cat="cozinha"><div class="fi ilha"></div><span>Ilha</span></div>
+              <div class="furniture-item" data-type="fogao" data-w="60" data-h="60" data-label="Fogão" data-cat="cozinha"><div class="fi fogao"></div><span>Fogão</span></div>
+              <div class="furniture-item" data-type="forno" data-w="60" data-h="55" data-label="Forno" data-cat="cozinha"><div class="fi forno"></div><span>Forno</span></div>
+              <div class="furniture-item" data-type="geladeira" data-w="65" data-h="70" data-label="Geladeira" data-cat="cozinha"><div class="fi geladeira"></div><span>Geladeira</span></div>
+              <div class="furniture-item" data-type="lava-loucas" data-w="60" data-h="60" data-label="Lava-louças" data-cat="cozinha"><div class="fi lava-loucas"></div><span>Lava-louças</span></div>
+              <div class="furniture-item" data-type="microondas" data-w="55" data-h="40" data-label="Micro-ondas" data-cat="cozinha"><div class="fi microondas"></div><span>Micro-ondas</span></div>
+              <div class="furniture-item" data-type="adega" data-w="45" data-h="80" data-label="Adega" data-cat="cozinha"><div class="fi adega"></div><span>Adega</span></div>
+              <div class="furniture-item" data-type="cafeteira" data-w="35" data-h="30" data-label="Cafeteira" data-cat="cozinha"><div class="fi cafeteira"></div><span>Cafeteira</span></div>
+            </div>
+          </div>
+
+          <div class="furniture-section">
+            <h4>Banheiro / Lavabo</h4>
+            <div class="furniture-grid">
+              <div class="furniture-item" data-type="banheira" data-w="90" data-h="160" data-label="Banheira" data-cat="banheiro"><div class="fi banheira"></div><span>Banheira</span></div>
+              <div class="furniture-item" data-type="banheira-redonda" data-w="110" data-h="110" data-label="Banheira Redonda" data-cat="banheiro"><div class="fi banheira-redonda"></div><span>Banheira Red.</span></div>
+              <div class="furniture-item" data-type="chuveiro" data-w="80" data-h="80" data-label="Box/Chuveiro" data-cat="banheiro"><div class="fi chuveiro"></div><span>Box</span></div>
+              <div class="furniture-item" data-type="vaso" data-w="50" data-h="65" data-label="Vaso Sanitário" data-cat="banheiro"><div class="fi vaso"></div><span>Vaso</span></div>
+              <div class="furniture-item" data-type="pia" data-w="60" data-h="45" data-label="Pia" data-cat="banheiro"><div class="fi pia"></div><span>Pia</span></div>
+              <div class="furniture-item" data-type="bidet" data-w="40" data-h="55" data-label="Bidê" data-cat="banheiro"><div class="fi bidet"></div><span>Bidê</span></div>
+              <div class="furniture-item" data-type="maq-lavar" data-w="60" data-h="60" data-label="Máq. Lavar" data-cat="banheiro"><div class="fi maq-lavar"></div><span>Máq. Lavar</span></div>
+              <div class="furniture-item" data-type="secadora" data-w="60" data-h="60" data-label="Secadora" data-cat="banheiro"><div class="fi secadora"></div><span>Secadora</span></div>
+            </div>
+          </div>
+
+          <div class="furniture-section">
+            <h4>Academia / Escritório</h4>
+            <div class="furniture-grid">
+              <div class="furniture-item" data-type="esteira" data-w="90" data-h="170" data-label="Esteira" data-cat="academia"><div class="fi esteira"></div><span>Esteira</span></div>
+              <div class="furniture-item" data-type="bicicleta-erg" data-w="60" data-h="110" data-label="Bicicleta Erg." data-cat="academia"><div class="fi bicicleta-erg"></div><span>Bicicleta Erg.</span></div>
+              <div class="furniture-item" data-type="banco-musculacao" data-w="55" data-h="130" data-label="Banco Musculação" data-cat="academia"><div class="fi banco-musculacao"></div><span>Banco Musc.</span></div>
+              <div class="furniture-item" data-type="monitor" data-w="70" data-h="20" data-label="Monitor" data-cat="escritorio"><div class="fi monitor"></div><span>Monitor</span></div>
+              <div class="furniture-item" data-type="impressora" data-w="55" data-h="45" data-label="Impressora" data-cat="escritorio"><div class="fi impressora"></div><span>Impressora</span></div>
+              <div class="furniture-item" data-type="livreiro" data-w="100" data-h="35" data-label="Livreiro" data-cat="escritorio"><div class="fi livreiro"></div><span>Livreiro</span></div>
+            </div>
+          </div>
+
+          <div class="furniture-section">
+            <h4>Área Externa / Garagem</h4>
+            <div class="furniture-grid">
+              <div class="furniture-item" data-type="piscina" data-w="200" data-h="100" data-label="Piscina" data-cat="externo"><div class="fi piscina"></div><span>Piscina</span></div>
+              <div class="furniture-item" data-type="churrasqueira" data-w="80" data-h="80" data-label="Churrasqueira" data-cat="externo"><div class="fi churrasqueira"></div><span>Churrasqueira</span></div>
+              <div class="furniture-item" data-type="espreguicadeira" data-w="60" data-h="170" data-label="Espreguiçadeira" data-cat="externo"><div class="fi espreguicadeira"></div><span>Espreguiç.</span></div>
+              <div class="furniture-item" data-type="vaso-planta" data-w="40" data-h="40" data-label="Vaso de Planta" data-cat="externo"><div class="fi vaso-planta"></div><span>Planta</span></div>
+              <div class="furniture-item" data-type="rede" data-w="80" data-h="200" data-label="Rede" data-cat="externo"><div class="fi rede"></div><span>Rede</span></div>
+              <div class="furniture-item" data-type="sofa-externo" data-w="160" data-h="75" data-label="Sofá Externo" data-cat="externo"><div class="fi sofa2"></div><span>Sofá Externo</span></div>
+              <div class="furniture-item" data-type="aquecedor" data-w="40" data-h="80" data-label="Aquecedor" data-cat="externo"><div class="fi aquecedor"></div><span>Aquecedor</span></div>
+              <div class="furniture-item" data-type="ac-unit" data-w="90" data-h="25" data-label="Ar-condic." data-cat="externo"><div class="fi ac-unit"></div><span>Ar-condic.</span></div>
+              <div class="furniture-item" data-type="atv" data-w="110" data-h="70" data-label="ATV" data-cat="externo"><div class="fi atv"></div><span>ATV</span></div>
+              <div class="furniture-item" data-type="moto" data-w="80" data-h="200" data-label="Moto" data-cat="externo"><div class="fi moto"></div><span>Moto</span></div>
+              <div class="furniture-item" data-type="carro" data-w="200" data-h="420" data-label="Carro" data-cat="externo"><div class="fi carro"></div><span>Carro</span></div>
+              <div class="furniture-item" data-type="cama-pet" data-w="60" data-h="60" data-label="Cama Pet" data-cat="externo"><div class="fi cama-pet"></div><span>Cama Pet</span></div>
+            </div>
+          </div>
+
+        </div><!-- #furniture-list -->
+      </div>
+
+      <!-- ── TAB TÉCNICO ── -->
+      <div class="tab-content" id="tab-tecnico">
+        <p class="tab-hint">Símbolos técnicos — elétrica, hidráulica, climatização, segurança.</p>
         <div class="furniture-section">
-          <h4>Sala / Estar</h4>
+          <h4>Elétrica</h4>
           <div class="furniture-grid">
-            <div class="furniture-item" data-type="sofa-3" data-w="180" data-h="80" data-label="Sofá 3 lug.">
-              <div class="furn-icon sofa-3"></div><span>Sofá 3L</span>
-            </div>
-            <div class="furniture-item" data-type="sofa-2" data-w="130" data-h="80" data-label="Sofá 2 lug.">
-              <div class="furn-icon sofa-2"></div><span>Sofá 2L</span>
-            </div>
-            <div class="furniture-item" data-type="poltrona" data-w="80" data-h="80" data-label="Poltrona">
-              <div class="furn-icon poltrona"></div><span>Poltrona</span>
-            </div>
-            <div class="furniture-item" data-type="mesa-centro" data-w="100" data-h="60" data-label="Mesa Centro">
-              <div class="furn-icon mesa-centro"></div><span>Mesa Centro</span>
-            </div>
-            <div class="furniture-item" data-type="tv" data-w="120" data-h="20" data-label="TV">
-              <div class="furn-icon tv"></div><span>TV</span>
-            </div>
-            <div class="furniture-item" data-type="rack" data-w="120" data-h="40" data-label="Rack">
-              <div class="furn-icon rack"></div><span>Rack</span>
-            </div>
+            <div class="furniture-item" data-type="tomada" data-w="20" data-h="20" data-label="Tomada" data-cat="eletrica"><div class="fi sym tomada"></div><span>Tomada</span></div>
+            <div class="furniture-item" data-type="interruptor" data-w="18" data-h="18" data-label="Interruptor" data-cat="eletrica"><div class="fi sym interruptor"></div><span>Interruptor</span></div>
+            <div class="furniture-item" data-type="luminaria-teto" data-w="40" data-h="40" data-label="Luminária Teto" data-cat="eletrica"><div class="fi sym luminaria-teto"></div><span>Lum. Teto</span></div>
+            <div class="furniture-item" data-type="spot" data-w="25" data-h="25" data-label="Spot" data-cat="eletrica"><div class="fi sym spot"></div><span>Spot</span></div>
+            <div class="furniture-item" data-type="luminaria-piso" data-w="25" data-h="60" data-label="Luminária Piso" data-cat="eletrica"><div class="fi sym luminaria-piso"></div><span>Lum. Piso</span></div>
+            <div class="furniture-item" data-type="painel-eletrico" data-w="30" data-h="50" data-label="Painel Elétrico" data-cat="eletrica"><div class="fi sym painel-eletrico"></div><span>Painel Elét.</span></div>
           </div>
         </div>
         <div class="furniture-section">
-          <h4>Quarto</h4>
+          <h4>Climatização / Hidráulica</h4>
           <div class="furniture-grid">
-            <div class="furniture-item" data-type="cama-casal" data-w="140" data-h="190" data-label="Cama Casal">
-              <div class="furn-icon cama-casal"></div><span>Cama Casal</span>
-            </div>
-            <div class="furniture-item" data-type="cama-solteiro" data-w="100" data-h="190" data-label="Cama Solteiro">
-              <div class="furn-icon cama-solteiro"></div><span>Cama Solteiro</span>
-            </div>
-            <div class="furniture-item" data-type="guarda-roupa" data-w="160" data-h="55" data-label="Guarda-Roupa">
-              <div class="furn-icon guarda-roupa"></div><span>Guarda-Roupa</span>
-            </div>
-            <div class="furniture-item" data-type="criado-mudo" data-w="50" data-h="50" data-label="Criado-Mudo">
-              <div class="furn-icon criado-mudo"></div><span>Criado-Mudo</span>
-            </div>
-            <div class="furniture-item" data-type="escrivaninha" data-w="120" data-h="60" data-label="Escrivaninha">
-              <div class="furn-icon escrivaninha"></div><span>Escrivaninha</span>
-            </div>
+            <div class="furniture-item" data-type="difusor-ar" data-w="35" data-h="35" data-label="Difusor Ar" data-cat="hvac"><div class="fi sym difusor-ar"></div><span>Difusor Ar</span></div>
+            <div class="furniture-item" data-type="thermostat" data-w="22" data-h="22" data-label="Termostato" data-cat="hvac"><div class="fi sym thermostat"></div><span>Termostato</span></div>
+            <div class="furniture-item" data-type="dreno" data-w="20" data-h="20" data-label="Ralo/Dreno" data-cat="hvac"><div class="fi sym dreno"></div><span>Ralo</span></div>
+            <div class="furniture-item" data-type="regis-agua" data-w="20" data-h="20" data-label="Registro Água" data-cat="hvac"><div class="fi sym regis-agua"></div><span>Registro</span></div>
           </div>
         </div>
         <div class="furniture-section">
-          <h4>Cozinha / Jantar</h4>
+          <h4>Segurança / Smart</h4>
           <div class="furniture-grid">
-            <div class="furniture-item" data-type="mesa-jantar-6" data-w="160" data-h="90" data-label="Mesa Jantar 6L">
-              <div class="furn-icon mesa-jantar"></div><span>Mesa 6L</span>
-            </div>
-            <div class="furniture-item" data-type="mesa-jantar-4" data-w="120" data-h="80" data-label="Mesa Jantar 4L">
-              <div class="furn-icon mesa-jantar"></div><span>Mesa 4L</span>
-            </div>
-            <div class="furniture-item" data-type="cadeira" data-w="45" data-h="45" data-label="Cadeira">
-              <div class="furn-icon cadeira"></div><span>Cadeira</span>
-            </div>
-            <div class="furniture-item" data-type="bancada" data-w="120" data-h="55" data-label="Bancada">
-              <div class="furn-icon bancada"></div><span>Bancada</span>
-            </div>
-            <div class="furniture-item" data-type="ilha" data-w="100" data-h="70" data-label="Ilha Cozinha">
-              <div class="furn-icon ilha"></div><span>Ilha</span>
-            </div>
-            <div class="furniture-item" data-type="fogao" data-w="60" data-h="60" data-label="Fogão">
-              <div class="furn-icon fogao"></div><span>Fogão</span>
-            </div>
-            <div class="furniture-item" data-type="geladeira" data-w="65" data-h="70" data-label="Geladeira">
-              <div class="furn-icon geladeira"></div><span>Geladeira</span>
-            </div>
-          </div>
-        </div>
-        <div class="furniture-section">
-          <h4>Banheiro / Lavabo</h4>
-          <div class="furniture-grid">
-            <div class="furniture-item" data-type="banheira" data-w="90" data-h="160" data-label="Banheira">
-              <div class="furn-icon banheira"></div><span>Banheira</span>
-            </div>
-            <div class="furniture-item" data-type="chuveiro" data-w="80" data-h="80" data-label="Box/Chuveiro">
-              <div class="furn-icon chuveiro"></div><span>Box</span>
-            </div>
-            <div class="furniture-item" data-type="vaso" data-w="50" data-h="65" data-label="Vaso Sanitário">
-              <div class="furn-icon vaso"></div><span>Vaso</span>
-            </div>
-            <div class="furniture-item" data-type="pia" data-w="60" data-h="45" data-label="Pia">
-              <div class="furn-icon pia"></div><span>Pia</span>
-            </div>
-          </div>
-        </div>
-        <div class="furniture-section">
-          <h4>Área Externa / Lazer</h4>
-          <div class="furniture-grid">
-            <div class="furniture-item" data-type="piscina" data-w="200" data-h="100" data-label="Piscina">
-              <div class="furn-icon piscina"></div><span>Piscina</span>
-            </div>
-            <div class="furniture-item" data-type="churrasqueira" data-w="80" data-h="80" data-label="Churrasqueira">
-              <div class="furn-icon churrasqueira"></div><span>Churrasqueira</span>
-            </div>
-            <div class="furniture-item" data-type="espreguicadeira" data-w="60" data-h="170" data-label="Espreguiçadeira">
-              <div class="furn-icon espreguicadeira"></div><span>Espreguiç.</span>
-            </div>
-            <div class="furniture-item" data-type="vaso-planta" data-w="40" data-h="40" data-label="Vaso de Planta">
-              <div class="furn-icon vaso-planta"></div><span>Planta</span>
-            </div>
-            <div class="furniture-item" data-type="atv" data-w="100" data-h="70" data-label="ATV">
-              <div class="furn-icon atv"></div><span>ATV</span>
-            </div>
-            <div class="furniture-item" data-type="moto" data-w="80" data-h="200" data-label="Moto">
-              <div class="furn-icon moto"></div><span>Moto</span>
-            </div>
-            <div class="furniture-item" data-type="carro" data-w="200" data-h="440" data-label="Carro">
-              <div class="furn-icon carro"></div><span>Carro</span>
-            </div>
+            <div class="furniture-item" data-type="camera-seg" data-w="25" data-h="20" data-label="Câmera" data-cat="seguranca"><div class="fi sym camera-seg"></div><span>Câmera</span></div>
+            <div class="furniture-item" data-type="detector-fumaca" data-w="22" data-h="22" data-label="Detector Fumaça" data-cat="seguranca"><div class="fi sym detector-fumaca"></div><span>Det. Fumaça</span></div>
+            <div class="furniture-item" data-type="extintor" data-w="20" data-h="35" data-label="Extintor" data-cat="seguranca"><div class="fi sym extintor"></div><span>Extintor</span></div>
+            <div class="furniture-item" data-type="speaker" data-w="25" data-h="25" data-label="Caixa de Som" data-cat="smart"><div class="fi sym speaker"></div><span>Speaker</span></div>
+            <div class="furniture-item" data-type="router" data-w="30" data-h="25" data-label="Roteador WiFi" data-cat="smart"><div class="fi sym router"></div><span>WiFi</span></div>
+            <div class="furniture-item" data-type="smart-hub" data-w="25" data-h="25" data-label="Smart Hub" data-cat="smart"><div class="fi sym smart-hub"></div><span>Smart Hub</span></div>
           </div>
         </div>
       </div>
 
-      <!-- TAB PAREDES -->
+      <!-- ── TAB PAREDES ── -->
       <div class="tab-content" id="tab-paredes">
-        <p class="tab-hint">Clique e arraste na planta para desenhar paredes.</p>
+        <p class="tab-hint">Clique e arraste para desenhar paredes.</p>
         <div class="tool-options">
           <label>Espessura:</label>
           <select id="wall-thickness">
@@ -160,128 +210,305 @@
           <label>Cor:</label>
           <input type="color" id="wall-color" value="#444444">
         </div>
-        <button class="tool-btn active" id="btn-draw-wall">🧱 Desenhar Parede</button>
+        <button class="tool-btn" id="btn-draw-wall">🧱 Desenhar Parede</button>
         <button class="tool-btn" id="btn-draw-door">🚪 Adicionar Porta</button>
         <button class="tool-btn" id="btn-draw-window">🪟 Adicionar Janela</button>
+        <button class="tool-btn" id="btn-draw-sliding">↔ Porta Correr</button>
+        <button class="tool-btn" id="btn-draw-column">⬤ Coluna/Pilar</button>
+        <button class="tool-btn" id="btn-draw-stairs">╤ Escada</button>
         <hr>
         <button class="tool-btn btn-danger-soft" id="btn-delete-selected">🗑 Apagar Selecionado</button>
       </div>
 
-      <!-- TAB CÔMODOS -->
+      <!-- ── TAB CÔMODOS ── -->
       <div class="tab-content" id="tab-quartos">
-        <p class="tab-hint">Clique em um cômodo na planta para selecionar, depois aplique cores ou labels.</p>
+        <p class="tab-hint">Clique em um cômodo para selecionar.</p>
+        <div id="selected-room-info" class="selected-room-info" style="display:none">
+          <span id="selected-room-name">—</span>
+        </div>
         <div class="room-color-picker">
           <h4>Cor do cômodo</h4>
           <div class="color-palette">
-            <div class="color-swatch" data-color="#FFF8E1" style="background:#FFF8E1" title="Creme"></div>
-            <div class="color-swatch" data-color="#E3F2FD" style="background:#E3F2FD" title="Azul claro"></div>
-            <div class="color-swatch" data-color="#E8F5E9" style="background:#E8F5E9" title="Verde claro"></div>
-            <div class="color-swatch" data-color="#FCE4EC" style="background:#FCE4EC" title="Rosa claro"></div>
-            <div class="color-swatch" data-color="#F3E5F5" style="background:#F3E5F5" title="Lilás"></div>
-            <div class="color-swatch" data-color="#FFF3E0" style="background:#FFF3E0" title="Laranja claro"></div>
-            <div class="color-swatch" data-color="#E0F7FA" style="background:#E0F7FA" title="Cyan"></div>
-            <div class="color-swatch" data-color="#EFEBE9" style="background:#EFEBE9" title="Marrom claro"></div>
-            <div class="color-swatch" data-color="#F5F5F5" style="background:#F5F5F5" title="Cinza claro"></div>
-            <div class="color-swatch" data-color="#FFFFFF" style="background:#FFFFFF;border:1px solid #ccc" title="Branco"></div>
+            <div class="color-swatch" data-color="#FFF8E1" style="background:#FFF8E1"></div>
+            <div class="color-swatch" data-color="#E3F2FD" style="background:#E3F2FD"></div>
+            <div class="color-swatch" data-color="#E8F5E9" style="background:#E8F5E9"></div>
+            <div class="color-swatch" data-color="#FCE4EC" style="background:#FCE4EC"></div>
+            <div class="color-swatch" data-color="#F3E5F5" style="background:#F3E5F5"></div>
+            <div class="color-swatch" data-color="#FFF3E0" style="background:#FFF3E0"></div>
+            <div class="color-swatch" data-color="#E0F7FA" style="background:#E0F7FA"></div>
+            <div class="color-swatch" data-color="#EFEBE9" style="background:#EFEBE9"></div>
+            <div class="color-swatch" data-color="#F5F5F5" style="background:#F5F5F5"></div>
+            <div class="color-swatch" data-color="#FFFFFF" style="background:#fff;border:1px solid #ccc"></div>
           </div>
-          <label>Cor personalizada:</label>
-          <input type="color" id="room-custom-color" value="#ffffff">
+          <label>Personalizada: <input type="color" id="room-custom-color" value="#ffffff"></label>
           <button id="btn-apply-room-color" class="btn-primary">Aplicar cor</button>
+          <button id="btn-reset-room-color">Resetar cor</button>
+        </div>
+        <hr>
+        <div class="texture-section">
+          <h4>Textura do piso</h4>
+          <div class="texture-grid">
+            <div class="texture-item active" data-texture="none">Sem textura</div>
+            <div class="texture-item" data-texture="parquet">🪵 Parquet</div>
+            <div class="texture-item" data-texture="tiles">⬛ Cerâmica</div>
+            <div class="texture-item" data-texture="marble">◈ Mármore</div>
+            <div class="texture-item" data-texture="carpet">▦ Carpete</div>
+            <div class="texture-item" data-texture="concrete">▪ Concreto</div>
+          </div>
         </div>
         <hr>
         <div class="room-label-editor">
-          <h4>Label do cômodo selecionado</h4>
-          <input type="text" id="room-label-input" placeholder="Nome do cômodo..." maxlength="30">
-          <button id="btn-apply-room-label" class="btn-primary">Aplicar nome</button>
+          <h4>Nome do cômodo</h4>
+          <input type="text" id="room-label-input" placeholder="Nome personalizado...">
+          <button id="btn-apply-room-label" class="btn-primary">Aplicar</button>
         </div>
         <hr>
         <div class="toggle-group">
-          <label><input type="checkbox" id="toggle-room-labels" checked> Mostrar nomes dos cômodos</label>
+          <label><input type="checkbox" id="toggle-room-labels" checked> Mostrar nomes</label>
           <label><input type="checkbox" id="toggle-dimensions"> Mostrar dimensões</label>
+          <label><input type="checkbox" id="toggle-area-hover"> Área no hover</label>
         </div>
       </div>
 
-      <!-- TAB CONFIG -->
+      <!-- ── TAB ANOTAÇÕES ── -->
+      <div class="tab-content" id="tab-anotacoes">
+        <p class="tab-hint">Ferramentas de anotação e indicação.</p>
+        <div class="furniture-section">
+          <h4>Símbolos de planta</h4>
+          <div class="furniture-grid">
+            <div class="furniture-item" data-type="north-arrow" data-w="50" data-h="50" data-label="Norte"><div class="fi sym north-arrow"></div><span>Norte ↑</span></div>
+            <div class="furniture-item" data-type="scale-bar" data-w="120" data-h="25" data-label="Escala"><div class="fi sym scale-bar"></div><span>Escala</span></div>
+            <div class="furniture-item" data-type="room-badge" data-w="40" data-h="40" data-label="Nº 1"><div class="fi sym room-badge"></div><span>Número</span></div>
+            <div class="furniture-item" data-type="area-label" data-w="80" data-h="30" data-label="00.00 m²"><div class="fi sym area-label"></div><span>Área m²</span></div>
+          </div>
+        </div>
+        <div class="furniture-section">
+          <h4>Anotações</h4>
+          <div class="furniture-grid">
+            <div class="furniture-item" data-type="sticky-note" data-w="100" data-h="80" data-label="Nota"><div class="fi sym sticky-note"></div><span>Sticky Note</span></div>
+            <div class="furniture-item" data-type="arrow-annot" data-w="80" data-h="20" data-label="Seta"><div class="fi sym arrow-annot"></div><span>Seta</span></div>
+            <div class="furniture-item" data-type="circle-hl" data-w="60" data-h="60" data-label="Destaque"><div class="fi sym circle-hl"></div><span>Destaque</span></div>
+            <div class="furniture-item" data-type="dim-arrow" data-w="100" data-h="20" data-label="Cota"><div class="fi sym dim-arrow"></div><span>Cota</span></div>
+          </div>
+        </div>
+        <hr>
+        <button class="tool-btn active" id="btn-tool-text">T Adicionar Texto</button>
+        <button class="tool-btn" id="btn-tool-measure">📐 Medir Distância</button>
+      </div>
+
+      <!-- ── TAB CONFIG ── -->
       <div class="tab-content" id="tab-config">
-        <h4>Visual da planta</h4>
+        <h4>Visual</h4>
         <div class="config-group">
-          <label>Cor de fundo:</label>
-          <input type="color" id="cfg-bg-color" value="#f0ece4">
+          <label>Fundo do canvas:</label>
+          <input type="color" id="cfg-bg-color" value="#1a1a2e">
         </div>
         <div class="config-group">
-          <label>Cor das paredes:</label>
+          <label>Cor das paredes SVG:</label>
           <input type="color" id="cfg-wall-color" value="#2c2c2c">
         </div>
         <div class="config-group">
-          <label><input type="checkbox" id="cfg-grid" checked> Mostrar grade</label>
-        </div>
-        <div class="config-group">
+          <label><input type="checkbox" id="cfg-grid" checked> Grade</label>
           <label><input type="checkbox" id="cfg-snap"> Snap à grade</label>
+          <label><input type="checkbox" id="cfg-snap-obj"> Snap a objetos</label>
+          <label><input type="checkbox" id="cfg-shadows" checked> Sombras nos móveis</label>
         </div>
         <div class="config-group">
-          <label>Tamanho da grade (px):</label>
-          <input type="number" id="cfg-grid-size" value="20" min="10" max="50">
+          <label>Tamanho da grade:</label>
+          <input type="number" id="cfg-grid-size" value="20" min="5" max="100" style="width:70px"> px
         </div>
         <hr>
         <h4>Zoom</h4>
         <div class="zoom-controls">
-          <button id="btn-zoom-in">🔍+</button>
+          <button id="btn-zoom-in">+</button>
           <span id="zoom-level">100%</span>
-          <button id="btn-zoom-out">🔍-</button>
-          <button id="btn-zoom-reset">⊡ Reset</button>
+          <button id="btn-zoom-out">−</button>
+          <button id="btn-zoom-fit">⊡ Fit</button>
+          <button id="btn-zoom-sel">⊞ Sel</button>
         </div>
         <hr>
         <h4>Salvar / Carregar</h4>
-        <button id="btn-save" class="btn-primary">💾 Salvar layout</button>
-        <button id="btn-load">📂 Carregar layout</button>
-        <p class="tip">O layout é salvo no navegador (localStorage).</p>
+        <button id="btn-save" class="btn-primary">💾 Salvar (localStorage)</button>
+        <button id="btn-load">📂 Carregar</button>
+        <button id="btn-clear-storage" class="btn-danger-soft">🗑 Limpar storage</button>
+        <p class="tip">Salvo automaticamente a cada ação.</p>
       </div>
-    </aside>
+    </aside><!-- .sidebar -->
 
-    <!-- ÁREA PRINCIPAL -->
+    <!-- ══ CANVAS AREA ══════════════════════════════════════════ -->
     <main class="canvas-area" id="canvas-area">
+
+      <!-- Toolbar row 1: tools -->
       <div class="canvas-toolbar">
-        <button class="mode-btn active" id="tool-select" title="Selecionar / Mover (V)">↖ Selecionar</button>
-        <button class="mode-btn" id="tool-wall" title="Desenhar Parede (W)">🧱 Parede</button>
-        <button class="mode-btn" id="tool-door" title="Porta (D)">🚪 Porta</button>
-        <button class="mode-btn" id="tool-window" title="Janela (N)">🪟 Janela</button>
-        <button class="mode-btn" id="tool-text" title="Texto (T)">T Texto</button>
-        <button class="mode-btn" id="tool-erase" title="Apagar (E)">✕ Apagar</button>
+        <button class="mode-btn active" id="tool-select" title="Selecionar (V)">↖</button>
+        <button class="mode-btn" id="tool-wall" title="Parede (W)">🧱</button>
+        <button class="mode-btn" id="tool-door" title="Porta (D)">🚪</button>
+        <button class="mode-btn" id="tool-window" title="Janela (N)">🪟</button>
+        <button class="mode-btn" id="tool-text" title="Texto (T)">T</button>
+        <button class="mode-btn" id="tool-measure" title="Medir (M)">📐</button>
+        <button class="mode-btn" id="tool-erase" title="Apagar (E)">✕</button>
         <div class="separator"></div>
-        <span class="hint-text" id="toolbar-hint">Clique em um móvel no painel para colocar na planta</span>
+        <!-- Align (shown when ≥2 selected) -->
+        <div class="align-group" id="align-group" style="opacity:.3;pointer-events:none">
+          <button id="align-left" title="Alinhar esquerda">⊢L</button>
+          <button id="align-center-h" title="Centralizar horizontal">⊥H</button>
+          <button id="align-right" title="Alinhar direita">R⊣</button>
+          <button id="align-top" title="Alinhar topo">⊤T</button>
+          <button id="align-center-v" title="Centralizar vertical">⊥V</button>
+          <button id="align-bottom" title="Alinhar base">B⊥</button>
+          <button id="dist-h" title="Distribuir horizontal">↔</button>
+          <button id="dist-v" title="Distribuir vertical">↕</button>
+          <div class="separator"></div>
+          <button id="btn-group" title="Agrupar (Ctrl+G)">⊞G</button>
+          <button id="btn-ungroup" title="Desagrupar (Ctrl+Shift+G)">⊟UG</button>
+        </div>
+        <div class="separator"></div>
+        <div class="z-group">
+          <button id="z-front" title="Trazer à frente">⬆⬆</button>
+          <button id="z-up" title="Subir nível">⬆</button>
+          <button id="z-down" title="Descer nível">⬇</button>
+          <button id="z-back" title="Enviar atrás">⬇⬇</button>
+        </div>
+        <div class="separator"></div>
+        <span class="hint-text" id="toolbar-hint">↖ Selecione uma ferramenta ou móvel</span>
+        <div class="separator" style="flex:1"></div>
+        <span id="selection-info" style="font-size:11px;color:#c9a84c"></span>
       </div>
+
+      <!-- Canvas wrapper with ruler -->
       <div class="canvas-wrapper" id="canvas-wrapper">
-        <canvas id="grid-canvas"></canvas>
-        <svg id="floor-plan-svg" xmlns="http://www.w3.org/2000/svg"></svg>
-        <canvas id="interaction-canvas"></canvas>
+        <div class="ruler-corner"></div>
+        <canvas id="ruler-h-canvas" class="ruler-h-canvas"></canvas>
+        <canvas id="ruler-v-canvas" class="ruler-v-canvas"></canvas>
+        <div class="canvas-inner" id="canvas-inner">
+          <canvas id="grid-canvas"></canvas>
+          <svg id="floor-plan-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+          <canvas id="interaction-canvas"></canvas>
+        </div>
+        <!-- Minimap -->
+        <div class="minimap" id="minimap">
+          <canvas id="minimap-canvas" width="180" height="115"></canvas>
+          <div class="minimap-vp" id="minimap-vp"></div>
+        </div>
+        <!-- Hover area tooltip -->
+        <div class="area-tooltip" id="area-tooltip" style="display:none"></div>
       </div>
-      <!-- Propriedades do item selecionado -->
+
+      <!-- Properties bar -->
       <div class="properties-bar" id="properties-bar" style="display:none">
         <span id="prop-label">Item</span>
-        <label>Rot: <input type="number" id="prop-rotation" value="0" min="0" max="359" step="45" style="width:60px"> °</label>
-        <label>W: <input type="number" id="prop-width" value="100" min="10" style="width:60px"> px</label>
-        <label>H: <input type="number" id="prop-height" value="100" min="10" style="width:60px"> px</label>
-        <button id="prop-flip-h">↔ Espelhar H</button>
-        <button id="prop-flip-v">↕ Espelhar V</button>
-        <button id="prop-duplicate">⎘ Duplicar</button>
-        <button id="prop-delete" class="btn-danger">✕ Apagar</button>
+        <label title="Rotação">⟳ <input type="number" id="prop-rotation" value="0" min="0" max="359" step="45" style="width:52px">°</label>
+        <label>W: <input type="number" id="prop-width" value="100" min="1" style="width:52px"></label>
+        <label>H: <input type="number" id="prop-height" value="100" min="1" style="width:52px"></label>
+        <label title="Opacidade">α: <input type="range" id="prop-opacity" min="10" max="100" value="100" style="width:70px"></label>
+        <label><input type="color" id="prop-fill-color" value="#c8a96e" title="Cor do item"></label>
+        <div class="separator" style="height:20px;background:var(--border);width:1px;margin:0 4px"></div>
+        <button id="prop-flip-h" title="Espelhar H">↔</button>
+        <button id="prop-flip-v" title="Espelhar V">↕</button>
+        <button id="prop-rotate90" title="Girar 90°">↻90</button>
+        <button id="prop-duplicate" title="Duplicar (Ctrl+D)">⎘</button>
+        <button id="prop-lock" title="Travar/Destravar">🔓</button>
+        <button id="prop-visible" title="Ocultar/Mostrar">👁</button>
+        <button id="prop-delete" class="btn-danger" title="Apagar (Del)">✕</button>
       </div>
     </main>
+  </div><!-- .app-body -->
+
+  <!-- ══ CONTEXT MENU ════════════════════════════════════════════ -->
+  <div class="context-menu" id="context-menu">
+    <div class="ctx-item" data-action="copy">📋 Copiar (Ctrl+C)</div>
+    <div class="ctx-item" data-action="cut">✂ Recortar (Ctrl+X)</div>
+    <div class="ctx-item" data-action="paste">📌 Colar (Ctrl+V)</div>
+    <hr>
+    <div class="ctx-item" data-action="duplicate">⎘ Duplicar</div>
+    <div class="ctx-item" data-action="select-all">⊞ Selecionar Tudo</div>
+    <hr>
+    <div class="ctx-item" data-action="to-front">⬆⬆ Trazer à frente</div>
+    <div class="ctx-item" data-action="to-back">⬇⬇ Enviar atrás</div>
+    <hr>
+    <div class="ctx-item" data-action="lock">🔒 Travar</div>
+    <div class="ctx-item" data-action="hide">👁 Ocultar</div>
+    <hr>
+    <div class="ctx-item ctx-danger" data-action="delete">🗑 Apagar</div>
   </div>
 
-  <!-- TEXT TOOL MODAL -->
-  <div class="modal" id="text-modal" style="display:none">
+  <!-- ══ TEXT TOOL MODAL ═════════════════════════════════════════ -->
+  <div class="modal" id="text-modal">
     <div class="modal-content">
       <h3>Adicionar Texto</h3>
-      <input type="text" id="text-input" placeholder="Digite o texto..." maxlength="60">
-      <label>Tamanho: <input type="number" id="text-size" value="14" min="8" max="48"> px</label>
-      <label>Cor: <input type="color" id="text-color" value="#333333"></label>
+      <input type="text" id="text-input" placeholder="Digite o texto..." maxlength="80">
+      <div class="modal-row">
+        <label>Tamanho: <input type="number" id="text-size" value="14" min="8" max="72"> px</label>
+        <label>Cor: <input type="color" id="text-color" value="#eaeaea"></label>
+        <label>Negrito: <input type="checkbox" id="text-bold"></label>
+      </div>
       <div class="modal-actions">
         <button id="text-confirm" class="btn-primary">OK</button>
         <button id="text-cancel">Cancelar</button>
       </div>
     </div>
   </div>
+
+  <!-- ══ STATS MODAL ═════════════════════════════════════════════ -->
+  <div class="modal" id="stats-modal">
+    <div class="modal-content large">
+      <h3>📊 Estatísticas da Planta</h3>
+      <div id="stats-content"></div>
+      <div class="modal-actions"><button id="close-stats" class="btn-primary">Fechar</button></div>
+    </div>
+  </div>
+
+  <!-- ══ INVENTORY MODAL ════════════════════════════════════════ -->
+  <div class="modal" id="inventory-modal">
+    <div class="modal-content large">
+      <h3>📋 Inventário de Itens</h3>
+      <div id="inventory-content"></div>
+      <div class="modal-actions"><button id="close-inventory" class="btn-primary">Fechar</button></div>
+    </div>
+  </div>
+
+  <!-- ══ SHORTCUTS MODAL ════════════════════════════════════════ -->
+  <div class="modal" id="shortcuts-modal">
+    <div class="modal-content large">
+      <h3>⌨ Atalhos de Teclado</h3>
+      <div class="shortcuts-grid">
+        <div class="sc-col">
+          <div class="sc-row"><kbd>V</kbd> / <kbd>Esc</kbd> Selecionar</div>
+          <div class="sc-row"><kbd>W</kbd> Parede</div>
+          <div class="sc-row"><kbd>D</kbd> Porta</div>
+          <div class="sc-row"><kbd>N</kbd> Janela</div>
+          <div class="sc-row"><kbd>T</kbd> Texto</div>
+          <div class="sc-row"><kbd>M</kbd> Medir</div>
+          <div class="sc-row"><kbd>E</kbd> Apagar</div>
+          <div class="sc-row"><kbd>R</kbd> Girar 45°</div>
+        </div>
+        <div class="sc-col">
+          <div class="sc-row"><kbd>Ctrl+Z</kbd> Desfazer</div>
+          <div class="sc-row"><kbd>Ctrl+Y</kbd> Refazer</div>
+          <div class="sc-row"><kbd>Ctrl+A</kbd> Sel. tudo</div>
+          <div class="sc-row"><kbd>Ctrl+C</kbd> Copiar</div>
+          <div class="sc-row"><kbd>Ctrl+X</kbd> Recortar</div>
+          <div class="sc-row"><kbd>Ctrl+V</kbd> Colar</div>
+          <div class="sc-row"><kbd>Ctrl+D</kbd> Duplicar</div>
+          <div class="sc-row"><kbd>Ctrl+G</kbd> Agrupar</div>
+        </div>
+        <div class="sc-col">
+          <div class="sc-row"><kbd>Del</kbd> Apagar sel.</div>
+          <div class="sc-row"><kbd>F</kbd> Fit / ajustar</div>
+          <div class="sc-row"><kbd>↑↓←→</kbd> Mover 1px</div>
+          <div class="sc-row"><kbd>Shift+↑↓←→</kbd> Mover 10px</div>
+          <div class="sc-row"><kbd>Scroll</kbd> Zoom</div>
+          <div class="sc-row"><kbd>Alt+Drag</kbd> Mover planta</div>
+          <div class="sc-row"><kbd>F11</kbd> Tela cheia</div>
+          <div class="sc-row"><kbd>Ctrl+P</kbd> Imprimir</div>
+        </div>
+      </div>
+      <div class="modal-actions"><button id="close-shortcuts" class="btn-primary">Fechar</button></div>
+    </div>
+  </div>
+
+  <!-- ══ HIDDEN FILE INPUT ══════════════════════════════════════ -->
+  <input type="file" id="import-file-input" accept=".json" style="display:none">
 
   <script src="floorplan.js"></script>
   <script src="app.js"></script>
