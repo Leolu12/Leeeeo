@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planta Apartamento 290m² — Customizador</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <span class="logo">⬛</span>
+      <h1>Planta Tipo · 3 Suítes · 290m²</h1>
+    </div>
+    <div class="header-actions">
+      <button id="btn-undo" title="Desfazer (Ctrl+Z)">↩ Desfazer</button>
+      <button id="btn-redo" title="Refazer (Ctrl+Y)">↪ Refazer</button>
+      <button id="btn-reset" class="btn-danger">🗑 Limpar tudo</button>
+      <button id="btn-export" class="btn-primary">⬇ Exportar PNG</button>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <!-- PAINEL ESQUERDO -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-tabs">
+        <button class="tab-btn active" data-tab="moveis">🛋 Móveis</button>
+        <button class="tab-btn" data-tab="paredes">🧱 Paredes</button>
+        <button class="tab-btn" data-tab="quartos">🎨 Cômodos</button>
+        <button class="tab-btn" data-tab="config">⚙ Config</button>
+      </div>
+
+      <!-- TAB MÓVEIS -->
+      <div class="tab-content active" id="tab-moveis">
+        <p class="tab-hint">Clique para selecionar, depois clique na planta para posicionar.</p>
+        <div class="furniture-section">
+          <h4>Sala / Estar</h4>
+          <div class="furniture-grid">
+            <div class="furniture-item" data-type="sofa-3" data-w="180" data-h="80" data-label="Sofá 3 lug.">
+              <div class="furn-icon sofa-3"></div><span>Sofá 3L</span>
+            </div>
+            <div class="furniture-item" data-type="sofa-2" data-w="130" data-h="80" data-label="Sofá 2 lug.">
+              <div class="furn-icon sofa-2"></div><span>Sofá 2L</span>
+            </div>
+            <div class="furniture-item" data-type="poltrona" data-w="80" data-h="80" data-label="Poltrona">
+              <div class="furn-icon poltrona"></div><span>Poltrona</span>
+            </div>
+            <div class="furniture-item" data-type="mesa-centro" data-w="100" data-h="60" data-label="Mesa Centro">
+              <div class="furn-icon mesa-centro"></div><span>Mesa Centro</span>
+            </div>
+            <div class="furniture-item" data-type="tv" data-w="120" data-h="20" data-label="TV">
+              <div class="furn-icon tv"></div><span>TV</span>
+            </div>
+            <div class="furniture-item" data-type="rack" data-w="120" data-h="40" data-label="Rack">
+              <div class="furn-icon rack"></div><span>Rack</span>
+            </div>
+          </div>
+        </div>
+        <div class="furniture-section">
+          <h4>Quarto</h4>
+          <div class="furniture-grid">
+            <div class="furniture-item" data-type="cama-casal" data-w="140" data-h="190" data-label="Cama Casal">
+              <div class="furn-icon cama-casal"></div><span>Cama Casal</span>
+            </div>
+            <div class="furniture-item" data-type="cama-solteiro" data-w="100" data-h="190" data-label="Cama Solteiro">
+              <div class="furn-icon cama-solteiro"></div><span>Cama Solteiro</span>
+            </div>
+            <div class="furniture-item" data-type="guarda-roupa" data-w="160" data-h="55" data-label="Guarda-Roupa">
+              <div class="furn-icon guarda-roupa"></div><span>Guarda-Roupa</span>
+            </div>
+            <div class="furniture-item" data-type="criado-mudo" data-w="50" data-h="50" data-label="Criado-Mudo">
+              <div class="furn-icon criado-mudo"></div><span>Criado-Mudo</span>
+            </div>
+            <div class="furniture-item" data-type="escrivaninha" data-w="120" data-h="60" data-label="Escrivaninha">
+              <div class="furn-icon escrivaninha"></div><span>Escrivaninha</span>
+            </div>
+          </div>
+        </div>
+        <div class="furniture-section">
+          <h4>Cozinha / Jantar</h4>
+          <div class="furniture-grid">
+            <div class="furniture-item" data-type="mesa-jantar-6" data-w="160" data-h="90" data-label="Mesa Jantar 6L">
+              <div class="furn-icon mesa-jantar"></div><span>Mesa 6L</span>
+            </div>
+            <div class="furniture-item" data-type="mesa-jantar-4" data-w="120" data-h="80" data-label="Mesa Jantar 4L">
+              <div class="furn-icon mesa-jantar"></div><span>Mesa 4L</span>
+            </div>
+            <div class="furniture-item" data-type="cadeira" data-w="45" data-h="45" data-label="Cadeira">
+              <div class="furn-icon cadeira"></div><span>Cadeira</span>
+            </div>
+            <div class="furniture-item" data-type="bancada" data-w="120" data-h="55" data-label="Bancada">
+              <div class="furn-icon bancada"></div><span>Bancada</span>
+            </div>
+            <div class="furniture-item" data-type="ilha" data-w="100" data-h="70" data-label="Ilha Cozinha">
+              <div class="furn-icon ilha"></div><span>Ilha</span>
+            </div>
+            <div class="furniture-item" data-type="fogao" data-w="60" data-h="60" data-label="Fogão">
+              <div class="furn-icon fogao"></div><span>Fogão</span>
+            </div>
+            <div class="furniture-item" data-type="geladeira" data-w="65" data-h="70" data-label="Geladeira">
+              <div class="furn-icon geladeira"></div><span>Geladeira</span>
+            </div>
+          </div>
+        </div>
+        <div class="furniture-section">
+          <h4>Banheiro / Lavabo</h4>
+          <div class="furniture-grid">
+            <div class="furniture-item" data-type="banheira" data-w="90" data-h="160" data-label="Banheira">
+              <div class="furn-icon banheira"></div><span>Banheira</span>
+            </div>
+            <div class="furniture-item" data-type="chuveiro" data-w="80" data-h="80" data-label="Box/Chuveiro">
+              <div class="furn-icon chuveiro"></div><span>Box</span>
+            </div>
+            <div class="furniture-item" data-type="vaso" data-w="50" data-h="65" data-label="Vaso Sanitário">
+              <div class="furn-icon vaso"></div><span>Vaso</span>
+            </div>
+            <div class="furniture-item" data-type="pia" data-w="60" data-h="45" data-label="Pia">
+              <div class="furn-icon pia"></div><span>Pia</span>
+            </div>
+          </div>
+        </div>
+        <div class="furniture-section">
+          <h4>Área Externa / Lazer</h4>
+          <div class="furniture-grid">
+            <div class="furniture-item" data-type="piscina" data-w="200" data-h="100" data-label="Piscina">
+              <div class="furn-icon piscina"></div><span>Piscina</span>
+            </div>
+            <div class="furniture-item" data-type="churrasqueira" data-w="80" data-h="80" data-label="Churrasqueira">
+              <div class="furn-icon churrasqueira"></div><span>Churrasqueira</span>
+            </div>
+            <div class="furniture-item" data-type="espreguicadeira" data-w="60" data-h="170" data-label="Espreguiçadeira">
+              <div class="furn-icon espreguicadeira"></div><span>Espreguiç.</span>
+            </div>
+            <div class="furniture-item" data-type="vaso-planta" data-w="40" data-h="40" data-label="Vaso de Planta">
+              <div class="furn-icon vaso-planta"></div><span>Planta</span>
+            </div>
+            <div class="furniture-item" data-type="atv" data-w="100" data-h="70" data-label="ATV">
+              <div class="furn-icon atv"></div><span>ATV</span>
+            </div>
+            <div class="furniture-item" data-type="moto" data-w="80" data-h="200" data-label="Moto">
+              <div class="furn-icon moto"></div><span>Moto</span>
+            </div>
+            <div class="furniture-item" data-type="carro" data-w="200" data-h="440" data-label="Carro">
+              <div class="furn-icon carro"></div><span>Carro</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB PAREDES -->
+      <div class="tab-content" id="tab-paredes">
+        <p class="tab-hint">Clique e arraste na planta para desenhar paredes.</p>
+        <div class="tool-options">
+          <label>Espessura:</label>
+          <select id="wall-thickness">
+            <option value="8">Fina (8px)</option>
+            <option value="15" selected>Normal (15px)</option>
+            <option value="25">Grossa (25px)</option>
+          </select>
+          <label>Cor:</label>
+          <input type="color" id="wall-color" value="#444444">
+        </div>
+        <button class="tool-btn active" id="btn-draw-wall">🧱 Desenhar Parede</button>
+        <button class="tool-btn" id="btn-draw-door">🚪 Adicionar Porta</button>
+        <button class="tool-btn" id="btn-draw-window">🪟 Adicionar Janela</button>
+        <hr>
+        <button class="tool-btn btn-danger-soft" id="btn-delete-selected">🗑 Apagar Selecionado</button>
+      </div>
+
+      <!-- TAB CÔMODOS -->
+      <div class="tab-content" id="tab-quartos">
+        <p class="tab-hint">Clique em um cômodo na planta para selecionar, depois aplique cores ou labels.</p>
+        <div class="room-color-picker">
+          <h4>Cor do cômodo</h4>
+          <div class="color-palette">
+            <div class="color-swatch" data-color="#FFF8E1" style="background:#FFF8E1" title="Creme"></div>
+            <div class="color-swatch" data-color="#E3F2FD" style="background:#E3F2FD" title="Azul claro"></div>
+            <div class="color-swatch" data-color="#E8F5E9" style="background:#E8F5E9" title="Verde claro"></div>
+            <div class="color-swatch" data-color="#FCE4EC" style="background:#FCE4EC" title="Rosa claro"></div>
+            <div class="color-swatch" data-color="#F3E5F5" style="background:#F3E5F5" title="Lilás"></div>
+            <div class="color-swatch" data-color="#FFF3E0" style="background:#FFF3E0" title="Laranja claro"></div>
+            <div class="color-swatch" data-color="#E0F7FA" style="background:#E0F7FA" title="Cyan"></div>
+            <div class="color-swatch" data-color="#EFEBE9" style="background:#EFEBE9" title="Marrom claro"></div>
+            <div class="color-swatch" data-color="#F5F5F5" style="background:#F5F5F5" title="Cinza claro"></div>
+            <div class="color-swatch" data-color="#FFFFFF" style="background:#FFFFFF;border:1px solid #ccc" title="Branco"></div>
+          </div>
+          <label>Cor personalizada:</label>
+          <input type="color" id="room-custom-color" value="#ffffff">
+          <button id="btn-apply-room-color" class="btn-primary">Aplicar cor</button>
+        </div>
+        <hr>
+        <div class="room-label-editor">
+          <h4>Label do cômodo selecionado</h4>
+          <input type="text" id="room-label-input" placeholder="Nome do cômodo..." maxlength="30">
+          <button id="btn-apply-room-label" class="btn-primary">Aplicar nome</button>
+        </div>
+        <hr>
+        <div class="toggle-group">
+          <label><input type="checkbox" id="toggle-room-labels" checked> Mostrar nomes dos cômodos</label>
+          <label><input type="checkbox" id="toggle-dimensions"> Mostrar dimensões</label>
+        </div>
+      </div>
+
+      <!-- TAB CONFIG -->
+      <div class="tab-content" id="tab-config">
+        <h4>Visual da planta</h4>
+        <div class="config-group">
+          <label>Cor de fundo:</label>
+          <input type="color" id="cfg-bg-color" value="#f0ece4">
+        </div>
+        <div class="config-group">
+          <label>Cor das paredes:</label>
+          <input type="color" id="cfg-wall-color" value="#2c2c2c">
+        </div>
+        <div class="config-group">
+          <label><input type="checkbox" id="cfg-grid" checked> Mostrar grade</label>
+        </div>
+        <div class="config-group">
+          <label><input type="checkbox" id="cfg-snap"> Snap à grade</label>
+        </div>
+        <div class="config-group">
+          <label>Tamanho da grade (px):</label>
+          <input type="number" id="cfg-grid-size" value="20" min="10" max="50">
+        </div>
+        <hr>
+        <h4>Zoom</h4>
+        <div class="zoom-controls">
+          <button id="btn-zoom-in">🔍+</button>
+          <span id="zoom-level">100%</span>
+          <button id="btn-zoom-out">🔍-</button>
+          <button id="btn-zoom-reset">⊡ Reset</button>
+        </div>
+        <hr>
+        <h4>Salvar / Carregar</h4>
+        <button id="btn-save" class="btn-primary">💾 Salvar layout</button>
+        <button id="btn-load">📂 Carregar layout</button>
+        <p class="tip">O layout é salvo no navegador (localStorage).</p>
+      </div>
+    </aside>
+
+    <!-- ÁREA PRINCIPAL -->
+    <main class="canvas-area" id="canvas-area">
+      <div class="canvas-toolbar">
+        <button class="mode-btn active" id="tool-select" title="Selecionar / Mover (V)">↖ Selecionar</button>
+        <button class="mode-btn" id="tool-wall" title="Desenhar Parede (W)">🧱 Parede</button>
+        <button class="mode-btn" id="tool-door" title="Porta (D)">🚪 Porta</button>
+        <button class="mode-btn" id="tool-window" title="Janela (N)">🪟 Janela</button>
+        <button class="mode-btn" id="tool-text" title="Texto (T)">T Texto</button>
+        <button class="mode-btn" id="tool-erase" title="Apagar (E)">✕ Apagar</button>
+        <div class="separator"></div>
+        <span class="hint-text" id="toolbar-hint">Clique em um móvel no painel para colocar na planta</span>
+      </div>
+      <div class="canvas-wrapper" id="canvas-wrapper">
+        <canvas id="grid-canvas"></canvas>
+        <svg id="floor-plan-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+        <canvas id="interaction-canvas"></canvas>
+      </div>
+      <!-- Propriedades do item selecionado -->
+      <div class="properties-bar" id="properties-bar" style="display:none">
+        <span id="prop-label">Item</span>
+        <label>Rot: <input type="number" id="prop-rotation" value="0" min="0" max="359" step="45" style="width:60px"> °</label>
+        <label>W: <input type="number" id="prop-width" value="100" min="10" style="width:60px"> px</label>
+        <label>H: <input type="number" id="prop-height" value="100" min="10" style="width:60px"> px</label>
+        <button id="prop-flip-h">↔ Espelhar H</button>
+        <button id="prop-flip-v">↕ Espelhar V</button>
+        <button id="prop-duplicate">⎘ Duplicar</button>
+        <button id="prop-delete" class="btn-danger">✕ Apagar</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- TEXT TOOL MODAL -->
+  <div class="modal" id="text-modal" style="display:none">
+    <div class="modal-content">
+      <h3>Adicionar Texto</h3>
+      <input type="text" id="text-input" placeholder="Digite o texto..." maxlength="60">
+      <label>Tamanho: <input type="number" id="text-size" value="14" min="8" max="48"> px</label>
+      <label>Cor: <input type="color" id="text-color" value="#333333"></label>
+      <div class="modal-actions">
+        <button id="text-confirm" class="btn-primary">OK</button>
+        <button id="text-cancel">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="floorplan.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
