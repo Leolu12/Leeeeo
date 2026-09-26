@@ -32,6 +32,8 @@
     this.askedHuman = false;
     this.alibi = null;
     this.committed = null;
+    this.verify = null;
+    this.offered = null;
     const body = mt.info.body;
     if (body && (this.mem.bodies.some((b) => b.id === body.id) || mt.info.caller === p.id)) {
       this.knowsBody = body.area;
@@ -80,6 +82,8 @@
     for (const id of Object.keys(tog)) if (tog[id] >= 20) add(+id, -12, 'together', { secs: tog[id] });
     /* comportamento estranho durante a rodada (chamou para seguir e enrolou, ficou na cola) */
     for (const id of Object.keys(this.fieldSus || {})) if (this.fieldSus[id] >= 6) add(+id, Math.min(22, this.fieldSus[id]), 'odd');
+    /* prometeu provar com tarefa visual, foi seguido e não provou */
+    for (const e of this.mem.events) if (e.type === 'noProof' && e.t >= rs) add(e.who, 16, 'noProof');
     /* "fiquei sozinho com ele e ele não me matou" */
     const alone = this.aloneWith || {};
     for (const id of Object.keys(alone)) if (alone[id] >= 6) add(+id, -9, 'spared', { secs: alone[id] });
@@ -322,7 +326,7 @@
     if ((pers.leader || pers.skeptic) && U.chance(0.7)) items.push({ k: 'leaderVote', late: true });
     const firstPri = items.filter((it) => ['reportInfo', 'reportDetail', 'callReason', 'organize'].includes(it.k) || (it.k === 'accuse' && STRONG[it.reason]));
     const rest = items.filter((it) => !firstPri.includes(it));
-    const keep = rest.filter((it) => it.k === 'claimLoc' || it.k === 'bodyIntel' || U.chance(0.35 + pers.talk * 0.6));
+    const keep = rest.filter((it) => it.k === 'claimLoc' || it.k === 'bodyIntel' || (it.k === 'vouch' && it.reason === 'visual') || U.chance(0.35 + pers.talk * 0.6));
     return firstPri.concat(keep.filter((it) => !it.late), keep.filter((it) => it.late));
   };
 
@@ -524,6 +528,8 @@
       case 'vouch': {
         const q = g.players[it.who];
         if (!q || !q.alive) return null;
+        const escorted = it.reason === 'visual' && this.mem.events.some((e) => (e.type === 'escortVisual' || e.type === 'escort') && e.who === it.who && e.t >= this.rs);
+        if (escorted) return msg('sawVisualSafe', { who: it.who, task: it.task }, [{ type: 'vouch', who: it.who, reason: 'visual', task: it.task }]);
         return msg('vouch', it, [{ type: 'vouch', who: it.who, reason: it.reason, task: it.task }]);
       }
       case 'vitals': {
@@ -765,6 +771,23 @@
       case 'quiet':
         if (it.who !== me) this.bump(it.who, 3, 'social');
         break;
+      case 'offerVisual': {
+        if (S === me || p.isImp || !g.S.rules.visualTasks) break;
+        if (this.offered) this.offered.to.push(S);
+        /* quem desconfia topa quase sempre; os outros às vezes (no máximo dois vão junto) */
+        const doubt = (this.susp[S] || 0) >= 12 || (mt.accusers[S] && mt.accusers[S][me]) || pers.skeptic || pers.leader;
+        const n = mt.flags['verN' + S] || 0;
+        if (!this.verify && n < 2 && U.chance(doubt ? 0.85 : 0.25 + pers.talk * 0.25)) {
+          mt.flags['verN' + S] = n + 1;
+          this.verify = { who: S };
+          this.bump(S, -3, 'social');
+          if (!mt.flags['willF' + S] && U.chance(0.7)) {
+            mt.flags['willF' + S] = true;
+            this.reply(0.9, () => say('willFollow', { who: S }, []), true);
+          }
+        }
+        break;
+      }
       case 'roleTheory':
         this.onRoleTalk(S, it, false);
         break;
@@ -968,6 +991,13 @@
       if (it.reason === 'vent' && roleOn(g, 'engenheiro') && (p.special === 'engenheiro' || (p.isImp && U.chance(L.lie * 0.7)))) {
         /* engenheiro de verdade (ou impostor blefando) explica o duto */
         this.reply(0.7, () => say('roleClaim', { role: 'engenheiro' }, [{ type: 'deny' }, { type: 'roleClaim', role: 'engenheiro' }]), true);
+        return;
+      }
+      const vis = g.S.rules.visualTasks ? p.tasks.find((tk) => !tk.done && tk.def && tk.def.visual) : null;
+      if (!this.offered && (vis ? !p.isImp && U.chance(0.55) : p.isImp && g.S.rules.visualTasks && U.chance(L.lie * 0.25))) {
+        this.offered = { to: [S] };
+        const task = vis ? vis.id : 'scan';
+        this.reply(0.8, () => say('offerVisual', { task }, [{ type: 'deny' }, { type: 'offerVisual' }]), true);
         return;
       }
       if (!p.isImp) {
@@ -1184,5 +1214,13 @@
     const trust = ranked.filter((x) => x.c <= -25);
     if (trust.length && U.chance(0.25 + pers.follow * 0.5)) this.buddy = U.pick(trust).id;
     if ((heatMe >= 20 || accusers.length) && g.S.rules.visualTasks) this.prove = true;
+    this.proveTo = null;
+    if (this.offered) {
+      this.prove = g.S.rules.visualTasks;
+      this.proveTo = this.offered.to.filter((id) => g.players[id] && g.players[id].alive);
+    }
+    if (this.verify && g.players[this.verify.who] && g.players[this.verify.who].alive && this.verify.who !== result.ejected) {
+      this.watch = { who: this.verify.who, until: g.t + U.rf(40, 60), purpose: 'verify' };
+    }
   };
 })();

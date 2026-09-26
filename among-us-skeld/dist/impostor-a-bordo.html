@@ -1705,6 +1705,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     whoSus: (d, x) => (d.who == null ? pick([`não sei, sem info`, `ninguém ainda`]) : pick([`acho que é ${x.R(d.who, 'o')}`, `${x.R(d.who, 'o')} pra mim`])),
     leaderVote: (d, x) => (d.who == null ? pick([`sem prova, todo mundo skip`, `ninguém tem certeza, skip`]) : pick([`vamos votar ${x.R(d.who, 'no')}, ninguém confirma ele`, `votem ${x.R(d.who, 'no')}`])),
     huh: () => pick([`?`, `quê?`, `hã?`, `não entendi`]),
+    offerVisual: (d, x) => pick([`tenho ${d.task ? x.task(d.task) : 'tarefa visual'}, posso fazer na frente de vocês`, `me segue na próxima que eu faço ${d.task ? x.task(d.task) : 'a visual'}`, `quem desconfiar me acompanha, eu provo com ${d.task ? x.task(d.task) : 'a visual'}`]),
+    willFollow: (d, x) => pick([`blz, vou te seguir então ${x.R(d.who)}`, `fechou, eu vou junto com ${x.R(d.who, 'o')}`, `então eu te acompanho, ${x.R(d.who)}`]),
+    sawVisualSafe: (d, x) => pick([`${x.R(d.who, 'o')} é inocente, segui e vi ${d.task ? x.task(d.task) : 'a visual'}`, `pode tirar ${x.R(d.who, 'o')}, fui junto e vi fazendo ${d.task ? x.task(d.task) : 'a visual'}`, `eu segui ${x.R(d.who, 'o')}, fez ${d.task ? x.task(d.task) : 'visual'} na minha frente, safe`]),
     roleNotInGame: (d) => pick([`não tem ${ROLE_TXT[d.role]} nessa partida`, `${ROLE_TXT[d.role]}? nem tem isso nesse jogo`, `não tem ${ROLE_TXT[d.role]} aqui, olha a config`]),
     roleMaybe: (d, x) => {
       if (d.role === 'metamorfo') return pick([`verdade, pode ter sido o metamorfo disfarçado`, d.who != null ? `se for metamorfo, quem a gente viu pode nem ser ${x.R(d.who, 'o')}` : `metamorfo muda de cara, "eu vi" não prova muito`, `tem metamorfo, então cuidado com "eu vi fulano"`]);
@@ -1867,6 +1870,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     self: /\b(eu|mim|me)\b/,
     you: /\b(vc|voce|tu|vcs)\b/,
     comX: /\bcom (o |a )?$/,
+    offer: /\b(me segue|me sigam|me segue[m]?|me acompanh\w*|posso provar|vou provar|provo|fac\w* (o |a )?(scan|visual|escaneamento|asteroide\w*|escudo\w*|lixo) na frente|na frente de voces|mostro (a )?visual)\b/,
   };
 
   function parse(text, g, ctx) {
@@ -1887,6 +1891,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     const all = { players: findAll(n, table, 'pid'), rooms: findAll(n, ROOM_ALIASES, 'area') };
 
     if (RX.deny.test(n)) intents.push({ type: 'deny' });
+    if (RX.offer.test(n)) intents.push({ type: 'offerVisual' });
     if (RX.where.test(n) && RX.body.test(n)) intents.push({ type: 'askBody' });
 
     let lastOthers = [];
@@ -3491,6 +3496,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         }
         if (pl.endAt && g.t >= pl.endAt) {
           this.plan = null;
+          if (pl.onEnd) pl.onEnd(pl);
           return;
         }
         if (this.dest) this.moveAlong(dt);
@@ -3671,17 +3677,38 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         onDone: () => (p.onAdmin = false),
       });
     }
-    planFollow(q, dur, keep) {
+    /* purpose 'verify': segue para ver a pessoa provar inocência; para depois de ver a tarefa visual. */
+    planFollow(q, dur, keep, purpose) {
       const g = this.g;
+      let sawAt = 0;
       this.setPlan({
-        type: 'follow', target: q.id, dyn: () => {
+        type: 'follow', target: q.id, purpose, dyn: () => {
           if (!q.alive && this.p.alive) return null;
           const s = this.lastSeenAt[g.appearId(q)];
           if (!s || g.t - s.t > 5) return null;
+          if (purpose === 'verify' && this.sawVisualOf(q)) {
+            if (!sawAt) this.mem.event({ type: 'escortVisual', t: g.t, who: g.appearId(q) }, 'escortVisual:' + g.appearId(q) + ':' + g.meetings);
+            sawAt = sawAt || g.t;
+            if (g.t - sawAt > 1.2) return null;
+          }
           return { x: s.x, y: s.y };
         },
         keep: keep || 2.2, endAt: g.t + dur, dynEvery: 0.6,
+        onEnd: () => {
+          if (purpose === 'verify' && q.alive && !this.sawVisualOf(q) && g.S.rules.visualTasks) {
+            const id = g.appearId(q);
+            this.fieldSus[id] = (this.fieldSus[id] || 0) + 12;
+            this.mem.event({ type: 'noProof', t: g.t, who: id }, 'noProof:' + id + ':' + g.meetings);
+          }
+        },
       });
+    }
+    /* Viu esta pessoa fazendo tarefa visual nesta rodada (agora ou antes)? */
+    sawVisualOf(q) {
+      const g = this.g;
+      if (!g.S.rules.visualTasks) return false;
+      if (q.visual && this.seenNow.includes(q)) return true;
+      return this.mem.events.some((e) => e.type === 'visual' && e.who === g.appearId(q) && e.t >= g.roundStart);
     }
     /* Zigue-zague no lugar ("vem comigo"); depois segue o plano "then". */
     planWiggle(text, then) {
@@ -3836,7 +3863,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     startEscort(q) {
       const g = this.g, p = this.p;
       const aid = g.appearId(q);
-      const until = g.t + U.rf(22, 38);
+      const until = g.t + U.rf(24, 32);
       this.escort = { who: aid, until, since: g.t, idle: 0, alone: 0, lx: q.x, ly: q.y };
       this.setPlan({
         type: 'follow', escort: true, target: q.id, keep: 2.0, endAt: until, dynEvery: 0.5,
@@ -3866,6 +3893,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const alone = this.seenNow.length === 1 && this.seenNow[0] === q;
       if (alone) e.alone += dt;
       else e.alone = Math.max(0, e.alone - dt);
+      /* o propósito de seguir era ver a prova: viu a tarefa visual, missão cumprida, volta ao próprio jogo */
+      if (q.visual && g.S.rules.visualTasks && this.seenNow.includes(q)) e.sawVisualT = e.sawVisualT || g.t;
+      if (e.sawVisualT && g.t - e.sawVisualT > 1.5) {
+        this.mem.event({ type: 'escortVisual', t: g.t, who: aid }, 'escortVisual:' + aid + ':' + g.meetings);
+        return this.endEscort(null);
+      }
+      /* seguiu um tempo e a pessoa não mostrou nada: desiste e volta às tarefas */
+      if (g.t - e.since > 20 && !q.busy && !q.visual) return this.endEscort(null);
       if (e.idle > 6) {
         /* chamou para seguir e ficou parado sem fazer nada: estranho */
         this.fieldSus[aid] = (this.fieldSus[aid] || 0) + 10;
@@ -4070,8 +4105,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (this.watch && g.t < this.watch.until) {
           const q = g.players[this.watch.who];
           const s = q && q.alive ? this.lastSeenAt[q.id] : null;
-          if (s && g.t - s.t < 3) {
+          if (q && q.alive && this.sawVisualOf(q)) this.watch = null;
+          else if (s && g.t - s.t < 3) {
+            const w = this.watch;
             this.watch = null;
+            if (w.purpose === 'verify') return this.planFollow(q, U.rf(22, 32), 2.6, 'verify');
             return this.planFollow(q, U.rf(12, 20), U.rf(4, 5.5));
           }
         }
@@ -4086,8 +4124,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         /* chama alguém de confiança que está perto para ver a tarefa visual (vira álibi) */
         const visAvail = g.S.rules.visualTasks ? avail.filter((x) => x.def && x.def.visual) : [];
         if (visAvail.length && !this.invitedRound && g.t > g.roundStart + 6) {
-          const near = this.seenNow.filter((q) => q.alive && !q.inVent && U.dist(p, q) < 5 && this.liveSusp(g.appearId(q)) < 15);
-          const who = near.find((q) => q.isHuman) || near[0];
+          const near = this.seenNow.filter((q) => q.alive && !q.inVent && U.dist(p, q) < 5 && (this.liveSusp(g.appearId(q)) < 15 || (this.proveTo && this.proveTo.includes(g.appearId(q)))));
+          const who = near.find((q) => this.proveTo && this.proveTo.includes(g.appearId(q))) || near.find((q) => q.isHuman) || near[0];
           if (who && U.chance(0.16 + pers.talk * 0.18 + (pers.leader ? 0.12 : 0) + (who.isHuman ? 0.1 : 0) + (this.prove ? 0.25 : 0))) {
             this.invitedRound = true;
             this.invite = { who: g.appearId(who), until: g.t + 30 };
@@ -4770,6 +4808,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     this.askedHuman = false;
     this.alibi = null;
     this.committed = null;
+    this.verify = null;
+    this.offered = null;
     const body = mt.info.body;
     if (body && (this.mem.bodies.some((b) => b.id === body.id) || mt.info.caller === p.id)) {
       this.knowsBody = body.area;
@@ -4818,6 +4858,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     for (const id of Object.keys(tog)) if (tog[id] >= 20) add(+id, -12, 'together', { secs: tog[id] });
     /* comportamento estranho durante a rodada (chamou para seguir e enrolou, ficou na cola) */
     for (const id of Object.keys(this.fieldSus || {})) if (this.fieldSus[id] >= 6) add(+id, Math.min(22, this.fieldSus[id]), 'odd');
+    /* prometeu provar com tarefa visual, foi seguido e não provou */
+    for (const e of this.mem.events) if (e.type === 'noProof' && e.t >= rs) add(e.who, 16, 'noProof');
     /* "fiquei sozinho com ele e ele não me matou" */
     const alone = this.aloneWith || {};
     for (const id of Object.keys(alone)) if (alone[id] >= 6) add(+id, -9, 'spared', { secs: alone[id] });
@@ -5060,7 +5102,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     if ((pers.leader || pers.skeptic) && U.chance(0.7)) items.push({ k: 'leaderVote', late: true });
     const firstPri = items.filter((it) => ['reportInfo', 'reportDetail', 'callReason', 'organize'].includes(it.k) || (it.k === 'accuse' && STRONG[it.reason]));
     const rest = items.filter((it) => !firstPri.includes(it));
-    const keep = rest.filter((it) => it.k === 'claimLoc' || it.k === 'bodyIntel' || U.chance(0.35 + pers.talk * 0.6));
+    const keep = rest.filter((it) => it.k === 'claimLoc' || it.k === 'bodyIntel' || (it.k === 'vouch' && it.reason === 'visual') || U.chance(0.35 + pers.talk * 0.6));
     return firstPri.concat(keep.filter((it) => !it.late), keep.filter((it) => it.late));
   };
 
@@ -5262,6 +5304,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       case 'vouch': {
         const q = g.players[it.who];
         if (!q || !q.alive) return null;
+        const escorted = it.reason === 'visual' && this.mem.events.some((e) => (e.type === 'escortVisual' || e.type === 'escort') && e.who === it.who && e.t >= this.rs);
+        if (escorted) return msg('sawVisualSafe', { who: it.who, task: it.task }, [{ type: 'vouch', who: it.who, reason: 'visual', task: it.task }]);
         return msg('vouch', it, [{ type: 'vouch', who: it.who, reason: it.reason, task: it.task }]);
       }
       case 'vitals': {
@@ -5503,6 +5547,23 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       case 'quiet':
         if (it.who !== me) this.bump(it.who, 3, 'social');
         break;
+      case 'offerVisual': {
+        if (S === me || p.isImp || !g.S.rules.visualTasks) break;
+        if (this.offered) this.offered.to.push(S);
+        /* quem desconfia topa quase sempre; os outros às vezes (no máximo dois vão junto) */
+        const doubt = (this.susp[S] || 0) >= 12 || (mt.accusers[S] && mt.accusers[S][me]) || pers.skeptic || pers.leader;
+        const n = mt.flags['verN' + S] || 0;
+        if (!this.verify && n < 2 && U.chance(doubt ? 0.85 : 0.25 + pers.talk * 0.25)) {
+          mt.flags['verN' + S] = n + 1;
+          this.verify = { who: S };
+          this.bump(S, -3, 'social');
+          if (!mt.flags['willF' + S] && U.chance(0.7)) {
+            mt.flags['willF' + S] = true;
+            this.reply(0.9, () => say('willFollow', { who: S }, []), true);
+          }
+        }
+        break;
+      }
       case 'roleTheory':
         this.onRoleTalk(S, it, false);
         break;
@@ -5706,6 +5767,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (it.reason === 'vent' && roleOn(g, 'engenheiro') && (p.special === 'engenheiro' || (p.isImp && U.chance(L.lie * 0.7)))) {
         /* engenheiro de verdade (ou impostor blefando) explica o duto */
         this.reply(0.7, () => say('roleClaim', { role: 'engenheiro' }, [{ type: 'deny' }, { type: 'roleClaim', role: 'engenheiro' }]), true);
+        return;
+      }
+      const vis = g.S.rules.visualTasks ? p.tasks.find((tk) => !tk.done && tk.def && tk.def.visual) : null;
+      if (!this.offered && (vis ? !p.isImp && U.chance(0.55) : p.isImp && g.S.rules.visualTasks && U.chance(L.lie * 0.25))) {
+        this.offered = { to: [S] };
+        const task = vis ? vis.id : 'scan';
+        this.reply(0.8, () => say('offerVisual', { task }, [{ type: 'deny' }, { type: 'offerVisual' }]), true);
         return;
       }
       if (!p.isImp) {
@@ -5922,6 +5990,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     const trust = ranked.filter((x) => x.c <= -25);
     if (trust.length && U.chance(0.25 + pers.follow * 0.5)) this.buddy = U.pick(trust).id;
     if ((heatMe >= 20 || accusers.length) && g.S.rules.visualTasks) this.prove = true;
+    this.proveTo = null;
+    if (this.offered) {
+      this.prove = g.S.rules.visualTasks;
+      this.proveTo = this.offered.to.filter((id) => g.players[id] && g.players[id].alive);
+    }
+    if (this.verify && g.players[this.verify.who] && g.players[this.verify.who].alive && this.verify.who !== result.ejected) {
+      this.watch = { who: this.verify.who, until: g.t + U.rf(40, 60), purpose: 'verify' };
+    }
   };
 })();
 
@@ -6180,6 +6256,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (e.t < info.roundStart || !g.players[e.who]) continue;
         if (e.type === 'escort') out.push(nm(e.who) + ' fez sinal de "vem comigo" e você foi junto.');
         if (e.type === 'escortEnd' && (e.why === 'não' || e.why === '!' || e.why === '...')) out.push('Você parou de seguir ' + nm(e.who) + (e.why === '!' ? ' porque ficou com medo dele.' : ' porque achou estranho.'));
+        if (e.type === 'escortVisual') out.push('Você seguiu ' + nm(e.who) + ' e viu fazer tarefa visual: é inocente.');
+        if (e.type === 'noProof') out.push(nm(e.who) + ' disse que ia provar com tarefa visual, você seguiu e ele NÃO fez: suspeito.');
       }
       if (b.invite && b.invite.who != null && g.players[b.invite.who] && !p.isImp) out.push('Você chamou ' + nm(b.invite.who) + ' para te acompanhar' + (b.shownVisual ? ' e fez tarefa visual na frente dele.' : '.'));
       const recent = b.mem.seen.filter((s) => s.t1 >= b.graceT() && s.t1 >= info.t - 45 && s.via !== 'track' && g.players[s.who] && s.who !== p.id).slice(-5);
@@ -6248,6 +6326,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           case 'bodyArea': parts.push('dizer que o corpo estava em ' + V.area(it.area)); break;
           case 'quiet': parts.push('cobrar ' + nm(it.who) + ', que está quieto'); break;
           case 'roleClaim': parts.push('dizer que é ' + (T.ROLE_TXT[it.role] || it.role)); break;
+          case 'offerVisual': parts.push('se oferecer para provar inocência fazendo a tarefa visual na frente de quem quiser seguir'); break;
           case 'roleTheory': parts.push('comentar a teoria de ' + (T.ROLE_TXT[it.role] || it.role)); break;
           default: break;
         }

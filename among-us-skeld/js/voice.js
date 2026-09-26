@@ -251,6 +251,8 @@
         if (e.t < info.roundStart || !g.players[e.who]) continue;
         if (e.type === 'escort') out.push(nm(e.who) + ' fez sinal de "vem comigo" e você foi junto.');
         if (e.type === 'escortEnd' && (e.why === 'não' || e.why === '!' || e.why === '...')) out.push('Você parou de seguir ' + nm(e.who) + (e.why === '!' ? ' porque ficou com medo dele.' : ' porque achou estranho.'));
+        if (e.type === 'escortVisual') out.push('Você seguiu ' + nm(e.who) + ' e viu fazer tarefa visual: é inocente.');
+        if (e.type === 'noProof') out.push(nm(e.who) + ' disse que ia provar com tarefa visual, você seguiu e ele NÃO fez: suspeito.');
       }
       if (b.invite && b.invite.who != null && g.players[b.invite.who] && !p.isImp) out.push('Você chamou ' + nm(b.invite.who) + ' para te acompanhar' + (b.shownVisual ? ' e fez tarefa visual na frente dele.' : '.'));
       const recent = b.mem.seen.filter((s) => s.t1 >= b.graceT() && s.t1 >= info.t - 45 && s.via !== 'track' && g.players[s.who] && s.who !== p.id).slice(-5);
@@ -319,6 +321,7 @@
           case 'bodyArea': parts.push('dizer que o corpo estava em ' + V.area(it.area)); break;
           case 'quiet': parts.push('cobrar ' + nm(it.who) + ', que está quieto'); break;
           case 'roleClaim': parts.push('dizer que é ' + (T.ROLE_TXT[it.role] || it.role)); break;
+          case 'offerVisual': parts.push('se oferecer para provar inocência fazendo a tarefa visual na frente de quem quiser seguir'); break;
           case 'roleTheory': parts.push('comentar a teoria de ' + (T.ROLE_TXT[it.role] || it.role)); break;
           default: break;
         }

@@ -211,6 +211,7 @@
         }
         if (pl.endAt && g.t >= pl.endAt) {
           this.plan = null;
+          if (pl.onEnd) pl.onEnd(pl);
           return;
         }
         if (this.dest) this.moveAlong(dt);
@@ -391,17 +392,38 @@
         onDone: () => (p.onAdmin = false),
       });
     }
-    planFollow(q, dur, keep) {
+    /* purpose 'verify': segue para ver a pessoa provar inocência; para depois de ver a tarefa visual. */
+    planFollow(q, dur, keep, purpose) {
       const g = this.g;
+      let sawAt = 0;
       this.setPlan({
-        type: 'follow', target: q.id, dyn: () => {
+        type: 'follow', target: q.id, purpose, dyn: () => {
           if (!q.alive && this.p.alive) return null;
           const s = this.lastSeenAt[g.appearId(q)];
           if (!s || g.t - s.t > 5) return null;
+          if (purpose === 'verify' && this.sawVisualOf(q)) {
+            if (!sawAt) this.mem.event({ type: 'escortVisual', t: g.t, who: g.appearId(q) }, 'escortVisual:' + g.appearId(q) + ':' + g.meetings);
+            sawAt = sawAt || g.t;
+            if (g.t - sawAt > 1.2) return null;
+          }
           return { x: s.x, y: s.y };
         },
         keep: keep || 2.2, endAt: g.t + dur, dynEvery: 0.6,
+        onEnd: () => {
+          if (purpose === 'verify' && q.alive && !this.sawVisualOf(q) && g.S.rules.visualTasks) {
+            const id = g.appearId(q);
+            this.fieldSus[id] = (this.fieldSus[id] || 0) + 12;
+            this.mem.event({ type: 'noProof', t: g.t, who: id }, 'noProof:' + id + ':' + g.meetings);
+          }
+        },
       });
+    }
+    /* Viu esta pessoa fazendo tarefa visual nesta rodada (agora ou antes)? */
+    sawVisualOf(q) {
+      const g = this.g;
+      if (!g.S.rules.visualTasks) return false;
+      if (q.visual && this.seenNow.includes(q)) return true;
+      return this.mem.events.some((e) => e.type === 'visual' && e.who === g.appearId(q) && e.t >= g.roundStart);
     }
     /* Zigue-zague no lugar ("vem comigo"); depois segue o plano "then". */
     planWiggle(text, then) {
@@ -556,7 +578,7 @@
     startEscort(q) {
       const g = this.g, p = this.p;
       const aid = g.appearId(q);
-      const until = g.t + U.rf(22, 38);
+      const until = g.t + U.rf(24, 32);
       this.escort = { who: aid, until, since: g.t, idle: 0, alone: 0, lx: q.x, ly: q.y };
       this.setPlan({
         type: 'follow', escort: true, target: q.id, keep: 2.0, endAt: until, dynEvery: 0.5,
@@ -586,6 +608,14 @@
       const alone = this.seenNow.length === 1 && this.seenNow[0] === q;
       if (alone) e.alone += dt;
       else e.alone = Math.max(0, e.alone - dt);
+      /* o propósito de seguir era ver a prova: viu a tarefa visual, missão cumprida, volta ao próprio jogo */
+      if (q.visual && g.S.rules.visualTasks && this.seenNow.includes(q)) e.sawVisualT = e.sawVisualT || g.t;
+      if (e.sawVisualT && g.t - e.sawVisualT > 1.5) {
+        this.mem.event({ type: 'escortVisual', t: g.t, who: aid }, 'escortVisual:' + aid + ':' + g.meetings);
+        return this.endEscort(null);
+      }
+      /* seguiu um tempo e a pessoa não mostrou nada: desiste e volta às tarefas */
+      if (g.t - e.since > 20 && !q.busy && !q.visual) return this.endEscort(null);
       if (e.idle > 6) {
         /* chamou para seguir e ficou parado sem fazer nada: estranho */
         this.fieldSus[aid] = (this.fieldSus[aid] || 0) + 10;
@@ -790,8 +820,11 @@
         if (this.watch && g.t < this.watch.until) {
           const q = g.players[this.watch.who];
           const s = q && q.alive ? this.lastSeenAt[q.id] : null;
-          if (s && g.t - s.t < 3) {
+          if (q && q.alive && this.sawVisualOf(q)) this.watch = null;
+          else if (s && g.t - s.t < 3) {
+            const w = this.watch;
             this.watch = null;
+            if (w.purpose === 'verify') return this.planFollow(q, U.rf(22, 32), 2.6, 'verify');
             return this.planFollow(q, U.rf(12, 20), U.rf(4, 5.5));
           }
         }
@@ -806,8 +839,8 @@
         /* chama alguém de confiança que está perto para ver a tarefa visual (vira álibi) */
         const visAvail = g.S.rules.visualTasks ? avail.filter((x) => x.def && x.def.visual) : [];
         if (visAvail.length && !this.invitedRound && g.t > g.roundStart + 6) {
-          const near = this.seenNow.filter((q) => q.alive && !q.inVent && U.dist(p, q) < 5 && this.liveSusp(g.appearId(q)) < 15);
-          const who = near.find((q) => q.isHuman) || near[0];
+          const near = this.seenNow.filter((q) => q.alive && !q.inVent && U.dist(p, q) < 5 && (this.liveSusp(g.appearId(q)) < 15 || (this.proveTo && this.proveTo.includes(g.appearId(q)))));
+          const who = near.find((q) => this.proveTo && this.proveTo.includes(g.appearId(q))) || near.find((q) => q.isHuman) || near[0];
           if (who && U.chance(0.16 + pers.talk * 0.18 + (pers.leader ? 0.12 : 0) + (who.isHuman ? 0.1 : 0) + (this.prove ? 0.25 : 0))) {
             this.invitedRound = true;
             this.invite = { who: g.appearId(who), until: g.t + 30 };
