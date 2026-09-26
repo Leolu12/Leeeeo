@@ -22,27 +22,44 @@
     inexperiente: 'meio perdido, confunde nomes de sala, pergunta o básico, inseguro',
   };
   const TONE = {
-    limpo: 'Escreva em português correto e educado, sem gírias pesadas, sem abreviações e sem palavrões.',
-    casual: 'Estilo de chat de jogo online: quase tudo em minúsculas, abreviações (vc, tb, pq, tava, ngm, blz, sla), gírias de Among Us (sus, safe, skip, ventou, self report), pouca pontuação.',
-    raiz: 'Bem informal e intenso, como lobby brasileiro: gírias (mano, pô, slk, véi, tá de sacanagem), abreviações, kkkk, CAPS quando acusa. Pode provocar, mas sem palavrões pesados nem ofensas.',
+    limpo: 'Clima do lobby: educado. Ninguém usa palavrão nem gíria pesada; mesmo os mais informais só abreviam.',
+    casual: 'Clima do lobby: normal de chat de jogo. Cada um escreve do seu jeito (veja o jeito de cada personagem).',
+    raiz: 'Clima do lobby: mais intenso e zoeiro, com provocação leve; ainda assim cada um no seu jeito e sem ofensas.',
   };
+  /* Exemplo com jeitos diferentes de escrever (não é para copiar). */
   const EXAMPLE = [
     'Lipe: onde?',
-    'Bia: elétrica, perto dos fios',
-    'Rafa: quem tava pra aquele lado?',
-    'Zé: eu tava no depósito com o azul',
-    'Nina: confirmo, tava c ele',
-    'Bia: vi o vermelho saindo de lá',
-    'Beto: EU? tava na med fazendo scan',
-    'Rafa: alguém viu o scan do beto?',
-    'Nina: eu vi, safe',
-    'Rafa: então não tem nada certo, vamo de skip?',
+    'Bia: Elétrica, perto dos fios.',
+    'Rafa: Quem estava pra aquele lado? Vamos um por um.',
+    'Zé: eu tava no deposito c o azul',
+    'Nina: confirmo',
+    'Bia: Vi o vermelho saindo de lá uns 10s antes.',
+    'Beto: EU?? tava na med fazendo scan',
+    'Rafa: Alguém viu o scan do Beto?',
+    'Nina: eu vi. safe',
+    'Caio: pera, e o laranja? não falou nada',
+    'Rafa: Sem prova, melhor pular.',
   ].join('\n');
+
+  /* Jeito de escrever de cada bot: sorteado uma vez por partida, puxado pela personalidade e pelo clima do lobby. */
+  const REGISTERS = {
+    formal: 'escreve direitinho: frases completas, maiúscula no começo, pontuação e acentos; nada de gíria',
+    neutro: 'escreve normal: frases curtas, alguma pontuação, uma abreviação ou outra (vc, pq)',
+    informal: 'escreve rápido: tudo minúsculo, quase sem pontuação, abreviações (vc, tb, tava, ngm, sla)',
+    giria: 'bem solto: minúsculas, gírias leves (pô, slk, oxe, tlgd), às vezes "kkkk"',
+  };
+  const REG_BY_PERS = {
+    analitico: { formal: 5, neutro: 3, informal: 1 }, impulsivo: { informal: 3, giria: 3, neutro: 1 }, falador: { informal: 3, giria: 2, neutro: 2 },
+    silencioso: { neutro: 2, informal: 3, formal: 1 }, caotico: { giria: 5, informal: 2 }, lider: { formal: 3, neutro: 4, informal: 1 },
+    defensor: { formal: 3, neutro: 3, informal: 1 }, cetico: { neutro: 4, formal: 2, informal: 2 }, seguidor: { informal: 4, neutro: 2, giria: 1 },
+    inexperiente: { informal: 3, neutro: 3, giria: 1 },
+  };
+  const QUIRKS = ['às vezes começa com "então"', 'usa "tipo" de vez em quando', 'costuma perguntar de volta', 'usa "pera" quando quer falar', 'termina frase com "?" mesmo afirmando', 'fala "hmm" quando duvida', 'chama os outros pela cor', 'chama os outros pelo nome', 'usa "sério?" quando duvida', 'responde com uma palavra quando concorda', 'escreve "ss" para sim e "n" para não', 'usa "ué" quando se surpreende', 'às vezes manda "?" sozinho', 'usa "blz" e "fechou"', 'escreve "rs" em vez de kkk'];
 
   const REASON = {
     kill: 'viu matando', vent: 'viu usando o duto', shift: 'viu mudando de aparência', vanish: 'viu ficar invisível',
     noscan: 'ficou no scanner sem escanear', follow: 'estava seguindo alguém', nearBody: 'estava perto do corpo',
-    lastWith: 'estava com a vítima pouco antes', lie: 'mentiu ou o álibi não bate', tracker: 'o rastreador mostrou',
+    lastWith: 'estava com a vítima pouco antes', fromBody: 'vinha da direção do corpo', lie: 'mentiu ou o álibi não bate', tracker: 'o rastreador mostrou',
     sus: 'está suspeito', hunch: 'pressentimento', claim: 'contaram no chat', vote: 'vai votar nele',
   };
   const VOUCH = { visual: 'viu fazendo tarefa visual (inocente)', together: 'estava junto', claim: 'confirma o que ele disse' };
@@ -61,16 +78,59 @@
       return M.AREA[a] ? M.AREA[a].name : a;
     },
 
+    /* O que todo jogador sabe da partida: regras, funções que existem, como se argumenta. */
+    rules(g) {
+      const R = g.S.rules, H = g.S.house || {};
+      const on = (r) => ((g.S.roles && g.S.roles[r]) || {}).n > 0;
+      const out = [
+        'Como o jogo funciona (todos sabem):',
+        '- Tripulantes fazem tarefas; impostores fingem tarefas, matam (depois de cada abate precisam esperar ~' + Math.round(R.killCooldown) + 's), andam pelos dutos (vent) e sabotam: luzes (quase ninguém enxerga), comunicações (desliga câmeras, admin e a lista de tarefas), reator e O2 (alarme; se ninguém consertar, os impostores vencem) e portas.',
+        '- A tripulação vence terminando as tarefas ou ejetando todos os impostores. Os impostores vencem quando ficam em número igual ao de tripulantes.',
+        '- Nesta partida há ' + g.S.room.impostors + ' impostor' + (g.S.room.impostors > 1 ? 'es' : '') + '. Ejeções ' + (R.confirmEjects ? 'são confirmadas (aparece se era impostor).' : 'NÃO são confirmadas.') + (R.anonymousVotes ? ' Votos anônimos.' : ''),
+        R.visualTasks
+          ? '- Tarefas visuais (scan da MedBay, asteroides em Armas, escudos, lixo) mostram para quem vê que a pessoa é tripulante' + (H.noVisualHardClear ? ' (regra da casa: não inocenta de vez).' : '.')
+          : '- Tarefas visuais estão desligadas nesta partida: ver alguém no scan não prova nada.',
+        '- Onde se vigia: câmeras na Segurança, mapa do Admin (mostra quantas pessoas por sala, sem cores). Botão de emergência na Cafeteria.',
+        '- Argumentos comuns: self report (o impostor reporta o próprio corpo), stack kill (matar no meio de um grupo), "quem estava sozinho?", "quem confirma o álibi?", "estava perto do corpo", "saiu do duto". Quem mente no álibi fica suspeito. Pular (skip) quando não há prova é normal.',
+      ];
+      const roles = Object.keys(C.ROLES).filter(on);
+      const IMPL = {
+        metamorfo: 'por isso "eu vi fulano" pode ter sido o metamorfo disfarçado dele',
+        fantasma: 'então alguém pode passar sem ser visto ou "sumir do nada"',
+        engenheiro: 'então ver alguém no duto não prova 100% que é impostor',
+        cientista: 'pode dizer há quanto tempo alguém morreu',
+        rastreador: 'pode dizer por onde alguém andou',
+        barulhento: 'quando morre, todos recebem um alerta com o local do corpo',
+        anjo: 'depois de morto protege alguém; um abate pode falhar',
+      };
+      if (roles.length) {
+        out.push('Funções especiais que EXISTEM nesta partida (ninguém sabe quem tem; alguém pode dizer que tem, e pode ser mentira):');
+        for (const r of roles) out.push('- ' + C.ROLES[r].name + ' (' + (C.ROLES[r].team === 'crew' ? 'tripulante' : 'impostor') + '): ' + C.ROLES[r].desc + ' — ' + IMPL[r] + '.');
+        const off = Object.keys(C.ROLES).filter((r) => !on(r));
+        if (off.length) out.push('Funções que NÃO existem nesta partida: ' + off.map((r) => C.ROLES[r].name).join(', ') + '. Se alguém falar delas, dá para corrigir.');
+      } else out.push('Nesta partida não há funções especiais (nada de metamorfo, fantasma, engenheiro, cientista etc.). Se alguém falar disso, dá para corrigir: não tem isso nessa partida.');
+      out.push('Os personagens conhecem bem o jogo: usam essas regras para argumentar, levam a sério teorias que fazem sentido (inclusive sobre as funções) e discordam das que não fazem.');
+      return out.join('\n');
+    },
+
     system(g) {
       return [
         'Você escreve as mensagens de chat de vários jogadores numa partida de um jogo de dedução social igual a Among Us, na nave The Skeld. Eles estão numa reunião: conversam para descobrir o impostor e depois votam para ejetar alguém ou pular (skip).',
         'Como escrever:',
         '- Chat de jogo online de verdade, de jogadores brasileiros: mensagens curtas (até 120 caracteres), diretas, às vezes incompletas, reagindo ao que acabou de ser dito. Nada de narração, aspas, emojis, asteriscos ou descrição de ações.',
-        '- Cada personagem tem um jeito próprio de falar (está descrito). Varie: nem todo mundo concorda, uns são secos, outros falam mais, uns duvidam.',
+        '- Cada personagem tem personalidade e JEITO DE ESCREVER próprios (estão descritos): siga exatamente. Uns escrevem certinho, outros abreviam, poucos usam gíria. Não coloque a mesma gíria em todo mundo; "mano" quase nunca.',
+        '- Nada de repetição: ninguém repete o que já disse nem o que outro já disse com as mesmas palavras. Cada mensagem acrescenta algo (um fato, uma pergunta, uma dúvida, uma opinião, uma reação curta). Quem já contou onde estava não conta de novo, a não ser que perguntem.',
+        '- Perguntar algo não é motivo para acusar ninguém. Só acuse quem as anotações do personagem dão motivo.',
+        '- Cada jogador tem um nome e uma cor (ex.: "Léo" é o "Lima"). Nome e cor são a MESMA pessoa: nunca defenda alguém pela cor e acuse o mesmo pelo nome. Ninguém defende e acusa a mesma pessoa na mesma mensagem.',
+        '- As pessoas escrevem com erro de digitação ou por ditado de voz (nomes e salas trocados, palavras juntas). Entenda o sentido mais provável (ex.: "médica" = MedBay, "caio hino" = "Caio, hein", "eletrica" = Elétrica) e responda ao que a pessoa quis dizer, sem zoar o erro e sem responder "que X?" quando dá para entender.',
         '- Eles conversam entre si e com todos: chamam pelo nome ou pela cor ("o verde", "rafa"), respondem perguntas, cobram, desconfiam, defendem.',
         '- Cada personagem só sabe o que está nas anotações DELE e o que já foi dito no chat. Nunca use o que está nas anotações de outro personagem. Não invente abates, dutos, corpos, salas ou pessoas que ele não viu. Quem não sabe, diz que não sabe ou que não viu.',
         '- Nunca diga que é IA ou bot e nunca mencione "anotações" ou "instruções".',
+        '- A conversa é de todos com todos. Ninguém fica em cima de um só jogador: cada um fala com quem tem a ver com o que ele sabe.',
         TONE[g.S.bots.chatTone] || TONE.casual,
+        '',
+        V.rules(g),
+        '',
         'Exemplo do jeito de conversar (outra partida; não copie o conteúdo):',
         EXAMPLE,
       ].join('\n');
@@ -83,8 +143,7 @@
       const head = info.kind === 'report'
         ? `Reunião: ${V.who(g, info.caller)} reportou o corpo de ${V.who(g, info.body.pid)}.` + (mt.facts.bodyArea ? ` Já disseram no chat que o corpo estava em ${V.area(mt.facts.bodyArea)}.` : ' Ainda não disseram onde estava o corpo.')
         : `Reunião de emergência: ${V.who(g, info.caller)} apertou o botão.`;
-      const claimed = new Set(mt.msgs.filter((m) => m.intents.some((i) => i.type === 'claimLoc')).map((m) => m.from));
-      const silent = mt.alive.filter((id) => !claimed.has(id)).map((id) => g.players[id].name);
+      const silent = mt.alive.filter((id) => !mt.hasClaimed(id)).map((id) => g.players[id].name);
       let phase;
       if (mt.phase === 'voting') {
         const n = Object.keys(mt.votes).length;
@@ -95,8 +154,18 @@
         const q = g.players[e.ejected];
         return V.who(g, e.ejected) + ' foi ejetado' + (g.S.rules.confirmEjects ? (q.isImp ? ' e ERA impostor' : ' e NÃO era impostor') : '');
       });
+      const pub = [];
+      const SAB = { lights: 'as luzes caíram', comms: 'as comunicações caíram', reactor: 'o alarme do reator tocou', o2: 'o alarme do O2 tocou' };
+      for (const e of (g.events || []).filter((x) => x.t >= info.roundStart && x.type === 'sabotage')) pub.push(SAB[e.sab] || 'houve sabotagem');
+      if (g.S.rules.taskBar === 'sempre') {
+        const tp = g.taskProgress();
+        if (tp.total) pub.push('barra de tarefas em ' + Math.round((tp.done / tp.total) * 100) + '%');
+      }
+      const roster = g.players.map((p) => p.name + ' = ' + C.COLOR[p.color].name).join(', ');
       return [
         head,
+        'Quem é quem (nome = cor; a mesma pessoa pode ser chamada pelo nome OU pela cor): ' + roster + '.',
+        pub.length ? 'Desde a última reunião: ' + pub.join('; ') + '.' : '',
         `Vivos: ${alive}.`,
         dead ? `Fora do jogo: ${dead}.` : '',
         prev.length ? 'Reuniões anteriores: ' + prev.join('; ') + '.' : '',
@@ -114,14 +183,32 @@
     persona(b) {
       const p = b.p;
       const pers = C.PERSONALITIES[p.personality] || C.PERSONALITIES.analitico;
-      return `${V.who(b.g, p.id)} — ${pers.name}: ${STYLE[p.personality] || pers.desc}`;
+      return `${V.who(b.g, p.id)} — ${pers.name}: ${STYLE[p.personality] || pers.desc}. Jeito de escrever: ${V.voiceOf(b)}`;
+    },
+    voiceOf(b) {
+      if (b.voiceStyle) return b.voiceStyle;
+      const g = b.g, tone = g.S.bots.chatTone;
+      const w = Object.assign({}, REG_BY_PERS[b.p.personality] || { neutro: 1 });
+      if (tone === 'limpo') {
+        w.formal = (w.formal || 0) + 3;
+        w.neutro = (w.neutro || 0) + 2;
+        delete w.giria;
+      } else if (tone === 'raiz') {
+        w.giria = (w.giria || 0) + 2;
+        w.informal = (w.informal || 0) + 1;
+      }
+      const keys = Object.keys(w);
+      const reg = U.weighted(keys, (k) => w[k]);
+      const qs = U.shuffle(QUIRKS.slice()).slice(0, 2);
+      b.voiceStyle = REGISTERS[reg] + '; ' + qs.join('; ') + '.';
+      return b.voiceStyle;
     },
 
     /* Por que um bot desconfia de alguém, em poucas palavras (só com o que ele sabe). */
     reasonOf(b, id) {
       const ev = ((b.ev && b.ev[id]) || []).filter((e) => e.w > 0).sort((a, c) => c.w - a.w)[0];
       if (ev) {
-        const t = { kill: 'você viu matando', vent: 'você viu no duto', shift: 'você viu mudando de forma', vanish: 'você viu sumindo', noscan: 'fingiu o scan', follow: 'ficou te seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava colado na vítima' }[ev.reason];
+        const t = { fromBody: 'vinha da direção do corpo', kill: 'você viu matando', vent: 'você viu no duto', shift: 'você viu mudando de forma', vanish: 'você viu sumindo', noscan: 'fingiu o scan', follow: 'ficou te seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava colado na vítima', odd: 'agiu estranho na rodada (te chamou e ficou enrolando / ficou na sua cola)' }[ev.reason];
         if (t) return t + (ev.area ? ' (' + V.area(ev.area) + ')' : '');
       }
       if ((b.chatClaim[id] || 0) > 12) return 'outros disseram que viram algo';
@@ -132,7 +219,8 @@
     },
 
     /* Anotações de um bot: só o que ele viveu. O impostor aparece com a versão que conta, sem segredos. */
-    notes(b) {
+    notes(b, opts) {
+      opts = opts || {};
       const g = b.g, p = b.p, mt = b.mt, info = mt.info;
       const out = [];
       const nm = (id) => V.who(g, id);
@@ -152,22 +240,33 @@
             if (e.reason === 'withVictim' || e.reason === 'lastWith') out.push('Viu ' + nm(+id) + ' junto da vítima pouco antes' + (e.area ? ', em ' + V.area(e.area) : '') + '.');
             if (e.reason === 'nearBody' && e.w >= 14) out.push('Viu ' + nm(+id) + ' perto de onde estava o corpo' + (e.area ? ' (' + V.area(e.area) + ')' : '') + ' pouco antes.');
             if (e.reason === 'together' && e.secs >= 20) out.push('Ficou um tempo junto de ' + nm(+id) + ' e nada aconteceu.');
+            if (e.reason === 'fromBody') out.push('Viu ' + nm(+id) + ' vindo da direção de ' + V.area(e.bodyArea) + ' (onde estava o corpo), andando por ' + V.area(e.area) + ', pouco antes.');
           }
         }
       }
+      for (const e of b.mem.events) {
+        if (e.t < info.roundStart || !g.players[e.who]) continue;
+        if (e.type === 'escort') out.push(nm(e.who) + ' fez sinal de "vem comigo" e você foi junto.');
+        if (e.type === 'escortEnd' && (e.why === 'não' || e.why === '!' || e.why === '...')) out.push('Você parou de seguir ' + nm(e.who) + (e.why === '!' ? ' porque ficou com medo dele.' : ' porque achou estranho.'));
+      }
+      if (b.invite && b.invite.who != null && g.players[b.invite.who] && !p.isImp) out.push('Você chamou ' + nm(b.invite.who) + ' para te acompanhar' + (b.shownVisual ? ' e fez tarefa visual na frente dele.' : '.'));
       const recent = b.mem.seen.filter((s) => s.t1 >= b.graceT() && s.t1 >= info.t - 45 && s.via !== 'track' && g.players[s.who] && s.who !== p.id).slice(-5);
       for (const s of recent) out.push('Viu ' + nm(s.who) + ' em ' + V.area(s.area) + ' uns ' + Math.max(5, Math.round((info.t - s.t1) / 5) * 5) + 's antes da reunião' + (s.via === 'cams' ? ' (pelas câmeras)' : '') + '.');
       if (p.isImp) {
         if (b.scapegoat != null && g.players[b.scapegoat].alive) out.push('Desconfia de ' + nm(b.scapegoat) + ', mas sem prova concreta.');
-        const t = b.impTarget ? b.impTarget() : null;
-        out.push(t != null ? 'Está pensando em votar em ' + nm(t) + '.' : 'Sem prova, tende a pular (skip).');
+        if (!opts.noLean) {
+          const t = b.impTarget ? b.impTarget() : null;
+          out.push(t != null ? 'Está pensando em votar em ' + nm(t) + '.' : 'Sem prova, tende a pular (skip).');
+        }
       } else {
         const ranked = mt.alive.filter((id) => id !== p.id).map((id) => ({ id, s: b.susp[id] || 0 })).sort((a, c) => c.s - a.s);
         const tops = ranked.filter((x) => x.s >= 22).slice(0, 2);
         if (tops.length) out.push('Desconfia de: ' + tops.map((x) => nm(x.id) + ' (' + (x.s >= 60 ? 'muito' : x.s >= 35 ? 'bastante' : 'um pouco') + '; ' + V.reasonOf(b, x.id) + ')').join('; ') + '.');
         else out.push('Não tem suspeito claro.');
-        const lean = b.voteLean();
-        out.push(lean != null ? 'Está inclinado a votar em ' + nm(lean) + '.' : 'Tende a pular (skip) se ninguém trouxer prova.');
+        if (!opts.noLean) {
+          const lean = b.voteLean();
+          out.push(lean != null ? 'Está inclinado a votar em ' + nm(lean) + '.' : 'Tende a pular (skip) se ninguém trouxer prova.');
+        }
         const trusted = ranked.filter((x) => x.s <= -20).slice(0, 2);
         if (trusted.length) out.push('Confia em: ' + trusted.map((x) => nm(x.id)).join(', ') + '.');
       }
@@ -216,6 +315,8 @@
           case 'reportInfo': parts.push('contar que achou o corpo de ' + nm(it.victim) + ' em ' + V.area(it.area)); break;
           case 'bodyArea': parts.push('dizer que o corpo estava em ' + V.area(it.area)); break;
           case 'quiet': parts.push('cobrar ' + nm(it.who) + ', que está quieto'); break;
+          case 'roleClaim': parts.push('dizer que é ' + (T.ROLE_TXT[it.role] || it.role)); break;
+          case 'roleTheory': parts.push('comentar a teoria de ' + (T.ROLE_TXT[it.role] || it.role)); break;
           default: break;
         }
       }
@@ -239,7 +340,7 @@
           else if (it.some((i) => i.who === b.p.id)) how = 'responda ao que falaram de você';
           else if (it.some((i) => i.type === 'claimLoc')) how = 'reaja ao álibi: confirme só se viu, duvide ou pergunte algo';
           else if (it.some((i) => i.type === 'accuse')) how = 'diga se concorda, se viu algo ou peça prova';
-          return 'responder DIRETAMENTE a ' + (hp ? hp.name : 'quem falou') + ', que escreveu: "' + msg.text.slice(0, 120) + '" — ' + how + '.';
+          return 'responder a ' + (hp ? hp.name : 'quem falou') + ', que escreveu: "' + msg.text.slice(0, 120) + '" — ' + how + '. Seja breve e não acuse ' + (hp ? hp.name : 'ele') + ' sem motivo nas suas anotações.';
         }
         case 'defend': return 'foi acusado (' + m.by.map(quote).join(' / ') + '): defenda-se com o seu álibi e questione a acusação.';
         case 'answer': return 'perguntaram onde você estava (' + m.by.map(quote).join(' / ') + '): responda.';
@@ -252,6 +353,7 @@
           ? 'puxe a conversa para ' + nm(m.who) + ', de leve, com dúvida, sem inventar prova.'
           : 'diga o que acha de ' + nm(m.who) + ' (' + V.reasonOf(b, m.who) + '): pressione ou peça explicação.';
         case 'react': return 'reaja à mensagem de ' + quote(m.msg) + ': concorde, duvide, pergunte algo ou complemente com o que você sabe.';
+        case 'replyBot': return 'responda a ' + quote(m.msg) + ' — ' + m.how + '.';
         case 'summary': return 'resuma a situação em uma frase e proponha em quem votar ou pular, conforme o que você pensa.';
         case 'joke': return 'solte um comentário descontraído rápido, sem atrapalhar.';
         default: return 'fale algo útil para a discussão.';
@@ -264,7 +366,7 @@
       const pend = V.pending(mt, id);
       const lines = ['### ' + (i + 1) + '. ' + V.persona(b), 'Só ' + b.p.name + ' sabe:'];
       V.notes(b).forEach((l) => lines.push('- ' + l));
-      lines.push(said.length ? 'Já disse nesta reunião: ' + said.join(' / ') : 'Ainda não falou nesta reunião.');
+      lines.push(said.length ? 'Já disse nesta reunião (não repita): ' + said.join(' / ') : 'Ainda não falou nesta reunião.');
       const cob = pend.accused.concat(pend.asked).slice(0, 2);
       if (cob.length) lines.push('Cobraram ' + b.p.name + ' e ainda não respondeu: ' + cob.map((m) => mt.g.players[m.from].name + ': "' + m.text.slice(0, 80) + '"').join(' / '));
       const todo = s.beats.map((x) => 'o sentido é: ' + V.describeBeat(mt, x) + '. Frase-guia (reescreva do seu jeito): "' + x.text + '"');
@@ -351,13 +453,101 @@
       this.free = {};
       this.humanMsg = null;
       this.aiLines = 0;
+      this.answered = {};
+      this.aiVotes = {};
+      this.votePending = new Set();
+      this.voteTried = new Set();
+      this.voteBusy = false;
+      this.nextVoteCall = 0;
+    }
+
+    /* ---------- votos decididos pela IA ---------- */
+    /* Pede os votos de quem está para votar nos próximos segundos, com o chat até ali. */
+    voteTick() {
+      const mt = this.mt, g = this.g, t = mt.t;
+      if (mt.phase !== 'voting' || !this.on() || this.voteBusy || t < this.nextVoteCall || g.S.ui.aiActions === 'off') return;
+      const list = mt.alive.map((id) => g.players[id]).filter((p) => p.brain && mt.votes[p.id] === undefined && !this.aiVotes[p.id] && !this.voteTried.has(p.id) && mt.voteAt[p.id] != null && mt.voteAt[p.id] <= t + 16);
+      if (!list.length) return;
+      this.nextVoteCall = t + 8;
+      this.planVotes(list);
+    }
+    /* O voto deste bot deve esperar a IA? */
+    waitVote(id) {
+      return this.g.S.ui.aiActions !== 'off' && this.on() && !this.aiVotes[id] && !this.voteTried.has(id) && this.mt.t < this.mt.votingEnd - 6;
+    }
+    async planVotes(list) {
+      this.voteBusy = true;
+      list.forEach((p) => this.votePending.add(p.id));
+      const crew = list.filter((p) => !p.isImp), imps = list.filter((p) => p.isImp);
+      try {
+        await Promise.all([crew.length ? this.askVotes(crew, false) : null, imps.length ? this.askVotes(imps, true) : null]);
+      } catch (e) {
+        /* sem IA, o motor decide */
+      }
+      list.forEach((p) => {
+        this.votePending.delete(p.id);
+        this.voteTried.add(p.id);
+      });
+      this.voteBusy = false;
+    }
+    async askVotes(list, imp) {
+      const mt = this.mt, g = this.g;
+      const alive = mt.alive.map((id) => g.players[id]);
+      const impsLeft = g.S.rules.confirmEjects ? mt.impostorsLeft : g.S.room.impostors;
+      const crewLeft = alive.length - impsLeft;
+      const crisis = crewLeft <= impsLeft + 1;
+      const heat = alive.map((q) => ({ q, h: mt.heat[q.id] || 0, acc: Object.keys(mt.accusers[q.id] || {}).length, def: Object.keys(mt.defenders[q.id] || {}).length })).filter((x) => x.h > 0 || x.def).sort((a, b) => b.h - a.h);
+      const heatTxt = heat.length ? heat.slice(0, 5).map((x) => x.q.name + ': ' + x.acc + ' acusando, ' + x.def + ' defendendo').join('; ') : 'ninguém foi muito acusado';
+      const lines = [V.scene(mt), '', 'Chat da reunião (mais antigo primeiro):', V.transcript(mt, 30), '', 'Pressão no chat: ' + heatTxt + '.', 'Situação: ' + alive.length + ' vivos' + (g.S.rules.confirmEjects ? ', ' + impsLeft + ' impostor(es) restante(s)' : '') + (crisis ? '. SITUAÇÃO CRÍTICA: se pularem, o próximo abate pode dar a vitória aos impostores.' : '.'), ''];
+      if (!imp) {
+        lines.push('Agora é a votação. Decida o voto de cada tripulante abaixo usando SÓ o que ele sabe (as anotações dele) e o que foi dito no chat.');
+        lines.push('Como um jogador esperto decide: vota em quem tem prova (viu matar, ventar, mudar de forma) ou contradição clara de álibi; pesa se quem acusa é confiável; nunca vota em quem ele viu fazer tarefa visual; desconfia de quem acusa sem prova ou defende demais alguém suspeito; se não há nada concreto, pula. Em situação crítica, vota no mais provável em vez de pular.');
+      } else {
+        const team = g.players.filter((q) => q.isImp && q.alive).map((q) => q.name).join(', ');
+        lines.push('Você decide o voto dos IMPOSTORES abaixo (os tripulantes não sabem quem são). Impostores vivos: ' + team + '.');
+        lines.push('Estratégia esperta: votar junto na pessoa que o chat já está acusando (desde que não seja parceiro) para ejetar um tripulante; não defender o parceiro às claras; se o parceiro estiver perdido (várias acusações com prova), votar nele para ganhar confiança; não votar sozinho em alguém que ninguém acusou; pular quando todo mundo está pulando.');
+      }
+      lines.push('Opções de voto: pular, ou um destes: ' + alive.map((q) => q.name).join(', ') + '.', '');
+      for (const p of list) {
+        lines.push('### ' + V.persona(p.brain));
+        V.notes(p.brain, { noLean: true }).forEach((l) => lines.push('- ' + l));
+        if (imp) {
+          const mate = g.players.filter((q) => q.isImp && q !== p && q.alive).map((q) => q.name);
+          if (mate.length) lines.push('- (segredo) parceiro(s): ' + mate.join(', ') + '.');
+          lines.push('- Acusações contra ' + p.name + ': ' + Object.keys(mt.accusers[p.id] || {}).length + '.');
+        }
+        lines.push('');
+      }
+      lines.push('Formato: uma linha por personagem, exatamente assim (motivo curto, como ele diria no chat):');
+      list.forEach((p) => lines.push(p.name + ': <nome ou pular> | <motivo>'));
+      this.calls++;
+      const text = await AU.LLM.complete(V.system(g), lines.join('\n'), { maxTokens: 80 + list.length * 45 });
+      if (!text) return;
+      for (const raw of String(text).split(/\n+/)) {
+        const line = raw.replace(/^[\s*\-•>#\d.)]+/, '').replace(/\*\*/g, '').trim();
+        const m = line.match(/^([^:|]{1,40}):\s*(?:voto\s*:?\s*)?([^|]+?)\s*(?:\|\s*(?:motivo\s*:?\s*)?(.+))?$/i);
+        if (!m) continue;
+        const wn = U.norm(m[1].replace(/\([^)]*\)/g, '')).trim();
+        const p = list.find((x) => U.norm(x.name) === wn || U.norm(C.COLOR[x.color].name) === wn);
+        if (!p) continue;
+        const tt = U.norm(m[2]).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+        let target = null;
+        if (/^(pular|pulo|pula|skip|ninguem|nenhum)/.test(tt)) target = 'skip';
+        else {
+          const q = alive.find((x) => tt === U.norm(x.name) || tt === U.norm(C.COLOR[x.color].name) || tt.split(' ').includes(U.norm(x.name)));
+          if (q) target = q.id;
+        }
+        if (target == null || target === p.id) continue;
+        if (!p.isImp && target !== 'skip' && ((p.brain.ev && p.brain.ev[target]) || []).some((e) => e.reason === 'visual')) continue;
+        this.aiVotes[p.id] = { target, reason: tidy(m[3] || '').slice(0, 90) };
+      }
     }
     get webllm() {
       return AU.LLM.provider === 'webllm';
     }
     /* teto de chamadas por reunião, para não gastar o uso de quem joga nem bater no limite */
     maxCalls() {
-      return this.webllm ? 12 : AU.LLM.provider === 'claude' ? 16 : 20;
+      return this.webllm ? 24 : 40;
     }
     on() {
       return V.active(this.mt) && this.calls < this.maxCalls() && this.fails < 3;
@@ -367,8 +557,22 @@
       const mode = this.g.S.ui.aiChat;
       return mode === 'full' || (mode === 'replies' && !!meta.toHuman);
     }
+    /* Fala que só repete algo recente (mesma pergunta, mesmo álibi, mesma acusação) não entra. */
+    redundant(b, intents) {
+      const mt = this.mt, id = b.p.id;
+      const recent = mt.msgs.filter((m) => mt.t - m.t < 30);
+      const queued = this.beats.filter((x) => x.b === b);
+      for (const it of intents) {
+        if (it.type === 'claimLoc' && (recent.some((m) => m.from === id && m.intents.some((i) => i.type === 'claimLoc')) || queued.some((x) => x.intents.some((i) => i.type === 'claimLoc')))) return true;
+        if (it.type === 'askWhere' && (recent.some((m) => m.intents.some((i) => i.type === 'askWhere' && i.who === it.who) && mt.t - m.t < 15) || mt.hasClaimed(it.who))) return true;
+        if ((it.type === 'accuse' || it.type === 'vouch' || it.type === 'agree') && recent.some((m) => m.from === id && m.intents.some((i) => i.type === it.type && i.who === it.who))) return true;
+        if (it.type === 'askAll' && recent.some((m) => m.intents.some((i) => i.type === 'askAll'))) return true;
+      }
+      return false;
+    }
     enqueue(b, m, meta) {
       const mt = this.mt;
+      if (!meta.toHuman && meta.kind !== 'vote' && (m.intents || []).length && this.redundant(b, m.intents)) return;
       const pri = meta.toHuman ? 3 : meta.direct ? 2 : meta.important ? 1 : 0;
       this.beats.push({ b, text: m.text, intents: m.intents || [], meta, at: mt.t, pri, until: Math.max(mt.t, mt.durI) + (pri >= 2 ? 22 : pri ? 30 : 16) });
     }
@@ -398,13 +602,21 @@
     tick() {
       const mt = this.mt, t = mt.t;
       if (mt.phase !== 'discussion' && mt.phase !== 'voting') return;
+      this.voteTick();
+      const on = this.on();
       for (const x of this.beats.slice()) {
         if (t <= x.until && x.b.p.alive) continue;
+        /* com a IA ativa, fala importante atrasada ganha mais um tempo; o resto perde a vez (nada de frase pronta no meio) */
+        if (on && x.pri >= 1 && !x.extended && x.b.p.alive) {
+          x.extended = true;
+          x.until = t + 12;
+          continue;
+        }
         this.beats.splice(this.beats.indexOf(x), 1);
-        if (x.pri >= 1 && x.b.p.alive) this.postRaw(x);
+        if (!on && x.pri >= 1 && x.b.p.alive) this.postRaw(x);
       }
       if (this.busy || t < this.nextRoundAt) return;
-      if (!this.on()) {
+      if (!on) {
         if (this.beats.length) this.flush();
         return;
       }
@@ -448,19 +660,26 @@
           if (sp.has(q.id) && sp.get(q.id).beats.some((x) => x.meta.toHuman)) continue;
           if (add(q.brain, null, { kind: 'answerHuman', msg: hm })) n++;
         }
-      } else if (mode === 'full' && sp.size < 2 && t > mt.durI + 2) {
+      }
+      if (mode === 'full' && t > mt.durI + 2 && sp.size < maxSp) {
+        /* conversa entre eles: quem foi citado, contestado ou tem algo a dizer sobre a última fala entra na rodada */
         const quiet = t - mt.lastMsgT;
-        if (quiet > (mt.phase === 'voting' ? 4.5 : 2.2)) {
-          const ms = this.motives().filter((m) => !sp.has(m.b.p.id));
-          const n = sp.size ? 1 : U.chance(0.6) ? 2 : 1;
-          for (const m of ms.slice(0, n)) add(m.b, null, m);
+        const ms = this.motives().filter((m) => !sp.has(m.b.p.id));
+        const strong = ms.filter((m) => m.s >= 55);
+        let n = Math.min(2, strong.length, maxSp - sp.size);
+        for (const m of strong.slice(0, n)) add(m.b, null, m);
+        if (sp.size < 2 && quiet > (mt.phase === 'voting' ? 4.5 : 2.2)) {
+          const rest = ms.filter((m) => !sp.has(m.b.p.id));
+          n = sp.size ? 1 : U.chance(0.6) ? 2 : 1;
+          for (const m of rest.slice(0, n)) add(m.b, null, m);
         }
       }
       if (!sp.size) return null;
       this.beats = this.beats.filter((x) => !taken.includes(x));
       for (const s of sp.values()) {
         if (!s.motive) continue;
-        this.free[s.b.p.id] = (this.free[s.b.p.id] || 0) + 1;
+        if (s.motive.msg) this.answered[s.motive.msg.id] = (this.answered[s.motive.msg.id] || 0) + 1;
+        if (s.motive.kind !== 'answerHuman' && s.motive.kind !== 'defend' && s.motive.kind !== 'answer') this.free[s.b.p.id] = (this.free[s.b.p.id] || 0) + 1;
         if (s.motive.kind === 'askHuman') {
           mt.askedHumanAt = t;
           mt.askedHumanBy = s.b.p.id;
@@ -470,7 +689,8 @@
       return [...sp.values()].sort((a, c) => rank(c) - rank(a));
     }
 
-    /* Quem responde ao jogador: quem foi citado, quem ele cobrou, quem sabe algo do assunto. */
+    /* Quem responde ao jogador: só quem ele citou ou cobrou, quem sabe algo do assunto,
+       e alguém a mais apenas quando é uma pergunta para todos. */
     responders(msg) {
       const mt = this.mt, g = this.g, hp = g.human;
       const out = [];
@@ -479,24 +699,78 @@
       };
       const intents = msg.intents || [];
       const n = U.norm(msg.text);
-      for (const it of intents) if (it.type === 'askWhere' && it.who != null) add(g.players[it.who]);
-      for (const it of intents) if (it.who != null && ['accuse', 'vouch', 'sawAt', 'mention'].includes(it.type)) add(g.players[it.who]);
-      if (/\b(vc|voce|tu|cê|ce)\b/.test(n) && mt.lastToHuman != null) add(g.players[mt.lastToHuman]);
+      const alive = mt.alive.map((id) => g.players[id]).filter((q) => q.brain && q !== hp);
+      for (const it of intents) if (it.who != null && ['askWhere', 'accuse', 'vouch', 'sawAt', 'mention'].includes(it.type)) add(g.players[it.who]);
+      if (!out.length && /\b(vc|voce|tu|ce)\b/.test(n) && mt.lastToHuman != null) add(g.players[mt.lastToHuman]);
+      /* quem tem informação sobre o assunto */
       for (const it of intents) {
-        if (it.type !== 'accuse' || it.who == null) continue;
-        add(mt.alive.map((id) => g.players[id]).find((q) => q.brain && !q.isImp && q.id !== it.who && ((q.brain.ev && q.brain.ev[it.who]) || []).some((e) => Math.abs(e.w) >= 14)));
+        if (it.type === 'accuse' && it.who != null) add(alive.find((q) => !q.isImp && q.id !== it.who && ((q.brain.ev && q.brain.ev[it.who]) || []).some((e) => Math.abs(e.w) >= 14)));
+        if (it.type === 'claimLoc') add(alive.find((q) => q.brain.sawTimes && q.brain.sawTimes(hp.id).length));
+        if (it.type === 'roleTheory' || it.type === 'roleClaim') add(alive.find((q) => q.brain.pers.times || q.brain.pers.skeptic));
       }
-      if (intents.some((i) => i.type === 'claimLoc')) {
-        add(mt.alive.map((id) => g.players[id]).find((q) => q.brain && q !== hp && q.brain.sawTimes && q.brain.sawTimes(hp.id).length));
-      }
-      const general = !intents.some((i) => i.who != null) || intents.some((i) => i.type === 'askWho' || i.type === 'askAll');
-      if (out.length < (general ? 2 : 1)) {
-        const pool = mt.alive.map((id) => g.players[id]).filter((q) => q.brain && q !== hp && !out.includes(q) && !mt.typing.has(q.id));
-        const pick = () => U.weighted(pool.filter((q) => !out.includes(q)), (q) => 0.2 + q.brain.pers.talk + (q.brain.pers.leader || q.brain.pers.skeptic ? 0.4 : 0) + (q.id === mt.lastSpeaker ? 0.3 : 0));
+      const question = /\?/.test(msg.text) || intents.some((i) => i.type === 'askWho' || i.type === 'askAll' || i.type === 'askBody');
+      const directed = intents.some((i) => i.who != null);
+      const pool = alive.filter((q) => !out.includes(q) && !mt.typing.has(q.id));
+      const pick = () => U.weighted(pool.filter((q) => !out.includes(q)), (q) => 0.2 + q.brain.pers.talk + (q.brain.pers.leader || q.brain.pers.skeptic ? 0.4 : 0));
+      if (!directed && question && out.length < 2) {
         add(pick());
-        if (general && out.length < 2) add(pick());
+        if (out.length < 2 && U.chance(0.5)) add(pick());
+      } else if (!out.length && U.chance(0.55)) add(pick());
+      return out.slice(0, 2);
+    }
+
+    /* Conversa entre bots: mensagens recentes de bots que pedem resposta de quem sabe algo sobre elas. */
+    threads() {
+      const mt = this.mt, g = this.g;
+      const out = [];
+      const nm = (id) => g.players[id].name;
+      const recent = mt.msgs.slice(-8).filter((m) => !g.players[m.from].isHuman && (this.answered[m.id] || 0) < 2 && mt.t - m.t < 25);
+      const bots = mt.alive.map((id) => g.players[id]).filter((q) => q.brain && !q.isHuman && !mt.typing.has(q.id));
+      for (const m of recent.reverse()) {
+        const A = m.from;
+        for (const it of m.intents) {
+          for (const q of bots) {
+            const b = q.brain, id = q.id;
+            if (id === A) continue;
+            const add = (how, s, intents, bump) => out.push({ b, kind: 'replyBot', msg: m, how, s, intents: intents || [], bump });
+            const X = it.who;
+            if (it.type === 'claimLoc') {
+              if (q.isImp) continue;
+              const rooms = it.rooms || [];
+              const seen = b.sawTimes(A).filter((x) => x.t1 >= mt.info.t - 40);
+              const match = seen.find((x) => rooms.some((r) => r === x.area || M.isNear(r, x.area)));
+              const miss = seen.filter((x) => !rooms.some((r) => r === x.area || M.isNear(r, x.area))).pop();
+              if (match) add('confirme: você viu ' + nm(A) + ' em ' + V.area(match.area), 62, [{ type: 'vouch', who: A, reason: 'claim' }], -6);
+              else if (miss) add('conteste: você viu ' + nm(A) + ' em ' + V.area(miss.area) + ', não bate com o que ele disse', 78, [{ type: 'accuse', who: A, reason: 'lie', area: miss.area }], 12);
+              else if ((b.getAlibi().rooms || []).some((r) => rooms.includes(r)) && b.myStay && rooms.some((r) => b.myStay(r) >= 12)) add('você também esteve em ' + rooms.filter((r) => b.getAlibi().rooms.includes(r)).map(V.area).join('/') + ' e não viu ' + nm(A) + ' lá: questione', 66, [{ type: 'accuse', who: A, reason: 'sus' }], 8);
+              else if (b.pers.skeptic) add('pergunte quem confirma o que ' + nm(A) + ' disse', 50, []);
+              else if (b.pers.times) add('pergunte a ' + nm(A) + ' fazendo o quê e com quem', 42, []);
+            } else if (it.type === 'accuse' && X != null && X !== id && g.players[X] && g.players[X].alive) {
+              const sx = b.susp[X] || 0, sa = b.susp[A] || 0;
+              if (q.isImp) {
+                const heat = (mt.heat[X] || 0) + (it.strong ? 30 : 0);
+                if (g.players[X].isImp) {
+                  if (heat >= 55 && U.chance(b.lvl.bus)) add('concorde com cautela que ' + nm(X) + ' está estranho', 50, [{ type: 'agree', who: X }]);
+                  else if (heat < 40 && U.chance(b.lvl.lie * 0.5)) add('ponha em dúvida a acusação contra ' + nm(X) + ' com calma (pergunte pela prova), sem parecer que está defendendo', 52, [{ type: 'askProof' }]);
+                } else add('concorde que ' + nm(X) + ' está estranho', 48, [{ type: 'agree', who: X }]);
+                continue;
+              }
+              if (sx <= -15) add('defenda ' + nm(X) + ': você confia nele (' + (((b.ev && b.ev[X]) || []).some((e) => e.reason === 'visual') ? 'viu fazer tarefa visual' : 'estava junto / o álibi bate') + ')', 72, [{ type: 'vouch', who: X, reason: 'together' }], null);
+              else if (sx >= 25) add('concorde e diga por que: ' + V.reasonOf(b, X), 60, [{ type: 'agree', who: X }]);
+              else if (sa >= 30) add('questione ' + nm(A) + ', de quem você desconfia (' + V.reasonOf(b, A) + ')', 58, [{ type: 'accuse', who: A, reason: 'sus' }]);
+              else if (b.pers.defend && !it.strong) add('peça prova para ' + nm(A), 52, [{ type: 'askProof' }]);
+            } else if (it.type === 'vouch' && X != null && X !== id) {
+              if (!q.isImp && (b.susp[X] || 0) >= 30) add('duvide da defesa: você desconfia de ' + nm(X) + ' (' + V.reasonOf(b, X) + ')', 56, []);
+            } else if (it.type === 'deny' && !q.isImp) {
+              const ev = ((b.ev && b.ev[A]) || []).find((e) => e.w >= 14);
+              if (ev) add('pressione ' + nm(A) + ': ' + V.reasonOf(b, A), 64, [{ type: 'accuse', who: A, reason: ev.reason === 'nearBody' || ev.reason === 'lastWith' ? ev.reason : 'sus', area: ev.area }]);
+            } else if (it.type === 'roleClaim' && !q.isImp && b.pers.skeptic) {
+              add('duvide: qualquer um pode dizer que é ' + (T.ROLE_TXT[it.role] || it.role), 54, []);
+            }
+          }
+        }
       }
-      return out.slice(0, 3);
+      return out;
     }
 
     /* Quem tem motivo para falar agora e qual. */
@@ -504,8 +778,14 @@
       const mt = this.mt, g = this.g, t = mt.t, hp = g.human;
       const bots = mt.alive.map((id) => g.players[id]).filter((q) => q.brain && !q.isHuman);
       const recent = mt.msgs.slice(-3).map((m) => m.from);
-      const claimed = new Set(mt.msgs.filter((m) => m.intents.some((i) => i.type === 'claimLoc')).map((m) => m.from));
+      const claimed = new Set(mt.alive.filter((id) => mt.hasClaimed(id)));
       const unclaimed = mt.alive.filter((id) => !claimed.has(id));
+      const threadsBy = new Map();
+      for (const th of this.threads()) {
+        const k = th.b.p.id;
+        if (!threadsBy.has(k)) threadsBy.set(k, []);
+        threadsBy.get(k).push(th);
+      }
       const out = [];
       for (const q of bots) {
         const b = q.brain, id = q.id;
@@ -519,20 +799,26 @@
         if (!cand.length && (this.free[id] || 0) >= cap) continue;
         if (mt.phase === 'voting' && mt.votesOn(id) >= 2 && !recent.includes(id)) cand.push({ kind: 'plead', s: 75 });
         if (!claimed.has(id) && t > mt.durI + 6) cand.push({ kind: 'claim', s: 38 + b.pers.talk * 20 });
-        const others = unclaimed.filter((x) => x !== id);
+        const others = unclaimed.filter((x) => x !== id && !(hp && x === hp.id && mt.askedHumanAt != null));
         if ((b.pers.leader || b.pers.skeptic) && others.length && t > mt.durI + 8) cand.push({ kind: 'pressClaims', who: others.slice(0, 3), s: 48 });
-        if (hp && hp.alive && !mt.humanClaimed && t > mt.durI + 9 && (mt.askedHumanAt == null || t - mt.askedHumanAt > 20) && b.pers.talk >= 0.45) cand.push({ kind: 'askHuman', s: 55 });
+        if (hp && hp.alive && !mt.humanClaimed && !mt.hasClaimed(hp.id) && t > mt.durI + 12 && mt.askedHumanAt == null && (b.pers.leader || b.pers.skeptic || b.pers.talk >= 0.7)) cand.push({ kind: 'askHuman', s: 40 });
+        /* desconfiança sobre os OUTROS: o jogador só entra se houver prova de verdade contra ele */
         let top = null;
-        if (q.isImp) top = b.scapegoat != null && g.players[b.scapegoat].alive ? { id: b.scapegoat, s: 36 } : null;
+        const fair = (x) => !(hp && x === hp.id) || ((b.ev && b.ev[x]) || []).some((e) => e.w >= 14);
+        if (q.isImp) top = b.scapegoat != null && g.players[b.scapegoat].alive && fair(b.scapegoat) ? { id: b.scapegoat, s: 36 } : null;
         else {
-          const ts = b.topSuspect();
-          if (ts && ts.s >= Math.min(b.pers.thr * 0.8, 40)) top = ts;
+          const ranked = mt.alive.filter((x) => x !== id && fair(x)).map((x) => ({ id: x, s: b.susp[x] || 0 })).sort((a, c) => c.s - a.s);
+          const ts = ranked[0];
+          const need = b.pers.talk >= 0.6 || b.pers.hunch ? 26 : Math.min(b.pers.thr * 0.8, 40);
+          if (ts && ts.s >= need) top = ts;
         }
         if (top) cand.push({ kind: 'push', who: top.id, s: 30 + Math.min(40, top.s / 2) });
         if (b.pers.leader && mt.msgs.length > 8) cand.push({ kind: 'summary', s: 32 });
-        const last = mt.msgs.slice().reverse().find((m) => m.from !== id);
-        if (last) cand.push({ kind: 'react', msg: last, s: 24 + b.pers.talk * 22 });
+        /* reage de preferência a outro bot; ao jogador só se ninguém respondeu ainda */
+        const last = mt.msgs.slice().reverse().find((m) => m.from !== id && (!g.players[m.from].isHuman || !(this.answered[m.id] > 0)));
+        if (last) cand.push({ kind: 'react', msg: last, s: 24 + b.pers.talk * 22 - (g.players[last.from].isHuman ? 10 : 0) });
         if (b.pers.offtopic && U.chance(b.pers.offtopic * 0.4)) cand.push({ kind: 'joke', s: 18 });
+        for (const th of threadsBy.get(id) || []) cand.push(th);
         if (!cand.length) continue;
         cand.sort((a, c) => c.s - a.s);
         const m = cand[0];
@@ -542,7 +828,7 @@
     }
 
     prompt(round) {
-      const mt = this.mt, g = this.g, hp = g.human;
+      const mt = this.mt, g = this.g;
       const last = mt.msgs[mt.msgs.length - 1];
       return [
         V.scene(mt),
@@ -556,8 +842,8 @@
         'Regras desta rodada:',
         '- Escreva a próxima mensagem de cada personagem acima, continuando o chat a partir da última mensagem' + (last ? ' (' + g.players[last.from].name + ': "' + last.text.slice(0, 80) + '")' : '') + '.',
         '- Quando está escrito "o sentido é", mantenha exatamente os fatos (quem, onde, o quê), mas com as palavras e o jeito do personagem, ligando com o que acabou de ser dito.',
-        '- Nas outras falas, siga só o objetivo e o que o personagem sabe. ' + (hp ? hp.name + ' é um jogador como os outros: responda e pergunte para ele também.' : ''),
-        '- Um personagem pode responder ou citar a mensagem de outro desta mesma rodada.',
+        '- Nas outras falas, siga só o objetivo e o que o personagem sabe.',
+        '- É uma conversa entre eles: quem responde a alguém cita o nome de quem está respondendo; um personagem pode responder a outro desta mesma rodada. Não fiquem todos falando da mesma pessoa.',
         '- Cada um escreve 1 mensagem (no máximo 2 curtas, se ficar mais natural quebrar). Até 120 caracteres cada. Não repita frases já ditas.',
         'Formato: só as linhas, uma por mensagem, assim:',
         round.map((s) => s.b.p.name + ': mensagem').join('\n'),
@@ -593,8 +879,13 @@
       mt.aiUsed = true;
       const firstOf = new Set();
       let delay = 0.25;
+      const seenText = mt.msgs.slice(-18).map((m) => ({ from: m.from, text: m.text }));
       for (const ln of lines) {
         const s = ln.s, b = s.b, p = b.p;
+        /* linha repetida descartada: a mesma pessoa dizendo quase a mesma coisa, ou cópia de outra fala longa */
+        const dup = seenText.some((x) => (x.from === p.id ? similar(x.text, ln.text) >= 0.6 : !s.beats.length && words(ln.text).size >= 5 && similar(x.text, ln.text) >= 0.85));
+        if (dup) continue;
+        seenText.push({ from: p.id, text: ln.text });
         let intents;
         if (!firstOf.has(p.id)) {
           firstOf.add(p.id);
@@ -607,8 +898,22 @@
             b.claimed = true;
           }
           if (s.motive && s.motive.kind === 'defend') intents.push({ type: 'deny' });
+          if (s.motive && s.motive.kind === 'replyBot') {
+            /* a resposta carrega o que o motor sabe (confirma, contesta, defende) e mexe na suspeita de quem fala */
+            intents = intents.concat(s.motive.intents || []);
+            if (s.motive.bump) b.bump(s.motive.msg.from, s.motive.bump);
+          }
         } else intents = V.validIntents(b, ln.text, s.motive, mt).filter((it) => ['askWhere', 'askWho', 'askBody', 'mention', 'skip'].includes(it.type));
         intents = dedupe(intents);
+        /* contradição: defende e acusa a mesma pessoa (nome e cor confundidos) */
+        const pro = new Set(intents.filter((i) => i.type === 'vouch').map((i) => i.who));
+        const contra = new Set(V.validIntents(b, ln.text, s.motive, mt).filter((i) => i.type === 'accuse' || i.type === 'agree').map((i) => i.who).concat(intents.filter((i) => i.type === 'accuse' || i.type === 'agree').map((i) => i.who)));
+        const confirming = /\b(verdade|confirmo|confirma|tava mesmo|estava mesmo|isso ai|e isso|eh isso)\b/.test(U.norm(ln.text));
+        const parsedPro = new Set(T.parse(ln.text, g, { self: p.id }).filter((i) => i.type === 'vouch' || (confirming && i.type === 'sawAt')).map((i) => i.who));
+        if ([...contra].some((w) => pro.has(w) || parsedPro.has(w))) {
+          if (s.beats.length) s.beats.forEach((x) => this.postRaw(x, delay + 0.4));
+          continue;
+        }
         if (intents.some((i) => i.type === 'claimLoc')) b.claimed = true;
         const toHuman = s.beats.some((x) => x.meta.toHuman) || (s.motive && s.motive.kind === 'answerHuman');
         mt.schedule(delay, b, () => {
@@ -640,12 +945,31 @@
         x.b.queue.splice(x.b.queue.indexOf(x.it), 1);
         x.it.posted = true;
         this.enqueue(x.b, x.it.pre, { kind: x.it.k, important: true });
+        /* quem chamou e viu o abate: a acusação vai junto na primeira rodada */
+        if (x.b.p.id === mt.info.caller) {
+          const nx = x.b.queue.find((it) => it.pre && it.pre.text && it.k === 'accuse');
+          if (nx) {
+            x.b.queue.splice(x.b.queue.indexOf(nx), 1);
+            nx.posted = true;
+            this.enqueue(x.b, nx.pre, { kind: nx.k, important: true });
+          }
+        }
       }
       const round = this.plan();
       if (round) this.run(round);
     }
   }
 
+  function words(t) {
+    return new Set(U.norm(t).replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 1));
+  }
+  function similar(a, b) {
+    const A = words(a), B = words(b);
+    if (!A.size || !B.size) return U.norm(a).trim() === U.norm(b).trim() ? 1 : 0;
+    let n = 0;
+    for (const w of A) if (B.has(w)) n++;
+    return n / Math.max(A.size, B.size);
+  }
   function dedupe(list) {
     const seen = new Set();
     return list.filter((it) => {

@@ -74,6 +74,7 @@
         case 'kill': return pick([`${w} matou ${x.R(d.victim, 'o')} ${x.inA(d.area)}`, `vi ${w} matando ${x.R(d.victim, 'o')}`, `EU VI! ${w} matou`]);
         case 'shift': return pick([`${w} se transformou em outra pessoa na minha frente`, `vi ${w} mudando de cor, é metamorfo`]);
         case 'vanish': return pick([`${w} sumiu do nada ${x.inA(d.area)}`, `${w} ficou invisível, é impostor`]);
+        case 'sus': return pick([`${w} tá muito estranho, chamei por isso`, `precisava falar: ${w} tá sus demais`, `apertei porque ${w} tá estranho`]);
         case 'chaos': return pick([`foi mal, apertei sem querer kkk`, `só queria ver quem está vivo`, `reunião surpresa kkkk`, `alguém tem info?`]);
         default: return pick([`alguém tem info?`, `chamei pra gente conversar`]);
       }
@@ -147,6 +148,9 @@
     confirm: (d, x) => pick([`confirmo, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`, `verdade, ${x.R(d.who, 'o')} estava ${x.inA(d.area)}`, `é, vi ele ${x.inA(d.area)}`]),
     confirmWith: (d, x) => pick([`sim, ${x.R(d.who, 'o')} estava comigo`, `confirmo, estava comigo`, `verdade, estava comigo`]),
     denyWith: (d, x) => pick([`comigo? não`, `${x.R(d.who, 'o')} não estava comigo não`, `mentira, não estava comigo`]),
+    fromBody: (d, x) => pick([`vi ${x.R(d.who, 'o')} vindo lá do lado ${x.deA(d.bodyArea)}`, `${x.R(d.who, 'o')} tava vindo da direção ${x.deA(d.bodyArea)}`, `quando eu passei ${x.inA(d.area)}, ${x.R(d.who, 'o')} vinha lá ${x.deA(d.bodyArea)}`]),
+    atBody: (d, x) => pick([`pera, ${x.R(d.who)} disse que tava ${x.inA(d.area)}... foi lá o corpo`, `${x.R(d.who)}, você tava ${x.inA(d.area)}? e não viu o corpo?`, `${x.inA(d.area)} é onde tava o corpo, ${x.R(d.who)}`]),
+    knewBody: (d, x) => pick([`como ${x.R(d.who, 'o')} sabe onde tava o corpo? ninguém falou ainda`, `ué ${x.R(d.who)}, ninguém disse onde era o corpo`, `${x.R(d.who, 'o')} sabia do corpo antes de falarem... sus`]),
     contradictStay: (d, x) => pick([`eu fiquei ${x.inA(d.area)} um tempão e não vi ${x.R(d.who, 'o')}`, `${x.R(d.who)}, eu estava ${x.inA(d.area)} e você não passou lá`]),
     contradictSeen: (d, x) => pick([`mas eu vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`, `${x.R(d.who)}, eu te vi ${x.inA(d.area)}, não ${x.inA(d.claimed)}`, `estranho, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`]),
     notThere: (d, x) => pick([`eu nem passei ${x.inA(d.area)}`, `mentira, eu não estava ${x.inA(d.area)}`, `quê? eu estava ${x.inA(d.mine)}`]),
@@ -178,6 +182,20 @@
     whoSus: (d, x) => (d.who == null ? pick([`não sei, sem info`, `ninguém ainda`]) : pick([`acho que é ${x.R(d.who, 'o')}`, `${x.R(d.who, 'o')} pra mim`])),
     leaderVote: (d, x) => (d.who == null ? pick([`sem prova, todo mundo skip`, `ninguém tem certeza, skip`]) : pick([`vamos votar ${x.R(d.who, 'no')}, ninguém confirma ele`, `votem ${x.R(d.who, 'no')}`])),
     huh: () => pick([`?`, `quê?`, `hã?`, `não entendi`]),
+    roleNotInGame: (d) => pick([`não tem ${ROLE_TXT[d.role]} nessa partida`, `${ROLE_TXT[d.role]}? nem tem isso nesse jogo`, `não tem ${ROLE_TXT[d.role]} aqui, olha a config`]),
+    roleMaybe: (d, x) => {
+      if (d.role === 'metamorfo') return pick([`verdade, pode ter sido o metamorfo disfarçado`, d.who != null ? `se for metamorfo, quem a gente viu pode nem ser ${x.R(d.who, 'o')}` : `metamorfo muda de cara, "eu vi" não prova muito`, `tem metamorfo, então cuidado com "eu vi fulano"`]);
+      if (d.role === 'fantasma') return pick([`fantasma fica invisível, pode ter passado sem ninguém ver`, `pode ser o fantasma, ele some`]);
+      if (d.role === 'engenheiro') return pick([`engenheiro também usa duto, duto sozinho não prova`, `pode ser engenheiro, eles ventam`]);
+      return pick([`pode ser`, `faz sentido`]);
+    },
+    roleClaim: (d) => {
+      if (d.role === 'engenheiro') return pick([`sou engenheiro, por isso tava no duto`, `EU SOU ENGENHEIRO, posso usar duto`, `sou engenheiro gente`]);
+      if (d.role === 'cientista') return pick([`sou cientista, vi pelos vitais`, `cientista aqui`]);
+      if (d.role === 'rastreador') return pick([`sou rastreador`, `rastreador aqui, eu tava seguindo gente`]);
+      return `sou ${ROLE_TXT[d.role]}`;
+    },
+    roleDoubt: (d, x) => pick([`${x.R(d.who, 'o')} disse que é ${ROLE_TXT[d.role]}... sei não`, `${ROLE_TXT[d.role]}? conveniente né`, `qualquer um pode dizer que é ${ROLE_TXT[d.role]}`]),
     ack: () => pick([`ok`, `hmm`, `faz sentido`, `entendi`]),
     thanks: () => pick([`valeu`, `obrigado`, `viu?`]),
   };
@@ -246,6 +264,18 @@
   M.ROOMS.forEach((r) => r.aliases.forEach((a) => ROOM_ALIASES.push({ a: U.norm(a), area: r.id })));
   ROOM_ALIASES.sort((x, y) => y.a.length - x.a.length);
 
+  const COMMON = new Set(['tava', 'onde', 'quem', 'votei', 'voto', 'vota', 'eles', 'elas', 'acho', 'sabe', 'nada', 'mesmo', 'cade', 'agora', 'depois', 'antes', 'perto', 'junto', 'certo', 'entao', 'porque', 'quando', 'estava', 'fazendo', 'tarefa', 'corpo', 'morto', 'matou', 'vent', 'duto', 'skip', 'pula', 'pulei', 'tambem', 'aqui', 'isso', 'esse', 'essa', 'foram', 'vamos', 'bora', 'verdade', 'mentira', 'sozinho', 'prova', 'scan']);
+  /* distância de edição no máximo 1 (troca, falta, sobra ou inversão de uma letra) */
+  function lev1(a, b) {
+    if (a === b) return true;
+    const la = a.length, lb = b.length;
+    if (Math.abs(la - lb) > 1) return false;
+    let i = 0;
+    while (i < la && i < lb && a[i] === b[i]) i++;
+    if (la === lb) return a.slice(i + 1) === b.slice(i + 1) || (a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2));
+    return la > lb ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1);
+  }
+
   function findAll(n, table, key) {
     const used = new Array(n.length).fill(false);
     const found = [];
@@ -261,10 +291,40 @@
         found.push({ [key]: it[key], i: start });
       }
     }
+    if (key === 'pid') {
+      /* tolera um erro de digitação em nomes e cores com 4+ letras */
+      const re = /[a-z0-9]+/g;
+      let m;
+      while ((m = re.exec(n))) {
+        const w = m[0];
+        if (w.length < 4 || COMMON.has(w) || used[m.index]) continue;
+        const hit = table.find((it) => it.a.length >= 4 && !it.a.includes(' ') && it.a[0] === w[0] && lev1(w, it.a));
+        if (hit) {
+          for (let i = m.index; i < m.index + w.length; i++) used[i] = true;
+          found.push({ [key]: hit[key], i: m.index });
+        }
+      }
+    }
     found.sort((a, b) => a.i - b.i);
     return found;
   }
 
+  const ROLE_TXT = { metamorfo: 'metamorfo', fantasma: 'fantasma', engenheiro: 'engenheiro', cientista: 'cientista', rastreador: 'rastreador', anjo: 'anjo da guarda', barulhento: 'barulhento' };
+  const ROLE_WORDS = {
+    metamorfo: 'metamorf\\w*|shape ?shift\\w*|shifter|disfarc\\w*|transformou|mudou de (?:cor|forma|aparencia|cara)',
+    fantasma: 'fantasma|phantom|invisivel|sumiu do nada',
+    engenheiro: 'engenheir\\w*|engineer',
+    cientista: 'cientista|scientist|vitais|vitals',
+    rastreador: 'rastreador\\w*|tracker',
+    anjo: 'anjo|guardian|angel',
+    barulhento: 'barulhent\\w*|noisemaker',
+  };
+  const ROLE_RX = {};
+  const ROLE_CLAIM = {};
+  for (const r of Object.keys(ROLE_WORDS)) {
+    ROLE_RX[r] = new RegExp('\\b(' + ROLE_WORDS[r] + ')\\b');
+    ROLE_CLAIM[r] = new RegExp('\\b(sou|eu sou|eu eh|eu e|to de|tou de)\\s+(o |a |um |uma )?(' + ROLE_WORDS[r] + ')\\b');
+  }
   const RX = {
     vi: /\b(vi|vio|avistei|enxerguei|flagrei|peguei|olhei)\b/,
     kill: /\b(matou|matando|matar|mata|kill\w*|assassin\w*|esfaque\w*)\b/,
@@ -373,6 +433,15 @@
       }
       if (selfNamed && has('safe')) intents.push({ type: 'deny' });
     }
+    /* funções especiais: "pode ser metamorfo", "sou engenheiro" */
+    for (const r of Object.keys(ROLE_RX)) {
+      if (!ROLE_RX[r].test(n)) continue;
+      if (ROLE_CLAIM[r].test(n)) intents.push({ type: 'roleClaim', role: r });
+      else {
+        const o = all.players.find((x) => x.pid !== me);
+        intents.push({ type: 'roleTheory', role: r, who: o ? o.pid : null });
+      }
+    }
     if (!intents.length && all.players.length === 0 && all.rooms.length === 0 && /\?/.test(text)) intents.push({ type: 'askWho' });
     /* agrupa "mention" quando a mesma pessoa já recebeu uma intenção mais clara */
     const firm = new Set(intents.filter((i) => i.type !== 'mention' && i.who != null).map((i) => i.who));
@@ -386,5 +455,5 @@
     });
   }
 
-  AU.Talk = { P, line, style, parse, helpers, TASK_CHAT };
+  AU.Talk = { P, line, style, parse, helpers, TASK_CHAT, ROLE_TXT };
 })();

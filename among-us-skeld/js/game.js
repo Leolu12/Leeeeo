@@ -87,6 +87,7 @@
       this.percT = 0;
       this.dispatchT = 0;
       this.roundStart = 0;
+      this.tactics = !this.headless && AU.Tactics ? AU.Tactics.create(this) : null;
       this.consts = { USE_DIST, REPORT_DIST, BUTTON_DIST, VENT_DIST, BASE_VISION };
       M.resetDoors();
       this.assignRoles();
@@ -211,6 +212,58 @@
       this.fx.push(fx);
     }
 
+    /* ---------- sinais com o corpo ---------- */
+    /* Zigue-zague do jogador (vai e volta 3 vezes sem sair do lugar) = "vem comigo". */
+    trackMotion() {
+      const h = this.human, t = this.t;
+      if (!h || !h.alive || h.inVent) return;
+      const mv = (h.mv = h.mv || []);
+      mv.push({ x: h.x, y: h.y });
+      while (mv.length > 8) mv.shift();
+      if (mv.length < 8 || (h.gestT && t - h.gestT < 3)) return;
+      let rx = 0, ry = 0, path = 0, lx = 0, ly = 0;
+      for (let i = 1; i < mv.length; i++) {
+        const dx = mv[i].x - mv[i - 1].x, dy = mv[i].y - mv[i - 1].y;
+        path += Math.hypot(dx, dy);
+        if (Math.abs(dx) > 0.08) {
+          const sx = Math.sign(dx);
+          if (lx && sx !== lx) rx++;
+          lx = sx;
+        }
+        if (Math.abs(dy) > 0.08) {
+          const sy = Math.sign(dy);
+          if (ly && sy !== ly) ry++;
+          ly = sy;
+        }
+      }
+      const net = Math.hypot(mv[mv.length - 1].x - mv[0].x, mv[mv.length - 1].y - mv[0].y);
+      if ((rx >= 3 || ry >= 3) && path > 1.2 && net < 1.6) this.gesture(h, 'wiggle', 'vem!');
+    }
+    humanSignal() {
+      const h = this.human, t = this.t;
+      if (!h || !h.alive || h.inVent || this.phase !== 'play' || (h.gestT && t - h.gestT < 1.5)) return;
+      h.signalT0 = t;
+      h.signalUntil = t + 1.1;
+      h.signalAxis = this.canStand(h.x + 0.7, h.y) && this.canStand(h.x - 0.7, h.y) ? 'x' : 'y';
+      this.gesture(h, 'wiggle', 'vem!');
+    }
+    /* Quem vê o sinal (perto e com linha de visão) decide se atende. */
+    gesture(p, kind, text) {
+      const t = this.t;
+      p.gestT = t;
+      p.emote = { text: text || 'vem!', until: t + 1.8 };
+      this.log({ type: 'gesture', by: p.id, kind });
+      for (const q of this.players) {
+        if (q === p || !q.alive || !q.brain || !q.brain.seenNow) continue;
+        if (!q.brain.seenNow.includes(p) || U.dist(p, q) > 7) continue;
+        try {
+          q.brain.onGesture(p, kind);
+        } catch (e) {
+          if (window.console) console.warn('gesto falhou', e);
+        }
+      }
+    }
+
     canStand(x, y, ghost) {
       if (ghost) return x > 0.5 && y > 0.5 && x < M.W - 0.5 && y < M.H - 0.5;
       const r = 0.3;
@@ -286,6 +339,11 @@
           const s = this.speedOf(h) * Math.min(1, len);
           this.moveEntity(h, (this.input.x / len) * s, (this.input.y / len) * s, dt);
           if (h.busy && !h.busy.minigame) h.busy = null;
+        } else if (h.signalUntil > t) {
+          /* sinal "vem comigo": zigue-zague automático */
+          const ph = Math.floor((t - h.signalT0) / 0.17) % 2 ? 1 : -1;
+          const s = this.speedOf(h) * 0.85;
+          if (!this.moveEntity(h, h.signalAxis === 'x' ? ph * s : 0, h.signalAxis === 'y' ? ph * s : 0, dt)) h.signalUntil = 0;
         }
       }
       for (const p of this.players) if (p.brain) p.brain.update(dt);
@@ -295,6 +353,8 @@
       if (this.percT <= 0) {
         this.percT = 0.2;
         this.perceive();
+        this.trackMotion();
+        if (this.tactics) this.tactics.tick();
       }
       for (const p of this.players) {
         const tx = p.x - p.facing * 0.9, ty = p.y + 0.25;
@@ -412,6 +472,17 @@
       const wit = this.witnesses([{ x: kx, y: ky }, { x: v.x, y: v.y }], [k.id, v.id]);
       for (const w of wit) if (w.p.brain) w.p.brain.onWitnessKill(apparent, v.id, area.id, w.via, body);
       if (k.brain) k.brain.onKilled(v, body, wit);
+      /* double kill: parceiro impostor por perto aproveita e mata uma testemunha */
+      if (!this.S.house.noDoubleKill) {
+        for (const q of this.players) {
+          if (q === k || !q.isImp || !q.alive || !q.brain || q.inVent) continue;
+          try {
+            q.brain.onPartnerKill(k, v, wit);
+          } catch (e) {
+            if (window.console) console.warn('double kill falhou', e);
+          }
+        }
+      }
       if (v.brain) v.brain.onDeath(k, apparent);
       this.addFx({ type: 'kill', x: v.x, y: v.y, dur: 0.8 });
       this.log({ type: 'kill', killer: k.id, victim: v.id, area: area.id, apparent, witnesses: wit.map((w) => w.p.id) });
@@ -526,6 +597,7 @@
       this.emergencyCdUntil = this.t + this.S.rules.emergencyCooldown;
       this.roundStart = this.t;
       for (const p of this.players) if (p.brain) p.brain.onMeetingEnd(result);
+      if (this.tactics) this.tactics.poke('both', 5);
       this.meeting = null;
       this.phase = 'play';
       this.checkWin();
@@ -557,6 +629,7 @@
       } else return false;
       this.sab = s;
       this.dispatchT = 0;
+      if (this.tactics) this.tactics.poke('crew', 1);
       this.log({ type: 'sabotage', sab: type, by: p.id });
       for (const q of this.players) if (q.brain) q.brain.onSabotage(s);
       this.say('onSabotage', s);

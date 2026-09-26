@@ -44,6 +44,8 @@
       this.endT = null;
       this.typing = new Set();
       this.lastMsgT = 0;
+      this.askedAt = {};
+      this.answered = {};
       /* a IA (se houver) conduz a conversa; sem ela, as falas saem direto do motor */
       if (!g.headless && g.S.ui.aiChat !== 'off' && AU.LLM) AU.LLM.ensure();
       this.dir = !g.headless && AU.Voice ? AU.Voice.director(this) : null;
@@ -134,11 +136,21 @@
         for (const id of Object.keys(this.voteAt)) {
           if (this.votes[id] !== undefined || t < this.voteAt[id]) continue;
           const p = this.g.players[+id];
+          if (!p.alive) {
+            delete this.voteAt[id];
+            continue;
+          }
+          /* com IA, o voto espera a decisão dela (o motor só decide se a IA não responder) */
+          const dir = this.dir;
+          const ai = dir && dir.aiVotes[+id];
+          if (!ai && dir && dir.waitVote(+id)) {
+            this.voteAt[id] = t + 1;
+            continue;
+          }
           delete this.voteAt[id];
-          if (!p.alive) continue;
           let v = 'skip';
           try {
-            v = p.brain.mVote();
+            v = ai && (ai.target === 'skip' || (this.g.players[ai.target] && this.g.players[ai.target].alive)) ? ai.target : p.brain.mVote();
             if (AU.debug && AU.debug.trace && p.brain.why) (p.brain.whyLog = p.brain.whyLog || {})[this.info.index] = p.brain.why;
           } catch (e) {
             if (window.console) console.warn('voto falhou', e);
@@ -146,7 +158,10 @@
           this.castVote(+id, v);
           const aiTalk = this.dir && this.dir.on();
           if (U.chance(aiTalk ? 0.3 + p.brain.pers.talk * 0.35 : 0.15 + p.brain.pers.talk * 0.15)) {
-            this.say(p.brain, { text: T.line('voteSay', { who: v === 'skip' ? null : v }, this.g, p.brain), intents: [] }, { kind: 'vote', vote: v, reason: p.brain.voteReason ? p.brain.voteReason(v) : '' });
+            /* anunciar o voto influencia quem ainda não votou (quem segue a maioria presta atenção) */
+            const vi = v === 'skip' ? [{ type: 'skip' }] : [{ type: 'accuse', who: v, reason: 'vote' }];
+            const why = ai && ai.target === v && ai.reason ? ai.reason : p.brain.voteReason ? p.brain.voteReason(v) : '';
+            this.say(p.brain, { text: T.line('voteSay', { who: v === 'skip' ? null : v }, this.g, p.brain), intents: vi }, { kind: 'vote', vote: v, reason: why });
           }
         }
         const allVoted = this.alive.every((id) => this.votes[id] !== undefined);
@@ -189,12 +204,12 @@
         const b = U.pick(bots);
         this.say(b.brain, { text: T.line('askBody', {}, g, b.brain, { question: true }), intents: [{ type: 'askBody' }] }, { kind: 'askBody', important: true });
       }
-      if (h0 && h0.alive && !this.humanSpoke && !this.flags.quiet && t > this.durI + 28) {
+      if (h0 && h0.alive && !this.humanSpoke && !this.flags.quiet && t > this.durI + 40) {
         this.flags.quiet = true;
         const b = bots.find((p) => p.brain.pers.skeptic || p.brain.pers.leader) || null;
         if (b) this.say(b.brain, { text: T.line('quiet', { who: h0.id }, g, b.brain), intents: [{ type: 'quiet', who: h0.id }] }, { kind: 'quiet', important: true });
       }
-      if (h0 && h0.alive && this.askedHumanAt != null && !this.humanClaimed && !this.flags.unanswered && t - this.askedHumanAt > 18) {
+      if (h0 && h0.alive && this.askedHumanAt != null && !this.humanClaimed && !this.hasClaimed(h0.id) && !this.flags.unanswered && t - this.askedHumanAt > 18) {
         this.flags.unanswered = true;
         const b = g.players[this.askedHumanBy];
         if (b && b.alive && b.brain) b.brain.bump(h0.id, 10);
@@ -236,7 +251,9 @@
       if (this.closed || !text) return null;
       opts = opts || {};
       const g = this.g;
-      const msg = { id: ++this.msgId, from: p.id, text, intents: intents || [], t: this.t, fromHuman: p.isHuman, ghost: !p.alive, ai: !!opts.ai };
+      const msg = { id: ++this.msgId, from: p.id, text, intents: intents || [], t: this.t, fromHuman: p.isHuman, ghost: !p.alive, ai: !!opts.ai, bodyKnown: !!this.facts.bodyArea };
+      /* respondeu a um "onde você tava?" (mesmo sem citar sala reconhecível): não perguntam de novo */
+      if (!msg.ghost && this.askedAt && this.askedAt[p.id] != null && this.t - this.askedAt[p.id] < 30) this.answered[p.id] = msg.id;
       if (msg.ghost) {
         this.ghostMsgs.push(msg);
         if (this.ui) this.ui.addMsg(msg);
@@ -254,9 +271,16 @@
         if (p.brain) p.brain.nextSpeak = this.t + (1.8 + text.length / 11) * this.pace * (p.brain.pers.talk < 0.3 ? 1.5 : 1);
       }
       const hp = g.human;
+      /* quem diz "voto no X" ou "skip" no chat fica comprometido com isso */
+      if (p.brain) {
+        for (const it of msg.intents) {
+          if (it.type === 'accuse' && it.reason === 'vote' && it.who !== p.id) p.brain.committed = it.who;
+          if (it.type === 'skip') p.brain.skipLean = (p.brain.skipLean || 0) + 1;
+        }
+      }
       for (const it of msg.intents) {
         if (it.type === 'accuse' || it.type === 'agree') {
-          const w = it.type === 'agree' ? 8 : STRONG[it.reason] ? 30 : 12;
+          const w = it.type === 'agree' ? 8 : STRONG[it.reason] ? 30 : it.reason === 'vote' ? 5 : 12;
           this.heat[it.who] = (this.heat[it.who] || 0) + w;
           (this.accusers[it.who] = this.accusers[it.who] || {})[p.id] = 1;
         } else if (it.type === 'vouch') {
@@ -268,6 +292,8 @@
           this.humanClaimed = true;
         }
         if (hp && !p.isHuman && it.who === hp.id && (it.type === 'askWhere' || it.type === 'accuse' || it.type === 'quiet')) this.lastToHuman = p.id;
+        if (it.type === 'askWhere' && it.who != null && it.who !== p.id) this.askedAt[it.who] = this.t;
+        if (it.type === 'claimLoc') this.answered[p.id] = msg.id;
       }
       if (this.ui) this.ui.addMsg(msg);
       for (const q of g.players) {
@@ -291,6 +317,10 @@
       if (this.ui) this.ui.onVote(voter);
       if (!this.g.headless) AU.Audio.play('vote');
       return true;
+    }
+    /* já disse onde estava (ou respondeu quando perguntaram) */
+    hasClaimed(id) {
+      return this.answered[id] != null;
     }
     canReply(msgId) {
       return (this.replyCount[msgId] || 0) < 2;

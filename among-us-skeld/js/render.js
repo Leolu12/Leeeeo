@@ -450,6 +450,24 @@
         ctx.strokeText(ap.name, sp.x, sp.y - ppt * 0.95);
         ctx.fillStyle = partner ? '#ff5a5a' : '#ffffff';
         ctx.fillText(ap.name, sp.x, sp.y - ppt * 0.95);
+        if (p.emote && p.emote.until > g.t && p.alive) {
+          /* balão curto de sinal ("vem!", "ok", "?") acima do nome */
+          const txt = p.emote.text;
+          ctx.font = `800 ${Math.max(11, ppt * 0.4)}px "Nunito", system-ui, sans-serif`;
+          const w = ctx.measureText(txt).width + ppt * 0.4, bh = ppt * 0.55, by = sp.y - ppt * 1.75;
+          ctx.fillStyle = 'rgba(255,255,255,0.95)';
+          rr(ctx, sp.x - w / 2, by - bh / 2, w, bh, bh * 0.4);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(sp.x - ppt * 0.1, by + bh / 2 - 1);
+          ctx.lineTo(sp.x + ppt * 0.1, by + bh / 2 - 1);
+          ctx.lineTo(sp.x, by + bh / 2 + ppt * 0.14);
+          ctx.fill();
+          ctx.fillStyle = '#10131c';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(txt, sp.x, by + 1);
+          ctx.textBaseline = 'alphabetic';
+        }
         ctx.globalAlpha = 1;
       }
       /* efeitos */

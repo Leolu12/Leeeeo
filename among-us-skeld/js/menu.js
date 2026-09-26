@@ -354,6 +354,7 @@
               L.test();
             } }, 'Ativar e testar o Claude')));
           body.appendChild(this.field('Uso da IA nas reuniões', this.seg('ai-use', Object.keys(C.AI_CHAT).map((k) => [k, C.AI_CHAT[k]]), () => UI.aiChat, (v) => { UI.aiChat = v; change(); })));
+          body.appendChild(this.field('Votos e ações dos bots', this.seg('ai-act', Object.keys(C.AI_ACTIONS).map((k) => [k, C.AI_ACTIONS[k]]), () => UI.aiActions || 'on', (v) => { UI.aiActions = v; change(); }), 'Com a IA decidindo, os bots escolhem em quem votar, o que fazer, quem seguir e (os impostores) quando sabotar e quem caçar. Usa mais o seu Claude.'));
           return;
         }
         const modes = [['auto', 'Automático', 'Usa o que estiver configurado abaixo']];
@@ -437,6 +438,7 @@
             h('div', { class: 'row-btns' }, listBtn, testBtn, msg));
         }
         body.appendChild(this.field('Uso da IA nas reuniões', this.seg('ai-use', Object.keys(C.AI_CHAT).map((k) => [k, C.AI_CHAT[k]]), () => UI.aiChat, (v) => { UI.aiChat = v; change(); })));
+        body.appendChild(this.field('Votos e ações dos bots', this.seg('ai-act', Object.keys(C.AI_ACTIONS).map((k) => [k, C.AI_ACTIONS[k]]), () => UI.aiActions || 'on', (v) => { UI.aiActions = v; change(); }), 'Com a IA decidindo, os bots escolhem em quem votar, o que fazer, quem seguir e (os impostores) quando sabotar e quem caçar.'));
       };
       draw();
       const off = L.onChange(() => {

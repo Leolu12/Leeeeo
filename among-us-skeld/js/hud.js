@@ -84,7 +84,9 @@
       e.actVent = act('vent', '🕳', 'Duto', 'V', () => this.doVent());
       e.actSab = act('sab', '⚠', 'Sabotar', 'X', () => this.toggleMap(true), 'red');
       e.actAbility = act('ability', '✦', 'Habilidade', 'F', () => this.doAbility(), 'violet');
-      e.actions = h('div', { class: 'hud-actions' }, e.actAbility, e.actSab, e.actVent, e.actKill, e.actReport, e.actUse);
+      e.actSignal = act('signal', '〰', 'Sinal', 'G', () => this.g.humanSignal());
+      e.actSignal.title = 'Zigue-zague "vem comigo" (G): quem estiver perto pode te seguir';
+      e.actions = h('div', { class: 'hud-actions' }, e.actSignal, e.actAbility, e.actSab, e.actVent, e.actKill, e.actReport, e.actUse);
       e.ventNav = h('div', { class: 'hud-ventnav', hidden: true });
       e.joy = h('div', { class: 'hud-joy', 'aria-hidden': 'true' }, h('div', { class: 'knob' }));
       root.append(e.tasks, topRight, e.sab, e.toast, e.feedBox, e.actions, e.ventNav, e.joy);
@@ -210,6 +212,7 @@
       this.setAct(e.actUse, true, useOk && !hp.inVent, use ? use.label : 'Usar');
       const body = play ? g.bodyInReach(hp) : null;
       this.setAct(e.actReport, hp.alive, !!body);
+      this.setAct(e.actSignal, hp.alive && play, !hp.inVent && !(hp.gestT && g.t - hp.gestT < 1.5));
       const isImp = hp.isImp;
       const target = play && isImp ? g.killTargetFor(hp) : null;
       this.setAct(e.actKill, isImp && hp.alive, !!target && hp.killCd <= 0 && !(hp.invisUntil > g.t), null, hp.killCd);

@@ -21,6 +21,7 @@ Jogo de dedução social no mapa **The Skeld**, inspirado em *Among Us*, para jo
 | Entrar/sair do duto | V; 1–3 troca de duto | Duto e setas na tela |
 | Sabotar (impostor) | X | Sabotar |
 | Habilidade da função | F | botão roxo |
+| Sinal "vem comigo" (zigue-zague) | G, ou vai e volta rápido no lugar | Sinal |
 | Mapa | M ou Tab | Mapa |
 | Fechar ou pausar | Esc | ✕ ou Menu |
 
@@ -30,7 +31,13 @@ Durante a reunião você pode **pausar** o relógio para ler com calma, rolar o 
 
 ## IA das conversas (modelo de linguagem)
 
-Sem nenhum modelo, os bots já conversam com frases próprias. Com um modelo de linguagem ligado, **a IA escreve a reunião inteira**: as falas de abertura, as respostas ao que você digita, as brigas e defesas entre os bots, as cobranças a quem está quieto e os anúncios de voto.
+Sem nenhum modelo, os bots já conversam com frases próprias. Com um modelo de linguagem ligado:
+
+- **A IA escreve a reunião inteira**: as falas de abertura, as respostas ao que você digita, as brigas e defesas entre os bots, as cobranças a quem está quieto e os anúncios de voto. Cada bot tem um jeito próprio de escrever (uns certinhos, outros abreviando, poucos com gíria), sem repetir o que já foi dito.
+- **A IA decide os votos**: cada bot vota com base no que ele sabe e no que ouviu no chat. Em situação crítica, ele vota em vez de pular.
+- **A IA decide as ações no mapa**: os tripulantes escolhem fazer tarefas, andar em dupla, vigiar um suspeito, evitar alguém, olhar câmeras ou chamar alguém para ver a tarefa visual. Os impostores escolhem a vítima, fingem tarefa, sabotam, trancam portas, usam dutos, atraem alguém para um canto ou combinam double kill.
+
+O motor do jogo executa as ordens e garante as regras e os reflexos (reportar corpo, fugir de quem viu matar, não matar com testemunha). Dá para deixar só a conversa com a IA em **Votos e ações dos bots**.
 
 Como funciona:
 - O motor do jogo continua decidindo o que cada bot sabe, de quem desconfia, o que afirma e em quem vota. Um "diretor" junta essas falas em rodadas e pede ao modelo para escrevê-las como um chat de verdade, cada bot no seu estilo.
@@ -118,6 +125,13 @@ Dentro do claude.ai a página roda sem acesso à internet, por isso lá só o Cl
   - Pedem provas, cobram quem está quieto e fazem perguntas diretas a você.
   - Votam por eliminação: quem já foi inocentado sai da lista.
 
+**Sinais e inteligência no mapa**
+- Sinal "vem comigo": aperte G (ou o botão Sinal), ou faça zigue-zague no lugar. Quem está perto pode aceitar ("ok") e te seguir, ou recusar ("?", "não") se desconfiar de você. Quem te segue vigia você: se você ficar parado à toa, levar para um canto isolado ou fizer algo estranho, ele para de seguir ou foge.
+- Os bots também chamam você ou outros para mostrar uma tarefa visual e ganhar álibi. Quem é seguido por alguém de confiança mostra a tarefa visual.
+- Os bots andam em dupla com quem confiam, vigiam de longe quem é suspeito, se juntam quando as luzes caem e mudam o comportamento depois de cada reunião: quem foi acusado tenta provar inocência; o impostor acusado se esconde no grupo e guarda rancor de quem o acusou.
+- Impostores: álibi no começo da rodada, isca ("vem comigo" até um canto vazio), parceria falsa e double kill. Se você for impostor e fizer o sinal perto do parceiro bot, ele responde "fechou" e mata junto quando você matar.
+- Nas reuniões os bots deduzem: quem vinha da direção do corpo, quem disse que estava justamente na sala do corpo, quem sabia onde era o corpo antes de alguém contar, quem mentiu no álibi. Eles também lembram quem já respondeu, conhecem as regras e as funções da partida (metamorfo, engenheiro etc.) e o impostor defende o parceiro com discrição, ou o entrega quando ele já está perdido.
+
 **Relatório final:** revela funções e personalidades, mostra o destino de cada um, as tarefas feitas e o principal suspeito de cada bot. Também traz a linha do tempo completa: abates com testemunhas, dutos, sabotagens, votos e ejeções.
 
 ## Estrutura
@@ -134,7 +148,8 @@ js/brain.js       bots em campo: percepção, memória, tarefas e impostor
 js/mind.js        bots nas reuniões: evidências, fala, reações e voto
 js/talk.js        frases, tom do chat e leitura das mensagens do jogador
 js/llm.js         provedores de modelo de linguagem (Claude, WebLLM, APIs)
-js/voice.js       monta o que cada bot sabe e transforma em fala com o modelo
+js/voice.js       diretor da reunião: o que cada bot sabe, falas e votos pela IA
+js/tactics.js     estrategista: ações no mapa decididas pela IA
 js/meeting.js     fluxo e interface da reunião, quadro de álibis e histórico
 js/decor.js       desenho estático das salas: pisos, paredes, móveis e consoles
 js/render.js      desenho dos tripulantes, efeitos e névoa
