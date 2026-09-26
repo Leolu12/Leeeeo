@@ -18,6 +18,7 @@
     init() {
       AU.Menu.load();
       AU.Audio.setEnabled(AU.Menu.S.ui.sound !== false);
+      AU.LLM.detect();
       this.el = {
         title: document.getElementById('screen-title'),
         create: document.getElementById('screen-create'),
@@ -64,6 +65,8 @@
     },
 
     startGame() {
+      /* clique em "Começar": momento certo para pedir a permissão do Claude, se for o caso */
+      if (AU.LLM.status === 'available' && AU.Menu.S.ui.aiChat !== 'off') AU.LLM.warmup();
       const S = U.clone(AU.Menu.S);
       if (!this.roster || this.roster.length !== S.room.players) this.roster = AU.Menu.buildRoster(AU.Menu.S);
       this.teardown();
@@ -175,6 +178,7 @@
           e.preventDefault();
           HUD.toggleMap();
           break;
+        case 'KeyH': HUD.openHistory(); break;
         case 'Digit1': HUD.ventKey(0); break;
         case 'Digit2': HUD.ventKey(1); break;
         case 'Digit3': HUD.ventKey(2); break;

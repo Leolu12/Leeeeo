@@ -43,7 +43,7 @@
       root.innerHTML = '';
       const sections = [
         ['preset', 'Presets'], ['perfil', 'Seu perfil'], ['sala', 'Sala'], ['regras', 'Regras de jogo'],
-        ['funcoes', 'Funções especiais'], ['bots', 'Bots'], ['interface', 'Narração e interface'], ['casa', 'Regras da casa'],
+        ['funcoes', 'Funções especiais'], ['bots', 'Bots'], ['ia', 'IA das conversas'], ['interface', 'Narração e interface'], ['casa', 'Regras da casa'],
       ];
       const nav = h('nav', { class: 'cfg-nav', 'aria-label': 'Seções' });
       const main = h('div', { class: 'cfg-main' });
@@ -70,6 +70,7 @@
       main.appendChild(this.secRules(change));
       main.appendChild(this.secRoles(change));
       main.appendChild(this.secBots(change, rerender));
+      main.appendChild(this.secAI(change));
       main.appendChild(this.secUI(change));
       main.appendChild(this.secHouse(change));
       const summary = h('div', { class: 'cfg-summary' }, this.summary());
@@ -300,6 +301,130 @@
           this.field('Ritmo do chat', this.seg('bpace', Object.keys(C.CHAT_PACE).map((k) => [k, C.CHAT_PACE[k].name]), () => B.chatPace, (v) => { B.chatPace = v; change(); }))));
     },
 
+    /* Status da IA numa linha, atualizado ao vivo. */
+    aiStatusEl() {
+      const L = AU.LLM;
+      const el = h('div', { class: 'ai-status' });
+      const bar = h('div', { class: 'ai-bar' }, h('div', {}));
+      const txt = h('span', {});
+      el.append(h('span', { class: 'ai-dot' }), txt, bar);
+      const paint = () => {
+        el.className = 'ai-status ' + L.status;
+        const who = L.provider ? L.label() : 'regras';
+        const head = { ready: 'IA ativa: ' + who, available: 'IA disponível: ' + who, loading: 'Preparando a IA…', error: 'IA com problema', off: 'IA desligada' }[L.status] || L.status;
+        txt.textContent = head + (L.detail ? ' — ' + L.detail : '');
+        bar.hidden = L.status !== 'loading';
+        bar.firstChild.style.width = Math.round((L.progress || 0) * 100) + '%';
+      };
+      paint();
+      const off = L.onChange(() => {
+        if (!el.isConnected) return off();
+        paint();
+      });
+      return el;
+    },
+
+    secAI(change) {
+      const L = AU.LLM, cfg = L.cfg, UI = this.S.ui;
+      const inClaude = !!L.claudeSample;
+      const body = h('div', { class: 'ai-body' });
+      const draw = () => {
+        body.innerHTML = '';
+        const modes = [['auto', 'Automático', inClaude ? 'Usa o Claude deste link' : 'Usa o que estiver configurado abaixo']];
+        if (inClaude) modes.push(['claude', 'Claude', 'Grátis pelo seu acesso ao claude.ai']);
+        modes.push(['webllm', 'Modelo no navegador', 'Grátis, roda no seu computador']);
+        modes.push(['api', 'API grátis', 'OpenRouter, Groq, Gemini ou Ollama']);
+        modes.push(['off', 'Desligada', 'Só o sistema de regras']);
+        body.appendChild(this.field('Fonte da IA', this.seg('ai-mode', modes, () => cfg.mode, (v) => {
+          cfg.mode = v;
+          L.save();
+          L.applyMode(false);
+          draw();
+        })));
+        const showWeb = cfg.mode === 'webllm' || (cfg.mode === 'auto' && !inClaude && !cfg.key);
+        const showApi = cfg.mode === 'api' || (cfg.mode === 'auto' && !inClaude && !!cfg.key);
+        if (inClaude && (cfg.mode === 'auto' || cfg.mode === 'claude')) {
+          body.appendChild(h('p', { class: 'cfg-desc' }, 'Você abriu o jogo pelo claude.ai: os bots conversam usando o Claude, sem instalar nada. Na primeira partida o claude.ai pede sua permissão; as mensagens contam no seu uso do Claude.'));
+        }
+        if (showWeb) {
+          const sel = this.select('ai-web-model', L.WEBLLM_MODELS.map((m) => [m.id, m.name + ' — ' + m.note]), () => cfg.webllmModel, (v) => {
+            cfg.webllmModel = v;
+            L.engine = null;
+            L.save();
+          });
+          const btn = h('button', { class: 'btn', type: 'button', onclick: () => {
+            cfg.mode = cfg.mode === 'auto' ? 'webllm' : cfg.mode;
+            L.save();
+            L.loadWebLLM();
+          } }, L.engine ? 'Modelo carregado' : 'Baixar e ativar');
+          body.append(
+            h('p', { class: 'cfg-desc' }, L.hasWebGPU
+              ? 'Um modelo de linguagem gratuito que roda no seu próprio computador, sem conta e sem enviar nada para a internet. O download acontece só uma vez e fica guardado no navegador. Precisa de uma placa de vídeo razoável.'
+              : 'Este navegador não tem WebGPU, que o modelo local precisa. Use Chrome ou Edge atualizados num computador, ou escolha "API grátis".'),
+            this.field('Modelo', sel), h('div', { class: 'row-btns' }, btn));
+        }
+        if (showApi || cfg.mode === 'api') {
+          const P = L.API_PRESETS;
+          const presetSel = this.select('ai-preset', Object.keys(P).map((k) => [k, P[k].name]), () => cfg.preset, (v) => {
+            cfg.preset = v;
+            cfg.base = P[v].base;
+            cfg.model = P[v].model;
+            L.save();
+            L.applyMode(false);
+            draw();
+          });
+          const base = h('input', { type: 'text', id: 'ai-base', value: cfg.base, placeholder: 'https://…/v1', autocomplete: 'off' });
+          base.addEventListener('change', () => { cfg.base = base.value.trim(); L.save(); L.applyMode(false); });
+          const key = h('input', { type: 'password', id: 'ai-key', value: cfg.key, placeholder: P[cfg.preset] && P[cfg.preset].needsKey ? 'cole sua chave aqui' : 'opcional', autocomplete: 'off' });
+          key.addEventListener('change', () => { cfg.key = key.value.trim(); L.save(); L.applyMode(false); });
+          const dl = h('datalist', { id: 'ai-models' });
+          const model = h('input', { type: 'text', id: 'ai-model', value: cfg.model, list: 'ai-models', placeholder: 'nome do modelo', autocomplete: 'off' });
+          model.addEventListener('change', () => { cfg.model = model.value.trim(); L.save(); L.applyMode(false); });
+          const msg = h('span', { class: 'fine' }, '');
+          const listBtn = h('button', { class: 'btn', type: 'button', onclick: async () => {
+            msg.textContent = 'Buscando modelos…';
+            try {
+              const list = await L.listModels();
+              dl.innerHTML = '';
+              list.slice(0, 200).forEach((id) => dl.appendChild(h('option', { value: id })));
+              msg.textContent = list.length + ' modelos encontrados' + (list.some((id) => /:free$/.test(id)) ? ' (os grátis aparecem primeiro).' : '.');
+              if (!cfg.model && list[0]) {
+                cfg.model = list[0];
+                model.value = list[0];
+                L.save();
+                L.applyMode(false);
+              }
+            } catch (e) {
+              msg.textContent = 'Não consegui listar: ' + e.message;
+            }
+          } }, 'Listar modelos');
+          const testBtn = h('button', { class: 'btn', type: 'button', onclick: async () => {
+            cfg.mode = cfg.mode === 'auto' ? 'api' : cfg.mode;
+            L.save();
+            await L.applyMode(false);
+            L.test();
+          } }, 'Testar');
+          const pr = P[cfg.preset];
+          body.append(
+            h('p', { class: 'cfg-desc' }, 'Serviços com plano gratuito: crie uma chave no site do serviço e cole abaixo. A chave fica guardada só neste navegador e as conversas da reunião são enviadas para esse serviço.'),
+            h('div', { class: 'grid2' },
+              this.field('Serviço', presetSel, pr && pr.keyUrl ? h('span', {}, 'Criar chave: ', h('a', { href: pr.keyUrl, target: '_blank', rel: 'noopener' }, pr.keyUrl.replace(/^https?:\/\//, ''))) : null),
+              this.field('Endereço (base URL)', base),
+              this.field('Chave da API', key),
+              this.field('Modelo', h('div', {}, model, dl))),
+            h('div', { class: 'row-btns' }, listBtn, testBtn, msg));
+        }
+        body.appendChild(this.field('Uso da IA nas reuniões', this.seg('ai-use', Object.keys(C.AI_CHAT).map((k) => [k, C.AI_CHAT[k]]), () => UI.aiChat, (v) => { UI.aiChat = v; change(); })));
+      };
+      draw();
+      const off = L.onChange(() => {
+        if (!body.isConnected) return off();
+        const b = body.querySelector('.row-btns .btn');
+        if (b && L.engine && b.textContent === 'Baixar e ativar') b.textContent = 'Modelo carregado';
+      });
+      return this.sec('ia', 'IA das conversas', 'Com IA, os bots respondem de verdade ao que você escreve na reunião, cada um com a própria personalidade e só com o que viu. Sem IA, eles usam o sistema de regras.', this.aiStatusEl(), body);
+    },
+
     secUI(change) {
       const UI = this.S.ui;
       return this.sec('interface', 'Narração e interface', null,
@@ -404,7 +529,9 @@
       root.append(
         h('header', { class: 'cfg-head' }, h('h2', {}, 'Lobby'), h('p', {}, this.summary())),
         h('div', { class: 'lobby-body' }, grid, h('aside', { class: 'lobby-side' }, h('h3', {}, 'Chat do lobby'), chat,
-          h('p', { class: 'fine' }, manual ? 'Atribua a personalidade de cada bot antes de começar.' : 'As personalidades não mudam durante a partida. As funções só são sorteadas ao começar.'))),
+          h('p', { class: 'fine' }, manual ? 'Atribua a personalidade de cada bot antes de começar.' : 'As personalidades não mudam durante a partida. As funções só são sorteadas ao começar.'),
+          h('h3', { class: 'lobby-ai-h' }, 'IA das conversas'), this.aiStatusEl(),
+          h('p', { class: 'fine' }, 'Para trocar a fonte da IA, volte às configurações.'))),
         h('div', { class: 'cfg-foot' },
           h('button', { class: 'btn ghost', onclick: () => { clearTimeout(this._lobbyT); AU.App.show('create'); } }, '← Configurações'),
           h('button', { class: 'btn', onclick: () => { AU.App.roster = this.buildRoster(S); this.lobby(root, AU.App.roster); } }, 'Sortear bots de novo'),
@@ -503,7 +630,9 @@
           h('div', { class: 'end-table-wrap' }, h('table', { class: 'end-table' },
             h('thead', {}, h('tr', {}, h('th', {}, 'Jogador'), h('th', {}, 'Função'), h('th', {}, 'Personalidade'), h('th', {}, 'Destino'), h('th', { class: 'num' }, 'Tarefas'), h('th', {}, 'Principal suspeito na última reunião'))),
             h('tbody', {}, rows))),
-          h('h3', {}, 'Linha do tempo'), tl) : h('p', { class: 'fine' }, 'Relatório final desativado nas configurações.'),
+          h('h3', {}, 'Linha do tempo'), tl,
+          (g.meetingLog || []).length ? h('h3', {}, 'Conversas das reuniões') : null,
+          (g.meetingLog || []).filter((mt) => mt.closed).map((mt) => AU.MeetingView.historyElement(g, mt))) : h('p', { class: 'fine' }, 'Relatório final desativado nas configurações.'),
         h('div', { class: 'cfg-foot' },
           h('button', { class: 'btn ghost', onclick: () => AU.App.show('title') }, 'Menu inicial'),
           h('button', { class: 'btn', onclick: () => AU.App.toLobby(false) }, 'Voltar ao lobby'),

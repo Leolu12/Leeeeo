@@ -1,8 +1,8 @@
-/* Reuniões: fluxo de discussão/votação, chat em tempo real e ejeção. */
+/* Reuniões: fluxo de discussão/votação, chat em tempo real (com IA quando disponível) e ejeção. */
 (function () {
   'use strict';
   const AU = window.AU;
-  const U = AU.U, C = AU.C, T = AU.Talk;
+  const U = AU.U, C = AU.C, T = AU.Talk, M = AU.Map;
   const h = U.h;
   const STRONG = { kill: 1, vent: 1, shift: 1, vanish: 1 };
 
@@ -30,6 +30,7 @@
       this.humanClaimed = false;
       this.humanSpoke = false;
       this.closed = false;
+      this.paused = false;
       this.msgId = 0;
       this.voteAt = {};
       this.result = null;
@@ -41,6 +42,12 @@
       this.replyCount = {};
       this.nextSlot = 0;
       this.endT = null;
+      this.typing = new Set();
+      this.holdUntil = 0;
+      this.followups = 0;
+      this.aiBusy = false;
+      this.lastMsgT = 0;
+      this.lastAiReplyT = -99;
       this.ui = g.headless ? null : new MeetingUI(this);
       for (const p of g.players) if (p.brain && p.alive && p.brain.mStart) p.brain.mStart(this);
       for (const p of g.players) {
@@ -51,19 +58,30 @@
           this.post(p, T.line(kind, { who: p.brain.killedBy }, g, p.brain), []);
         });
       }
+      if (AU.Voice && AU.Voice.active(this)) AU.Voice.opening(this);
     }
 
     get votingStart() { return this.durI + this.durD; }
     get votingEnd() { return this.durI + this.durD + this.durV; }
 
     schedule(delay, brain, fn, opts) {
+      opts = opts || {};
       const base = Math.max(this.t, this.durI);
       const at = base + Math.max(0.2, delay);
-      this.sched.push({ at, brain, fn, deadline: opts && opts.ttl ? at + opts.ttl : null });
+      this.sched.push({ at, brain, fn, deadline: opts.ttl ? at + opts.ttl : null, agenda: !!opts.agenda, force: !!opts.force });
+    }
+
+    setPaused(v) {
+      this.paused = !!v;
+      if (this.ui) this.ui.onPause();
     }
 
     update(dt) {
       if (this.closed) return;
+      if (this.paused && (this.phase === 'discussion' || this.phase === 'voting')) {
+        if (this.ui) this.ui.tick();
+        return;
+      }
       this.t += dt;
       const t = this.t;
       if (this.phase === 'intro' && t >= this.durI) {
@@ -77,17 +95,25 @@
         if (this.ui) this.ui.onPhase();
       }
       if (this.phase === 'discussion' || this.phase === 'voting') {
-        this.sched.sort((a, b) => a.at - b.at);
+        /* respostas diretas ao jogador passam na frente da fila */
+        this.sched.sort((a, b) => (a.force ? a.at - 6 : a.at) - (b.force ? b.at - 6 : b.at));
         let guard = 0;
         while (this.sched.length && this.sched[0].at <= t && guard++ < 20) {
           const it = this.sched.shift();
           if (it.deadline != null && t > it.deadline) continue;
           const b = it.brain;
           if (b && b.p.alive) {
+            /* enquanto a IA reescreve as falas de abertura, a agenda espera um pouco */
+            if (it.agenda && this.holdUntil && t < this.holdUntil) {
+              it.at = this.holdUntil + U.rf(0.2, 2.5);
+              this.sched.push(it);
+              continue;
+            }
             /* ritmo humano: um bot digita uma mensagem por vez e a sala não recebe rajadas */
-            const free = Math.max(this.nextSlot || 0, b.nextSpeak || 0);
-            if (t < free) {
-              it.at = free + U.rf(0.05, 0.6);
+            const free = Math.max(this.nextSlot || 0, it.force ? 0 : b.nextSpeak || 0);
+            const forceWaiting = !it.force && this.sched.some((x) => x.force && x.at <= t);
+            if (t < free || forceWaiting) {
+              it.at = Math.max(free, t) + (it.force ? 0.05 : U.rf(0.3, 1.0));
               this.sched.push(it);
               continue;
             }
@@ -99,6 +125,10 @@
           }
         }
         this.checkPrompts();
+        this.updateTyping();
+        if (AU.Voice && !this.aiBusy && this.followups < 2 && t - this.lastMsgT > 7 && t > this.durI + 12 && t < this.votingEnd - 15) {
+          if (AU.Voice.active(this)) AU.Voice.followup(this);
+        }
       }
       if (this.phase === 'voting') {
         for (const id of Object.keys(this.voteAt)) {
@@ -114,7 +144,7 @@
             if (window.console) console.warn('voto falhou', e);
           }
           this.castVote(+id, v);
-          if (U.chance(0.18 + p.brain.pers.talk * 0.2)) {
+          if (U.chance(0.15 + p.brain.pers.talk * 0.15)) {
             this.post(p, T.line('voteSay', { who: v === 'skip' ? null : v }, this.g, p.brain), []);
           }
         }
@@ -131,6 +161,24 @@
       if (this.ui) this.ui.tick();
     }
 
+    /* "Fulano está digitando…": quem tem fala prestes a sair ou está esperando a IA. */
+    updateTyping() {
+      if (!this.ui) return;
+      const soon = new Set(this.typing);
+      const next = this.sched
+        .filter((it) => it.brain && it.brain.p.alive && it.at - this.t < 1.6)
+        .sort((a, b) => a.at - b.at);
+      for (const it of next) {
+        if (soon.size >= Math.max(2, this.typing.size)) break;
+        soon.add(it.brain.p.id);
+      }
+      const key = [...soon].sort().join(',');
+      if (key !== this._typingKey) {
+        this._typingKey = key;
+        this.ui.renderTyping(soon);
+      }
+    }
+
     checkPrompts() {
       const g = this.g, h0 = g.human, t = this.t;
       const bots = this.alive.map((id) => g.players[id]).filter((p) => p.brain);
@@ -140,12 +188,12 @@
         const b = U.pick(bots);
         this.post(b, T.line('askBody', {}, g, b.brain, { question: true }), [{ type: 'askBody' }]);
       }
-      if (h0 && h0.alive && !this.humanSpoke && !this.flags.quiet && t > this.durI + 24) {
+      if (h0 && h0.alive && !this.humanSpoke && !this.flags.quiet && t > this.durI + 28) {
         this.flags.quiet = true;
         const b = bots.find((p) => p.brain.pers.skeptic || p.brain.pers.leader) || null;
         if (b) this.post(b, T.line('quiet', { who: h0.id }, g, b.brain), [{ type: 'quiet', who: h0.id }]);
       }
-      if (h0 && h0.alive && this.askedHumanAt != null && !this.humanClaimed && !this.flags.unanswered && t - this.askedHumanAt > 16) {
+      if (h0 && h0.alive && this.askedHumanAt != null && !this.humanClaimed && !this.flags.unanswered && t - this.askedHumanAt > 18) {
         this.flags.unanswered = true;
         const b = g.players[this.askedHumanBy];
         if (b && b.alive && b.brain) b.brain.bump(h0.id, 10);
@@ -158,7 +206,7 @@
         const p = g.players[id];
         if (!p.brain) continue;
         const b = p.brain;
-        let vt = U.rf(1.5, 5) + this.durV * 0.5 * b.pers.voteDelay * U.rf(0.5, 1.1);
+        let vt = U.rf(1.5, 5) + this.durV * 0.55 * b.pers.voteDelay * U.rf(0.5, 1.1);
         const top = !p.isImp && b.topSuspect ? b.topSuspect() : null;
         if (top && top.s >= 90) vt *= 0.4;
         this.voteAt[id] = this.votingStart + Math.min(vt, this.durV - 3);
@@ -167,7 +215,7 @@
 
     humanSay(text) {
       const g = this.g, hp = g.human;
-      text = String(text || '').trim().slice(0, 120);
+      text = String(text || '').trim().slice(0, 160);
       if (!text || !hp || this.closed) return;
       if (this.phase !== 'discussion' && this.phase !== 'voting') return;
       if (!hp.alive) {
@@ -179,26 +227,36 @@
         humanReported: this.info.kind === 'report' && this.info.caller === hp.id,
         bodyKnown: !!this.facts.bodyArea,
       });
-      this.post(hp, text, intents);
+      let responders = [];
+      const V = AU.Voice;
+      if (V && V.active(this) && this.t - this.lastAiReplyT > 2.5) {
+        responders = V.pickResponders(this, text, intents);
+        this.lastAiReplyT = this.t;
+      }
+      const msg = this.post(hp, text, intents, { aiResponders: new Set(responders.map((p) => p.id)) });
+      if (msg && responders.length) V.reply(this, msg, responders);
     }
 
-    post(p, text, intents) {
-      if (this.closed || !text) return;
+    post(p, text, intents, opts) {
+      if (this.closed || !text) return null;
+      opts = opts || {};
       const g = this.g;
-      const msg = { id: ++this.msgId, from: p.id, text, intents: intents || [], t: this.t, fromHuman: p.isHuman, ghost: !p.alive };
+      const msg = { id: ++this.msgId, from: p.id, text, intents: intents || [], t: this.t, fromHuman: p.isHuman, ghost: !p.alive, ai: !!opts.ai, aiResponders: opts.aiResponders || null };
       if (msg.ghost) {
         this.ghostMsgs.push(msg);
         if (this.ui) this.ui.addMsg(msg);
-        return;
+        return msg;
       }
       this.msgs.push(msg);
+      this.lastMsgT = this.t;
       if (p.isHuman) {
         this.humanSpoke = true;
-        this.nextSlot = Math.max(this.nextSlot || 0, this.t + 0.8 * this.pace);
+        this.nextSlot = Math.max(this.nextSlot || 0, this.t + 1.2 * this.pace);
       } else {
         this.lastSpeaker = p.id;
-        this.nextSlot = this.t + U.rf(0.55, 1.5) * this.pace;
-        if (p.brain) p.brain.nextSpeak = this.t + (1.3 + text.length / 13) * this.pace * (p.brain.pers.talk < 0.3 ? 1.5 : 1);
+        this.typing.delete(p.id);
+        this.nextSlot = this.t + U.rf(1.0, 2.2) * this.pace;
+        if (p.brain) p.brain.nextSpeak = this.t + (1.8 + text.length / 11) * this.pace * (p.brain.pers.talk < 0.3 ? 1.5 : 1);
       }
       const hp = g.human;
       for (const it of msg.intents) {
@@ -226,6 +284,7 @@
           }
         }
       }
+      return msg;
     }
 
     castVote(voter, target) {
@@ -282,6 +341,7 @@
       if (top != null && !tie && max > skip) ejected = top;
       this.result = { ejected, tie: tie && max >= skip, skip, counts, votes: Object.assign({}, this.votes) };
       this.phase = 'results';
+      this.paused = false;
       this.resultsEnd = this.t + (this.g.headless ? 0.1 : 4.2);
       if (this.ui) this.ui.showResults();
     }
@@ -306,6 +366,68 @@
     return '#' + c(0) + c(2) + c(4);
   }
 
+  function mentionsHuman(g, text) {
+    const hp = g.human;
+    if (!hp) return false;
+    const n = ' ' + U.norm(text) + ' ';
+    const al = [U.norm(hp.name)].concat(C.COLOR[hp.color].alias.map(U.norm)).filter((a) => a.length >= 2);
+    return al.some((a) => new RegExp('(^|[^a-z0-9])' + a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^a-z0-9])').test(n));
+  }
+
+  /* Uma mensagem do chat (usada na reunião e no histórico). */
+  function msgElement(g, msg) {
+    const p = g.players[msg.from];
+    const col = C.COLOR[p.color];
+    const mention = !msg.fromHuman && mentionsHuman(g, msg.text);
+    return h('div', { class: 'mt-msg' + (msg.fromHuman ? ' mine' : '') + (msg.ghost ? ' ghost' : '') + (mention ? ' mention' : '') },
+      h('span', { class: 'mt-msg-bean', html: AU.Render.beanSVG(p.color, { size: 26, visor: p.visor, ghost: msg.ghost }) }),
+      h('div', { class: 'mt-msg-body' },
+        h('div', { class: 'mt-msg-name', style: { color: readable(col) } }, p.name + (msg.ghost ? ' 👻' : '')),
+        h('div', { class: 'mt-msg-text' }, msg.text)));
+  }
+
+  /* Quadro de álibis: resumo do que cada um disse e do que disseram sobre ele (só informação pública do chat). */
+  const REASON_TXT = { kill: 'viu matar', vent: 'viu ventar', shift: 'viu se transformar', vanish: 'viu sumir', noscan: 'fingiu scan', follow: 'estava seguindo', nearBody: 'perto do corpo', lastWith: 'junto da vítima', lie: 'mentindo', tracker: 'rastreado', vote: 'pediu voto', sus: 'suspeito', hunch: 'palpite', claim: 'suspeito', mention: '' };
+  function boardData(g, msgs, ids) {
+    const rows = {};
+    ids.forEach((id) => (rows[id] = { claims: null, pro: new Map(), contra: new Map(), acc: new Map(), visual: false, denied: false }));
+    for (const m of msgs) {
+      for (const it of m.intents || []) {
+        if (it.type === 'claimLoc' && rows[m.from]) rows[m.from].claims = it.rooms;
+        if (it.type === 'deny' && rows[m.from]) rows[m.from].denied = true;
+        const r = it.who != null ? rows[it.who] : null;
+        if (!r || it.who === m.from) continue;
+        if (it.type === 'vouch') {
+          r.pro.set(m.from, it.reason === 'visual' ? 'visual' : it.reason === 'together' ? 'estava junto' : 'confirma');
+          if (it.reason === 'visual') r.visual = true;
+        } else if (it.type === 'accuse' && it.reason === 'lie') r.contra.set(m.from, 'contesta o álibi');
+        else if (it.type === 'accuse') r.acc.set(m.from, REASON_TXT[it.reason] || 'suspeito');
+        else if (it.type === 'agree') r.acc.set(m.from, 'concorda');
+      }
+    }
+    return rows;
+  }
+  function boardElement(g, msgs, ids, extra) {
+    const rows = boardData(g, msgs, ids);
+    const nm = (id) => g.players[id].name;
+    const list = h('div', { class: 'board' });
+    for (const id of ids) {
+      const p = g.players[id];
+      const r = rows[id];
+      const items = [];
+      items.push(h('div', { class: 'bd-claim' }, '📍 ', r.claims ? r.claims.map((a) => (M.AREA[a] ? M.AREA[a].name : a)).join(' → ') : h('em', {}, p.isHuman ? 'você ainda não disse onde estava' : 'não disse onde estava')));
+      if (r.visual) items.push(h('div', { class: 'bd-pro' }, '✅ fez tarefa visual'));
+      if (r.pro.size) items.push(h('div', { class: 'bd-pro' }, '✔ ', [...r.pro].map(([k, v]) => nm(k) + ' (' + v + ')').join(', ')));
+      if (r.contra.size) items.push(h('div', { class: 'bd-contra' }, '✖ ', [...r.contra].map(([k, v]) => nm(k) + ' (' + v + ')').join(', ')));
+      if (r.acc.size) items.push(h('div', { class: 'bd-acc' }, '⚠ ', [...r.acc].map(([k, v]) => nm(k) + (v ? ' (' + v + ')' : '')).join(', ')));
+      if (extra && extra.votes && extra.votes[id] !== undefined) items.push(h('div', { class: 'bd-vote' }, '🗳 votou: ' + (extra.votes[id] === 'skip' ? 'pulou' : nm(extra.votes[id]))));
+      list.appendChild(h('div', { class: 'bd-row' + (p.isHuman ? ' me' : '') },
+        h('span', { class: 'bd-bean', html: AU.Render.beanSVG(p.color, { size: 30, visor: p.visor }) }),
+        h('div', { class: 'bd-info' }, h('div', { class: 'bd-name' }, p.name, h('small', {}, ' ' + C.COLOR[p.color].name)), items)));
+    }
+    return list;
+  }
+
   /* ---------------- interface ---------------- */
   class MeetingUI {
     constructor(mt) {
@@ -316,15 +438,28 @@
       const hp = g.human;
       const isReport = info.kind === 'report';
       const caller = g.players[info.caller];
+      this.pinned = true;
+      this.unread = 0;
       this.root = h('div', { class: 'meeting', role: 'dialog', 'aria-label': 'Reunião' });
       this.splash = h('div', { class: 'mt-splash ' + (isReport ? 'report' : 'emergency') },
         h('div', { class: 'mt-splash-icon', html: isReport ? AU.Render.beanSVG(g.players[info.body.pid].color, { dead: true, size: 150 }) : '<div class="mt-bell">!</div>' }),
         h('div', { class: 'mt-splash-title' }, isReport ? 'Corpo reportado' : 'Reunião de emergência'),
         h('div', { class: 'mt-splash-sub' }, isReport ? `${caller.name} encontrou o corpo de ${g.players[info.body.pid].name}` : `${caller.name} apertou o botão`));
       this.timer = h('div', { class: 'mt-timer' }, '');
+      this.pauseBtn = h('button', { class: 'mt-pause', type: 'button', title: 'Pausar a reunião para ler com calma', onclick: () => mt.setPaused(!mt.paused) }, '⏸ Pausar');
+      const aiOn = AU.Voice && AU.Voice.active(mt);
+      this.aiBadge = h('span', { class: 'mt-ai' + (aiOn ? ' on' : ''), title: aiOn ? 'As falas dos bots usam IA' : 'As falas dos bots usam o sistema de regras' }, aiOn ? 'IA: ' + AU.LLM.label() : 'IA desligada');
       this.cards = h('div', { class: 'mt-cards' });
       this.log = h('div', { class: 'mt-log', 'aria-live': 'polite' });
-      this.input = h('input', { class: 'mt-input', id: 'mt-input', type: 'text', maxlength: '120', placeholder: hp && hp.alive ? 'Digite no chat… (Enter envia)' : 'Chat dos fantasmas…', autocomplete: 'off' });
+      this.log.addEventListener('scroll', () => {
+        const atBottom = this.log.scrollHeight - this.log.scrollTop - this.log.clientHeight < 28;
+        this.pinned = atBottom;
+        if (atBottom) this.clearUnread();
+      });
+      this.newPill = h('button', { class: 'mt-newpill', type: 'button', hidden: true, onclick: () => this.scrollBottom() }, '');
+      this.typingEl = h('div', { class: 'mt-typing', 'aria-live': 'off' }, '');
+      this.board = h('div', { class: 'mt-board' });
+      this.input = h('input', { class: 'mt-input', id: 'mt-input', type: 'text', maxlength: '160', placeholder: hp && hp.alive ? 'Digite no chat… (Enter envia)' : 'Chat dos fantasmas…', autocomplete: 'off' });
       this.sendBtn = h('button', { class: 'mt-send', type: 'submit' }, 'Enviar');
       const form = h('form', { class: 'mt-form' }, this.input, this.sendBtn);
       form.addEventListener('submit', (e) => {
@@ -332,7 +467,7 @@
         this.send();
       });
       this.input.addEventListener('keydown', (e) => e.stopPropagation());
-      const chips = ['onde foi o corpo?', 'onde vocês estavam?', 'eu tava na ', 'vi o ', 'skip', 'quem?'].map((c) =>
+      const chips = ['onde foi o corpo?', 'onde vocês estavam?', 'eu tava na ', 'vi o ', 'quem confirma?', 'skip'].map((c) =>
         h('button', {
           class: 'chip', type: 'button', onclick: () => {
             if (/ $/.test(c)) {
@@ -348,12 +483,17 @@
       this.skipVotes = h('div', { class: 'mt-voters' });
       this.status = h('div', { class: 'mt-status' }, '');
       const head = h('div', { class: 'mt-head' },
-        h('div', {}, h('div', { class: 'mt-title' }, isReport ? 'Corpo reportado' : 'Reunião de emergência'),
-          h('div', { class: 'mt-sub' }, isReport ? `${caller.name} reportou · vítima: ${g.players[info.body.pid].name}` : `Chamada por ${caller.name}`)),
-        this.timer);
+        h('div', { class: 'mt-head-l' }, h('div', { class: 'mt-title' }, isReport ? 'Corpo reportado' : 'Reunião de emergência'),
+          h('div', { class: 'mt-sub' }, isReport ? `${caller.name} reportou · vítima: ${g.players[info.body.pid].name}` : `Chamada por ${caller.name}`, ' · ', this.aiBadge)),
+        h('div', { class: 'mt-head-r' }, this.pauseBtn, this.timer));
+      this.tabs = h('div', { class: 'mt-tabs', role: 'tablist' },
+        ['players', 'chat', 'board'].map((k) => h('button', { class: 'mt-tab', type: 'button', role: 'tab', 'data-tab': k, onclick: () => this.setTab(k) },
+          k === 'players' ? 'Jogadores' : k === 'chat' ? 'Chat' : 'Quadro de álibis')));
       const left = h('div', { class: 'mt-left' }, this.cards, h('div', { class: 'mt-skiprow' }, this.skipBtn, this.skipVotes), this.status);
-      const right = h('div', { class: 'mt-right' }, this.log, h('div', { class: 'mt-chips' }, chips), form);
-      this.panel = h('div', { class: 'mt-panel' }, head, h('div', { class: 'mt-body' }, left, right));
+      const logWrap = h('div', { class: 'mt-logwrap' }, this.log, this.newPill);
+      const right = h('div', { class: 'mt-right' }, logWrap, this.board, this.typingEl, h('div', { class: 'mt-chips' }, chips), form);
+      this.body = h('div', { class: 'mt-body', 'data-tab': 'chat' }, left, right);
+      this.panel = h('div', { class: 'mt-panel' }, head, this.tabs, this.body);
       this.eject = h('div', { class: 'mt-eject', hidden: true });
       this.root.appendChild(this.panel);
       this.root.appendChild(this.splash);
@@ -362,7 +502,26 @@
       this.cardEls = {};
       this.selected = null;
       g.players.forEach((p) => this.makeCard(p));
+      this.setTab('chat');
       this.onPhase();
+    }
+    setTab(k) {
+      this.tab = k;
+      this.body.setAttribute('data-tab', k);
+      this.tabs.querySelectorAll('.mt-tab').forEach((b) => {
+        const on = b.getAttribute('data-tab') === k;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      if (k === 'board') this.renderBoard();
+      if (k === 'chat' && this.pinned) this.scrollBottom();
+    }
+    renderBoard() {
+      const mt = this.mt;
+      if (this.tab !== 'board') return;
+      this.board.innerHTML = '';
+      this.board.appendChild(h('p', { class: 'bd-help' }, 'Resumo automático do que foi dito no chat: onde cada um disse que estava, quem confirmou, quem contestou e quem acusou.'));
+      this.board.appendChild(boardElement(this.g, mt.msgs, mt.alive, null));
     }
     makeCard(p) {
       const g = this.g, mt = this.mt, hp = g.human;
@@ -394,7 +553,17 @@
       this.root.classList.toggle('can-vote', !!canVote);
       this.skipBtn.disabled = !canVote;
       if (mt.phase === 'discussion' && hp && hp.alive && window.matchMedia('(pointer:fine)').matches) setTimeout(() => this.input.focus(), 60);
-      this.status.textContent = !hp || !hp.alive ? 'Você está morto: só pode assistir e falar no chat dos fantasmas.' : mt.phase === 'discussion' ? 'Discussão: a votação ainda não abriu.' : mt.phase === 'voting' ? (canVote ? 'Clique num jogador para votar, ou pule.' : 'Voto registrado.') : '';
+      if (mt.phase === 'voting' && canVote && window.innerWidth <= 860 && !this.autoSwitched) {
+        this.autoSwitched = true;
+        this.tabs.classList.add('flash');
+      }
+      this.status.textContent = !hp || !hp.alive ? 'Você está morto: só pode assistir e falar no chat dos fantasmas.' : mt.phase === 'discussion' ? 'Discussão: a votação ainda não abriu. Toque num jogador para citá-lo no chat.' : mt.phase === 'voting' ? (canVote ? 'Clique num jogador para votar, ou pule.' : 'Voto registrado.') : '';
+    }
+    onPause() {
+      const p = this.mt.paused;
+      this.pauseBtn.textContent = p ? '▶ Continuar' : '⏸ Pausar';
+      this.pauseBtn.classList.toggle('on', p);
+      this.root.classList.toggle('paused', p);
     }
     tick() {
       const mt = this.mt;
@@ -402,13 +571,29 @@
       if (mt.phase === 'discussion') label = 'Discussão · ' + Math.ceil(mt.votingStart - mt.t) + 's';
       else if (mt.phase === 'voting') label = 'Votação · ' + U.fmtTime(mt.votingEnd - mt.t);
       else if (mt.phase === 'results') label = 'Resultado';
+      if (mt.paused) label = 'Pausado · ' + label;
       if (this.timer.textContent !== label) this.timer.textContent = label;
+      this.pauseBtn.hidden = !(mt.phase === 'discussion' || mt.phase === 'voting');
+    }
+    renderTyping(set) {
+      const mt = this.mt, g = this.g;
+      const ids = [...(set || mt.typing)].filter((id) => g.players[id] && g.players[id].alive);
+      if (!ids.length) {
+        this.typingEl.textContent = '';
+        this.typingEl.classList.remove('on');
+        return;
+      }
+      const names = ids.slice(0, 3).map((id) => g.players[id].name);
+      const more = ids.length > 3 ? ' e mais ' + (ids.length - 3) : '';
+      this.typingEl.textContent = names.join(', ') + more + (ids.length === 1 ? ' está digitando…' : ' estão digitando…');
+      this.typingEl.classList.add('on');
     }
     pick(id) {
       const mt = this.mt, hp = this.g.human;
       if (mt.phase === 'discussion' && id !== 'skip') {
         const p = this.g.players[id];
-        this.input.value = (this.input.value ? this.input.value + ' ' : '') + C.COLOR[p.color].name.toLowerCase();
+        this.input.value = (this.input.value ? this.input.value + ' ' : '') + C.COLOR[p.color].name.toLowerCase() + ' ';
+        if (window.innerWidth <= 860) this.setTab('chat');
         this.input.focus();
         return;
       }
@@ -450,26 +635,37 @@
       this.lastSend = now;
       this.mt.humanSay(v);
       this.input.value = '';
+      this.scrollBottom();
+    }
+    scrollBottom() {
+      this.log.scrollTop = this.log.scrollHeight;
+      this.pinned = true;
+      this.clearUnread();
+    }
+    clearUnread() {
+      this.unread = 0;
+      this.newPill.hidden = true;
     }
     addMsg(msg) {
       const g = this.g, hp = g.human;
       if (msg.ghost && hp && hp.alive) return;
-      const p = g.players[msg.from];
-      const col = C.COLOR[p.color];
-      const line = h('div', { class: 'mt-msg' + (msg.fromHuman ? ' mine' : '') + (msg.ghost ? ' ghost' : '') },
-        h('span', { class: 'mt-msg-bean', html: AU.Render.beanSVG(p.color, { size: 26, visor: p.visor, ghost: msg.ghost }) }),
-        h('div', { class: 'mt-msg-body' },
-          h('div', { class: 'mt-msg-name', style: { color: readable(col) } }, p.name + (msg.ghost ? ' 👻' : '')),
-          h('div', { class: 'mt-msg-text' }, msg.text)));
-      const stick = this.log.scrollHeight - this.log.scrollTop - this.log.clientHeight < 60;
+      const line = msgElement(g, msg);
       this.log.appendChild(line);
-      if (stick || msg.fromHuman) this.log.scrollTop = this.log.scrollHeight;
+      if (this.pinned || msg.fromHuman) {
+        this.log.scrollTop = this.log.scrollHeight;
+      } else {
+        this.unread++;
+        this.newPill.textContent = '↓ ' + this.unread + (this.unread === 1 ? ' nova mensagem' : ' novas mensagens');
+        this.newPill.hidden = false;
+      }
       if (!msg.fromHuman) AU.Audio.play('chat');
+      if (this.tab === 'board') this.renderBoard();
     }
     showResults() {
       const mt = this.mt, g = this.g;
       const r = mt.result;
       this.root.classList.remove('can-vote');
+      this.onPause();
       this.cancel();
       const anon = g.S.rules.anonymousVotes;
       const chip = (voter) => {
@@ -481,6 +677,7 @@
         if (tgt === 'skip') this.skipVotes.appendChild(chip(voter));
         else if (this.cardEls[tgt]) this.cardEls[tgt].voters.appendChild(chip(voter));
       }
+      if (window.innerWidth <= 860) this.setTab('players');
       this.status.textContent = r.ejected != null ? 'Votos contados.' : r.tie ? 'Empate: ninguém será ejetado.' : 'A maioria pulou.';
     }
     showEject() {
@@ -527,5 +724,21 @@
     }
   }
 
+  /* Histórico: conversa e quadro de uma reunião já encerrada. */
+  function historyElement(g, mt) {
+    const info = mt.info;
+    const title = info.kind === 'report' ? `Reunião ${info.index}: ${g.players[info.caller].name} reportou o corpo de ${g.players[info.body.pid].name}` : `Reunião ${info.index}: emergência chamada por ${g.players[info.caller].name}`;
+    const r = mt.result;
+    let res = '';
+    if (r) res = r.ejected != null ? `${g.players[r.ejected].name} foi ejetado.` : r.tie ? 'Empate: ninguém ejetado.' : 'Ninguém ejetado (pulado).';
+    const log = h('div', { class: 'hist-log' });
+    mt.msgs.forEach((m) => log.appendChild(msgElement(g, m)));
+    if (!mt.msgs.length) log.appendChild(h('p', { class: 'fine' }, 'Ninguém falou nesta reunião.'));
+    return h('details', { class: 'hist' },
+      h('summary', {}, title, res ? h('small', {}, ' — ' + res) : null),
+      h('div', { class: 'hist-body' }, log, h('div', { class: 'hist-board' }, h('h4', {}, 'Quadro de álibis'), boardElement(g, mt.msgs, mt.alive, r ? { votes: r.votes } : null))));
+  }
+
   AU.Meeting = Meeting;
+  AU.MeetingView = { msgElement, boardElement, historyElement };
 })();

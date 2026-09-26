@@ -288,7 +288,7 @@
 
   function parse(text, g, ctx) {
     ctx = ctx || {};
-    const me = g.human ? g.human.id : -1;
+    const me = ctx.self != null ? ctx.self : g.human ? g.human.id : -1;
     /* "é" (verbo) vira "eh" antes de tirar acentos, para não virar a conjunção "e" */
     const pre = String(text).replace(/(^|[^\p{L}])[éÉ](?=$|[^\p{L}])/gu, '$1 eh ');
     const n = ' ' + U.norm(pre).replace(/[^a-z0-9?!\s]/g, ' ').replace(/\s+/g, ' ').trim() + ' ';

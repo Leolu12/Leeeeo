@@ -68,7 +68,8 @@
       e.mapBtn = h('button', { class: 'hud-btn', title: 'Mapa (M)', onclick: () => this.toggleMap() }, '🗺', h('span', {}, 'Mapa'));
       e.soundBtn = h('button', { class: 'hud-btn', title: 'Som', onclick: () => this.toggleSound() }, AU.Audio.enabled ? '🔊' : '🔈', h('span', {}, 'Som'));
       e.menuBtn = h('button', { class: 'hud-btn', title: 'Menu (Esc)', onclick: () => this.openPause() }, '☰', h('span', {}, 'Menu'));
-      const topRight = h('div', { class: 'hud-topright' }, e.mapBtn, e.soundBtn, e.menuBtn);
+      e.histBtn = h('button', { class: 'hud-btn', title: 'Conversas das reuniões (H)', onclick: () => this.openHistory() }, '📜', h('span', {}, 'Chats'));
+      const topRight = h('div', { class: 'hud-topright' }, e.mapBtn, e.histBtn, e.soundBtn, e.menuBtn);
       const act = (id, icon, label, key, fn, cls) => {
         const cd = h('span', { class: 'cd' });
         const b = h('button', { class: 'act ' + (cls || ''), 'data-act': id, onclick: fn, title: label + ' (' + key + ')' },
@@ -604,6 +605,23 @@
       });
     },
 
+    openHistory() {
+      const g = this.g;
+      if (!g || g.phase !== 'play') return;
+      if (this.overlay && this.overlay.kind === 'history') {
+        this.closeOverlay();
+        return;
+      }
+      const past = (g.meetingLog || []).filter((mt) => mt.closed);
+      const body = h('div', { class: 'ov-body history' },
+        past.length ? past.slice().reverse().map((mt, i) => {
+          const el = AU.MeetingView.historyElement(g, mt);
+          if (i === 0) el.open = true;
+          return el;
+        }) : h('p', {}, 'Ainda não houve reuniões nesta partida.'));
+      this.openOverlay('Conversas das reuniões', body, { kind: 'history', cls: 'wide' });
+    },
+
     openPicker(title, players, fn) {
       const list = h('div', { class: 'picker' });
       for (const q of players) {
@@ -635,7 +653,9 @@
       const body = h('div', { class: 'ov-body pause' },
         h('p', {}, 'A partida está pausada. Os bots também param.'),
         house.length ? h('div', { class: 'pause-rules' }, h('strong', {}, 'Regras da casa: '), house.join(' · ')) : null,
-        h('div', { class: 'pause-keys' }, 'WASD/setas: andar · E: usar · R: reportar · Q: matar · V: duto · X: sabotar · F: habilidade · M: mapa · 1-3: trocar de duto'),
+        h('div', { class: 'pause-keys' }, 'WASD/setas: andar · E: usar · R: reportar · Q: matar · V: duto · X: sabotar · F: habilidade · M: mapa · H: conversas · 1-3: trocar de duto'),
+        h('div', { class: 'pause-ai' }, h('strong', {}, 'IA das conversas: '), AU.Menu.aiStatusEl(),
+          AU.LLM.status === 'available' ? h('button', { class: 'mg-btn', onclick: () => AU.LLM.warmup() }, 'Ativar agora') : null),
         h('div', { class: 'mg-row' },
           h('button', { class: 'mg-btn big', onclick: () => this.closeOverlay() }, 'Continuar'),
           h('button', { class: 'mg-btn big danger', onclick: () => { this.closeOverlay(); AU.App.quitToMenu(); } }, 'Sair para o menu')));

@@ -26,6 +26,23 @@ Jogo de dedução social no mapa **The Skeld**, inspirado em *Among Us*, para jo
 
 Na reunião, digite livremente no chat. Os bots entendem frases como *"eu tava na elétrica com o azul"*, *"vi o vermelho ventar no admin"*, *"verde é safe, fez scan"*, *"rosa onde vc tava?"*, *"corpo na nav"* ou *"skip"*, e respondem, confirmam, contradizem ou questionam.
 
+Durante a reunião você pode **pausar** o relógio para ler com calma, rolar o chat para cima (as mensagens novas ficam num aviso "↓ novas mensagens" em vez de puxar a tela) e abrir o **Quadro de álibis**, que resume quem disse onde estava, quem confirma e quem acusa quem. O histórico de todas as reuniões fica no botão 📜 (ou tecla H) durante a partida e no relatório final.
+
+## IA das conversas (modelo de linguagem)
+
+Sem nenhum modelo, os bots já conversam com frases próprias. Com um modelo de linguagem ligado, eles respondem de verdade ao que você escreve e reescrevem as próprias falas no estilo de cada personalidade. As decisões (onde cada um esteve, o que viu, em quem vota) continuam vindo da simulação: o modelo só recebe as anotações daquele bot, então ninguém fica sabendo mais do que viu, e cada impostor é consultado em separado, com o álibi falso dele.
+
+Em **Criar partida → IA das conversas** dá para escolher:
+
+| Opção | Custo | Como funciona |
+|---|---|---|
+| **Claude** | grátis para quem abre o link publicado no claude.ai | Usa a conta de quem está jogando. Na primeira fala o claude.ai pede permissão. |
+| **Modelo local (WebLLM)** | grátis, roda no seu computador | Baixa uma vez um modelo pequeno (Qwen 2.5 1.5B, Gemma 2 2B ou Qwen 2.5 3B, de 1 a 2 GB) e roda no navegador com WebGPU (Chrome ou Edge recentes). Depois funciona offline. |
+| **API compatível com OpenAI** | depende do provedor | Presets para OpenRouter (tem modelos `:free`), Groq, Google Gemini e Ollama local. Cole sua chave, liste os modelos e teste. |
+| **Desligada** | — | Só as frases do próprio jogo. |
+
+A chave de API fica salva só no seu navegador (`localStorage`) e é enviada apenas para o endereço que você escolheu. Em **Conversa** dá para escolher se o modelo reescreve tudo (respostas e conversa entre bots), só responde ao que você escreve, ou fica desligado.
+
 ## O que tem no jogo
 
 **Criação da partida**
@@ -61,7 +78,7 @@ Na reunião, digite livremente no chat. Os bots entendem frases como *"eu tava n
 - A configuração fica salva no navegador.
 
 **Na nave**
-- The Skeld com 14 salas, corredores, portas, 13 dutos interligados, 4 câmeras, o mapa do Admin e o botão de emergência.
+- The Skeld com 14 salas (com cantos em diagonal, pisos próprios e móveis: mesas da Cafeteria, macas da MedBay, turbinas dos motores, núcleo do Reator, janelas da Navegação), corredores, portas, 13 dutos interligados, 4 câmeras, o mapa do Admin e o botão de emergência.
 - Visão com linha de visada: paredes e portas bloqueiam, e as luzes apagadas reduzem a visão da tripulação.
 - 17 tarefas interativas:
   - Passar cartão, fiação, calibrar distribuidor, traçar rota e estabilizar direção.
@@ -109,8 +126,11 @@ js/game.js        regras: abate, dutos, sabotagem, reuniões e vitória
 js/brain.js       bots em campo: percepção, memória, tarefas e impostor
 js/mind.js        bots nas reuniões: evidências, fala, reações e voto
 js/talk.js        frases, tom do chat e leitura das mensagens do jogador
-js/meeting.js     fluxo e interface da reunião
-js/render.js      desenho do mapa, tripulantes, efeitos e névoa
+js/llm.js         provedores de modelo de linguagem (Claude, WebLLM, APIs)
+js/voice.js       monta o que cada bot sabe e transforma em fala com o modelo
+js/meeting.js     fluxo e interface da reunião, quadro de álibis e histórico
+js/decor.js       desenho estático das salas: pisos, paredes, móveis e consoles
+js/render.js      desenho dos tripulantes, efeitos e névoa
 js/minigames.js   tarefas e consertos de sabotagem
 js/hud.js         HUD, mapa, câmeras, Admin, vitais e joystick
 js/menu.js        título, criação, lobby, revelação e relatório final

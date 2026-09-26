@@ -12,7 +12,7 @@
     const g = this.g, p = this.p;
     this.mt = mt;
     this.rs = mt.info.roundStart;
-    this.budget = Math.round(1 + this.pers.talk * 5 + (this.pers.offtopic ? 2 : 0));
+    this.budget = Math.round(1 + this.pers.talk * 3.2 + (this.pers.offtopic ? 1 : 0));
     this.claimed = false;
     this.denies = 0;
     this.nextSpeak = 0;
@@ -39,9 +39,21 @@
     if (p.isImp) this.impPrep();
     else this.evidence();
     this.queue = this.buildAgenda();
-    const first = (mt.info.caller === p.id ? U.rf(0.8, 1.8) : U.rf(2.5, 7)) * mt.pace;
-    mt.schedule(first, this, () => this.nextAgenda());
+    /* as primeiras falas já saem compostas, para a IA poder reescrevê-las no estilo do bot */
+    let pre = 0;
+    for (const it of this.queue) {
+      if (pre >= 2 || !PRECOMPOSE.has(it.k) || it.late) continue;
+      const m = this.compose(it);
+      if (m) {
+        it.pre = m;
+        pre++;
+      } else it.dead = true;
+    }
+    this.queue = this.queue.filter((it) => !it.dead);
+    const first = (mt.info.caller === p.id ? U.rf(0.8, 1.8) : U.rf(2.5, 8)) * mt.pace;
+    mt.schedule(first, this, () => this.nextAgenda(), { agenda: true });
   };
+  const PRECOMPOSE = new Set(['reportInfo', 'reportDetail', 'callReason', 'organize', 'accuse', 'panic', 'claimLoc', 'vouch', 'vitals', 'tracker', 'camsInfo', 'adminInfo', 'offtopic', 'lost', 'frame']);
 
   /* ---------- evidências (tripulante) ---------- */
   B.evidence = function () {
@@ -284,24 +296,25 @@
           continue;
         }
       }
-      const msg = this.compose(it);
+      const msg = it.pre || this.compose(it);
       if (msg) {
         const important = ['reportInfo', 'callReason', 'claimLoc'].includes(it.k) || (it.k === 'accuse' && STRONG[it.reason]);
         if (!important) {
           if (this.budget <= 0) continue;
           this.budget--;
         }
+        it.posted = true;
         mt.post(this.p, msg.text, msg.intents);
         break;
       }
     }
-    if (this.queue.length) mt.schedule(this.typeDelay(), this, () => this.nextAgenda());
+    if (this.queue.length) mt.schedule(this.typeDelay(), this, () => this.nextAgenda(), { agenda: true });
   };
 
   B.typeDelay = function (text) {
     const L = text ? text.length : 30;
     const pace = this.mt.pace;
-    return (U.rf(1.2, 3.2) + L / U.rf(9, 16)) * pace * (this.pers.talk < 0.3 ? 1.6 : 1);
+    return (U.rf(2, 4.5) + L / U.rf(8, 13)) * pace * (this.pers.talk < 0.3 ? 1.6 : 1);
   };
 
   B.say = function (kind, d, opts) {
@@ -534,6 +547,8 @@
   B.reply = function (delay, fn, direct) {
     const mt = this.mt;
     if (!mt || mt.closed) return;
+    /* a IA já vai responder por este bot a esta mensagem */
+    if (this.curMsgObj && this.curMsgObj.aiResponders && this.curMsgObj.aiResponders.has(this.p.id)) return;
     const src = this.curMsg;
     if (!direct) {
       if (this.budget <= 0) return;
@@ -552,6 +567,7 @@
     if (!this.mt || msg.from === this.p.id || !this.p.alive) return;
     const g = this.g, p = this.p;
     this.curMsg = msg.id;
+    this.curMsgObj = msg;
     for (const it of msg.intents) {
       try {
         this.react(msg, it);
@@ -564,6 +580,7 @@
       this.reply(1, () => ({ text: this.say('huh'), intents: [] }));
     }
     this.curMsg = null;
+    this.curMsgObj = null;
     void g;
     void p;
   };

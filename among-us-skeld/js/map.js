@@ -8,16 +8,16 @@
 
   /* chat: apelidos usados no chat [texto, preposição "em"] ; de: preposição "de" */
   const ROOMS = [
-    { id: 'upperEngine', name: 'Motor Superior', rect: [8, 6, 16, 14], floor: '#39414f', chat: [['motor de cima', 'no', 'do'], ['upper', 'no', 'do'], ['motor superior', 'no', 'do']], aliases: ['motor de cima', 'motor superior', 'upper engine', 'upper', 'motor cima'] },
-    { id: 'reactor', name: 'Reator', rect: [1, 26, 13, 20], floor: '#2f3a4a', chat: [['reator', 'no', 'do']], aliases: ['reator', 'reactor'] },
+    { id: 'upperEngine', name: 'Motor Superior', rect: [8, 6, 16, 14], cut: { tl: 3, bl: 3 }, floor: '#39414f', chat: [['motor de cima', 'no', 'do'], ['upper', 'no', 'do'], ['motor superior', 'no', 'do']], aliases: ['motor de cima', 'motor superior', 'upper engine', 'upper', 'motor cima'] },
+    { id: 'reactor', name: 'Reator', rect: [1, 26, 13, 20], cut: { tl: 4, bl: 4 }, floor: '#2f3a4a', chat: [['reator', 'no', 'do']], aliases: ['reator', 'reactor'] },
     { id: 'security', name: 'Segurança', rect: [22, 28, 12, 12], floor: '#353c4c', chat: [['segurança', 'na', 'da'], ['sec', 'na', 'da'], ['cams', 'nas', 'das']], aliases: ['seguranca', 'security', 'sec', 'cams', 'cameras', 'camera'] },
-    { id: 'lowerEngine', name: 'Motor Inferior', rect: [8, 52, 16, 14], floor: '#39414f', chat: [['motor de baixo', 'no', 'do'], ['lower', 'no', 'do'], ['motor inferior', 'no', 'do']], aliases: ['motor de baixo', 'motor inferior', 'lower engine', 'lower', 'motor baixo'] },
+    { id: 'lowerEngine', name: 'Motor Inferior', rect: [8, 52, 16, 14], cut: { tl: 3, bl: 3 }, floor: '#39414f', chat: [['motor de baixo', 'no', 'do'], ['lower', 'no', 'do'], ['motor inferior', 'no', 'do']], aliases: ['motor de baixo', 'motor inferior', 'lower engine', 'lower', 'motor baixo'] },
     { id: 'medbay', name: 'MedBay', rect: [38, 20, 14, 14], floor: '#2d4b52', chat: [['med', 'na', 'da'], ['medbay', 'na', 'da'], ['enfermaria', 'na', 'da']], aliases: ['medbay', 'med', 'enfermaria', 'medical'] },
-    { id: 'cafeteria', name: 'Cafeteria', rect: [56, 2, 26, 24], floor: '#4a5160', chat: [['café', 'no', 'do'], ['cafeteria', 'na', 'da'], ['refeitório', 'no', 'do']], aliases: ['cafeteria', 'cafe', 'refeitorio', 'caf', 'botao', 'mesa'] },
-    { id: 'weapons', name: 'Armas', rect: [92, 4, 16, 14], floor: '#3a3f55', chat: [['armas', 'em', 'de'], ['weapons', 'na', 'da']], aliases: ['armas', 'weapons', 'weapon', 'arma'] },
+    { id: 'cafeteria', name: 'Cafeteria', rect: [56, 2, 26, 24], cut: { tl: 5, tr: 5, bl: 5, br: 5 }, floor: '#4a5160', chat: [['café', 'no', 'do'], ['cafeteria', 'na', 'da'], ['refeitório', 'no', 'do']], aliases: ['cafeteria', 'cafe', 'refeitorio', 'caf', 'botao', 'mesa'] },
+    { id: 'weapons', name: 'Armas', rect: [92, 4, 16, 14], cut: { tr: 4 }, floor: '#3a3f55', chat: [['armas', 'em', 'de'], ['weapons', 'na', 'da']], aliases: ['armas', 'weapons', 'weapon', 'arma'] },
     { id: 'o2', name: 'O2', rect: [86, 22, 12, 10], floor: '#2f4a44', chat: [['o2', 'no', 'do'], ['oxigênio', 'no', 'do']], aliases: ['o2', 'oxigenio', 'oxygen'] },
-    { id: 'navigation', name: 'Navegação', rect: [116, 28, 18, 16], floor: '#33405a', chat: [['nav', 'na', 'da'], ['navegação', 'na', 'da']], aliases: ['navegacao', 'nav', 'navigation'] },
-    { id: 'shields', name: 'Escudos', rect: [94, 52, 16, 14], floor: '#3b3f58', chat: [['escudos', 'nos', 'dos'], ['shields', 'no', 'do']], aliases: ['escudos', 'escudo', 'shields', 'shield'] },
+    { id: 'navigation', name: 'Navegação', rect: [116, 28, 18, 16], cut: { tr: 6, br: 6 }, floor: '#33405a', chat: [['nav', 'na', 'da'], ['navegação', 'na', 'da']], aliases: ['navegacao', 'nav', 'navigation'] },
+    { id: 'shields', name: 'Escudos', rect: [94, 52, 16, 14], cut: { br: 4 }, floor: '#3b3f58', chat: [['escudos', 'nos', 'dos'], ['shields', 'no', 'do']], aliases: ['escudos', 'escudo', 'shields', 'shield'] },
     { id: 'comms', name: 'Comunicações', rect: [74, 62, 16, 12], floor: '#383e50', chat: [['comms', 'no', 'do'], ['comunicações', 'nas', 'das']], aliases: ['comms', 'comunicacoes', 'comunicacao', 'coms'] },
     { id: 'storage', name: 'Depósito', rect: [54, 44, 18, 22], floor: '#4a4538', chat: [['storage', 'no', 'do'], ['depósito', 'no', 'do']], aliases: ['storage', 'deposito', 'armazem', 'estoque'] },
     { id: 'admin', name: 'Admin', rect: [74, 34, 14, 12], floor: '#3b4658', chat: [['admin', 'no', 'do']], aliases: ['admin', 'adm', 'administracao'] },
@@ -50,10 +50,19 @@
 
   const floor = new Uint8Array(W * H);
   const areaIdx = new Int16Array(W * H).fill(-1);
+  /* cantos chanfrados (salas não retangulares) */
+  const inCut = (a, xx, yy) => {
+    const c = a.cut;
+    if (!c) return false;
+    const [x, y, w, h] = a.rect;
+    const L = xx - x, R = x + w - 1 - xx, T = yy - y, B = y + h - 1 - yy;
+    return (c.tl && L + T < c.tl) || (c.tr && R + T < c.tr) || (c.bl && L + B < c.bl) || (c.br && R + B < c.br);
+  };
   AREAS.forEach((a, i) => {
     a.index = i;
     a.rects.forEach(([x, y, w, h]) => {
       for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) {
+        if (inCut(a, xx, yy)) continue;
         floor[yy * W + xx] = 1;
         areaIdx[yy * W + xx] = i;
       }
@@ -94,19 +103,19 @@
   });
 
   const VENTS = [
-    { id: 'vUpper', area: 'upperEngine', x: 11.5, y: 17.5, links: ['vReactor'] },
+    { id: 'vUpper', area: 'upperEngine', x: 12.5, y: 17.5, links: ['vReactor'] },
     { id: 'vReactor', area: 'reactor', x: 5.5, y: 31.5, links: ['vUpper', 'vLower'] },
     { id: 'vLower', area: 'lowerEngine', x: 11.5, y: 55.5, links: ['vReactor'] },
     { id: 'vMed', area: 'medbay', x: 49.5, y: 31.5, links: ['vSec', 'vElec'] },
     { id: 'vSec', area: 'security', x: 31.5, y: 38.5, links: ['vMed', 'vElec'] },
     { id: 'vElec', area: 'electrical', x: 38.5, y: 48.5, links: ['vMed', 'vSec'] },
-    { id: 'vCaf', area: 'cafeteria', x: 79.5, y: 4.5, links: ['vAdmin', 'vHall'] },
+    { id: 'vCaf', area: 'cafeteria', x: 77.5, y: 5.5, links: ['vAdmin', 'vHall'] },
     { id: 'vAdmin', area: 'admin', x: 86.5, y: 44.5, links: ['vCaf', 'vHall'] },
     { id: 'vHall', area: 'hallStorage', x: 88.5, y: 57.5, links: ['vCaf', 'vAdmin'] },
-    { id: 'vWeap', area: 'weapons', x: 105.5, y: 6.5, links: ['vNavT'] },
+    { id: 'vWeap', area: 'weapons', x: 104.5, y: 8.5, links: ['vNavT'] },
     { id: 'vNavT', area: 'navigation', x: 119.5, y: 30.5, links: ['vWeap'] },
     { id: 'vNavB', area: 'navigation', x: 119.5, y: 41.5, links: ['vShield'] },
-    { id: 'vShield', area: 'shields', x: 107.5, y: 63.5, links: ['vNavB'] },
+    { id: 'vShield', area: 'shields', x: 105.5, y: 62.5, links: ['vNavB'] },
   ];
   const VENT = {};
   VENTS.forEach((v) => (VENT[v.id] = v));
@@ -124,8 +133,8 @@
 
   const SAB_STATIONS = {
     lights: { x: 38.5, y: 39.5, area: 'electrical', name: 'Painel de luz' },
-    reactorA: { x: 2.5, y: 28.5, area: 'reactor', name: 'Scanner do reator (norte)' },
-    reactorB: { x: 2.5, y: 43.5, area: 'reactor', name: 'Scanner do reator (sul)' },
+    reactorA: { x: 4.5, y: 28.5, area: 'reactor', name: 'Scanner do reator (norte)' },
+    reactorB: { x: 4.5, y: 43.5, area: 'reactor', name: 'Scanner do reator (sul)' },
     o2A: { x: 96.5, y: 23.5, area: 'o2', name: 'Teclado do O2' },
     o2B: { x: 75.5, y: 35.5, area: 'admin', name: 'Teclado do Admin' },
     comms: { x: 88.5, y: 70.5, area: 'comms', name: 'Painel de comunicações' },
@@ -133,16 +142,16 @@
 
   const STATIONS = {
     swipe: { x: 84.5, y: 35.5 },
-    wiresElec: { x: 46.5, y: 38.5 }, wiresStorage: { x: 55.5, y: 45.5 }, wiresAdmin: { x: 74.5, y: 41.5 },
-    wiresNav: { x: 132.5, y: 30.5 }, wiresCaf: { x: 57.5, y: 3.5 }, wiresSec: { x: 32.5, y: 28.5 },
-    calibrate: { x: 48.5, y: 44.5 }, chart: { x: 132.5, y: 36.5 }, stabilize: { x: 132.5, y: 40.5 },
+    wiresElec: { x: 46.5, y: 38.5 }, wiresStorage: { x: 55.5, y: 45.5 }, wiresAdmin: { x: 74.5, y: 43.5 },
+    wiresNav: { x: 127.5, y: 29.5 }, wiresCaf: { x: 57.5, y: 11.5 }, wiresSec: { x: 32.5, y: 28.5 },
+    calibrate: { x: 48.5, y: 44.5 }, chart: { x: 131.5, y: 35.5 }, stabilize: { x: 129.5, y: 39.5 },
     cleanO2: { x: 88.5, y: 29.5 }, divert: { x: 36.5, y: 43.5 },
     acceptUpper: { x: 22.5, y: 7.5 }, acceptLower: { x: 22.5, y: 64.5 }, acceptWeap: { x: 93.5, y: 16.5 },
     acceptShields: { x: 108.5, y: 53.5 }, acceptNav: { x: 117.5, y: 36.5 }, acceptO2: { x: 96.5, y: 30.5 },
     acceptComms: { x: 75.5, y: 72.5 }, acceptSec: { x: 23.5, y: 38.5 },
     shields: { x: 101.5, y: 58.5 }, manifolds: { x: 7.5, y: 27.5 }, reactor: { x: 7.5, y: 44.5 },
-    garbageCaf: { x: 80.5, y: 24.5 }, garbageO2: { x: 92.5, y: 30.5 }, garbageStorage: { x: 60.5, y: 64.5 },
-    alignUpper: { x: 9.5, y: 8.5 }, alignLower: { x: 9.5, y: 63.5 },
+    garbageCaf: { x: 77.5, y: 23.5 }, garbageO2: { x: 92.5, y: 30.5 }, garbageStorage: { x: 60.5, y: 64.5 },
+    alignUpper: { x: 10.5, y: 9.5 }, alignLower: { x: 10.5, y: 62.5 },
     fuelStorage: { x: 70.5, y: 63.5 }, fuelUpper: { x: 18.5, y: 17.5 }, fuelLower: { x: 18.5, y: 54.5 },
     inspect: { x: 50.5, y: 22.5 }, scan: { x: 43.5, y: 29.5 },
     dlCaf: { x: 73.5, y: 3.5 }, dlWeap: { x: 92.5, y: 5.5 }, dlNav: { x: 126.5, y: 42.5 }, dlComms: { x: 76.5, y: 63.5 }, dlElec: { x: 48.5, y: 48.5 },
@@ -188,7 +197,7 @@
   }
 
   const M = {
-    W, H, ROOMS, CORRIDORS, AREAS, AREA, DOORS, DOOR_ROOMS, VENTS, VENT, EMERGENCY, SECURITY, ADMIN_TABLE,
+    inCut, W, H, ROOMS, CORRIDORS, AREAS, AREA, DOORS, DOOR_ROOMS, VENTS, VENT, EMERGENCY, SECURITY, ADMIN_TABLE,
     CAMS, CAM_R, SAB_STATIONS, STATIONS, TASKS, TASK_KINDS, VISUAL_NAMES, ACCEPT, DOWNLOADS, floor, areaIdx, doorAt,
   };
 

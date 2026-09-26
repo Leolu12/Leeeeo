@@ -373,7 +373,7 @@ body.touch .act kbd { display: none; }
 .mt-title { font-family: var(--display); font-weight: 700; font-size: 22px; text-transform: uppercase; letter-spacing: 0.04em; }
 .mt-sub { font-size: 13px; color: #2e3a52; font-weight: 700; }
 .mt-timer { font-family: var(--display); font-weight: 700; font-size: 18px; background: #10151f; color: var(--task); padding: 6px 12px; border-radius: 8px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.mt-body { flex: 1; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); min-height: 0; }
+.mt-body { flex: 1; display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); min-height: 0; }
 .mt-left { padding: 12px; overflow: auto; display: flex; flex-direction: column; gap: 10px; border-right: 3px solid #aab6cc; }
 .mt-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .mt-card { position: relative; display: flex; align-items: center; gap: 8px; padding: 6px 8px; min-height: 58px; border-radius: 10px; background: #eef2f8; border: 2px solid #9aa6bd; text-align: left; color: #10151f; }
@@ -465,8 +465,12 @@ body.touch .act kbd { display: none; }
   .swatches { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .lobby-body { grid-template-columns: minmax(0, 1fr); }
   .lobby-side { position: static; }
-  .mt-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
-  .mt-left { border-right: 0; border-bottom: 3px solid #aab6cc; }
+  .mt-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+  .mt-left { border-right: 0; }
+  .mt-tab[data-tab='players'] { display: inline-flex; }
+  .mt-body[data-tab='players'] .mt-right { display: none; }
+  .mt-body:not([data-tab='players']) .mt-left { display: none; }
+  .mt-tabs.flash .mt-tab[data-tab='players'] { animation: blink 0.8s steps(2) 4; }
   .mt-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mt-card { min-height: 48px; padding: 4px 6px; }
   .mt-card .bean { width: 30px; height: 30px; }
@@ -492,6 +496,68 @@ body.touch .act kbd { display: none; }
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
   .float-bean { display: none; }
 }
+
+/* ---------- reunião: extras (abas, leitura, IA) ---------- */
+.mt-head-l { min-width: 0; }
+.mt-head-r { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.mt-pause { padding: 6px 12px; border-radius: 8px; background: #eef2f8; border: 2px solid #7f8aa3; color: #10151f; font-weight: 800; }
+.mt-pause.on { background: var(--task); border-color: #9c7c00; }
+.mt-ai { display: inline-block; padding: 1px 8px; border-radius: 999px; background: #d3dae7; color: #3a4660; font-size: 12px; font-weight: 800; }
+.mt-ai.on { background: #1f7a4a; color: #fff; }
+.meeting.paused .mt-log, .meeting.paused .mt-board { filter: saturate(0.6); }
+.mt-tabs { display: flex; gap: 4px; padding: 6px 10px 0; background: #aab6cc; }
+.mt-tab { padding: 7px 14px; border-radius: 10px 10px 0 0; border: 0; background: #c3ccdc; color: #2e3a52; font-weight: 800; display: inline-flex; }
+.mt-tab.on { background: #e9eef6; color: #10151f; }
+.mt-tab[data-tab='players'] { display: none; }
+.mt-logwrap { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.mt-logwrap .mt-log { flex: 1; min-height: 0; }
+.mt-newpill { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); padding: 6px 14px; border-radius: 999px; border: 0; background: #10151f; color: #fff; font-weight: 800; font-size: 13px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35); }
+.mt-typing { min-height: 22px; padding: 2px 14px; font-size: 13px; color: #4a566f; font-style: italic; opacity: 0; transition: opacity 0.2s; }
+.mt-typing.on { opacity: 1; }
+.mt-board { display: none; flex: 1; min-height: 0; overflow: auto; padding: 10px 12px; }
+.mt-body[data-tab='board'] .mt-board { display: block; }
+.mt-body[data-tab='board'] .mt-logwrap { display: none; }
+.mt-msg.mention .mt-msg-body { box-shadow: inset 4px 0 0 var(--task), 0 1px 0 #9aa6bd; background: #fffbea; }
+.bd-help { margin: 0 0 8px; font-size: 13px; color: #4a566f; }
+.board { display: flex; flex-direction: column; gap: 6px; }
+.bd-row { display: flex; gap: 8px; align-items: flex-start; background: #fff; border-radius: 10px; padding: 8px 10px; box-shadow: 0 1px 0 #9aa6bd; color: #10151f; }
+.bd-row.me { box-shadow: inset 4px 0 0 var(--task), 0 1px 0 #9aa6bd; }
+.bd-info { min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; }
+.bd-name { font-weight: 900; }
+.bd-name small { font-weight: 700; color: #4a566f; }
+.bd-claim em { color: #6b778f; }
+.bd-pro { color: #1f7a4a; }
+.bd-contra { color: #b3261e; }
+.bd-acc { color: #9a5b00; }
+.bd-vote { color: #2e3a52; }
+/* histórico de reuniões */
+.ov-wrap.wide .ov-panel { width: min(980px, 100%); }
+.hist { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; }
+.hist + .hist { margin-top: 8px; }
+.hist summary { cursor: pointer; padding: 10px 12px; font-weight: 800; }
+.hist summary small { color: var(--muted); font-weight: 700; }
+.hist-body { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 10px; padding: 0 10px 10px; }
+.hist-log { background: #e9eef6; border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow: auto; }
+.hist-board { background: #cfd8e8; border-radius: 10px; padding: 10px; max-height: 420px; overflow: auto; }
+.hist-board h4 { margin: 0 0 6px; color: #10151f; font-family: var(--display); text-transform: uppercase; font-size: 13px; letter-spacing: 0.06em; }
+@media (max-width: 860px) { .hist-body { grid-template-columns: minmax(0, 1fr); } }
+/* painel de IA */
+.ai-status { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--line); font-size: 14px; }
+.ai-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex: none; }
+.ai-status.ready .ai-dot { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.ai-status.available .ai-dot { background: var(--task); }
+.ai-status.loading .ai-dot { background: var(--crew); animation: beat 1s infinite; }
+.ai-status.error .ai-dot { background: var(--imp); }
+.ai-status > span:nth-child(2) { flex: 1; min-width: 200px; }
+.ai-bar { width: 100%; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.ai-bar > div { height: 100%; width: 0; background: var(--crew); transition: width 0.3s; }
+.ai-body { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.ai-body a { color: var(--crew); }
+.row-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.lobby-ai-h { margin-top: 14px; }
+.lobby-side .ai-status { margin: 8px 0 6px; font-size: 13px; }
+.pause-ai { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 9px 11px; width: 100%; min-width: 0; }
 
 </style>
 </head>
@@ -773,7 +839,8 @@ body.touch .act kbd { display: none; }
     alto: { name: 'Alto', mult: 1.7 },
   };
   C.CHAT_TONES = { limpo: 'Limpo', casual: 'Casual', raiz: 'Raiz' };
-  C.CHAT_PACE = { calmo: { name: 'Calmo', mult: 1.5 }, normal: { name: 'Normal', mult: 1 }, frenetico: { name: 'Frenético', mult: 0.6 } };
+  C.CHAT_PACE = { calmo: { name: 'Calmo', mult: 1.6 }, normal: { name: 'Normal', mult: 1 }, frenetico: { name: 'Frenético', mult: 0.6 } };
+  C.AI_CHAT = { full: 'Respostas e conversa entre bots', replies: 'Só respostas ao que você escreve', off: 'Desligada (só regras)' };
   C.NARRATION = { conciso: 'Conciso', padrao: 'Padrão', cinematografico: 'Cinematográfico' };
 
   C.ROLES = {
@@ -809,7 +876,7 @@ body.touch .act kbd { display: none; }
       names: 'auto', customNames: '', personalities: 'sorteadas', allowed: C.PERSONALITY_IDS.slice(),
       impostorLevel: 'competente', humanError: 'medio', chatTone: 'casual', chatPace: 'normal',
     },
-    ui: { narration: 'cinematografico', hud: true, finalReport: true, sound: true, ghostsSilent: true },
+    ui: { narration: 'cinematografico', hud: true, finalReport: true, sound: true, ghostsSilent: true, aiChat: 'full' },
     house: { noDoubleKill: false, noVentChase: false, critAfterFirstBody: false, noVisualHardClear: false, noSelfReport: false, custom: '' },
   };
 
@@ -868,16 +935,16 @@ body.touch .act kbd { display: none; }
 
   /* chat: apelidos usados no chat [texto, preposição "em"] ; de: preposição "de" */
   const ROOMS = [
-    { id: 'upperEngine', name: 'Motor Superior', rect: [8, 6, 16, 14], floor: '#39414f', chat: [['motor de cima', 'no', 'do'], ['upper', 'no', 'do'], ['motor superior', 'no', 'do']], aliases: ['motor de cima', 'motor superior', 'upper engine', 'upper', 'motor cima'] },
-    { id: 'reactor', name: 'Reator', rect: [1, 26, 13, 20], floor: '#2f3a4a', chat: [['reator', 'no', 'do']], aliases: ['reator', 'reactor'] },
+    { id: 'upperEngine', name: 'Motor Superior', rect: [8, 6, 16, 14], cut: { tl: 3, bl: 3 }, floor: '#39414f', chat: [['motor de cima', 'no', 'do'], ['upper', 'no', 'do'], ['motor superior', 'no', 'do']], aliases: ['motor de cima', 'motor superior', 'upper engine', 'upper', 'motor cima'] },
+    { id: 'reactor', name: 'Reator', rect: [1, 26, 13, 20], cut: { tl: 4, bl: 4 }, floor: '#2f3a4a', chat: [['reator', 'no', 'do']], aliases: ['reator', 'reactor'] },
     { id: 'security', name: 'Segurança', rect: [22, 28, 12, 12], floor: '#353c4c', chat: [['segurança', 'na', 'da'], ['sec', 'na', 'da'], ['cams', 'nas', 'das']], aliases: ['seguranca', 'security', 'sec', 'cams', 'cameras', 'camera'] },
-    { id: 'lowerEngine', name: 'Motor Inferior', rect: [8, 52, 16, 14], floor: '#39414f', chat: [['motor de baixo', 'no', 'do'], ['lower', 'no', 'do'], ['motor inferior', 'no', 'do']], aliases: ['motor de baixo', 'motor inferior', 'lower engine', 'lower', 'motor baixo'] },
+    { id: 'lowerEngine', name: 'Motor Inferior', rect: [8, 52, 16, 14], cut: { tl: 3, bl: 3 }, floor: '#39414f', chat: [['motor de baixo', 'no', 'do'], ['lower', 'no', 'do'], ['motor inferior', 'no', 'do']], aliases: ['motor de baixo', 'motor inferior', 'lower engine', 'lower', 'motor baixo'] },
     { id: 'medbay', name: 'MedBay', rect: [38, 20, 14, 14], floor: '#2d4b52', chat: [['med', 'na', 'da'], ['medbay', 'na', 'da'], ['enfermaria', 'na', 'da']], aliases: ['medbay', 'med', 'enfermaria', 'medical'] },
-    { id: 'cafeteria', name: 'Cafeteria', rect: [56, 2, 26, 24], floor: '#4a5160', chat: [['café', 'no', 'do'], ['cafeteria', 'na', 'da'], ['refeitório', 'no', 'do']], aliases: ['cafeteria', 'cafe', 'refeitorio', 'caf', 'botao', 'mesa'] },
-    { id: 'weapons', name: 'Armas', rect: [92, 4, 16, 14], floor: '#3a3f55', chat: [['armas', 'em', 'de'], ['weapons', 'na', 'da']], aliases: ['armas', 'weapons', 'weapon', 'arma'] },
+    { id: 'cafeteria', name: 'Cafeteria', rect: [56, 2, 26, 24], cut: { tl: 5, tr: 5, bl: 5, br: 5 }, floor: '#4a5160', chat: [['café', 'no', 'do'], ['cafeteria', 'na', 'da'], ['refeitório', 'no', 'do']], aliases: ['cafeteria', 'cafe', 'refeitorio', 'caf', 'botao', 'mesa'] },
+    { id: 'weapons', name: 'Armas', rect: [92, 4, 16, 14], cut: { tr: 4 }, floor: '#3a3f55', chat: [['armas', 'em', 'de'], ['weapons', 'na', 'da']], aliases: ['armas', 'weapons', 'weapon', 'arma'] },
     { id: 'o2', name: 'O2', rect: [86, 22, 12, 10], floor: '#2f4a44', chat: [['o2', 'no', 'do'], ['oxigênio', 'no', 'do']], aliases: ['o2', 'oxigenio', 'oxygen'] },
-    { id: 'navigation', name: 'Navegação', rect: [116, 28, 18, 16], floor: '#33405a', chat: [['nav', 'na', 'da'], ['navegação', 'na', 'da']], aliases: ['navegacao', 'nav', 'navigation'] },
-    { id: 'shields', name: 'Escudos', rect: [94, 52, 16, 14], floor: '#3b3f58', chat: [['escudos', 'nos', 'dos'], ['shields', 'no', 'do']], aliases: ['escudos', 'escudo', 'shields', 'shield'] },
+    { id: 'navigation', name: 'Navegação', rect: [116, 28, 18, 16], cut: { tr: 6, br: 6 }, floor: '#33405a', chat: [['nav', 'na', 'da'], ['navegação', 'na', 'da']], aliases: ['navegacao', 'nav', 'navigation'] },
+    { id: 'shields', name: 'Escudos', rect: [94, 52, 16, 14], cut: { br: 4 }, floor: '#3b3f58', chat: [['escudos', 'nos', 'dos'], ['shields', 'no', 'do']], aliases: ['escudos', 'escudo', 'shields', 'shield'] },
     { id: 'comms', name: 'Comunicações', rect: [74, 62, 16, 12], floor: '#383e50', chat: [['comms', 'no', 'do'], ['comunicações', 'nas', 'das']], aliases: ['comms', 'comunicacoes', 'comunicacao', 'coms'] },
     { id: 'storage', name: 'Depósito', rect: [54, 44, 18, 22], floor: '#4a4538', chat: [['storage', 'no', 'do'], ['depósito', 'no', 'do']], aliases: ['storage', 'deposito', 'armazem', 'estoque'] },
     { id: 'admin', name: 'Admin', rect: [74, 34, 14, 12], floor: '#3b4658', chat: [['admin', 'no', 'do']], aliases: ['admin', 'adm', 'administracao'] },
@@ -910,10 +977,19 @@ body.touch .act kbd { display: none; }
 
   const floor = new Uint8Array(W * H);
   const areaIdx = new Int16Array(W * H).fill(-1);
+  /* cantos chanfrados (salas não retangulares) */
+  const inCut = (a, xx, yy) => {
+    const c = a.cut;
+    if (!c) return false;
+    const [x, y, w, h] = a.rect;
+    const L = xx - x, R = x + w - 1 - xx, T = yy - y, B = y + h - 1 - yy;
+    return (c.tl && L + T < c.tl) || (c.tr && R + T < c.tr) || (c.bl && L + B < c.bl) || (c.br && R + B < c.br);
+  };
   AREAS.forEach((a, i) => {
     a.index = i;
     a.rects.forEach(([x, y, w, h]) => {
       for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) {
+        if (inCut(a, xx, yy)) continue;
         floor[yy * W + xx] = 1;
         areaIdx[yy * W + xx] = i;
       }
@@ -954,19 +1030,19 @@ body.touch .act kbd { display: none; }
   });
 
   const VENTS = [
-    { id: 'vUpper', area: 'upperEngine', x: 11.5, y: 17.5, links: ['vReactor'] },
+    { id: 'vUpper', area: 'upperEngine', x: 12.5, y: 17.5, links: ['vReactor'] },
     { id: 'vReactor', area: 'reactor', x: 5.5, y: 31.5, links: ['vUpper', 'vLower'] },
     { id: 'vLower', area: 'lowerEngine', x: 11.5, y: 55.5, links: ['vReactor'] },
     { id: 'vMed', area: 'medbay', x: 49.5, y: 31.5, links: ['vSec', 'vElec'] },
     { id: 'vSec', area: 'security', x: 31.5, y: 38.5, links: ['vMed', 'vElec'] },
     { id: 'vElec', area: 'electrical', x: 38.5, y: 48.5, links: ['vMed', 'vSec'] },
-    { id: 'vCaf', area: 'cafeteria', x: 79.5, y: 4.5, links: ['vAdmin', 'vHall'] },
+    { id: 'vCaf', area: 'cafeteria', x: 77.5, y: 5.5, links: ['vAdmin', 'vHall'] },
     { id: 'vAdmin', area: 'admin', x: 86.5, y: 44.5, links: ['vCaf', 'vHall'] },
     { id: 'vHall', area: 'hallStorage', x: 88.5, y: 57.5, links: ['vCaf', 'vAdmin'] },
-    { id: 'vWeap', area: 'weapons', x: 105.5, y: 6.5, links: ['vNavT'] },
+    { id: 'vWeap', area: 'weapons', x: 104.5, y: 8.5, links: ['vNavT'] },
     { id: 'vNavT', area: 'navigation', x: 119.5, y: 30.5, links: ['vWeap'] },
     { id: 'vNavB', area: 'navigation', x: 119.5, y: 41.5, links: ['vShield'] },
-    { id: 'vShield', area: 'shields', x: 107.5, y: 63.5, links: ['vNavB'] },
+    { id: 'vShield', area: 'shields', x: 105.5, y: 62.5, links: ['vNavB'] },
   ];
   const VENT = {};
   VENTS.forEach((v) => (VENT[v.id] = v));
@@ -984,8 +1060,8 @@ body.touch .act kbd { display: none; }
 
   const SAB_STATIONS = {
     lights: { x: 38.5, y: 39.5, area: 'electrical', name: 'Painel de luz' },
-    reactorA: { x: 2.5, y: 28.5, area: 'reactor', name: 'Scanner do reator (norte)' },
-    reactorB: { x: 2.5, y: 43.5, area: 'reactor', name: 'Scanner do reator (sul)' },
+    reactorA: { x: 4.5, y: 28.5, area: 'reactor', name: 'Scanner do reator (norte)' },
+    reactorB: { x: 4.5, y: 43.5, area: 'reactor', name: 'Scanner do reator (sul)' },
     o2A: { x: 96.5, y: 23.5, area: 'o2', name: 'Teclado do O2' },
     o2B: { x: 75.5, y: 35.5, area: 'admin', name: 'Teclado do Admin' },
     comms: { x: 88.5, y: 70.5, area: 'comms', name: 'Painel de comunicações' },
@@ -993,16 +1069,16 @@ body.touch .act kbd { display: none; }
 
   const STATIONS = {
     swipe: { x: 84.5, y: 35.5 },
-    wiresElec: { x: 46.5, y: 38.5 }, wiresStorage: { x: 55.5, y: 45.5 }, wiresAdmin: { x: 74.5, y: 41.5 },
-    wiresNav: { x: 132.5, y: 30.5 }, wiresCaf: { x: 57.5, y: 3.5 }, wiresSec: { x: 32.5, y: 28.5 },
-    calibrate: { x: 48.5, y: 44.5 }, chart: { x: 132.5, y: 36.5 }, stabilize: { x: 132.5, y: 40.5 },
+    wiresElec: { x: 46.5, y: 38.5 }, wiresStorage: { x: 55.5, y: 45.5 }, wiresAdmin: { x: 74.5, y: 43.5 },
+    wiresNav: { x: 127.5, y: 29.5 }, wiresCaf: { x: 57.5, y: 11.5 }, wiresSec: { x: 32.5, y: 28.5 },
+    calibrate: { x: 48.5, y: 44.5 }, chart: { x: 131.5, y: 35.5 }, stabilize: { x: 129.5, y: 39.5 },
     cleanO2: { x: 88.5, y: 29.5 }, divert: { x: 36.5, y: 43.5 },
     acceptUpper: { x: 22.5, y: 7.5 }, acceptLower: { x: 22.5, y: 64.5 }, acceptWeap: { x: 93.5, y: 16.5 },
     acceptShields: { x: 108.5, y: 53.5 }, acceptNav: { x: 117.5, y: 36.5 }, acceptO2: { x: 96.5, y: 30.5 },
     acceptComms: { x: 75.5, y: 72.5 }, acceptSec: { x: 23.5, y: 38.5 },
     shields: { x: 101.5, y: 58.5 }, manifolds: { x: 7.5, y: 27.5 }, reactor: { x: 7.5, y: 44.5 },
-    garbageCaf: { x: 80.5, y: 24.5 }, garbageO2: { x: 92.5, y: 30.5 }, garbageStorage: { x: 60.5, y: 64.5 },
-    alignUpper: { x: 9.5, y: 8.5 }, alignLower: { x: 9.5, y: 63.5 },
+    garbageCaf: { x: 77.5, y: 23.5 }, garbageO2: { x: 92.5, y: 30.5 }, garbageStorage: { x: 60.5, y: 64.5 },
+    alignUpper: { x: 10.5, y: 9.5 }, alignLower: { x: 10.5, y: 62.5 },
     fuelStorage: { x: 70.5, y: 63.5 }, fuelUpper: { x: 18.5, y: 17.5 }, fuelLower: { x: 18.5, y: 54.5 },
     inspect: { x: 50.5, y: 22.5 }, scan: { x: 43.5, y: 29.5 },
     dlCaf: { x: 73.5, y: 3.5 }, dlWeap: { x: 92.5, y: 5.5 }, dlNav: { x: 126.5, y: 42.5 }, dlComms: { x: 76.5, y: 63.5 }, dlElec: { x: 48.5, y: 48.5 },
@@ -1048,7 +1124,7 @@ body.touch .act kbd { display: none; }
   }
 
   const M = {
-    W, H, ROOMS, CORRIDORS, AREAS, AREA, DOORS, DOOR_ROOMS, VENTS, VENT, EMERGENCY, SECURITY, ADMIN_TABLE,
+    inCut, W, H, ROOMS, CORRIDORS, AREAS, AREA, DOORS, DOOR_ROOMS, VENTS, VENT, EMERGENCY, SECURITY, ADMIN_TABLE,
     CAMS, CAM_R, SAB_STATIONS, STATIONS, TASKS, TASK_KINDS, VISUAL_NAMES, ACCEPT, DOWNLOADS, floor, areaIdx, doorAt,
   };
 
@@ -1728,7 +1804,7 @@ body.touch .act kbd { display: none; }
 
   function parse(text, g, ctx) {
     ctx = ctx || {};
-    const me = g.human ? g.human.id : -1;
+    const me = ctx.self != null ? ctx.self : g.human ? g.human.id : -1;
     /* "é" (verbo) vira "eh" antes de tirar acentos, para não virar a conjunção "e" */
     const pre = String(text).replace(/(^|[^\p{L}])[éÉ](?=$|[^\p{L}])/gu, '$1 eh ');
     const n = ' ' + U.norm(pre).replace(/[^a-z0-9?!\s]/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
@@ -1827,6 +1903,302 @@ body.touch .act kbd { display: none; }
   }
 
   AU.Talk = { P, line, style, parse, helpers, TASK_CHAT };
+})();
+
+</script>
+  <script>
+/* Camada de modelo de linguagem: Claude (no link do claude.ai), modelo local no navegador (WebLLM)
+   ou API compatível com OpenAI (OpenRouter, Groq, Gemini, Ollama). Sem IA, o jogo usa as frases por regras. */
+(function () {
+  'use strict';
+  const AU = window.AU;
+  const U = AU.U;
+  const KEY = 'skeld-ia-v1';
+  const WEBLLM_URL = 'https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.85/+esm';
+
+  const WEBLLM_MODELS = [
+    { id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC', name: 'Qwen 2.5 1.5B', note: 'leve · baixa ~1 GB · pede ~1,7 GB de memória de vídeo' },
+    { id: 'gemma-2-2b-it-q4f16_1-MLC', name: 'Gemma 2 2B', note: 'bom em português · baixa ~1,4 GB · pede ~1,9 GB de memória de vídeo' },
+    { id: 'Qwen2.5-3B-Instruct-q4f16_1-MLC', name: 'Qwen 2.5 3B', note: 'melhor texto · baixa ~1,8 GB · pede ~2,5 GB de memória de vídeo' },
+  ];
+
+  const API_PRESETS = {
+    openrouter: { name: 'OpenRouter (modelos grátis)', base: 'https://openrouter.ai/api/v1', model: 'google/gemma-4-31b-it:free', keyUrl: 'https://openrouter.ai/keys', needsKey: true },
+    groq: { name: 'Groq (plano grátis)', base: 'https://api.groq.com/openai/v1', model: '', keyUrl: 'https://console.groq.com/keys', needsKey: true },
+    gemini: { name: 'Google Gemini (plano grátis)', base: 'https://generativelanguage.googleapis.com/v1beta/openai', model: '', keyUrl: 'https://aistudio.google.com/apikey', needsKey: true },
+    ollama: { name: 'Ollama no seu computador', base: 'http://localhost:11434/v1', model: 'llama3.2', keyUrl: 'https://ollama.com', needsKey: false },
+    custom: { name: 'Outro endereço compatível com OpenAI', base: '', model: '', keyUrl: '', needsKey: false },
+  };
+
+  const DEFAULT_CFG = { mode: 'auto', webllmModel: WEBLLM_MODELS[0].id, webllmAuto: false, preset: 'openrouter', base: API_PRESETS.openrouter.base, key: '', model: API_PRESETS.openrouter.model };
+
+  const LLM = {
+    WEBLLM_MODELS, API_PRESETS,
+    cfg: Object.assign({}, DEFAULT_CFG, U.store.get(KEY, {})),
+    status: 'off', // off | available | ready | loading | busy-consent | error
+    provider: null, // 'claude' | 'webllm' | 'api'
+    detail: '',
+    progress: 0,
+    claudeSample: null,
+    claudeChecked: false,
+    engine: null,
+    hasWebGPU: typeof navigator !== 'undefined' && !!navigator.gpu,
+    listeners: new Set(),
+    running: 0,
+    waiters: [],
+    coolUntil: 0,
+    stats: { calls: 0, fails: 0 },
+
+    save() {
+      U.store.set(KEY, this.cfg);
+    },
+    onChange(fn) {
+      this.listeners.add(fn);
+      return () => this.listeners.delete(fn);
+    },
+    set(status, detail, progress) {
+      this.status = status;
+      if (detail != null) this.detail = detail;
+      if (progress != null) this.progress = progress;
+      this.listeners.forEach((fn) => {
+        try {
+          fn(this);
+        } catch (e) {
+          /* ignora */
+        }
+      });
+    },
+    ready() {
+      return this.status === 'ready' && Date.now() >= this.coolUntil;
+    },
+    label() {
+      if (this.provider === 'claude') return 'Claude';
+      if (this.provider === 'webllm') {
+        const m = WEBLLM_MODELS.find((x) => x.id === this.cfg.webllmModel);
+        return (m ? m.name : 'modelo local') + ' (no navegador)';
+      }
+      if (this.provider === 'api') return this.cfg.model || 'API';
+      return 'regras';
+    },
+
+    /* Chamado no carregamento: descobre se o Claude está disponível (link do claude.ai). */
+    async detect() {
+      try {
+        if (window.claude && typeof window.claude.use === 'function') {
+          const s = await window.claude.use('sample');
+          if (s) this.claudeSample = s;
+        }
+      } catch (e) {
+        this.claudeSample = null;
+      }
+      this.claudeChecked = true;
+      await this.applyMode(false);
+    },
+
+    async applyMode(userAction) {
+      const mode = this.cfg.mode;
+      this.provider = null;
+      if (mode === 'off') return this.set('off', 'Conversas por regras (sem IA).');
+      if ((mode === 'auto' || mode === 'claude') && this.claudeSample) {
+        this.provider = 'claude';
+        if (this.claudeGranted) return this.set('ready', 'Claude conectado.');
+        if (userAction) return this.warmup();
+        return this.set('available', 'Claude disponível: começa a funcionar quando a partida iniciar.');
+      }
+      if (mode === 'claude') return this.set('error', 'O Claude só funciona quando o jogo é aberto pelo link do claude.ai.');
+      if (mode === 'api' || (mode === 'auto' && this.cfg.key && this.cfg.base)) {
+        this.provider = 'api';
+        if (!this.cfg.base || !this.cfg.model) return this.set('error', 'Informe o endereço e o modelo da API.');
+        return this.set('ready', 'API configurada: ' + this.cfg.model);
+      }
+      if (mode === 'webllm' || (mode === 'auto' && this.cfg.webllmAuto)) {
+        this.provider = 'webllm';
+        if (this.engine) return this.set('ready', 'Modelo local carregado.');
+        if (userAction || this.cfg.webllmAuto) return this.loadWebLLM();
+        return this.set('available', 'Modelo local escolhido: clique em "Baixar e ativar".');
+      }
+      return this.set('off', 'Sem IA configurada: as conversas usam o sistema de regras.');
+    },
+
+    /* Primeira chamada ao Claude (pede consentimento ao jogador). Só em resposta a um clique. */
+    async warmup() {
+      if (this.provider === 'claude' && this.claudeSample && !this.claudeGranted) {
+        this.set('loading', 'Pedindo permissão para usar o Claude…', 0.5);
+        try {
+          await this.claudeSample('Responda apenas com a palavra: pronto', { modelTier: 'quick', cache: false });
+          this.claudeGranted = true;
+          this.set('ready', 'Claude conectado.');
+        } catch (e) {
+          this.handleError(e);
+        }
+      } else if (this.provider === 'webllm' && !this.engine) await this.loadWebLLM();
+    },
+
+    async loadWebLLM() {
+      if (!navigator.gpu) {
+        this.set('error', 'Este navegador não tem WebGPU. Use Chrome ou Edge atualizados num computador, ou configure uma API grátis.');
+        return;
+      }
+      this.provider = 'webllm';
+      this.set('loading', 'Carregando a biblioteca…', 0);
+      try {
+        const webllm = await import(WEBLLM_URL);
+        this.set('loading', 'Baixando o modelo (só na primeira vez)…', 0);
+        this.engine = await webllm.CreateMLCEngine(this.cfg.webllmModel, {
+          initProgressCallback: (r) => this.set('loading', r.text || 'Carregando…', r.progress || 0),
+        });
+        this.cfg.webllmAuto = true;
+        this.save();
+        this.set('ready', 'Modelo local pronto.');
+      } catch (e) {
+        this.engine = null;
+        this.set('error', 'Não foi possível carregar o modelo local: ' + (e && e.message ? e.message : e));
+      }
+    },
+
+    handleError(e) {
+      const code = e && e.code;
+      this.stats.fails++;
+      if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'].includes(code)) {
+        this.claudeSample = null;
+        this.provider = null;
+        this.set('off', 'O Claude não foi liberado nesta visualização: as conversas usam o sistema de regras.');
+        return;
+      }
+      if (code === 'rate_limited') {
+        this.coolUntil = Date.now() + 30000;
+        this.set(this.status, 'Limite de uso momentâneo: usando regras por alguns segundos.');
+        return;
+      }
+      if (code === 'session_expired') {
+        this.set('error', 'Sessão do Claude expirada: entre de novo no claude.ai.');
+        return;
+      }
+      if (this.status === 'loading') this.set('error', 'Falha na IA: ' + ((e && (e.message || e.code)) || e));
+    },
+
+    async slot() {
+      const max = this.provider === 'webllm' ? 1 : 2;
+      if (this.running < max) {
+        this.running++;
+        return;
+      }
+      await new Promise((res) => this.waiters.push(res));
+      this.running++;
+    },
+    release() {
+      this.running--;
+      const w = this.waiters.shift();
+      if (w) w();
+    },
+
+    /* Gera um texto. Devolve null se a IA não estiver pronta ou falhar (o jogo cai nas regras). */
+    async complete(system, prompt, opts) {
+      opts = opts || {};
+      if (!this.ready()) return null;
+      await this.slot();
+      this.stats.calls++;
+      try {
+        let text = '';
+        if (this.provider === 'claude') {
+          const r = await this.claudeSample(system + '\n\n' + prompt, { modelTier: 'quick', cache: false, signal: opts.signal });
+          text = r.text;
+        } else if (this.provider === 'webllm') {
+          const r = await this.engine.chat.completions.create({
+            messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }],
+            temperature: opts.temperature != null ? opts.temperature : 0.8,
+            max_tokens: opts.maxTokens || 320,
+          });
+          text = r.choices && r.choices[0] && r.choices[0].message ? r.choices[0].message.content : '';
+        } else if (this.provider === 'api') {
+          text = await this.apiCall(system, prompt, opts);
+        }
+        return cleanReply(text);
+      } catch (e) {
+        if (!(e && (e.code === 'cancelled' || e.name === 'AbortError'))) {
+          if (window.console) console.warn('IA falhou', e);
+          this.handleError(e);
+        }
+        return null;
+      } finally {
+        this.release();
+      }
+    },
+
+    async apiCall(system, prompt, opts) {
+      const base = this.cfg.base.replace(/\/+$/, '');
+      const headers = { 'Content-Type': 'application/json' };
+      if (this.cfg.key) headers.Authorization = 'Bearer ' + this.cfg.key;
+      if (/openrouter\.ai/.test(base)) {
+        headers['X-Title'] = 'Impostor a Bordo';
+        if (location.origin && location.origin.startsWith('http')) headers['HTTP-Referer'] = location.origin;
+      }
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), opts.timeout || 25000);
+      if (opts.signal) opts.signal.addEventListener('abort', () => ctl.abort());
+      try {
+        const res = await fetch(base + '/chat/completions', {
+          method: 'POST', headers, signal: ctl.signal,
+          body: JSON.stringify({
+            model: this.cfg.model,
+            messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }],
+            temperature: opts.temperature != null ? opts.temperature : 0.85,
+            max_tokens: opts.maxTokens || 320,
+          }),
+        });
+        if (!res.ok) {
+          const body = await res.text().catch(() => '');
+          if (res.status === 429) this.coolUntil = Date.now() + 20000;
+          throw new Error('HTTP ' + res.status + ' ' + body.slice(0, 160));
+        }
+        const j = await res.json();
+        const c = j.choices && j.choices[0];
+        return (c && c.message && (c.message.content || c.message.reasoning_content)) || '';
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+
+    async listModels() {
+      const base = this.cfg.base.replace(/\/+$/, '');
+      const headers = {};
+      if (this.cfg.key) headers.Authorization = 'Bearer ' + this.cfg.key;
+      const res = await fetch(base + '/models', { headers });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const j = await res.json();
+      const list = (j.data || j.models || []).map((m) => m.id || m.name).filter(Boolean);
+      const free = list.filter((id) => /:free$/.test(id));
+      return free.length ? free.concat(list.filter((id) => !/:free$/.test(id))) : list;
+    },
+
+    async test() {
+      const prev = this.status;
+      this.set('loading', 'Testando…', 0.5);
+      const ok = this.provider === 'api' || this.provider === 'webllm' || this.provider === 'claude';
+      if (!ok) {
+        this.set(prev, this.detail);
+        return null;
+      }
+      this.status = 'ready';
+      const t0 = performance.now();
+      const r = await this.complete('Você é um jogador num chat de jogo.', 'Diga "oi, bora jogar" de um jeito descontraído, em até 8 palavras.', { maxTokens: 40, timeout: 20000 });
+      const ms = Math.round(performance.now() - t0);
+      if (r) this.set('ready', 'Funcionando (' + ms + ' ms): "' + r.slice(0, 60) + '"');
+      else if (this.status !== 'off') this.set('error', 'A IA não respondeu. Confira a chave, o endereço e o modelo.');
+      return r;
+    },
+  };
+
+  /* Limpa blocos de raciocínio e marcações comuns. */
+  function cleanReply(text) {
+    if (!text) return '';
+    return String(text)
+      .replace(/<think>[\s\S]*?<\/think>/gi, '')
+      .replace(/^```[a-z]*\n?|```$/gim, '')
+      .trim();
+  }
+
+  AU.LLM = LLM;
 })();
 
 </script>
@@ -3737,7 +4109,7 @@ body.touch .act kbd { display: none; }
     const g = this.g, p = this.p;
     this.mt = mt;
     this.rs = mt.info.roundStart;
-    this.budget = Math.round(1 + this.pers.talk * 5 + (this.pers.offtopic ? 2 : 0));
+    this.budget = Math.round(1 + this.pers.talk * 3.2 + (this.pers.offtopic ? 1 : 0));
     this.claimed = false;
     this.denies = 0;
     this.nextSpeak = 0;
@@ -3764,9 +4136,21 @@ body.touch .act kbd { display: none; }
     if (p.isImp) this.impPrep();
     else this.evidence();
     this.queue = this.buildAgenda();
-    const first = (mt.info.caller === p.id ? U.rf(0.8, 1.8) : U.rf(2.5, 7)) * mt.pace;
-    mt.schedule(first, this, () => this.nextAgenda());
+    /* as primeiras falas já saem compostas, para a IA poder reescrevê-las no estilo do bot */
+    let pre = 0;
+    for (const it of this.queue) {
+      if (pre >= 2 || !PRECOMPOSE.has(it.k) || it.late) continue;
+      const m = this.compose(it);
+      if (m) {
+        it.pre = m;
+        pre++;
+      } else it.dead = true;
+    }
+    this.queue = this.queue.filter((it) => !it.dead);
+    const first = (mt.info.caller === p.id ? U.rf(0.8, 1.8) : U.rf(2.5, 8)) * mt.pace;
+    mt.schedule(first, this, () => this.nextAgenda(), { agenda: true });
   };
+  const PRECOMPOSE = new Set(['reportInfo', 'reportDetail', 'callReason', 'organize', 'accuse', 'panic', 'claimLoc', 'vouch', 'vitals', 'tracker', 'camsInfo', 'adminInfo', 'offtopic', 'lost', 'frame']);
 
   /* ---------- evidências (tripulante) ---------- */
   B.evidence = function () {
@@ -4009,24 +4393,25 @@ body.touch .act kbd { display: none; }
           continue;
         }
       }
-      const msg = this.compose(it);
+      const msg = it.pre || this.compose(it);
       if (msg) {
         const important = ['reportInfo', 'callReason', 'claimLoc'].includes(it.k) || (it.k === 'accuse' && STRONG[it.reason]);
         if (!important) {
           if (this.budget <= 0) continue;
           this.budget--;
         }
+        it.posted = true;
         mt.post(this.p, msg.text, msg.intents);
         break;
       }
     }
-    if (this.queue.length) mt.schedule(this.typeDelay(), this, () => this.nextAgenda());
+    if (this.queue.length) mt.schedule(this.typeDelay(), this, () => this.nextAgenda(), { agenda: true });
   };
 
   B.typeDelay = function (text) {
     const L = text ? text.length : 30;
     const pace = this.mt.pace;
-    return (U.rf(1.2, 3.2) + L / U.rf(9, 16)) * pace * (this.pers.talk < 0.3 ? 1.6 : 1);
+    return (U.rf(2, 4.5) + L / U.rf(8, 13)) * pace * (this.pers.talk < 0.3 ? 1.6 : 1);
   };
 
   B.say = function (kind, d, opts) {
@@ -4259,6 +4644,8 @@ body.touch .act kbd { display: none; }
   B.reply = function (delay, fn, direct) {
     const mt = this.mt;
     if (!mt || mt.closed) return;
+    /* a IA já vai responder por este bot a esta mensagem */
+    if (this.curMsgObj && this.curMsgObj.aiResponders && this.curMsgObj.aiResponders.has(this.p.id)) return;
     const src = this.curMsg;
     if (!direct) {
       if (this.budget <= 0) return;
@@ -4277,6 +4664,7 @@ body.touch .act kbd { display: none; }
     if (!this.mt || msg.from === this.p.id || !this.p.alive) return;
     const g = this.g, p = this.p;
     this.curMsg = msg.id;
+    this.curMsgObj = msg;
     for (const it of msg.intents) {
       try {
         this.react(msg, it);
@@ -4289,6 +4677,7 @@ body.touch .act kbd { display: none; }
       this.reply(1, () => ({ text: this.say('huh'), intents: [] }));
     }
     this.curMsg = null;
+    this.curMsgObj = null;
     void g;
     void p;
   };
@@ -4677,11 +5066,345 @@ body.touch .act kbd { display: none; }
 
 </script>
   <script>
-/* Reuniões: fluxo de discussão/votação, chat em tempo real e ejeção. */
+/* Voz dos bots com IA nas reuniões. O motor de regras continua decidindo O QUE cada bot sabe,
+   suspeita e vota; a IA escreve COMO ele fala e responde ao que o jogador digita.
+   Cada bot recebe só as próprias anotações: nada de papéis alheios nem fatos que ele não viu. */
 (function () {
   'use strict';
   const AU = window.AU;
-  const U = AU.U, C = AU.C, T = AU.Talk;
+  const U = AU.U, C = AU.C, M = AU.Map, T = AU.Talk;
+
+  const STYLE = {
+    analitico: 'cita salas e tempos, raciocina com lógica, pede dados concretos',
+    impulsivo: 'acusa rápido, é emotivo, às vezes escreve em CAPS',
+    falador: 'fala bastante, faz perguntas, conta detalhes e às vezes foge do assunto',
+    silencioso: 'responde curtíssimo, só o essencial, poucas palavras',
+    caotico: 'zoeiro, faz piada, usa kkkk, às vezes acusa por brincadeira',
+    lider: 'organiza a conversa, pede para cada um falar, propõe em quem votar ou pular',
+    defensor: 'pede provas e defende quem é acusado sem evidência',
+    cetico: 'desconfia dos álibis, pergunta "quem confirma?", não aceita nada fácil',
+    seguidor: 'concorda com a maioria, "+1", "faz sentido", segue quem parece saber',
+    inexperiente: 'meio perdido, confunde coisas, pergunta o básico, fala com insegurança',
+  };
+  const TONE = {
+    limpo: 'Escreva em português correto e educado, sem gírias pesadas, sem abreviações e sem palavrões.',
+    casual: 'Estilo de chat de jogo online: quase tudo em minúsculas, abreviações (vc, tb, pq, tava, ngm, blz), gírias de Among Us (sus, safe, skip, ventou), pouca pontuação.',
+    raiz: 'Bem informal e intenso, como lobby brasileiro: gírias (mano, pô, slk, véi), abreviações, kkkk, CAPS quando acusa. Pode provocar, mas sem palavrões pesados nem ofensas.',
+  };
+
+  const V = {
+    active(mt) {
+      const g = mt.g;
+      return !g.headless && g.S.ui.aiChat !== 'off' && AU.LLM.ready();
+    },
+
+    who(g, id) {
+      const p = g.players[id];
+      return p ? `${p.name} (${C.COLOR[p.color].name})` : 'alguém';
+    },
+
+    system(g) {
+      return [
+        'Você escreve mensagens de chat para personagens de um jogo de dedução social parecido com Among Us, na nave The Skeld.',
+        'Tripulantes fazem tarefas e tentam descobrir os impostores; impostores matam escondidos, usam dutos e mentem. Nas reuniões todos conversam e depois votam para ejetar alguém ou pular (skip).',
+        'Escreva como jogadores brasileiros de verdade num chat: mensagens curtas (no máximo 110 caracteres), sem emojis, sem aspas, sem narração, sem descrever ações entre asteriscos. Nunca diga que é uma IA ou um bot.',
+        'Cada personagem só sabe o que está nas próprias anotações e o que foi dito no chat. Não invente abates, dutos, salas ou tarefas que não estejam nas anotações; pode opinar, duvidar, perguntar, concordar, brincar ou dizer que não sabe.',
+        TONE[g.S.bots.chatTone] || TONE.casual,
+      ].join('\n');
+    },
+
+    scene(mt) {
+      const g = mt.g, info = mt.info;
+      const alive = mt.alive.map((id) => V.who(g, id)).join(', ');
+      const dead = g.players.filter((p) => !p.alive).map((p) => V.who(g, p.id) + (p.ejected ? ' [ejetado]' : ' [morto]')).join(', ');
+      const head = info.kind === 'report'
+        ? `Reunião: ${V.who(g, info.caller)} reportou o corpo de ${V.who(g, info.body.pid)}.` + (mt.facts.bodyArea ? ` Já disseram no chat que o corpo estava em ${M.AREA[mt.facts.bodyArea].name}.` : '')
+        : `Reunião de emergência: ${V.who(g, info.caller)} apertou o botão.`;
+      return `${head}\nVivos: ${alive}.` + (dead ? `\nFora do jogo: ${dead}.` : '') + `\nImpostores restantes (se confirmado): ${g.S.rules.confirmEjects ? mt.impostorsLeft : 'desconhecido'}.`;
+    },
+
+    transcript(mt, n) {
+      const g = mt.g;
+      return mt.msgs.slice(-(n || 16)).map((m) => `${V.who(g, m.from)}: ${m.text}`).join('\n') || '(ninguém falou ainda)';
+    },
+
+    persona(b) {
+      const g = b.g, p = b.p;
+      const pers = C.PERSONALITIES[p.personality] || C.PERSONALITIES.analitico;
+      return `${V.who(g, p.id)} — ${pers.name}: ${STYLE[p.personality] || pers.desc}`;
+    },
+
+    /* Anotações privadas de um bot, derivadas só da memória dele. */
+    notes(b) {
+      const g = b.g, p = b.p, mt = b.mt;
+      const out = [];
+      const nm = (id) => V.who(g, id);
+      const area = (a) => (M.AREA[a] ? M.AREA[a].name : a);
+      const rooms = b.myRooms();
+      const task = b.myTask(rooms);
+      if (p.isImp) {
+        const partners = g.players.filter((q) => q.isImp && q !== p && q.alive);
+        out.push('SEGREDO (nunca revele nem dê pistas disso): você é um dos impostores' + (partners.length ? '; seu parceiro é ' + partners.map((q) => nm(q.id)).join(' e ') + ' — defenda-o com discrição, sem ser óbvio' : '') + '.');
+        out.push('Seu álibi, a versão que você sustenta: esteve em ' + rooms.map(area).join(' → ') + (task ? ' fazendo ' + M.TASKS[task].name : '') + '.');
+        if (b.scapegoat != null && g.players[b.scapegoat].alive) out.push('Você quer que suspeitem de ' + nm(b.scapegoat) + (b.scapegoatReal ? ' (você realmente viu essa pessoa perto do corpo).' : ' (não tem prova real; seja sutil).'));
+        const tgt = b.impTarget ? b.impTarget() : null;
+        out.push(tgt != null ? 'Você pretende votar em ' + nm(tgt) + '.' : 'Você pretende pular (skip) se ninguém for muito acusado.');
+      } else {
+        out.push('Onde você esteve (verdade): ' + rooms.map(area).join(' → ') + (task ? ', fazendo ' + M.TASKS[task].name : '') + '.');
+      }
+      const info = mt.info;
+      if (info.kind === 'report') {
+        if (b.knowsBody) out.push('O corpo de ' + nm(info.body.pid) + ' estava em ' + area(b.knowsBody) + (b.sawBodyMyself ? ' (você viu).' : '.'));
+        else out.push(nm(info.body.pid) + ' morreu; você não sabe onde estava o corpo.');
+      }
+      if (!p.isImp) {
+        const strongTxt = { kill: 'matando alguém', vent: 'entrando ou saindo de um duto', shift: 'mudando de aparência', vanish: 'ficando invisível' };
+        for (const id of Object.keys(b.ev || {})) {
+          for (const e of b.ev[id]) {
+            if (strongTxt[e.reason]) out.push('Você VIU ' + nm(+id) + ' ' + strongTxt[e.reason] + (e.area ? ' em ' + area(e.area) : '') + '. Tem certeza.');
+            if (e.reason === 'visual') out.push('Você viu ' + nm(+id) + ' fazendo ' + (M.VISUAL_NAMES[e.task] || 'uma tarefa visual') + ': é inocente com certeza.');
+            if (e.reason === 'noscan') out.push('Você viu ' + nm(+id) + ' parado no scanner sem escanear (suspeito).');
+            if (e.reason === 'withVictim' || e.reason === 'lastWith') out.push('Você viu ' + nm(+id) + ' junto da vítima pouco antes' + (e.area ? ', em ' + area(e.area) : '') + '.');
+            if (e.reason === 'nearBody' && e.w >= 14) out.push('Você viu ' + nm(+id) + ' perto do local do corpo' + (e.area ? ' (' + area(e.area) + ')' : '') + ' pouco antes.');
+            if (e.reason === 'together' || e.reason === 'spared') out.push('Você ficou um tempo junto de ' + nm(+id) + ' e nada aconteceu.');
+          }
+        }
+      }
+      const recent = b.mem.seen.filter((s) => s.t1 >= b.graceT() && s.t1 >= info.t - 45 && s.via !== 'track' && g.players[s.who] && s.who !== p.id).slice(-5);
+      for (const s of recent) out.push('Viu ' + nm(s.who) + ' em ' + area(s.area) + ' uns ' + Math.max(5, Math.round((info.t - s.t1) / 5) * 5) + 's antes da reunião' + (s.via === 'cams' ? ' (pelas câmeras)' : '') + '.');
+      if (!p.isImp) {
+        const top = b.topSuspect();
+        if (top && top.s >= Math.min(35, b.pers.thr * 0.8)) out.push('Seu principal suspeito agora: ' + nm(top.id) + ' (pontuação ' + Math.round(top.s) + ').');
+        else out.push('Você não tem suspeito claro; tende a pular (skip).');
+        const trusted = mt.alive.filter((id) => id !== p.id && (b.susp[id] || 0) <= -20).slice(0, 2);
+        if (trusted.length) out.push('Você confia em: ' + trusted.map(nm).join(', ') + '.');
+      }
+      const accusers = Object.keys(b.accusedMe || {}).map(Number);
+      if (accusers.length) out.push('Acusaram você: ' + accusers.map(nm).join(', ') + '.');
+      return out.slice(0, 12);
+    },
+
+    block(b) {
+      return '### ' + V.persona(b) + '\n' + V.notes(b).map((l) => '- ' + l).join('\n');
+    },
+
+    /* Lê "Nome: texto" por personagem esperado. */
+    parseLines(text, bots) {
+      const out = {};
+      const lines = String(text || '').split(/\n+/);
+      for (const raw of lines) {
+        const line = raw.replace(/^[\s*\-•>#]+/, '').replace(/\*\*/g, '').trim();
+        for (const b of bots) {
+          if (out[b.p.id]) continue;
+          const nm = b.p.name;
+          const col = C.COLOR[b.p.color].name;
+          const re = new RegExp('^(' + escapeRe(nm) + ')(\\s*\\(' + escapeRe(col) + '\\))?\\s*[:\\-–—]\\s*(.+)$', 'i');
+          const m = line.match(re);
+          if (m) out[b.p.id] = tidy(m[3]);
+        }
+      }
+      if (bots.length === 1 && !out[bots[0].p.id]) {
+        const only = lines.map((l) => l.trim()).filter(Boolean)[0];
+        if (only) out[bots[0].p.id] = tidy(only.replace(/^[^:]{1,24}:\s*/, ''));
+      }
+      return out;
+    },
+
+    /* ---------- falas de abertura: a IA reescreve o que o motor planejou ---------- */
+    async opening(mt) {
+      if (!V.active(mt)) return;
+      const g = mt.g;
+      const items = [];
+      for (const id of mt.alive) {
+        const p = g.players[id];
+        if (!p.brain || !p.brain.queue) continue;
+        for (const it of p.brain.queue) if (it.pre && it.pre.text) items.push({ b: p.brain, it });
+      }
+      if (!items.length) return;
+      const bots = [...new Set(items.map((x) => x.b))];
+      const prompt = [
+        V.scene(mt),
+        '',
+        'Personagens (estilo de cada um):',
+        bots.map((b) => '- ' + V.persona(b)).join('\n'),
+        '',
+        'Abaixo estão as primeiras falas planejadas de cada um nesta reunião. Reescreva cada fala como uma mensagem de chat natural no estilo de quem fala, mantendo exatamente o mesmo sentido e os mesmos fatos (nomes, cores, salas, acusações e defesas). Não invente fatos, não junte falas e não mude quem fala.',
+        items.map((x, i) => `[${i + 1}] ${x.b.p.name}: ${x.it.pre.text}`).join('\n'),
+        '',
+        'Responda uma linha por fala, no formato: [número] mensagem',
+      ].join('\n');
+      mt.holdUntil = mt.durI + 7;
+      const text = await AU.LLM.complete(V.system(g), prompt, { maxTokens: 60 + items.length * 45 });
+      mt.holdUntil = 0;
+      if (!text || mt.closed) return;
+      for (const raw of text.split(/\n+/)) {
+        const m = raw.trim().match(/^\[?(\d+)\]?[\s.):\-–—]*(.+)$/);
+        if (!m) continue;
+        const x = items[+m[1] - 1];
+        if (!x || x.it.posted) continue;
+        let t = m[2].trim();
+        t = t.replace(new RegExp('^' + escapeRe(x.b.p.name) + '\\s*[:\\-–—]\\s*', 'i'), '');
+        t = tidy(t);
+        if (t.length >= 2) x.it.pre.text = t;
+      }
+      mt.aiUsed = true;
+    },
+
+    /* ---------- quem responde ao jogador ---------- */
+    pickResponders(mt, text, intents) {
+      const g = mt.g, hp = g.human;
+      const out = [];
+      const add = (p) => {
+        if (p && p.alive && p.brain && p !== hp && !out.includes(p)) out.push(p);
+      };
+      const n = U.norm(text);
+      for (const it of intents) if (it.type === 'askWhere' && it.who != null) add(g.players[it.who]);
+      if (/\b(vc|voce|tu)\b/.test(n) && mt.lastToHuman != null) add(g.players[mt.lastToHuman]);
+      for (const it of intents) if (it.who != null && ['accuse', 'vouch', 'sawAt', 'mention'].includes(it.type)) add(g.players[it.who]);
+      for (const it of intents) {
+        if (it.type !== 'accuse' || it.who == null) continue;
+        const w = mt.alive.map((id) => g.players[id]).find((q) => q.brain && !q.isImp && q.id !== it.who && ((q.brain.ev && q.brain.ev[it.who]) || []).some((e) => e.w >= 14 || e.w <= -20));
+        add(w);
+      }
+      if (out.length < 2) {
+        const pool = mt.alive.map((id) => g.players[id]).filter((q) => q.brain && q !== hp && !out.includes(q));
+        const extra = U.weighted(pool, (q) => 0.2 + q.brain.pers.talk + (q.brain.pers.leader || q.brain.pers.skeptic ? 0.4 : 0) + (q.id === mt.lastSpeaker ? 0.3 : 0));
+        add(extra);
+        if (out.length < 2 && U.chance(0.45)) add(U.weighted(pool.filter((q) => !out.includes(q)), (q) => 0.2 + q.brain.pers.talk));
+      }
+      let res = out.slice(0, 3);
+      const imps = res.filter((q) => q.isImp);
+      if (imps.length > 1) res = res.filter((q) => !q.isImp || q === imps[0]);
+      return res;
+    },
+
+    /* ---------- respostas ao que o jogador digitou ---------- */
+    async reply(mt, msg, responders) {
+      const g = mt.g, hp = g.human;
+      if (!responders.length) return;
+      const crew = responders.filter((q) => !q.isImp);
+      const imps = responders.filter((q) => q.isImp);
+      const groups = [];
+      if (crew.length) groups.push(crew);
+      imps.forEach((q) => groups.push([q]));
+      responders.forEach((q) => mt.typing.add(q.id));
+      if (mt.ui) mt.ui.renderTyping();
+      await Promise.all(groups.map((grp) => V.replyGroup(mt, msg, grp)));
+      responders.forEach((q) => mt.typing.delete(q.id));
+      if (mt.ui) mt.ui.renderTyping();
+      void hp;
+    },
+
+    async replyGroup(mt, msg, grp) {
+      const g = mt.g, hp = g.human;
+      const bots = grp.map((q) => q.brain);
+      const prompt = [
+        V.scene(mt),
+        '',
+        'Chat da reunião até agora (mais recente por último):',
+        V.transcript(mt, 18),
+        '',
+        `${V.who(g, hp.id)} acabou de escrever: ${msg.text}`,
+        '',
+        'Quem responde agora (cada um só sabe o que está nas próprias anotações):',
+        bots.map(V.block).join('\n\n'),
+        '',
+        `Escreva UMA mensagem de chat para cada personagem acima, respondendo diretamente ao que ${hp.name} escreveu, levando em conta a conversa. Cada um no próprio estilo, no máximo 110 caracteres. Não repita frases já ditas. Se perguntarem algo que o personagem não sabe, ele diz que não sabe.`,
+        'Formato, uma linha por personagem:',
+        bots.map((b) => `${b.p.name}: mensagem`).join('\n'),
+      ].join('\n');
+      const text = await AU.LLM.complete(V.system(g), prompt, { maxTokens: 70 + bots.length * 60 });
+      if (!text || mt.closed) return;
+      const lines = V.parseLines(text, bots);
+      let delay = 0.2;
+      for (const b of bots) {
+        const t = lines[b.p.id];
+        if (!t) continue;
+        const p = b.p;
+        mt.schedule(delay, b, () => {
+          if (!p.alive || mt.closed) return;
+          mt.post(p, t, T.parse(t, g, { self: p.id, addressed: hp.id }), { ai: true });
+        }, { ttl: 20, force: true });
+        delay += U.rf(1.2, 2.6) * mt.pace;
+      }
+      mt.aiUsed = true;
+    },
+
+    /* ---------- conversa extra entre bots (poucas vezes por reunião) ---------- */
+    async followup(mt) {
+      const g = mt.g;
+      if (!V.active(mt) || g.S.ui.aiChat !== 'full' || mt.followups >= 2 || mt.aiBusy) return;
+      const pool = mt.alive.map((id) => g.players[id]).filter((q) => q.brain && !q.isHuman);
+      if (!pool.length) return;
+      const recentSpeakers = new Set(mt.msgs.slice(-4).map((m) => m.from));
+      const scored = pool.map((q) => {
+        const b = q.brain;
+        const top = !q.isImp ? b.topSuspect() : null;
+        return { q, s: (top ? top.s : 20) + b.pers.talk * 25 - (recentSpeakers.has(q.id) ? 30 : 0) + U.rf(0, 15) };
+      }).sort((a, b) => b.s - a.s);
+      const first = scored[0].q;
+      const grp = [first];
+      if (!first.isImp) {
+        const second = scored.slice(1).find((x) => !x.q.isImp);
+        if (second) grp.push(second.q);
+      }
+      mt.followups++;
+      mt.aiBusy = true;
+      grp.forEach((q) => mt.typing.add(q.id));
+      if (mt.ui) mt.ui.renderTyping();
+      const bots = grp.map((q) => q.brain);
+      const prompt = [
+        V.scene(mt),
+        '',
+        'Chat da reunião até agora (mais recente por último):',
+        V.transcript(mt, 18),
+        '',
+        'Quem fala agora (cada um só sabe o que está nas próprias anotações):',
+        bots.map(V.block).join('\n\n'),
+        '',
+        'Continue a discussão: cada personagem acima escreve UMA mensagem reagindo ao que já foi dito — confirmar ou contestar um álibi com base nas próprias anotações, cobrar alguém que está quieto, fazer uma pergunta, propor em quem votar ou sugerir pular. No máximo 110 caracteres, sem repetir o que já foi dito.',
+        'Formato, uma linha por personagem:',
+        bots.map((b) => `${b.p.name}: mensagem`).join('\n'),
+      ].join('\n');
+      const text = await AU.LLM.complete(V.system(g), prompt, { maxTokens: 70 + bots.length * 60 });
+      grp.forEach((q) => mt.typing.delete(q.id));
+      mt.aiBusy = false;
+      if (mt.ui) mt.ui.renderTyping();
+      if (!text || mt.closed) return;
+      const lines = V.parseLines(text, bots);
+      let delay = 0.3;
+      for (const b of bots) {
+        const t = lines[b.p.id];
+        if (!t) continue;
+        const p = b.p;
+        mt.schedule(delay, b, () => {
+          if (!p.alive || mt.closed) return;
+          mt.post(p, t, T.parse(t, g, { self: p.id, addressed: g.human ? g.human.id : null }), { ai: true });
+        }, { ttl: 20 });
+        delay += U.rf(1.5, 3) * mt.pace;
+      }
+    },
+  };
+
+  function escapeRe(s) {
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+  function tidy(s) {
+    let t = String(s || '').trim().replace(/^["'“”«»]+|["'“”«»]+$/g, '').replace(/\s+/g, ' ');
+    if (t.length > 170) t = t.slice(0, 167).replace(/\s+\S*$/, '') + '…';
+    return t;
+  }
+
+  AU.Voice = V;
+})();
+
+</script>
+  <script>
+/* Reuniões: fluxo de discussão/votação, chat em tempo real (com IA quando disponível) e ejeção. */
+(function () {
+  'use strict';
+  const AU = window.AU;
+  const U = AU.U, C = AU.C, T = AU.Talk, M = AU.Map;
   const h = U.h;
   const STRONG = { kill: 1, vent: 1, shift: 1, vanish: 1 };
 
@@ -4709,6 +5432,7 @@ body.touch .act kbd { display: none; }
       this.humanClaimed = false;
       this.humanSpoke = false;
       this.closed = false;
+      this.paused = false;
       this.msgId = 0;
       this.voteAt = {};
       this.result = null;
@@ -4720,6 +5444,12 @@ body.touch .act kbd { display: none; }
       this.replyCount = {};
       this.nextSlot = 0;
       this.endT = null;
+      this.typing = new Set();
+      this.holdUntil = 0;
+      this.followups = 0;
+      this.aiBusy = false;
+      this.lastMsgT = 0;
+      this.lastAiReplyT = -99;
       this.ui = g.headless ? null : new MeetingUI(this);
       for (const p of g.players) if (p.brain && p.alive && p.brain.mStart) p.brain.mStart(this);
       for (const p of g.players) {
@@ -4730,19 +5460,30 @@ body.touch .act kbd { display: none; }
           this.post(p, T.line(kind, { who: p.brain.killedBy }, g, p.brain), []);
         });
       }
+      if (AU.Voice && AU.Voice.active(this)) AU.Voice.opening(this);
     }
 
     get votingStart() { return this.durI + this.durD; }
     get votingEnd() { return this.durI + this.durD + this.durV; }
 
     schedule(delay, brain, fn, opts) {
+      opts = opts || {};
       const base = Math.max(this.t, this.durI);
       const at = base + Math.max(0.2, delay);
-      this.sched.push({ at, brain, fn, deadline: opts && opts.ttl ? at + opts.ttl : null });
+      this.sched.push({ at, brain, fn, deadline: opts.ttl ? at + opts.ttl : null, agenda: !!opts.agenda, force: !!opts.force });
+    }
+
+    setPaused(v) {
+      this.paused = !!v;
+      if (this.ui) this.ui.onPause();
     }
 
     update(dt) {
       if (this.closed) return;
+      if (this.paused && (this.phase === 'discussion' || this.phase === 'voting')) {
+        if (this.ui) this.ui.tick();
+        return;
+      }
       this.t += dt;
       const t = this.t;
       if (this.phase === 'intro' && t >= this.durI) {
@@ -4756,17 +5497,25 @@ body.touch .act kbd { display: none; }
         if (this.ui) this.ui.onPhase();
       }
       if (this.phase === 'discussion' || this.phase === 'voting') {
-        this.sched.sort((a, b) => a.at - b.at);
+        /* respostas diretas ao jogador passam na frente da fila */
+        this.sched.sort((a, b) => (a.force ? a.at - 6 : a.at) - (b.force ? b.at - 6 : b.at));
         let guard = 0;
         while (this.sched.length && this.sched[0].at <= t && guard++ < 20) {
           const it = this.sched.shift();
           if (it.deadline != null && t > it.deadline) continue;
           const b = it.brain;
           if (b && b.p.alive) {
+            /* enquanto a IA reescreve as falas de abertura, a agenda espera um pouco */
+            if (it.agenda && this.holdUntil && t < this.holdUntil) {
+              it.at = this.holdUntil + U.rf(0.2, 2.5);
+              this.sched.push(it);
+              continue;
+            }
             /* ritmo humano: um bot digita uma mensagem por vez e a sala não recebe rajadas */
-            const free = Math.max(this.nextSlot || 0, b.nextSpeak || 0);
-            if (t < free) {
-              it.at = free + U.rf(0.05, 0.6);
+            const free = Math.max(this.nextSlot || 0, it.force ? 0 : b.nextSpeak || 0);
+            const forceWaiting = !it.force && this.sched.some((x) => x.force && x.at <= t);
+            if (t < free || forceWaiting) {
+              it.at = Math.max(free, t) + (it.force ? 0.05 : U.rf(0.3, 1.0));
               this.sched.push(it);
               continue;
             }
@@ -4778,6 +5527,10 @@ body.touch .act kbd { display: none; }
           }
         }
         this.checkPrompts();
+        this.updateTyping();
+        if (AU.Voice && !this.aiBusy && this.followups < 2 && t - this.lastMsgT > 7 && t > this.durI + 12 && t < this.votingEnd - 15) {
+          if (AU.Voice.active(this)) AU.Voice.followup(this);
+        }
       }
       if (this.phase === 'voting') {
         for (const id of Object.keys(this.voteAt)) {
@@ -4793,7 +5546,7 @@ body.touch .act kbd { display: none; }
             if (window.console) console.warn('voto falhou', e);
           }
           this.castVote(+id, v);
-          if (U.chance(0.18 + p.brain.pers.talk * 0.2)) {
+          if (U.chance(0.15 + p.brain.pers.talk * 0.15)) {
             this.post(p, T.line('voteSay', { who: v === 'skip' ? null : v }, this.g, p.brain), []);
           }
         }
@@ -4810,6 +5563,24 @@ body.touch .act kbd { display: none; }
       if (this.ui) this.ui.tick();
     }
 
+    /* "Fulano está digitando…": quem tem fala prestes a sair ou está esperando a IA. */
+    updateTyping() {
+      if (!this.ui) return;
+      const soon = new Set(this.typing);
+      const next = this.sched
+        .filter((it) => it.brain && it.brain.p.alive && it.at - this.t < 1.6)
+        .sort((a, b) => a.at - b.at);
+      for (const it of next) {
+        if (soon.size >= Math.max(2, this.typing.size)) break;
+        soon.add(it.brain.p.id);
+      }
+      const key = [...soon].sort().join(',');
+      if (key !== this._typingKey) {
+        this._typingKey = key;
+        this.ui.renderTyping(soon);
+      }
+    }
+
     checkPrompts() {
       const g = this.g, h0 = g.human, t = this.t;
       const bots = this.alive.map((id) => g.players[id]).filter((p) => p.brain);
@@ -4819,12 +5590,12 @@ body.touch .act kbd { display: none; }
         const b = U.pick(bots);
         this.post(b, T.line('askBody', {}, g, b.brain, { question: true }), [{ type: 'askBody' }]);
       }
-      if (h0 && h0.alive && !this.humanSpoke && !this.flags.quiet && t > this.durI + 24) {
+      if (h0 && h0.alive && !this.humanSpoke && !this.flags.quiet && t > this.durI + 28) {
         this.flags.quiet = true;
         const b = bots.find((p) => p.brain.pers.skeptic || p.brain.pers.leader) || null;
         if (b) this.post(b, T.line('quiet', { who: h0.id }, g, b.brain), [{ type: 'quiet', who: h0.id }]);
       }
-      if (h0 && h0.alive && this.askedHumanAt != null && !this.humanClaimed && !this.flags.unanswered && t - this.askedHumanAt > 16) {
+      if (h0 && h0.alive && this.askedHumanAt != null && !this.humanClaimed && !this.flags.unanswered && t - this.askedHumanAt > 18) {
         this.flags.unanswered = true;
         const b = g.players[this.askedHumanBy];
         if (b && b.alive && b.brain) b.brain.bump(h0.id, 10);
@@ -4837,7 +5608,7 @@ body.touch .act kbd { display: none; }
         const p = g.players[id];
         if (!p.brain) continue;
         const b = p.brain;
-        let vt = U.rf(1.5, 5) + this.durV * 0.5 * b.pers.voteDelay * U.rf(0.5, 1.1);
+        let vt = U.rf(1.5, 5) + this.durV * 0.55 * b.pers.voteDelay * U.rf(0.5, 1.1);
         const top = !p.isImp && b.topSuspect ? b.topSuspect() : null;
         if (top && top.s >= 90) vt *= 0.4;
         this.voteAt[id] = this.votingStart + Math.min(vt, this.durV - 3);
@@ -4846,7 +5617,7 @@ body.touch .act kbd { display: none; }
 
     humanSay(text) {
       const g = this.g, hp = g.human;
-      text = String(text || '').trim().slice(0, 120);
+      text = String(text || '').trim().slice(0, 160);
       if (!text || !hp || this.closed) return;
       if (this.phase !== 'discussion' && this.phase !== 'voting') return;
       if (!hp.alive) {
@@ -4858,26 +5629,36 @@ body.touch .act kbd { display: none; }
         humanReported: this.info.kind === 'report' && this.info.caller === hp.id,
         bodyKnown: !!this.facts.bodyArea,
       });
-      this.post(hp, text, intents);
+      let responders = [];
+      const V = AU.Voice;
+      if (V && V.active(this) && this.t - this.lastAiReplyT > 2.5) {
+        responders = V.pickResponders(this, text, intents);
+        this.lastAiReplyT = this.t;
+      }
+      const msg = this.post(hp, text, intents, { aiResponders: new Set(responders.map((p) => p.id)) });
+      if (msg && responders.length) V.reply(this, msg, responders);
     }
 
-    post(p, text, intents) {
-      if (this.closed || !text) return;
+    post(p, text, intents, opts) {
+      if (this.closed || !text) return null;
+      opts = opts || {};
       const g = this.g;
-      const msg = { id: ++this.msgId, from: p.id, text, intents: intents || [], t: this.t, fromHuman: p.isHuman, ghost: !p.alive };
+      const msg = { id: ++this.msgId, from: p.id, text, intents: intents || [], t: this.t, fromHuman: p.isHuman, ghost: !p.alive, ai: !!opts.ai, aiResponders: opts.aiResponders || null };
       if (msg.ghost) {
         this.ghostMsgs.push(msg);
         if (this.ui) this.ui.addMsg(msg);
-        return;
+        return msg;
       }
       this.msgs.push(msg);
+      this.lastMsgT = this.t;
       if (p.isHuman) {
         this.humanSpoke = true;
-        this.nextSlot = Math.max(this.nextSlot || 0, this.t + 0.8 * this.pace);
+        this.nextSlot = Math.max(this.nextSlot || 0, this.t + 1.2 * this.pace);
       } else {
         this.lastSpeaker = p.id;
-        this.nextSlot = this.t + U.rf(0.55, 1.5) * this.pace;
-        if (p.brain) p.brain.nextSpeak = this.t + (1.3 + text.length / 13) * this.pace * (p.brain.pers.talk < 0.3 ? 1.5 : 1);
+        this.typing.delete(p.id);
+        this.nextSlot = this.t + U.rf(1.0, 2.2) * this.pace;
+        if (p.brain) p.brain.nextSpeak = this.t + (1.8 + text.length / 11) * this.pace * (p.brain.pers.talk < 0.3 ? 1.5 : 1);
       }
       const hp = g.human;
       for (const it of msg.intents) {
@@ -4905,6 +5686,7 @@ body.touch .act kbd { display: none; }
           }
         }
       }
+      return msg;
     }
 
     castVote(voter, target) {
@@ -4961,6 +5743,7 @@ body.touch .act kbd { display: none; }
       if (top != null && !tie && max > skip) ejected = top;
       this.result = { ejected, tie: tie && max >= skip, skip, counts, votes: Object.assign({}, this.votes) };
       this.phase = 'results';
+      this.paused = false;
       this.resultsEnd = this.t + (this.g.headless ? 0.1 : 4.2);
       if (this.ui) this.ui.showResults();
     }
@@ -4985,6 +5768,68 @@ body.touch .act kbd { display: none; }
     return '#' + c(0) + c(2) + c(4);
   }
 
+  function mentionsHuman(g, text) {
+    const hp = g.human;
+    if (!hp) return false;
+    const n = ' ' + U.norm(text) + ' ';
+    const al = [U.norm(hp.name)].concat(C.COLOR[hp.color].alias.map(U.norm)).filter((a) => a.length >= 2);
+    return al.some((a) => new RegExp('(^|[^a-z0-9])' + a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^a-z0-9])').test(n));
+  }
+
+  /* Uma mensagem do chat (usada na reunião e no histórico). */
+  function msgElement(g, msg) {
+    const p = g.players[msg.from];
+    const col = C.COLOR[p.color];
+    const mention = !msg.fromHuman && mentionsHuman(g, msg.text);
+    return h('div', { class: 'mt-msg' + (msg.fromHuman ? ' mine' : '') + (msg.ghost ? ' ghost' : '') + (mention ? ' mention' : '') },
+      h('span', { class: 'mt-msg-bean', html: AU.Render.beanSVG(p.color, { size: 26, visor: p.visor, ghost: msg.ghost }) }),
+      h('div', { class: 'mt-msg-body' },
+        h('div', { class: 'mt-msg-name', style: { color: readable(col) } }, p.name + (msg.ghost ? ' 👻' : '')),
+        h('div', { class: 'mt-msg-text' }, msg.text)));
+  }
+
+  /* Quadro de álibis: resumo do que cada um disse e do que disseram sobre ele (só informação pública do chat). */
+  const REASON_TXT = { kill: 'viu matar', vent: 'viu ventar', shift: 'viu se transformar', vanish: 'viu sumir', noscan: 'fingiu scan', follow: 'estava seguindo', nearBody: 'perto do corpo', lastWith: 'junto da vítima', lie: 'mentindo', tracker: 'rastreado', vote: 'pediu voto', sus: 'suspeito', hunch: 'palpite', claim: 'suspeito', mention: '' };
+  function boardData(g, msgs, ids) {
+    const rows = {};
+    ids.forEach((id) => (rows[id] = { claims: null, pro: new Map(), contra: new Map(), acc: new Map(), visual: false, denied: false }));
+    for (const m of msgs) {
+      for (const it of m.intents || []) {
+        if (it.type === 'claimLoc' && rows[m.from]) rows[m.from].claims = it.rooms;
+        if (it.type === 'deny' && rows[m.from]) rows[m.from].denied = true;
+        const r = it.who != null ? rows[it.who] : null;
+        if (!r || it.who === m.from) continue;
+        if (it.type === 'vouch') {
+          r.pro.set(m.from, it.reason === 'visual' ? 'visual' : it.reason === 'together' ? 'estava junto' : 'confirma');
+          if (it.reason === 'visual') r.visual = true;
+        } else if (it.type === 'accuse' && it.reason === 'lie') r.contra.set(m.from, 'contesta o álibi');
+        else if (it.type === 'accuse') r.acc.set(m.from, REASON_TXT[it.reason] || 'suspeito');
+        else if (it.type === 'agree') r.acc.set(m.from, 'concorda');
+      }
+    }
+    return rows;
+  }
+  function boardElement(g, msgs, ids, extra) {
+    const rows = boardData(g, msgs, ids);
+    const nm = (id) => g.players[id].name;
+    const list = h('div', { class: 'board' });
+    for (const id of ids) {
+      const p = g.players[id];
+      const r = rows[id];
+      const items = [];
+      items.push(h('div', { class: 'bd-claim' }, '📍 ', r.claims ? r.claims.map((a) => (M.AREA[a] ? M.AREA[a].name : a)).join(' → ') : h('em', {}, p.isHuman ? 'você ainda não disse onde estava' : 'não disse onde estava')));
+      if (r.visual) items.push(h('div', { class: 'bd-pro' }, '✅ fez tarefa visual'));
+      if (r.pro.size) items.push(h('div', { class: 'bd-pro' }, '✔ ', [...r.pro].map(([k, v]) => nm(k) + ' (' + v + ')').join(', ')));
+      if (r.contra.size) items.push(h('div', { class: 'bd-contra' }, '✖ ', [...r.contra].map(([k, v]) => nm(k) + ' (' + v + ')').join(', ')));
+      if (r.acc.size) items.push(h('div', { class: 'bd-acc' }, '⚠ ', [...r.acc].map(([k, v]) => nm(k) + (v ? ' (' + v + ')' : '')).join(', ')));
+      if (extra && extra.votes && extra.votes[id] !== undefined) items.push(h('div', { class: 'bd-vote' }, '🗳 votou: ' + (extra.votes[id] === 'skip' ? 'pulou' : nm(extra.votes[id]))));
+      list.appendChild(h('div', { class: 'bd-row' + (p.isHuman ? ' me' : '') },
+        h('span', { class: 'bd-bean', html: AU.Render.beanSVG(p.color, { size: 30, visor: p.visor }) }),
+        h('div', { class: 'bd-info' }, h('div', { class: 'bd-name' }, p.name, h('small', {}, ' ' + C.COLOR[p.color].name)), items)));
+    }
+    return list;
+  }
+
   /* ---------------- interface ---------------- */
   class MeetingUI {
     constructor(mt) {
@@ -4995,15 +5840,28 @@ body.touch .act kbd { display: none; }
       const hp = g.human;
       const isReport = info.kind === 'report';
       const caller = g.players[info.caller];
+      this.pinned = true;
+      this.unread = 0;
       this.root = h('div', { class: 'meeting', role: 'dialog', 'aria-label': 'Reunião' });
       this.splash = h('div', { class: 'mt-splash ' + (isReport ? 'report' : 'emergency') },
         h('div', { class: 'mt-splash-icon', html: isReport ? AU.Render.beanSVG(g.players[info.body.pid].color, { dead: true, size: 150 }) : '<div class="mt-bell">!</div>' }),
         h('div', { class: 'mt-splash-title' }, isReport ? 'Corpo reportado' : 'Reunião de emergência'),
         h('div', { class: 'mt-splash-sub' }, isReport ? `${caller.name} encontrou o corpo de ${g.players[info.body.pid].name}` : `${caller.name} apertou o botão`));
       this.timer = h('div', { class: 'mt-timer' }, '');
+      this.pauseBtn = h('button', { class: 'mt-pause', type: 'button', title: 'Pausar a reunião para ler com calma', onclick: () => mt.setPaused(!mt.paused) }, '⏸ Pausar');
+      const aiOn = AU.Voice && AU.Voice.active(mt);
+      this.aiBadge = h('span', { class: 'mt-ai' + (aiOn ? ' on' : ''), title: aiOn ? 'As falas dos bots usam IA' : 'As falas dos bots usam o sistema de regras' }, aiOn ? 'IA: ' + AU.LLM.label() : 'IA desligada');
       this.cards = h('div', { class: 'mt-cards' });
       this.log = h('div', { class: 'mt-log', 'aria-live': 'polite' });
-      this.input = h('input', { class: 'mt-input', id: 'mt-input', type: 'text', maxlength: '120', placeholder: hp && hp.alive ? 'Digite no chat… (Enter envia)' : 'Chat dos fantasmas…', autocomplete: 'off' });
+      this.log.addEventListener('scroll', () => {
+        const atBottom = this.log.scrollHeight - this.log.scrollTop - this.log.clientHeight < 28;
+        this.pinned = atBottom;
+        if (atBottom) this.clearUnread();
+      });
+      this.newPill = h('button', { class: 'mt-newpill', type: 'button', hidden: true, onclick: () => this.scrollBottom() }, '');
+      this.typingEl = h('div', { class: 'mt-typing', 'aria-live': 'off' }, '');
+      this.board = h('div', { class: 'mt-board' });
+      this.input = h('input', { class: 'mt-input', id: 'mt-input', type: 'text', maxlength: '160', placeholder: hp && hp.alive ? 'Digite no chat… (Enter envia)' : 'Chat dos fantasmas…', autocomplete: 'off' });
       this.sendBtn = h('button', { class: 'mt-send', type: 'submit' }, 'Enviar');
       const form = h('form', { class: 'mt-form' }, this.input, this.sendBtn);
       form.addEventListener('submit', (e) => {
@@ -5011,7 +5869,7 @@ body.touch .act kbd { display: none; }
         this.send();
       });
       this.input.addEventListener('keydown', (e) => e.stopPropagation());
-      const chips = ['onde foi o corpo?', 'onde vocês estavam?', 'eu tava na ', 'vi o ', 'skip', 'quem?'].map((c) =>
+      const chips = ['onde foi o corpo?', 'onde vocês estavam?', 'eu tava na ', 'vi o ', 'quem confirma?', 'skip'].map((c) =>
         h('button', {
           class: 'chip', type: 'button', onclick: () => {
             if (/ $/.test(c)) {
@@ -5027,12 +5885,17 @@ body.touch .act kbd { display: none; }
       this.skipVotes = h('div', { class: 'mt-voters' });
       this.status = h('div', { class: 'mt-status' }, '');
       const head = h('div', { class: 'mt-head' },
-        h('div', {}, h('div', { class: 'mt-title' }, isReport ? 'Corpo reportado' : 'Reunião de emergência'),
-          h('div', { class: 'mt-sub' }, isReport ? `${caller.name} reportou · vítima: ${g.players[info.body.pid].name}` : `Chamada por ${caller.name}`)),
-        this.timer);
+        h('div', { class: 'mt-head-l' }, h('div', { class: 'mt-title' }, isReport ? 'Corpo reportado' : 'Reunião de emergência'),
+          h('div', { class: 'mt-sub' }, isReport ? `${caller.name} reportou · vítima: ${g.players[info.body.pid].name}` : `Chamada por ${caller.name}`, ' · ', this.aiBadge)),
+        h('div', { class: 'mt-head-r' }, this.pauseBtn, this.timer));
+      this.tabs = h('div', { class: 'mt-tabs', role: 'tablist' },
+        ['players', 'chat', 'board'].map((k) => h('button', { class: 'mt-tab', type: 'button', role: 'tab', 'data-tab': k, onclick: () => this.setTab(k) },
+          k === 'players' ? 'Jogadores' : k === 'chat' ? 'Chat' : 'Quadro de álibis')));
       const left = h('div', { class: 'mt-left' }, this.cards, h('div', { class: 'mt-skiprow' }, this.skipBtn, this.skipVotes), this.status);
-      const right = h('div', { class: 'mt-right' }, this.log, h('div', { class: 'mt-chips' }, chips), form);
-      this.panel = h('div', { class: 'mt-panel' }, head, h('div', { class: 'mt-body' }, left, right));
+      const logWrap = h('div', { class: 'mt-logwrap' }, this.log, this.newPill);
+      const right = h('div', { class: 'mt-right' }, logWrap, this.board, this.typingEl, h('div', { class: 'mt-chips' }, chips), form);
+      this.body = h('div', { class: 'mt-body', 'data-tab': 'chat' }, left, right);
+      this.panel = h('div', { class: 'mt-panel' }, head, this.tabs, this.body);
       this.eject = h('div', { class: 'mt-eject', hidden: true });
       this.root.appendChild(this.panel);
       this.root.appendChild(this.splash);
@@ -5041,7 +5904,26 @@ body.touch .act kbd { display: none; }
       this.cardEls = {};
       this.selected = null;
       g.players.forEach((p) => this.makeCard(p));
+      this.setTab('chat');
       this.onPhase();
+    }
+    setTab(k) {
+      this.tab = k;
+      this.body.setAttribute('data-tab', k);
+      this.tabs.querySelectorAll('.mt-tab').forEach((b) => {
+        const on = b.getAttribute('data-tab') === k;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      if (k === 'board') this.renderBoard();
+      if (k === 'chat' && this.pinned) this.scrollBottom();
+    }
+    renderBoard() {
+      const mt = this.mt;
+      if (this.tab !== 'board') return;
+      this.board.innerHTML = '';
+      this.board.appendChild(h('p', { class: 'bd-help' }, 'Resumo automático do que foi dito no chat: onde cada um disse que estava, quem confirmou, quem contestou e quem acusou.'));
+      this.board.appendChild(boardElement(this.g, mt.msgs, mt.alive, null));
     }
     makeCard(p) {
       const g = this.g, mt = this.mt, hp = g.human;
@@ -5073,7 +5955,17 @@ body.touch .act kbd { display: none; }
       this.root.classList.toggle('can-vote', !!canVote);
       this.skipBtn.disabled = !canVote;
       if (mt.phase === 'discussion' && hp && hp.alive && window.matchMedia('(pointer:fine)').matches) setTimeout(() => this.input.focus(), 60);
-      this.status.textContent = !hp || !hp.alive ? 'Você está morto: só pode assistir e falar no chat dos fantasmas.' : mt.phase === 'discussion' ? 'Discussão: a votação ainda não abriu.' : mt.phase === 'voting' ? (canVote ? 'Clique num jogador para votar, ou pule.' : 'Voto registrado.') : '';
+      if (mt.phase === 'voting' && canVote && window.innerWidth <= 860 && !this.autoSwitched) {
+        this.autoSwitched = true;
+        this.tabs.classList.add('flash');
+      }
+      this.status.textContent = !hp || !hp.alive ? 'Você está morto: só pode assistir e falar no chat dos fantasmas.' : mt.phase === 'discussion' ? 'Discussão: a votação ainda não abriu. Toque num jogador para citá-lo no chat.' : mt.phase === 'voting' ? (canVote ? 'Clique num jogador para votar, ou pule.' : 'Voto registrado.') : '';
+    }
+    onPause() {
+      const p = this.mt.paused;
+      this.pauseBtn.textContent = p ? '▶ Continuar' : '⏸ Pausar';
+      this.pauseBtn.classList.toggle('on', p);
+      this.root.classList.toggle('paused', p);
     }
     tick() {
       const mt = this.mt;
@@ -5081,13 +5973,29 @@ body.touch .act kbd { display: none; }
       if (mt.phase === 'discussion') label = 'Discussão · ' + Math.ceil(mt.votingStart - mt.t) + 's';
       else if (mt.phase === 'voting') label = 'Votação · ' + U.fmtTime(mt.votingEnd - mt.t);
       else if (mt.phase === 'results') label = 'Resultado';
+      if (mt.paused) label = 'Pausado · ' + label;
       if (this.timer.textContent !== label) this.timer.textContent = label;
+      this.pauseBtn.hidden = !(mt.phase === 'discussion' || mt.phase === 'voting');
+    }
+    renderTyping(set) {
+      const mt = this.mt, g = this.g;
+      const ids = [...(set || mt.typing)].filter((id) => g.players[id] && g.players[id].alive);
+      if (!ids.length) {
+        this.typingEl.textContent = '';
+        this.typingEl.classList.remove('on');
+        return;
+      }
+      const names = ids.slice(0, 3).map((id) => g.players[id].name);
+      const more = ids.length > 3 ? ' e mais ' + (ids.length - 3) : '';
+      this.typingEl.textContent = names.join(', ') + more + (ids.length === 1 ? ' está digitando…' : ' estão digitando…');
+      this.typingEl.classList.add('on');
     }
     pick(id) {
       const mt = this.mt, hp = this.g.human;
       if (mt.phase === 'discussion' && id !== 'skip') {
         const p = this.g.players[id];
-        this.input.value = (this.input.value ? this.input.value + ' ' : '') + C.COLOR[p.color].name.toLowerCase();
+        this.input.value = (this.input.value ? this.input.value + ' ' : '') + C.COLOR[p.color].name.toLowerCase() + ' ';
+        if (window.innerWidth <= 860) this.setTab('chat');
         this.input.focus();
         return;
       }
@@ -5129,26 +6037,37 @@ body.touch .act kbd { display: none; }
       this.lastSend = now;
       this.mt.humanSay(v);
       this.input.value = '';
+      this.scrollBottom();
+    }
+    scrollBottom() {
+      this.log.scrollTop = this.log.scrollHeight;
+      this.pinned = true;
+      this.clearUnread();
+    }
+    clearUnread() {
+      this.unread = 0;
+      this.newPill.hidden = true;
     }
     addMsg(msg) {
       const g = this.g, hp = g.human;
       if (msg.ghost && hp && hp.alive) return;
-      const p = g.players[msg.from];
-      const col = C.COLOR[p.color];
-      const line = h('div', { class: 'mt-msg' + (msg.fromHuman ? ' mine' : '') + (msg.ghost ? ' ghost' : '') },
-        h('span', { class: 'mt-msg-bean', html: AU.Render.beanSVG(p.color, { size: 26, visor: p.visor, ghost: msg.ghost }) }),
-        h('div', { class: 'mt-msg-body' },
-          h('div', { class: 'mt-msg-name', style: { color: readable(col) } }, p.name + (msg.ghost ? ' 👻' : '')),
-          h('div', { class: 'mt-msg-text' }, msg.text)));
-      const stick = this.log.scrollHeight - this.log.scrollTop - this.log.clientHeight < 60;
+      const line = msgElement(g, msg);
       this.log.appendChild(line);
-      if (stick || msg.fromHuman) this.log.scrollTop = this.log.scrollHeight;
+      if (this.pinned || msg.fromHuman) {
+        this.log.scrollTop = this.log.scrollHeight;
+      } else {
+        this.unread++;
+        this.newPill.textContent = '↓ ' + this.unread + (this.unread === 1 ? ' nova mensagem' : ' novas mensagens');
+        this.newPill.hidden = false;
+      }
       if (!msg.fromHuman) AU.Audio.play('chat');
+      if (this.tab === 'board') this.renderBoard();
     }
     showResults() {
       const mt = this.mt, g = this.g;
       const r = mt.result;
       this.root.classList.remove('can-vote');
+      this.onPause();
       this.cancel();
       const anon = g.S.rules.anonymousVotes;
       const chip = (voter) => {
@@ -5160,6 +6079,7 @@ body.touch .act kbd { display: none; }
         if (tgt === 'skip') this.skipVotes.appendChild(chip(voter));
         else if (this.cardEls[tgt]) this.cardEls[tgt].voters.appendChild(chip(voter));
       }
+      if (window.innerWidth <= 860) this.setTab('players');
       this.status.textContent = r.ejected != null ? 'Votos contados.' : r.tie ? 'Empate: ninguém será ejetado.' : 'A maioria pulou.';
     }
     showEject() {
@@ -5206,7 +6126,673 @@ body.touch .act kbd { display: none; }
     }
   }
 
+  /* Histórico: conversa e quadro de uma reunião já encerrada. */
+  function historyElement(g, mt) {
+    const info = mt.info;
+    const title = info.kind === 'report' ? `Reunião ${info.index}: ${g.players[info.caller].name} reportou o corpo de ${g.players[info.body.pid].name}` : `Reunião ${info.index}: emergência chamada por ${g.players[info.caller].name}`;
+    const r = mt.result;
+    let res = '';
+    if (r) res = r.ejected != null ? `${g.players[r.ejected].name} foi ejetado.` : r.tie ? 'Empate: ninguém ejetado.' : 'Ninguém ejetado (pulado).';
+    const log = h('div', { class: 'hist-log' });
+    mt.msgs.forEach((m) => log.appendChild(msgElement(g, m)));
+    if (!mt.msgs.length) log.appendChild(h('p', { class: 'fine' }, 'Ninguém falou nesta reunião.'));
+    return h('details', { class: 'hist' },
+      h('summary', {}, title, res ? h('small', {}, ' — ' + res) : null),
+      h('div', { class: 'hist-body' }, log, h('div', { class: 'hist-board' }, h('h4', {}, 'Quadro de álibis'), boardElement(g, mt.msgs, mt.alive, r ? { votes: r.votes } : null))));
+  }
+
   AU.Meeting = Meeting;
+  AU.MeetingView = { msgElement, boardElement, historyElement };
+})();
+
+</script>
+  <script>
+/* Desenho estático da Skeld: pisos com textura por sala, paredes, cantos chanfrados, móveis e consoles. */
+(function () {
+  'use strict';
+  const AU = window.AU;
+  const M = AU.Map;
+  const W = M.W, H = M.H;
+
+  const FLOORS = {
+    cafeteria: ['#5b6272', '#555c6b', 'tiles2'],
+    medbay: ['#2f565d', '#2a4e55', 'tiles'],
+    electrical: ['#3a372f', '#312e27', 'grate'],
+    storage: ['#4f4739', '#474032', 'planks'],
+    reactor: ['#2b3547', '#262f3f', 'plates'],
+    upperEngine: ['#3c4352', '#363c4a', 'plates'],
+    lowerEngine: ['#3c4352', '#363c4a', 'plates'],
+    security: ['#343a49', '#2f3442', 'tiles'],
+    admin: ['#394559', '#343f52', 'carpet'],
+    weapons: ['#383e54', '#33384d', 'plates'],
+    o2: ['#2f4b44', '#29433d', 'tiles'],
+    navigation: ['#32405a', '#2d3a52', 'plates'],
+    shields: ['#3a3e57', '#343850', 'hexes'],
+    comms: ['#373d4f', '#323848', 'tiles'],
+  };
+  const SHIELD_FX = { x: 101.5, y: 55.6 };
+  const LABELS = {
+    cafeteria: [69, 23.3], upperEngine: [16, 18.6], lowerEngine: [16, 52.4], reactor: [10.6, 30.6],
+    security: [27.5, 38.5], medbay: [45.5, 32.5], electrical: [43, 46.8], storage: [63, 54.2],
+    admin: [80, 34.35], o2: [90, 25.2], weapons: [100, 15.6], navigation: [122.9, 42.4],
+    shields: [101.5, 63.8], comms: [81, 68.4],
+  };
+  const WALL = '#141925', FACE = '#3b4560', FACE_HI = '#56627f';
+
+  function build(PX) {
+    const cv = document.createElement('canvas');
+    cv.width = W * PX;
+    cv.height = H * PX;
+    const c = cv.getContext('2d');
+    const P = PX;
+    const D = mkDraw(c, P);
+
+    /* piso */
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (!M.isFloor(x, y)) continue;
+      const a = M.AREAS[M.areaIdx[y * W + x]];
+      if (a.kind === 'room') {
+        const [base, alt, kind] = FLOORS[a.id] || [a.floor, a.floor, 'tiles'];
+        floorTile(c, P, x, y, base, alt, kind);
+      } else {
+        c.fillStyle = (x + y) % 2 ? '#2c3241' : '#2a303e';
+        c.fillRect(x * P, y * P, P, P);
+      }
+    }
+    /* faixa central dos corredores */
+    for (const cdr of M.CORRIDORS) {
+      for (const [x, y, w, h] of cdr.rects) {
+        c.fillStyle = 'rgba(255,208,70,0.07)';
+        if (w >= h) c.fillRect(x * P, (y + h / 2 - 0.08) * P, w * P, 0.16 * P);
+        else c.fillRect((x + w / 2 - 0.08) * P, y * P, 0.16 * P, h * P);
+        c.fillStyle = 'rgba(0,0,0,0.18)';
+        if (w >= h) {
+          c.fillRect(x * P, y * P, w * P, 0.18 * P);
+          c.fillRect(x * P, (y + h - 0.18) * P, w * P, 0.18 * P);
+        } else {
+          c.fillRect(x * P, y * P, 0.18 * P, h * P);
+          c.fillRect((x + w - 0.18) * P, y * P, 0.18 * P, h * P);
+        }
+      }
+    }
+    /* paredes (visão 3/4: a parede de cima mostra a face) */
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (M.isFloor(x, y)) continue;
+      let near = false;
+      for (let dy = -1; dy <= 1 && !near; dy++) for (let dx = -1; dx <= 1; dx++) if (M.isFloor(x + dx, y + dy)) near = true;
+      if (!near) continue;
+      c.fillStyle = WALL;
+      c.fillRect(x * P, y * P, P, P);
+      if (M.isFloor(x, y + 1)) {
+        c.fillStyle = FACE;
+        c.fillRect(x * P, y * P + P * 0.2, P, P * 0.8);
+        c.fillStyle = FACE_HI;
+        c.fillRect(x * P, y * P + P * 0.2, P, P * 0.1);
+        c.fillStyle = 'rgba(0,0,0,0.28)';
+        c.fillRect(x * P, y * P + P * 0.86, P, P * 0.14);
+        if (x % 3 === 0) {
+          c.fillStyle = 'rgba(0,0,0,0.18)';
+          c.fillRect(x * P, y * P + P * 0.3, P * 0.06, P * 0.56);
+        }
+      }
+    }
+    /* contorno entre piso e parede (os cantos em diagonal são desenhados depois) */
+    c.strokeStyle = '#0a0d15';
+    c.lineWidth = 3;
+    const seg = (x1, y1, x2, y2) => {
+      c.beginPath();
+      c.moveTo(x1 * P, y1 * P);
+      c.lineTo(x2 * P, y2 * P);
+      c.stroke();
+    };
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (!M.isFloor(x, y)) continue;
+      const a = M.AREAS[M.areaIdx[y * W + x]];
+      const diag = (nx, ny) => {
+        if (!a || !a.cut) return false;
+        const [rx, ry, rw, rh] = a.rect;
+        return nx >= rx && ny >= ry && nx < rx + rw && ny < ry + rh && M.inCut(a, nx, ny);
+      };
+      if (!M.isFloor(x - 1, y) && !diag(x - 1, y)) seg(x, y, x, y + 1);
+      if (!M.isFloor(x + 1, y) && !diag(x + 1, y)) seg(x + 1, y, x + 1, y + 1);
+      if (!M.isFloor(x, y + 1) && !diag(x, y + 1)) seg(x, y + 1, x + 1, y + 1);
+    }
+    for (const r of M.ROOMS) if (r.cut) drawCuts(c, P, r);
+    drawRooms(D, c, P);
+    drawStations(D, c, P);
+    drawVents(D);
+    /* nomes das salas, em pontos livres de móveis e consoles */
+    c.textAlign = 'center';
+    c.textBaseline = 'top';
+    c.font = `800 ${P * 0.74}px "Chakra Petch", system-ui, sans-serif`;
+    c.fillStyle = 'rgba(230,236,255,0.17)';
+    for (const r of M.ROOMS) {
+      const [x, y, w] = r.rect;
+      const [lx, ly] = LABELS[r.id] || [x + w / 2, y + 0.35];
+      c.fillText(r.name.toUpperCase(), lx * P, ly * P);
+    }
+    return cv;
+  }
+
+  /* Canto chanfrado: a parede segue uma diagonal lisa em vez da escadinha de tiles.
+     Coordenadas locais: du = distância à parede lateral, dv = distância à parede de cima/baixo. */
+  const WINDOWS = { navigation: true, weapons: true };
+  function drawCuts(c, P, r) {
+    const [x, y, w, h] = r.rect;
+    const fl = FLOORS[r.id] || [r.floor, r.floor, 'tiles'];
+    /* recorte: anel da sala, sem invadir o piso de corredores vizinhos */
+    const clipRoom = () => {
+      c.beginPath();
+      c.rect((x - 1) * P, (y - 1) * P, (w + 2) * P, (h + 2) * P);
+      for (let ty = y - 1; ty <= y + h; ty++) for (let tx = x - 1; tx <= x + w; tx++) {
+        if (!M.isFloor(tx, ty)) continue;
+        const a = M.AREAS[M.areaIdx[ty * W + tx]];
+        if (a !== r) c.rect(tx * P, ty * P, P, P);
+      }
+      c.clip('evenodd');
+    };
+    for (const key of ['tl', 'tr', 'bl', 'br']) {
+      const k = r.cut[key];
+      if (!k) continue;
+      const right = key[1] === 'r', bottom = key[0] === 'b';
+      const X = (du) => (right ? x + w - du : x + du) * P;
+      const Y = (dv) => (bottom ? y + h - dv : y + dv) * P;
+      const poly = (pts) => {
+        c.beginPath();
+        pts.forEach(([du, dv], i) => (i ? c.lineTo(X(du), Y(dv)) : c.moveTo(X(du), Y(dv))));
+        c.closePath();
+      };
+      /* faixa entre as diagonais du+dv = lo e du+dv = hi, limitada ao anel da sala */
+      const band = (lo, hi) => poly([[hi + 1, -1], [lo + 1, -1], [-1, lo + 1], [-1, hi + 1]]);
+      const a = k + 0.5, b = k - 2.05;
+      c.save();
+      clipRoom();
+      /* 1) meia-lajota de piso do lado de dentro da diagonal */
+      c.save();
+      poly([[a, 0], [k + 1.05, 0], [0, k + 1.05], [0, a]]);
+      c.clip();
+      for (let i = 0; i < k; i++) {
+        const j = k - 1 - i;
+        const tx = right ? x + w - 1 - i : x + i, ty = bottom ? y + h - 1 - j : y + j;
+        floorTile(c, P, tx, ty, fl[0], fl[1], fl[2]);
+      }
+      c.restore();
+      /* 2) parede diagonal */
+      band(b, a);
+      c.fillStyle = WALL;
+      c.fill();
+      if (WINDOWS[r.id]) {
+        band(b + 0.45, a - (bottom ? 0.45 : 1.0));
+        c.fillStyle = '#060a14';
+        c.fill();
+        c.save();
+        c.clip();
+        for (let i = 0; i < k * 3; i++) {
+          const t = Math.random() * (k + 2) - 1, off = b + 0.5 + Math.random() * 1.2;
+          c.fillStyle = `rgba(255,255,255,${0.35 + Math.random() * 0.6})`;
+          c.fillRect(X(t) - 1, Y(off - t) - 1, 2, 2);
+        }
+        c.restore();
+        band(b + 0.45, a - (bottom ? 0.45 : 1.0));
+        c.strokeStyle = '#2d3850';
+        c.lineWidth = 2;
+        c.stroke();
+      }
+      /* 3) face da parede (cantos de cima) ou contorno (cantos de baixo) */
+      if (!bottom) {
+        band(a - 0.8, a);
+        c.fillStyle = FACE;
+        c.fill();
+        band(a - 0.8, a - 0.7);
+        c.fillStyle = FACE_HI;
+        c.fill();
+        band(a - 0.14, a);
+        c.fillStyle = 'rgba(0,0,0,0.28)';
+        c.fill();
+      } else {
+        c.strokeStyle = '#0a0d15';
+        c.lineWidth = 3;
+        c.beginPath();
+        c.moveTo(X(a + 1), Y(-1));
+        c.lineTo(X(-1), Y(a + 1));
+        c.stroke();
+      }
+      c.restore();
+    }
+  }
+
+  function floorTile(c, P, x, y, base, alt, kind) {
+    const px = x * P, py = y * P;
+    c.fillStyle = base;
+    c.fillRect(px, py, P, P);
+    if (kind === 'tiles') {
+      if ((x + y) % 2) {
+        c.fillStyle = alt;
+        c.fillRect(px, py, P, P);
+      }
+      c.strokeStyle = 'rgba(255,255,255,0.05)';
+      c.lineWidth = 1;
+      c.strokeRect(px + 0.5, py + 0.5, P - 1, P - 1);
+    } else if (kind === 'tiles2') {
+      if ((Math.floor(x / 2) + Math.floor(y / 2)) % 2) {
+        c.fillStyle = alt;
+        c.fillRect(px, py, P, P);
+      }
+      c.fillStyle = 'rgba(255,255,255,0.05)';
+      if (x % 2 === 0) c.fillRect(px, py, 1, P);
+      if (y % 2 === 0) c.fillRect(px, py, P, 1);
+    } else if (kind === 'plates') {
+      c.fillStyle = 'rgba(0,0,0,0.22)';
+      if (x % 3 === 0) c.fillRect(px, py, 1.5, P);
+      if (y % 3 === 0) c.fillRect(px, py, P, 1.5);
+      if (x % 3 === 0 && y % 3 === 0) {
+        c.fillStyle = 'rgba(255,255,255,0.14)';
+        c.fillRect(px + P * 0.15, py + P * 0.15, P * 0.1, P * 0.1);
+      }
+    } else if (kind === 'grate') {
+      c.strokeStyle = 'rgba(0,0,0,0.3)';
+      c.lineWidth = 1;
+      for (let i = 0; i < 3; i++) {
+        c.beginPath();
+        c.moveTo(px, py + (i + 0.5) * (P / 3));
+        c.lineTo(px + P, py + (i + 0.5) * (P / 3));
+        c.stroke();
+      }
+      if (x % 2 === 0) {
+        c.fillStyle = 'rgba(0,0,0,0.25)';
+        c.fillRect(px, py, 1.5, P);
+      }
+    } else if (kind === 'planks') {
+      c.fillStyle = 'rgba(0,0,0,0.2)';
+      c.fillRect(px, py + P * 0.49, P, 1.5);
+      c.fillRect(px, py, P, 1);
+      if ((x + (y % 2) * 2) % 4 === 0) c.fillRect(px, py, 1.5, P * 0.5);
+      if ((x + 1 + (y % 2) * 2) % 4 === 0) c.fillRect(px, py + P * 0.5, 1.5, P * 0.5);
+    } else if (kind === 'carpet') {
+      c.fillStyle = 'rgba(255,255,255,0.025)';
+      if ((x + y) % 2) c.fillRect(px, py, P, P);
+    } else if (kind === 'hexes') {
+      if ((x + y) % 3 === 0) {
+        c.strokeStyle = 'rgba(140,160,255,0.08)';
+        c.lineWidth = 1;
+        c.beginPath();
+        for (let k = 0; k < 6; k++) {
+          const a = (k / 6) * Math.PI * 2;
+          const hx = px + P / 2 + Math.cos(a) * P * 0.42, hy = py + P / 2 + Math.sin(a) * P * 0.42;
+          if (k) c.lineTo(hx, hy);
+          else c.moveTo(hx, hy);
+        }
+        c.closePath();
+        c.stroke();
+      }
+    }
+  }
+
+  /* Primitivas de desenho em coordenadas de tile. */
+  function mkDraw(c, P) {
+    const D = {};
+    D.rr = (x, y, w, h, r) => {
+      c.beginPath();
+      if (c.roundRect) c.roundRect(x * P, y * P, w * P, h * P, (r || 0.15) * P);
+      else c.rect(x * P, y * P, w * P, h * P);
+    };
+    D.box = (x, y, w, h, fill, stroke, r) => {
+      D.rr(x, y, w, h, r);
+      c.fillStyle = fill;
+      c.fill();
+      if (stroke) {
+        c.strokeStyle = stroke;
+        c.lineWidth = 2;
+        c.stroke();
+      }
+    };
+    D.circle = (x, y, r, fill, stroke, lw) => {
+      c.beginPath();
+      c.arc(x * P, y * P, r * P, 0, Math.PI * 2);
+      if (fill) {
+        c.fillStyle = fill;
+        c.fill();
+      }
+      if (stroke) {
+        c.strokeStyle = stroke;
+        c.lineWidth = lw || 2;
+        c.stroke();
+      }
+    };
+    D.shadow = (x, y, rx, ry) => {
+      c.fillStyle = 'rgba(0,0,0,0.25)';
+      c.beginPath();
+      c.ellipse(x * P, y * P, rx * P, ry * P, 0, 0, Math.PI * 2);
+      c.fill();
+    };
+    D.line = (x1, y1, x2, y2, color, lw) => {
+      c.strokeStyle = color;
+      c.lineWidth = (lw || 0.1) * P;
+      c.lineCap = 'round';
+      c.beginPath();
+      c.moveTo(x1 * P, y1 * P);
+      c.lineTo(x2 * P, y2 * P);
+      c.stroke();
+    };
+    D.glow = (x, y, r, color) => {
+      const g = c.createRadialGradient(x * P, y * P, 0, x * P, y * P, r * P);
+      g.addColorStop(0, color);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = g;
+      c.fillRect((x - r) * P, (y - r) * P, 2 * r * P, 2 * r * P);
+    };
+    D.screen = (x, y, w, h, color) => {
+      D.box(x, y, w, h, '#0c1420', null, 0.06);
+      D.box(x + 0.06, y + 0.06, w - 0.12, h - 0.12, color, null, 0.05);
+      c.fillStyle = 'rgba(255,255,255,0.18)';
+      c.fillRect((x + 0.1) * P, (y + 0.1) * P, (w - 0.2) * P, 0.06 * P);
+    };
+    D.stars = (x, y, w, h, n) => {
+      for (let i = 0; i < n; i++) {
+        c.fillStyle = `rgba(255,255,255,${0.4 + Math.random() * 0.6})`;
+        const s = Math.random() < 0.15 ? 2.5 : 1.5;
+        c.fillRect((x + Math.random() * w) * P, (y + Math.random() * h) * P, s, s);
+      }
+    };
+    D.crate = (x, y, w, h) => {
+      D.shadow(x + w / 2 + 0.1, y + h + 0.05, w * 0.55, 0.18);
+      D.box(x, y, w, h, '#86704a', '#3d311f', 0.1);
+      c.strokeStyle = 'rgba(0,0,0,0.3)';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo((x + 0.15) * P, (y + 0.15) * P);
+      c.lineTo((x + w - 0.15) * P, (y + h - 0.15) * P);
+      c.moveTo((x + w - 0.15) * P, (y + 0.15) * P);
+      c.lineTo((x + 0.15) * P, (y + h - 0.15) * P);
+      c.stroke();
+      c.strokeStyle = 'rgba(255,255,255,0.12)';
+      c.strokeRect((x + 0.12) * P, (y + 0.12) * P, (w - 0.24) * P, (h - 0.24) * P);
+    };
+    D.table = (x, y, r) => {
+      D.shadow(x + 0.15, y + 0.25, r * 1.02, r * 0.9);
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + 0.3;
+        D.circle(x + Math.cos(a) * (r + 0.7), y + Math.sin(a) * (r + 0.7), 0.38, '#6b7488', '#2a3040');
+      }
+      D.circle(x, y, r, '#a3acc0', '#2a3040', 3);
+      D.circle(x - r * 0.25, y - r * 0.25, r * 0.55, 'rgba(255,255,255,0.12)');
+    };
+    return D;
+  }
+
+  function drawRooms(D, c, P) {
+    const S = M.STATIONS, B = M.SAB_STATIONS;
+    /* placa pintada na face de uma parede de cima */
+    const wallSign = (x, y, draw) => {
+      D.box(x - 0.45, y + 0.28, 0.9, 0.56, '#dfe6f2', '#141925', 0.08);
+      draw(x, y + 0.56);
+    };
+
+    /* Cafeteria: mesas redondas, botão de emergência, máquinas de lanche */
+    [[63, 9], [75.5, 9], [63, 19.5], [75.5, 19.5]].forEach(([x, y]) => D.table(x, y, 1.45));
+    const E = M.EMERGENCY;
+    D.shadow(E.x + 0.2, E.y + 0.35, 2.1, 1.8);
+    D.circle(E.x, E.y, 2, '#a3acc0', '#2a3040', 3);
+    D.circle(E.x, E.y, 1.05, '#6f7d96', '#2a3040');
+    D.glow(E.x, E.y, 1.3, 'rgba(255,60,60,0.35)');
+    D.circle(E.x, E.y, 0.78, '#c3202b', '#3a0a0e', 3);
+    D.circle(E.x - 0.22, E.y - 0.26, 0.28, 'rgba(255,255,255,0.4)');
+    [[61.4, '#3d6fb3'], [63.8, '#b33d3d'], [66.2, '#3db36f']].forEach(([x, col]) => {
+      D.box(x, 1.75, 2.1, 1.65, col, '#141925', 0.15);
+      D.screen(x + 0.3, 1.95, 1.5, 0.5, 'rgba(255,255,255,0.35)');
+      D.box(x + 0.35, 2.75, 1.4, 0.4, 'rgba(0,0,0,0.35)', null, 0.08);
+    });
+    D.box(S.garbageCaf.x - 0.6, S.garbageCaf.y + 0.3, 1.2, 1, '#4b5467', '#141925', 0.2);
+    D.line(S.garbageCaf.x - 0.4, S.garbageCaf.y + 0.55, S.garbageCaf.x + 0.4, S.garbageCaf.y + 0.55, '#11141b', 0.08);
+
+    /* MedBay: macas na parede esquerda, scanner no chão, analisador de amostras */
+    [21.4, 24.4, 27.4].forEach((y) => {
+      const x = 38.45;
+      D.shadow(x + 1.9, y + 2.35, 1.9, 0.25);
+      D.box(x, y, 3.6, 2.2, '#dfe7f5', '#57627a', 0.35);
+      D.box(x + 0.2, y + 0.3, 0.9, 1.6, '#a9bde0', null, 0.3);
+      D.box(x + 1.4, y + 0.15, 2.05, 1.9, 'rgba(90,140,200,0.35)', null, 0.2);
+    });
+    D.glow(S.scan.x, S.scan.y, 1.8, 'rgba(90,240,160,0.25)');
+    D.circle(S.scan.x, S.scan.y, 1.15, '#1f3b37', '#3ae08a', 3);
+    D.circle(S.scan.x, S.scan.y, 0.75, 'rgba(58,224,138,0.25)', '#3ae08a', 1.5);
+    D.box(51.0, 21.2, 0.95, 2.7, '#3b4760', '#141925', 0.15);
+    for (let i = 0; i < 4; i++) D.box(51.12, 21.45 + i * 0.6, 0.7, 0.32, ['#e24b4b', '#4aa3ff', '#4be38b', '#ffd23b'][i], null, 0.08);
+    wallSign(49.5, 19, (x, y) => {
+      D.line(x, y - 0.18, x, y + 0.18, '#e24b4b', 0.12);
+      D.line(x - 0.18, y, x + 0.18, y, '#e24b4b', 0.12);
+    });
+
+    /* Motores: turbinas com escape brilhando à esquerda */
+    [[9, 16], [56.5, 63.5]].forEach(([y, pipeTo], n) => {
+      const x = 13, w = 8.5, h = 7;
+      D.shadow(x + w / 2, y + h + 0.3, w * 0.55, 0.5);
+      for (const px of [15.2, 19.2]) D.line(px, n ? y + h : y, px, n ? 66 : 6, '#4a5263', 0.4);
+      D.box(x, y, w, h, '#667086', '#232838', 1.4);
+      D.box(x + 0.5, y + 0.5, w - 1, 2, '#7b869c', null, 0.9);
+      for (let i = 0; i < 4; i++) D.line(x + 1.5 + i * 1.85, y + 3, x + 1.5 + i * 1.85, y + h - 0.6, 'rgba(0,0,0,0.25)', 0.12);
+      D.glow(x - 0.3, y + h / 2, 2.4, 'rgba(255,150,60,0.5)');
+      D.box(x - 1.4, y + 1.7, 1.6, h - 3.4, '#4a5263', '#232838', 0.5);
+      D.box(x - 1.75, y + 2.1, 0.55, h - 4.2, '#ffb347', null, 0.25);
+      void pipeTo;
+    });
+
+    /* Reator: núcleo azul com tubos até os scanners de mão */
+    D.glow(7.5, 36, 5.5, 'rgba(80,160,255,0.35)');
+    for (const st of [B.reactorA, B.reactorB]) D.line(7.5, 36, st.x - 1.0, st.y, '#3b4a66', 0.45);
+    D.line(7.5, 36, S.manifolds.x, S.manifolds.y + 0.6, '#3b4a66', 0.35);
+    D.line(7.5, 36, S.reactor.x, S.reactor.y - 0.6, '#3b4a66', 0.35);
+    D.circle(7.5, 36, 3.1, '#1b2c4a', '#0e1a2e', 4);
+    D.circle(7.5, 36, 2.3, '#2468bd', '#123a6b', 3);
+    D.circle(7.5, 36, 1.4, '#58b4ff', '#8fd3ff', 2);
+    D.circle(7.5, 36, 0.6, '#e6f6ff');
+    for (const st of [B.reactorA, B.reactorB]) {
+      D.box(st.x - 1.45, st.y - 0.7, 0.9, 1.4, '#28324a', '#0b0d12', 0.2);
+      D.box(st.x - 1.33, st.y - 0.5, 0.66, 1.0, 'rgba(255,90,90,0.55)', null, 0.2);
+      for (let i = 0; i < 3; i++) D.line(st.x - 1.25, st.y - 0.3 + i * 0.3, st.x - 0.75, st.y - 0.3 + i * 0.3, 'rgba(255,255,255,0.35)', 0.05);
+    }
+
+    /* Segurança: mesa com monitores, cadeiras e servidores */
+    D.box(23.2, 28.05, 8.6, 1.3, '#232838', '#11151f', 0.2);
+    for (let i = 0; i < 4; i++) D.screen(23.55 + i * 2.05, 28.15, 1.8, 0.95, ['#2e8f6a', '#2e6f8f', '#2e8f6a', '#2e6f8f'][i]);
+    [[25.6, 30.7], [29.4, 30.7]].forEach(([x, y]) => {
+      D.shadow(x + 0.05, y + 0.5, 0.5, 0.15);
+      D.circle(x, y, 0.55, '#3b4458', '#141925');
+    });
+    for (let i = 0; i < 3; i++) {
+      D.box(32.6, 31.5 + i * 2, 1.1, 1.7, '#1c2130', '#0b0d12', 0.1);
+      for (let k = 0; k < 4; k++) D.box(32.75, 31.7 + i * 2 + k * 0.35, 0.8, 0.12, k % 2 ? '#3ae08a' : '#2e6f8f', null, 0.02);
+    }
+
+    /* Elétrica: quadros de disjuntores, bandeja de cabos */
+    for (let i = 0; i < 3; i++) {
+      const x = 40.4 + i * 1.6;
+      D.box(x, 38.1, 1.3, 1.6, '#4b4636', '#1a180f', 0.1);
+      D.box(x + 0.2, 38.3, 0.9, 0.5, '#2a2a22', null, 0.05);
+      D.circle(x + 0.35, 39.25, 0.12, i % 2 ? '#ffd23b' : '#e24b4b');
+      D.circle(x + 0.8, 39.25, 0.12, '#4be38b');
+    }
+    D.line(36.35, 45.6, 36.35, 49.65, '#2a2a22', 0.45);
+    D.line(36.35, 49.65, 41.4, 49.65, '#2a2a22', 0.45);
+    ['#e24b4b', '#ffd23b', '#4aa3ff'].forEach((col, i) => {
+      D.line(36.2 + i * 0.15, 45.8, 36.2 + i * 0.15, 49.5, col, 0.07);
+      D.line(36.4, 49.5 + i * 0.12 - 0.12, 41.3, 49.5 + i * 0.12 - 0.12, col, 0.07);
+    });
+    D.box(B.lights.x - 0.9, B.lights.y - 1.4, 1.8, 1.5, '#5a3a2a', '#1a0f08', 0.1);
+    for (let i = 0; i < 5; i++) D.box(B.lights.x - 0.75 + i * 0.32, B.lights.y - 1.15, 0.2, 0.55, '#e0d6b8', null, 0.04);
+    wallSign(48.6, 37, (x, y) => {
+      c.fillStyle = '#ffd23b';
+      c.beginPath();
+      c.moveTo((x + 0.05) * P, (y - 0.24) * P);
+      c.lineTo((x - 0.14) * P, (y + 0.03) * P);
+      c.lineTo((x + 0.02) * P, (y + 0.03) * P);
+      c.lineTo((x - 0.06) * P, (y + 0.26) * P);
+      c.lineTo((x + 0.15) * P, (y - 0.04) * P);
+      c.lineTo((x - 0.01) * P, (y - 0.04) * P);
+      c.closePath();
+      c.fill();
+    });
+
+    /* Depósito: pilhas de caixas, barris, galão de combustível, calha do lixo */
+    [[57, 50, 3, 3], [60.3, 50.4, 2.2, 2.2], [65.5, 47.5, 4, 3], [58, 57, 3, 2.5], [66, 55, 3, 3], [62.5, 60.5, 2.5, 2.5], [69, 51.5, 2, 2]].forEach(([x, y, w, h]) => D.crate(x, y, w, h));
+    [[56.4, 61.5], [57.4, 62.3], [68.2, 59]].forEach(([x, y]) => {
+      D.shadow(x + 0.05, y + 0.5, 0.5, 0.15);
+      D.circle(x, y, 0.45, '#8a3b2a', '#2b120c');
+      D.circle(x, y, 0.3, '#a24c38');
+    });
+    D.shadow(S.fuelStorage.x + 0.5, S.fuelStorage.y + 0.2, 0.6, 0.18);
+    D.box(S.fuelStorage.x + 0.35, S.fuelStorage.y - 1.7, 1.1, 1.8, '#b35a1f', '#40200a', 0.3);
+    D.box(S.fuelStorage.x + 0.55, S.fuelStorage.y - 1.5, 0.7, 0.3, '#ffd23b', null, 0.05);
+    D.box(S.garbageStorage.x - 1, S.garbageStorage.y + 0.25, 2, 1.1, '#2a2f3b', '#0b0d12', 0.15);
+    for (let i = 0; i < 4; i++) D.line(S.garbageStorage.x - 0.75 + i * 0.5, S.garbageStorage.y + 0.4, S.garbageStorage.x - 0.75 + i * 0.5, S.garbageStorage.y + 1.2, '#11141b', 0.1);
+
+    /* Admin: mesa holográfica com o mapa da nave */
+    const A = M.ADMIN_TABLE;
+    D.shadow(A.x + 0.2, A.y + 1.9, 3, 0.4);
+    D.box(A.x - 3, A.y - 1.8, 6, 3.6, '#23304a', '#101828', 0.5);
+    D.box(A.x - 2.6, A.y - 1.4, 5.2, 2.8, 'rgba(90,240,160,0.18)', '#3ae08a', 0.35);
+    D.glow(A.x, A.y, 3, 'rgba(90,240,160,0.18)');
+    c.strokeStyle = 'rgba(90,240,160,0.6)';
+    c.lineWidth = 1.5;
+    for (const r of M.ROOMS) {
+      const [x, y, w, h] = r.rect;
+      c.strokeRect((A.x - 2.4 + (x / W) * 4.8) * P, (A.y - 1.2 + (y / H) * 2.4) * P, (w / W) * 4.8 * P, (h / H) * 2.4 * P);
+    }
+    [[79, 36.9], [82, 36.9], [79, 42.1], [82, 42.1]].forEach(([x, y]) => D.circle(x, y, 0.45, '#3b4458', '#141925'));
+
+    /* O2: jardineiras, cilindros e a árvore no canto */
+    [[87, 22.3], [89.5, 22.3], [92, 22.3]].forEach(([x, y]) => {
+      D.box(x, y, 2, 1.7, '#3f5a2d', '#1e2c16', 0.3);
+      D.circle(x + 0.6, y + 0.7, 0.5, '#6fc95a');
+      D.circle(x + 1.3, y + 0.8, 0.45, '#5ab24a');
+    });
+    [[86.3, 25.5], [86.3, 27.3]].forEach(([x, y]) => {
+      D.box(x, y, 0.9, 1.5, '#9fb2c9', '#3a4660', 0.4);
+      D.box(x + 0.15, y + 0.2, 0.6, 0.25, '#e24b4b', null, 0.05);
+    });
+    D.circle(93.5, 27, 1.1, '#2c4a2a', '#1e2c16');
+    D.circle(93.5, 27, 0.8, '#4e9a3f');
+    D.circle(93.2, 26.7, 0.35, '#6fc95a');
+    D.box(S.cleanO2.x - 0.7, S.cleanO2.y + 0.3, 1.4, 1, '#20262f', '#0b0d12', 0.15);
+    for (let i = 0; i < 3; i++) D.line(S.cleanO2.x - 0.5, S.cleanO2.y + 0.55 + i * 0.25, S.cleanO2.x + 0.5, S.cleanO2.y + 0.55 + i * 0.25, '#3a4257', 0.06);
+
+    /* Armas: janela para o espaço e a torre de tiro */
+    D.box(95.5, 3.1, 8, 1.8, '#0a0f1c', '#050810', 0.6);
+    c.save();
+    D.rr(95.5, 3.1, 8, 1.8, 0.6);
+    c.clip();
+    D.stars(95.5, 3.1, 8, 1.8, 26);
+    c.restore();
+    D.box(95.5, 3.1, 8, 1.8, 'rgba(120,180,255,0.08)', '#2d3850', 0.6);
+    const T = S.asteroids;
+    D.line(T.x, T.y - 1, T.x, T.y - 4.3, '#5a6680', 0.55);
+    D.line(T.x - 0.55, T.y - 1, T.x - 0.55, T.y - 3.9, '#5a6680', 0.3);
+    D.line(T.x + 0.55, T.y - 1, T.x + 0.55, T.y - 3.9, '#5a6680', 0.3);
+    D.shadow(T.x + 0.2, T.y + 1.4, 1.6, 0.4);
+    D.circle(T.x, T.y, 1.4, '#48536d', '#1e2536', 3);
+    D.circle(T.x, T.y, 0.8, '#2d3850');
+
+    /* Navegação: janela frontal da cabine, painel de pilotagem */
+    D.box(134.12, 34.1, 0.76, 3.8, '#060a14', '#2d3850', 0.2);
+    c.save();
+    D.rr(134.12, 34.1, 0.76, 3.8, 0.2);
+    c.clip();
+    D.stars(134.12, 34.1, 0.76, 3.8, 8);
+    c.restore();
+    D.box(123.3, 34.3, 3.2, 2.9, '#2b3348', '#141925', 0.7);
+    D.screen(123.65, 34.7, 2.5, 1.3, 'rgba(90,200,255,0.5)');
+    [[124.2, 38.1], [125.8, 38.1]].forEach(([x, y]) => D.circle(x, y, 0.45, '#3b4458', '#141925'));
+
+    /* Escudos: gerador hexagonal */
+    const SH = SHIELD_FX;
+    D.glow(SH.x, SH.y, 3, 'rgba(90,150,255,0.18)');
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
+      const hx = i === 6 ? SH.x : SH.x + Math.cos(a) * 1.45, hy = i === 6 ? SH.y : SH.y + Math.sin(a) * 1.45;
+      c.beginPath();
+      for (let k = 0; k < 6; k++) {
+        const b = (k / 6) * Math.PI * 2;
+        const px = (hx + Math.cos(b) * 0.78) * P, py = (hy + Math.sin(b) * 0.78) * P;
+        if (k) c.lineTo(px, py);
+        else c.moveTo(px, py);
+      }
+      c.closePath();
+      c.fillStyle = '#4a5378';
+      c.fill();
+      c.strokeStyle = '#8fa6ff';
+      c.lineWidth = 1.5;
+      c.stroke();
+    }
+
+    /* Comunicações: bancada de rádio, antena parabólica */
+    D.box(77, 70.8, 9, 2, '#232838', '#11151f', 0.25);
+    for (let i = 0; i < 4; i++) D.screen(77.4 + i * 2.15, 71.1, 1.9, 1.1, i % 2 ? 'rgba(90,200,255,0.5)' : 'rgba(90,240,160,0.45)');
+    D.shadow(86.9, 66.9, 1.5, 0.35);
+    D.circle(86.8, 65.3, 1.5, '#48536d', '#1e2536', 3);
+    D.circle(86.8, 65.3, 0.85, '#5a6680');
+    D.line(86.8, 65.3, 88, 64.2, '#8fa6c9', 0.14);
+    D.box(77.1, 66.4, 2, 1.2, '#3b4458', '#141925', 0.3);
+    D.circle(77.6, 67, 0.28, '#22262e');
+    D.circle(78.5, 67, 0.28, '#22262e');
+
+    /* câmeras de segurança presas no teto */
+    for (const cam of M.CAMS) {
+      D.circle(cam.x, cam.y - 1.6, 0.3, '#20252f', '#0b0d12');
+      D.circle(cam.x, cam.y - 1.6, 0.12, '#5a1010');
+    }
+  }
+
+  /* Console de cada estação, encostado na parede mais próxima. */
+  function drawStations(D, c, P) {
+    const skip = new Set(['scan', 'asteroids', 'fuelStorage', 'garbageStorage', 'garbageCaf', 'cleanO2', 'inspect']);
+    const color = (id) => {
+      if (/^wires/.test(id)) return '#ffd23b';
+      if (/^dl|upload/.test(id)) return '#4be38b';
+      if (/^accept|divert/.test(id)) return '#ffb347';
+      if (/^fuel/.test(id)) return '#ff8c42';
+      if (/^align/.test(id)) return '#ff9a3c';
+      return '#4aa3ff';
+    };
+    const place = (st, col, big) => {
+      const x = st.x, y = st.y;
+      const f = (dx, dy) => M.isFloor(Math.floor(x + dx), Math.floor(y + dy));
+      const w = big ? 1.4 : 1.1;
+      if (!f(0, -1.6) || !f(0, -1.2)) {
+        D.box(x - w / 2, y - 1.35, w, 0.95, '#262c3a', '#0b0d12', 0.15);
+        D.screen(x - w / 2 + 0.12, y - 1.25, w - 0.24, 0.5, col);
+        D.box(x - w / 2 - 0.05, y - 0.5, w + 0.1, 0.18, '#3a4257', null, 0.05);
+      } else if (!f(-1.6, 0)) {
+        D.box(x - 1.3, y - w / 2, 0.8, w, '#262c3a', '#0b0d12', 0.15);
+        D.screen(x - 1.2, y - w / 2 + 0.12, 0.45, w - 0.24, col);
+      } else if (!f(1.6, 0)) {
+        D.box(x + 0.5, y - w / 2, 0.8, w, '#262c3a', '#0b0d12', 0.15);
+        D.screen(x + 0.75, y - w / 2 + 0.12, 0.45, w - 0.24, col);
+      } else if (!f(0, 1.6)) {
+        D.box(x - w / 2, y + 0.45, w, 0.8, '#262c3a', '#0b0d12', 0.15);
+        D.screen(x - w / 2 + 0.12, y + 0.55, w - 0.24, 0.4, col);
+      } else {
+        D.shadow(x + 0.1, y + 0.45, 0.6, 0.18);
+        D.box(x - 0.45, y - 0.55, 0.9, 1, '#262c3a', '#0b0d12', 0.2);
+        D.screen(x - 0.33, y - 0.45, 0.66, 0.42, col);
+      }
+    };
+    for (const id of Object.keys(M.STATIONS)) if (!skip.has(id)) place(M.STATIONS[id], color(id));
+    for (const id of Object.keys(M.SAB_STATIONS)) {
+      if (id === 'lights' || id.startsWith('reactor')) continue;
+      place(M.SAB_STATIONS[id], 'rgba(255,120,80,0.8)', true);
+    }
+    void c;
+    void P;
+  }
+
+  function drawVents(D) {
+    for (const v of M.VENTS) {
+      D.box(v.x - 0.72, v.y - 0.46, 1.44, 0.92, '#2a2f3b', '#0b0d12', 0.12);
+      for (let i = 1; i < 5; i++) D.line(v.x - 0.72 + i * 0.29, v.y - 0.38, v.x - 0.72 + i * 0.29, v.y + 0.38, '#11141b', 0.08);
+    }
+  }
+
+  AU.Decor = { build, SHIELD_FX };
 })();
 
 </script>
@@ -5488,188 +7074,11 @@ body.touch .act kbd { display: none; }
     return `<svg class="bean" width="${s}" height="${s}" viewBox="-60 -62 120 120" aria-hidden="true" style="opacity:${op}"><rect x="-50" y="-30" width="20" height="44" rx="7" fill="${col.shade}" stroke="#0b0d12" stroke-width="7"/><rect x="-32" y="12" width="24" height="30" rx="8" fill="${col.hex}" stroke="#0b0d12" stroke-width="7"/><rect x="6" y="12" width="24" height="30" rx="8" fill="${col.hex}" stroke="#0b0d12" stroke-width="7"/><path d="M-34 -21 A34 34 0 0 1 34 -21 L34 21 Q34 31 24 31 L-24 31 Q-34 31 -34 21 Z" fill="${col.hex}" stroke="#0b0d12" stroke-width="7"/><ellipse cx="10" cy="-26" rx="25" ry="15" fill="${visor}" stroke="#0b0d12" stroke-width="7"/><ellipse cx="16" cy="-31" rx="9" ry="4" fill="rgba(255,255,255,.75)"/>${o.x ? '<path d="M-26 -40 L26 30 M26 -40 L-26 30" stroke="#ff3b3b" stroke-width="9" stroke-linecap="round"/>' : ''}</svg>`;
   }
 
-  /* ---------- mapa estático ---------- */
+  /* ---------- mapa estático (desenhado em decor.js) ---------- */
   let staticCanvas = null;
   function prerender() {
-    const cv = document.createElement('canvas');
-    cv.width = W * PX;
-    cv.height = H * PX;
-    const c = cv.getContext('2d');
-    const P = PX;
-    for (const a of M.AREAS) {
-      for (const [x, y, w, h] of a.rects) {
-        c.fillStyle = a.kind === 'room' ? a.floor : '#2b3140';
-        c.fillRect(x * P, y * P, w * P, h * P);
-      }
-    }
-    c.strokeStyle = 'rgba(255,255,255,0.045)';
-    c.lineWidth = 1;
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      if (!M.isFloor(x, y)) continue;
-      c.strokeRect(x * P + 0.5, y * P + 0.5, P - 1, P - 1);
-    }
-    for (const cdr of M.CORRIDORS) {
-      c.fillStyle = 'rgba(255,208,70,0.05)';
-      for (const [x, y, w, h] of cdr.rects) {
-        if (w >= h) c.fillRect(x * P, (y + h / 2 - 0.12) * P, w * P, 0.24 * P);
-        else c.fillRect((x + w / 2 - 0.12) * P, y * P, 0.24 * P, h * P);
-      }
-    }
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      if (M.isFloor(x, y)) continue;
-      let near = false;
-      for (let dy = -1; dy <= 1 && !near; dy++) for (let dx = -1; dx <= 1; dx++) if (M.isFloor(x + dx, y + dy)) near = true;
-      if (!near) continue;
-      c.fillStyle = '#141925';
-      c.fillRect(x * P, y * P, P, P);
-      if (M.isFloor(x, y + 1)) {
-        c.fillStyle = '#3b4560';
-        c.fillRect(x * P, y * P + P * 0.25, P, P * 0.75);
-        c.fillStyle = '#56627f';
-        c.fillRect(x * P, y * P + P * 0.25, P, P * 0.1);
-        c.fillStyle = 'rgba(0,0,0,0.25)';
-        c.fillRect(x * P, y * P + P * 0.85, P, P * 0.15);
-      }
-    }
-    c.strokeStyle = '#0a0d15';
-    c.lineWidth = 3;
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      if (!M.isFloor(x, y)) continue;
-      if (!M.isFloor(x - 1, y)) { c.beginPath(); c.moveTo(x * P, y * P); c.lineTo(x * P, (y + 1) * P); c.stroke(); }
-      if (!M.isFloor(x + 1, y)) { c.beginPath(); c.moveTo((x + 1) * P, y * P); c.lineTo((x + 1) * P, (y + 1) * P); c.stroke(); }
-      if (!M.isFloor(x, y + 1)) { c.beginPath(); c.moveTo(x * P, (y + 1) * P); c.lineTo((x + 1) * P, (y + 1) * P); c.stroke(); }
-    }
-    drawProps(c, P);
-    c.font = `700 ${P * 0.7}px "Chakra Petch", system-ui, sans-serif`;
-    c.fillStyle = 'rgba(230,236,255,0.13)';
-    c.textBaseline = 'top';
-    for (const r of M.ROOMS) c.fillText(r.name.toUpperCase(), (r.rect[0] + 0.6) * P, (r.rect[1] + 0.5) * P);
-    staticCanvas = cv;
-    return cv;
-  }
-
-  function drawProps(c, P) {
-    const circle = (x, y, r, fill, stroke) => {
-      c.beginPath();
-      c.arc(x * P, y * P, r * P, 0, Math.PI * 2);
-      c.fillStyle = fill;
-      c.fill();
-      if (stroke) {
-        c.strokeStyle = stroke;
-        c.lineWidth = 2;
-        c.stroke();
-      }
-    };
-    const box = (x, y, w, h, fill, stroke, r) => {
-      rr(c, x * P, y * P, w * P, h * P, (r || 0.15) * P);
-      c.fillStyle = fill;
-      c.fill();
-      if (stroke) {
-        c.strokeStyle = stroke;
-        c.lineWidth = 2;
-        c.stroke();
-      }
-    };
-    [[62, 8], [76, 9], [62, 20], [76, 19]].forEach(([x, y]) => {
-      for (let i = 0; i < 6; i++) {
-        const a = (i / 6) * Math.PI * 2;
-        circle(x + Math.cos(a) * 2.1, y + Math.sin(a) * 2.1, 0.35, '#5b6478');
-      }
-      circle(x, y, 1.5, '#8d97ad', '#2a3040');
-    });
-    circle(M.EMERGENCY.x, M.EMERGENCY.y, 1.9, '#8d97ad', '#2a3040');
-    circle(M.EMERGENCY.x, M.EMERGENCY.y, 0.85, '#b3202a', '#3a0a0e');
-    circle(M.EMERGENCY.x - 0.2, M.EMERGENCY.y - 0.25, 0.3, 'rgba(255,255,255,0.35)');
-    box(64, 2.2, 3, 1.2, '#39414f', '#20252f');
-    box(67.5, 2.2, 3, 1.2, '#39414f', '#20252f');
-    [[39, 21], [42.5, 21], [46, 21]].forEach(([x, y]) => {
-      box(x, y, 2.6, 4, '#d6e0f0', '#57627a', 0.4);
-      box(x + 0.3, y + 0.3, 2, 1, '#9fb2d6', null, 0.3);
-    });
-    circle(M.STATIONS.scan.x, M.STATIONS.scan.y, 1.1, 'rgba(90,240,160,0.18)', '#3ae08a');
-    box(49.3, 21.6, 2.4, 1.6, '#39414f', '#20252f');
-    [[12, 8.5], [12, 54.5]].forEach(([x, y]) => {
-      box(x, y, 9.5, 8.5, '#5a6275', '#232838', 1.2);
-      box(x + 0.6, y + 0.6, 8.3, 2, '#6c768b', null, 0.6);
-      box(x + 8.5, y + 3, 2, 2.5, '#ff9a3c', '#6a3b12', 0.4);
-    });
-    circle(7.5, 36, 3, '#1b2c4a', '#0e1a2e');
-    circle(7.5, 36, 2, '#2e7bd6', '#123a6b');
-    circle(7.5, 36, 1, '#8fd3ff');
-    for (let i = 0; i < 4; i++) box(1.5, 31 + i * 3, 1, 1.4, '#2a3348');
-    box(23.5, 28.3, 8, 1.6, '#232838', '#11151f');
-    for (let i = 0; i < 4; i++) box(24 + i * 1.9, 28.5, 1.6, 0.9, '#2e8f6a', null, 0.1);
-    for (let i = 0; i < 5; i++) box(37 + i * 2.5, 38.2, 1.8, 1.2, '#4b4636', '#2a2619');
-    c.strokeStyle = 'rgba(255,200,80,0.35)';
-    c.lineWidth = 2;
-    for (let i = 0; i < 6; i++) {
-      c.beginPath();
-      c.moveTo((37 + i * 2) * P, 39.5 * P);
-      c.bezierCurveTo((38 + i * 2) * P, 42 * P, (36 + i * 2) * P, 44 * P, (38 + i * 2) * P, 47 * P);
-      c.stroke();
-    }
-    [[57, 50, 3, 3], [65, 48, 4, 3], [58, 57, 3, 2.5], [66, 55, 3, 3], [63, 60, 2.5, 2.5]].forEach(([x, y, w, h]) => {
-      box(x, y, w, h, '#7a6442', '#3d311f', 0.2);
-      c.strokeStyle = 'rgba(0,0,0,0.25)';
-      c.beginPath();
-      c.moveTo(x * P, y * P);
-      c.lineTo((x + w) * P, (y + h) * P);
-      c.stroke();
-    });
-    box(M.ADMIN_TABLE.x - 2.5, M.ADMIN_TABLE.y - 1.6, 5, 3.2, '#23304a', '#101828', 0.4);
-    box(M.ADMIN_TABLE.x - 2.1, M.ADMIN_TABLE.y - 1.2, 4.2, 2.4, 'rgba(90,240,160,0.3)', '#3ae08a', 0.3);
-    box(77, 66, 4, 2, '#2b3348', '#141a28');
-    circle(83, 66.5, 1.6, '#48536d', '#1e2536');
-    for (let i = 0; i < 7; i++) {
-      const a = (i / 7) * Math.PI * 2;
-      const hx = 102 + Math.cos(a) * 2.2, hy = 59 + Math.sin(a) * 2.2;
-      c.beginPath();
-      for (let k = 0; k < 6; k++) {
-        const b = (k / 6) * Math.PI * 2;
-        const px = (hx + Math.cos(b) * 0.9) * P, py = (hy + Math.sin(b) * 0.9) * P;
-        if (k) c.lineTo(px, py);
-        else c.moveTo(px, py);
-      }
-      c.closePath();
-      c.fillStyle = '#39405c';
-      c.fill();
-      c.strokeStyle = '#1c2033';
-      c.stroke();
-    }
-    box(131.4, 29, 2.2, 14, '#141a28', '#07090f', 0.8);
-    for (let i = 0; i < 18; i++) circle(131.8 + Math.random() * 1.5, 29.5 + Math.random() * 13, 0.05, '#ffffff');
-    box(126, 34.5, 3, 3, '#2b3348', '#141a28', 0.6);
-    [[87, 23], [89.5, 23], [92, 23]].forEach(([x, y]) => {
-      box(x, y, 2, 1.6, '#3f5a2d', '#1e2c16', 0.3);
-      circle(x + 1, y + 0.6, 0.5, '#6fc95a');
-    });
-    box(96.5, 5, 6, 3, '#141a28', '#07090f', 1);
-    circle(99.5, 10.5, 1.3, '#48536d', '#1e2536');
-    for (const v of M.VENTS) {
-      box(v.x - 0.7, v.y - 0.45, 1.4, 0.9, '#2a2f3b', '#0b0d12', 0.1);
-      c.strokeStyle = '#11141b';
-      c.lineWidth = 2;
-      for (let i = 1; i < 4; i++) {
-        c.beginPath();
-        c.moveTo((v.x - 0.7 + i * 0.35) * P, (v.y - 0.4) * P);
-        c.lineTo((v.x - 0.7 + i * 0.35) * P, (v.y + 0.4) * P);
-        c.stroke();
-      }
-    }
-    for (const k of Object.keys(M.STATIONS)) {
-      const s = M.STATIONS[k];
-      if (k === 'scan' || k === 'upload') continue;
-      box(s.x - 0.45, s.y - 0.45, 0.9, 0.9, '#262c3a', '#0b0d12', 0.15);
-      box(s.x - 0.3, s.y - 0.3, 0.6, 0.35, '#3b8fd8', null, 0.08);
-    }
-    box(M.STATIONS.upload.x - 0.6, M.STATIONS.upload.y - 0.45, 1.2, 0.9, '#262c3a', '#0b0d12', 0.15);
-    for (const k of Object.keys(M.SAB_STATIONS)) {
-      const s = M.SAB_STATIONS[k];
-      box(s.x - 0.5, s.y - 0.5, 1, 1, '#3a2a2e', '#0b0d12', 0.15);
-      box(s.x - 0.32, s.y - 0.32, 0.64, 0.4, '#d8763b', null, 0.08);
-    }
-    box(M.SECURITY.x - 0.6, M.SECURITY.y - 0.4, 1.2, 0.8, '#262c3a', '#0b0d12', 0.15);
-    for (const cam of M.CAMS) circle(cam.x, cam.y - 1.6, 0.25, '#20252f', '#0b0d12');
+    staticCanvas = AU.Decor.build(PX);
+    return staticCanvas;
   }
 
   /* ---------- fundo estrelado ---------- */
@@ -5908,8 +7317,9 @@ body.touch .act kbd { display: none; }
             ctx.stroke();
           }
         } else if (p.visual.type === 'shields') {
-          if (!this.visibleToHuman(g, 102, 59)) continue;
-          const o = S(102, 59);
+          const F = AU.Decor.SHIELD_FX;
+          if (!this.visibleToHuman(g, F.x, F.y)) continue;
+          const o = S(F.x, F.y);
           ctx.fillStyle = `rgba(90,180,255,${0.25 + Math.sin(t * 8) * 0.1})`;
           ctx.beginPath();
           ctx.arc(o.x, o.y, ppt * 3.4, 0, Math.PI * 2);
@@ -7364,7 +8774,8 @@ body.touch .act kbd { display: none; }
       e.mapBtn = h('button', { class: 'hud-btn', title: 'Mapa (M)', onclick: () => this.toggleMap() }, '🗺', h('span', {}, 'Mapa'));
       e.soundBtn = h('button', { class: 'hud-btn', title: 'Som', onclick: () => this.toggleSound() }, AU.Audio.enabled ? '🔊' : '🔈', h('span', {}, 'Som'));
       e.menuBtn = h('button', { class: 'hud-btn', title: 'Menu (Esc)', onclick: () => this.openPause() }, '☰', h('span', {}, 'Menu'));
-      const topRight = h('div', { class: 'hud-topright' }, e.mapBtn, e.soundBtn, e.menuBtn);
+      e.histBtn = h('button', { class: 'hud-btn', title: 'Conversas das reuniões (H)', onclick: () => this.openHistory() }, '📜', h('span', {}, 'Chats'));
+      const topRight = h('div', { class: 'hud-topright' }, e.mapBtn, e.histBtn, e.soundBtn, e.menuBtn);
       const act = (id, icon, label, key, fn, cls) => {
         const cd = h('span', { class: 'cd' });
         const b = h('button', { class: 'act ' + (cls || ''), 'data-act': id, onclick: fn, title: label + ' (' + key + ')' },
@@ -7900,6 +9311,23 @@ body.touch .act kbd { display: none; }
       });
     },
 
+    openHistory() {
+      const g = this.g;
+      if (!g || g.phase !== 'play') return;
+      if (this.overlay && this.overlay.kind === 'history') {
+        this.closeOverlay();
+        return;
+      }
+      const past = (g.meetingLog || []).filter((mt) => mt.closed);
+      const body = h('div', { class: 'ov-body history' },
+        past.length ? past.slice().reverse().map((mt, i) => {
+          const el = AU.MeetingView.historyElement(g, mt);
+          if (i === 0) el.open = true;
+          return el;
+        }) : h('p', {}, 'Ainda não houve reuniões nesta partida.'));
+      this.openOverlay('Conversas das reuniões', body, { kind: 'history', cls: 'wide' });
+    },
+
     openPicker(title, players, fn) {
       const list = h('div', { class: 'picker' });
       for (const q of players) {
@@ -7931,7 +9359,9 @@ body.touch .act kbd { display: none; }
       const body = h('div', { class: 'ov-body pause' },
         h('p', {}, 'A partida está pausada. Os bots também param.'),
         house.length ? h('div', { class: 'pause-rules' }, h('strong', {}, 'Regras da casa: '), house.join(' · ')) : null,
-        h('div', { class: 'pause-keys' }, 'WASD/setas: andar · E: usar · R: reportar · Q: matar · V: duto · X: sabotar · F: habilidade · M: mapa · 1-3: trocar de duto'),
+        h('div', { class: 'pause-keys' }, 'WASD/setas: andar · E: usar · R: reportar · Q: matar · V: duto · X: sabotar · F: habilidade · M: mapa · H: conversas · 1-3: trocar de duto'),
+        h('div', { class: 'pause-ai' }, h('strong', {}, 'IA das conversas: '), AU.Menu.aiStatusEl(),
+          AU.LLM.status === 'available' ? h('button', { class: 'mg-btn', onclick: () => AU.LLM.warmup() }, 'Ativar agora') : null),
         h('div', { class: 'mg-row' },
           h('button', { class: 'mg-btn big', onclick: () => this.closeOverlay() }, 'Continuar'),
           h('button', { class: 'mg-btn big danger', onclick: () => { this.closeOverlay(); AU.App.quitToMenu(); } }, 'Sair para o menu')));
@@ -8047,7 +9477,7 @@ body.touch .act kbd { display: none; }
       root.innerHTML = '';
       const sections = [
         ['preset', 'Presets'], ['perfil', 'Seu perfil'], ['sala', 'Sala'], ['regras', 'Regras de jogo'],
-        ['funcoes', 'Funções especiais'], ['bots', 'Bots'], ['interface', 'Narração e interface'], ['casa', 'Regras da casa'],
+        ['funcoes', 'Funções especiais'], ['bots', 'Bots'], ['ia', 'IA das conversas'], ['interface', 'Narração e interface'], ['casa', 'Regras da casa'],
       ];
       const nav = h('nav', { class: 'cfg-nav', 'aria-label': 'Seções' });
       const main = h('div', { class: 'cfg-main' });
@@ -8074,6 +9504,7 @@ body.touch .act kbd { display: none; }
       main.appendChild(this.secRules(change));
       main.appendChild(this.secRoles(change));
       main.appendChild(this.secBots(change, rerender));
+      main.appendChild(this.secAI(change));
       main.appendChild(this.secUI(change));
       main.appendChild(this.secHouse(change));
       const summary = h('div', { class: 'cfg-summary' }, this.summary());
@@ -8304,6 +9735,130 @@ body.touch .act kbd { display: none; }
           this.field('Ritmo do chat', this.seg('bpace', Object.keys(C.CHAT_PACE).map((k) => [k, C.CHAT_PACE[k].name]), () => B.chatPace, (v) => { B.chatPace = v; change(); }))));
     },
 
+    /* Status da IA numa linha, atualizado ao vivo. */
+    aiStatusEl() {
+      const L = AU.LLM;
+      const el = h('div', { class: 'ai-status' });
+      const bar = h('div', { class: 'ai-bar' }, h('div', {}));
+      const txt = h('span', {});
+      el.append(h('span', { class: 'ai-dot' }), txt, bar);
+      const paint = () => {
+        el.className = 'ai-status ' + L.status;
+        const who = L.provider ? L.label() : 'regras';
+        const head = { ready: 'IA ativa: ' + who, available: 'IA disponível: ' + who, loading: 'Preparando a IA…', error: 'IA com problema', off: 'IA desligada' }[L.status] || L.status;
+        txt.textContent = head + (L.detail ? ' — ' + L.detail : '');
+        bar.hidden = L.status !== 'loading';
+        bar.firstChild.style.width = Math.round((L.progress || 0) * 100) + '%';
+      };
+      paint();
+      const off = L.onChange(() => {
+        if (!el.isConnected) return off();
+        paint();
+      });
+      return el;
+    },
+
+    secAI(change) {
+      const L = AU.LLM, cfg = L.cfg, UI = this.S.ui;
+      const inClaude = !!L.claudeSample;
+      const body = h('div', { class: 'ai-body' });
+      const draw = () => {
+        body.innerHTML = '';
+        const modes = [['auto', 'Automático', inClaude ? 'Usa o Claude deste link' : 'Usa o que estiver configurado abaixo']];
+        if (inClaude) modes.push(['claude', 'Claude', 'Grátis pelo seu acesso ao claude.ai']);
+        modes.push(['webllm', 'Modelo no navegador', 'Grátis, roda no seu computador']);
+        modes.push(['api', 'API grátis', 'OpenRouter, Groq, Gemini ou Ollama']);
+        modes.push(['off', 'Desligada', 'Só o sistema de regras']);
+        body.appendChild(this.field('Fonte da IA', this.seg('ai-mode', modes, () => cfg.mode, (v) => {
+          cfg.mode = v;
+          L.save();
+          L.applyMode(false);
+          draw();
+        })));
+        const showWeb = cfg.mode === 'webllm' || (cfg.mode === 'auto' && !inClaude && !cfg.key);
+        const showApi = cfg.mode === 'api' || (cfg.mode === 'auto' && !inClaude && !!cfg.key);
+        if (inClaude && (cfg.mode === 'auto' || cfg.mode === 'claude')) {
+          body.appendChild(h('p', { class: 'cfg-desc' }, 'Você abriu o jogo pelo claude.ai: os bots conversam usando o Claude, sem instalar nada. Na primeira partida o claude.ai pede sua permissão; as mensagens contam no seu uso do Claude.'));
+        }
+        if (showWeb) {
+          const sel = this.select('ai-web-model', L.WEBLLM_MODELS.map((m) => [m.id, m.name + ' — ' + m.note]), () => cfg.webllmModel, (v) => {
+            cfg.webllmModel = v;
+            L.engine = null;
+            L.save();
+          });
+          const btn = h('button', { class: 'btn', type: 'button', onclick: () => {
+            cfg.mode = cfg.mode === 'auto' ? 'webllm' : cfg.mode;
+            L.save();
+            L.loadWebLLM();
+          } }, L.engine ? 'Modelo carregado' : 'Baixar e ativar');
+          body.append(
+            h('p', { class: 'cfg-desc' }, L.hasWebGPU
+              ? 'Um modelo de linguagem gratuito que roda no seu próprio computador, sem conta e sem enviar nada para a internet. O download acontece só uma vez e fica guardado no navegador. Precisa de uma placa de vídeo razoável.'
+              : 'Este navegador não tem WebGPU, que o modelo local precisa. Use Chrome ou Edge atualizados num computador, ou escolha "API grátis".'),
+            this.field('Modelo', sel), h('div', { class: 'row-btns' }, btn));
+        }
+        if (showApi || cfg.mode === 'api') {
+          const P = L.API_PRESETS;
+          const presetSel = this.select('ai-preset', Object.keys(P).map((k) => [k, P[k].name]), () => cfg.preset, (v) => {
+            cfg.preset = v;
+            cfg.base = P[v].base;
+            cfg.model = P[v].model;
+            L.save();
+            L.applyMode(false);
+            draw();
+          });
+          const base = h('input', { type: 'text', id: 'ai-base', value: cfg.base, placeholder: 'https://…/v1', autocomplete: 'off' });
+          base.addEventListener('change', () => { cfg.base = base.value.trim(); L.save(); L.applyMode(false); });
+          const key = h('input', { type: 'password', id: 'ai-key', value: cfg.key, placeholder: P[cfg.preset] && P[cfg.preset].needsKey ? 'cole sua chave aqui' : 'opcional', autocomplete: 'off' });
+          key.addEventListener('change', () => { cfg.key = key.value.trim(); L.save(); L.applyMode(false); });
+          const dl = h('datalist', { id: 'ai-models' });
+          const model = h('input', { type: 'text', id: 'ai-model', value: cfg.model, list: 'ai-models', placeholder: 'nome do modelo', autocomplete: 'off' });
+          model.addEventListener('change', () => { cfg.model = model.value.trim(); L.save(); L.applyMode(false); });
+          const msg = h('span', { class: 'fine' }, '');
+          const listBtn = h('button', { class: 'btn', type: 'button', onclick: async () => {
+            msg.textContent = 'Buscando modelos…';
+            try {
+              const list = await L.listModels();
+              dl.innerHTML = '';
+              list.slice(0, 200).forEach((id) => dl.appendChild(h('option', { value: id })));
+              msg.textContent = list.length + ' modelos encontrados' + (list.some((id) => /:free$/.test(id)) ? ' (os grátis aparecem primeiro).' : '.');
+              if (!cfg.model && list[0]) {
+                cfg.model = list[0];
+                model.value = list[0];
+                L.save();
+                L.applyMode(false);
+              }
+            } catch (e) {
+              msg.textContent = 'Não consegui listar: ' + e.message;
+            }
+          } }, 'Listar modelos');
+          const testBtn = h('button', { class: 'btn', type: 'button', onclick: async () => {
+            cfg.mode = cfg.mode === 'auto' ? 'api' : cfg.mode;
+            L.save();
+            await L.applyMode(false);
+            L.test();
+          } }, 'Testar');
+          const pr = P[cfg.preset];
+          body.append(
+            h('p', { class: 'cfg-desc' }, 'Serviços com plano gratuito: crie uma chave no site do serviço e cole abaixo. A chave fica guardada só neste navegador e as conversas da reunião são enviadas para esse serviço.'),
+            h('div', { class: 'grid2' },
+              this.field('Serviço', presetSel, pr && pr.keyUrl ? h('span', {}, 'Criar chave: ', h('a', { href: pr.keyUrl, target: '_blank', rel: 'noopener' }, pr.keyUrl.replace(/^https?:\/\//, ''))) : null),
+              this.field('Endereço (base URL)', base),
+              this.field('Chave da API', key),
+              this.field('Modelo', h('div', {}, model, dl))),
+            h('div', { class: 'row-btns' }, listBtn, testBtn, msg));
+        }
+        body.appendChild(this.field('Uso da IA nas reuniões', this.seg('ai-use', Object.keys(C.AI_CHAT).map((k) => [k, C.AI_CHAT[k]]), () => UI.aiChat, (v) => { UI.aiChat = v; change(); })));
+      };
+      draw();
+      const off = L.onChange(() => {
+        if (!body.isConnected) return off();
+        const b = body.querySelector('.row-btns .btn');
+        if (b && L.engine && b.textContent === 'Baixar e ativar') b.textContent = 'Modelo carregado';
+      });
+      return this.sec('ia', 'IA das conversas', 'Com IA, os bots respondem de verdade ao que você escreve na reunião, cada um com a própria personalidade e só com o que viu. Sem IA, eles usam o sistema de regras.', this.aiStatusEl(), body);
+    },
+
     secUI(change) {
       const UI = this.S.ui;
       return this.sec('interface', 'Narração e interface', null,
@@ -8408,7 +9963,9 @@ body.touch .act kbd { display: none; }
       root.append(
         h('header', { class: 'cfg-head' }, h('h2', {}, 'Lobby'), h('p', {}, this.summary())),
         h('div', { class: 'lobby-body' }, grid, h('aside', { class: 'lobby-side' }, h('h3', {}, 'Chat do lobby'), chat,
-          h('p', { class: 'fine' }, manual ? 'Atribua a personalidade de cada bot antes de começar.' : 'As personalidades não mudam durante a partida. As funções só são sorteadas ao começar.'))),
+          h('p', { class: 'fine' }, manual ? 'Atribua a personalidade de cada bot antes de começar.' : 'As personalidades não mudam durante a partida. As funções só são sorteadas ao começar.'),
+          h('h3', { class: 'lobby-ai-h' }, 'IA das conversas'), this.aiStatusEl(),
+          h('p', { class: 'fine' }, 'Para trocar a fonte da IA, volte às configurações.'))),
         h('div', { class: 'cfg-foot' },
           h('button', { class: 'btn ghost', onclick: () => { clearTimeout(this._lobbyT); AU.App.show('create'); } }, '← Configurações'),
           h('button', { class: 'btn', onclick: () => { AU.App.roster = this.buildRoster(S); this.lobby(root, AU.App.roster); } }, 'Sortear bots de novo'),
@@ -8507,7 +10064,9 @@ body.touch .act kbd { display: none; }
           h('div', { class: 'end-table-wrap' }, h('table', { class: 'end-table' },
             h('thead', {}, h('tr', {}, h('th', {}, 'Jogador'), h('th', {}, 'Função'), h('th', {}, 'Personalidade'), h('th', {}, 'Destino'), h('th', { class: 'num' }, 'Tarefas'), h('th', {}, 'Principal suspeito na última reunião'))),
             h('tbody', {}, rows))),
-          h('h3', {}, 'Linha do tempo'), tl) : h('p', { class: 'fine' }, 'Relatório final desativado nas configurações.'),
+          h('h3', {}, 'Linha do tempo'), tl,
+          (g.meetingLog || []).length ? h('h3', {}, 'Conversas das reuniões') : null,
+          (g.meetingLog || []).filter((mt) => mt.closed).map((mt) => AU.MeetingView.historyElement(g, mt))) : h('p', { class: 'fine' }, 'Relatório final desativado nas configurações.'),
         h('div', { class: 'cfg-foot' },
           h('button', { class: 'btn ghost', onclick: () => AU.App.show('title') }, 'Menu inicial'),
           h('button', { class: 'btn', onclick: () => AU.App.toLobby(false) }, 'Voltar ao lobby'),
@@ -8541,6 +10100,7 @@ body.touch .act kbd { display: none; }
     init() {
       AU.Menu.load();
       AU.Audio.setEnabled(AU.Menu.S.ui.sound !== false);
+      AU.LLM.detect();
       this.el = {
         title: document.getElementById('screen-title'),
         create: document.getElementById('screen-create'),
@@ -8587,6 +10147,8 @@ body.touch .act kbd { display: none; }
     },
 
     startGame() {
+      /* clique em "Começar": momento certo para pedir a permissão do Claude, se for o caso */
+      if (AU.LLM.status === 'available' && AU.Menu.S.ui.aiChat !== 'off') AU.LLM.warmup();
       const S = U.clone(AU.Menu.S);
       if (!this.roster || this.roster.length !== S.room.players) this.roster = AU.Menu.buildRoster(AU.Menu.S);
       this.teardown();
@@ -8698,6 +10260,7 @@ body.touch .act kbd { display: none; }
           e.preventDefault();
           HUD.toggleMap();
           break;
+        case 'KeyH': HUD.openHistory(); break;
         case 'Digit1': HUD.ventKey(0); break;
         case 'Digit2': HUD.ventKey(1); break;
         case 'Digit3': HUD.ventKey(2); break;

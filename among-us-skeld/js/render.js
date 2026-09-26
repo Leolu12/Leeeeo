@@ -275,188 +275,11 @@
     return `<svg class="bean" width="${s}" height="${s}" viewBox="-60 -62 120 120" aria-hidden="true" style="opacity:${op}"><rect x="-50" y="-30" width="20" height="44" rx="7" fill="${col.shade}" stroke="#0b0d12" stroke-width="7"/><rect x="-32" y="12" width="24" height="30" rx="8" fill="${col.hex}" stroke="#0b0d12" stroke-width="7"/><rect x="6" y="12" width="24" height="30" rx="8" fill="${col.hex}" stroke="#0b0d12" stroke-width="7"/><path d="M-34 -21 A34 34 0 0 1 34 -21 L34 21 Q34 31 24 31 L-24 31 Q-34 31 -34 21 Z" fill="${col.hex}" stroke="#0b0d12" stroke-width="7"/><ellipse cx="10" cy="-26" rx="25" ry="15" fill="${visor}" stroke="#0b0d12" stroke-width="7"/><ellipse cx="16" cy="-31" rx="9" ry="4" fill="rgba(255,255,255,.75)"/>${o.x ? '<path d="M-26 -40 L26 30 M26 -40 L-26 30" stroke="#ff3b3b" stroke-width="9" stroke-linecap="round"/>' : ''}</svg>`;
   }
 
-  /* ---------- mapa estático ---------- */
+  /* ---------- mapa estático (desenhado em decor.js) ---------- */
   let staticCanvas = null;
   function prerender() {
-    const cv = document.createElement('canvas');
-    cv.width = W * PX;
-    cv.height = H * PX;
-    const c = cv.getContext('2d');
-    const P = PX;
-    for (const a of M.AREAS) {
-      for (const [x, y, w, h] of a.rects) {
-        c.fillStyle = a.kind === 'room' ? a.floor : '#2b3140';
-        c.fillRect(x * P, y * P, w * P, h * P);
-      }
-    }
-    c.strokeStyle = 'rgba(255,255,255,0.045)';
-    c.lineWidth = 1;
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      if (!M.isFloor(x, y)) continue;
-      c.strokeRect(x * P + 0.5, y * P + 0.5, P - 1, P - 1);
-    }
-    for (const cdr of M.CORRIDORS) {
-      c.fillStyle = 'rgba(255,208,70,0.05)';
-      for (const [x, y, w, h] of cdr.rects) {
-        if (w >= h) c.fillRect(x * P, (y + h / 2 - 0.12) * P, w * P, 0.24 * P);
-        else c.fillRect((x + w / 2 - 0.12) * P, y * P, 0.24 * P, h * P);
-      }
-    }
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      if (M.isFloor(x, y)) continue;
-      let near = false;
-      for (let dy = -1; dy <= 1 && !near; dy++) for (let dx = -1; dx <= 1; dx++) if (M.isFloor(x + dx, y + dy)) near = true;
-      if (!near) continue;
-      c.fillStyle = '#141925';
-      c.fillRect(x * P, y * P, P, P);
-      if (M.isFloor(x, y + 1)) {
-        c.fillStyle = '#3b4560';
-        c.fillRect(x * P, y * P + P * 0.25, P, P * 0.75);
-        c.fillStyle = '#56627f';
-        c.fillRect(x * P, y * P + P * 0.25, P, P * 0.1);
-        c.fillStyle = 'rgba(0,0,0,0.25)';
-        c.fillRect(x * P, y * P + P * 0.85, P, P * 0.15);
-      }
-    }
-    c.strokeStyle = '#0a0d15';
-    c.lineWidth = 3;
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      if (!M.isFloor(x, y)) continue;
-      if (!M.isFloor(x - 1, y)) { c.beginPath(); c.moveTo(x * P, y * P); c.lineTo(x * P, (y + 1) * P); c.stroke(); }
-      if (!M.isFloor(x + 1, y)) { c.beginPath(); c.moveTo((x + 1) * P, y * P); c.lineTo((x + 1) * P, (y + 1) * P); c.stroke(); }
-      if (!M.isFloor(x, y + 1)) { c.beginPath(); c.moveTo(x * P, (y + 1) * P); c.lineTo((x + 1) * P, (y + 1) * P); c.stroke(); }
-    }
-    drawProps(c, P);
-    c.font = `700 ${P * 0.7}px "Chakra Petch", system-ui, sans-serif`;
-    c.fillStyle = 'rgba(230,236,255,0.13)';
-    c.textBaseline = 'top';
-    for (const r of M.ROOMS) c.fillText(r.name.toUpperCase(), (r.rect[0] + 0.6) * P, (r.rect[1] + 0.5) * P);
-    staticCanvas = cv;
-    return cv;
-  }
-
-  function drawProps(c, P) {
-    const circle = (x, y, r, fill, stroke) => {
-      c.beginPath();
-      c.arc(x * P, y * P, r * P, 0, Math.PI * 2);
-      c.fillStyle = fill;
-      c.fill();
-      if (stroke) {
-        c.strokeStyle = stroke;
-        c.lineWidth = 2;
-        c.stroke();
-      }
-    };
-    const box = (x, y, w, h, fill, stroke, r) => {
-      rr(c, x * P, y * P, w * P, h * P, (r || 0.15) * P);
-      c.fillStyle = fill;
-      c.fill();
-      if (stroke) {
-        c.strokeStyle = stroke;
-        c.lineWidth = 2;
-        c.stroke();
-      }
-    };
-    [[62, 8], [76, 9], [62, 20], [76, 19]].forEach(([x, y]) => {
-      for (let i = 0; i < 6; i++) {
-        const a = (i / 6) * Math.PI * 2;
-        circle(x + Math.cos(a) * 2.1, y + Math.sin(a) * 2.1, 0.35, '#5b6478');
-      }
-      circle(x, y, 1.5, '#8d97ad', '#2a3040');
-    });
-    circle(M.EMERGENCY.x, M.EMERGENCY.y, 1.9, '#8d97ad', '#2a3040');
-    circle(M.EMERGENCY.x, M.EMERGENCY.y, 0.85, '#b3202a', '#3a0a0e');
-    circle(M.EMERGENCY.x - 0.2, M.EMERGENCY.y - 0.25, 0.3, 'rgba(255,255,255,0.35)');
-    box(64, 2.2, 3, 1.2, '#39414f', '#20252f');
-    box(67.5, 2.2, 3, 1.2, '#39414f', '#20252f');
-    [[39, 21], [42.5, 21], [46, 21]].forEach(([x, y]) => {
-      box(x, y, 2.6, 4, '#d6e0f0', '#57627a', 0.4);
-      box(x + 0.3, y + 0.3, 2, 1, '#9fb2d6', null, 0.3);
-    });
-    circle(M.STATIONS.scan.x, M.STATIONS.scan.y, 1.1, 'rgba(90,240,160,0.18)', '#3ae08a');
-    box(49.3, 21.6, 2.4, 1.6, '#39414f', '#20252f');
-    [[12, 8.5], [12, 54.5]].forEach(([x, y]) => {
-      box(x, y, 9.5, 8.5, '#5a6275', '#232838', 1.2);
-      box(x + 0.6, y + 0.6, 8.3, 2, '#6c768b', null, 0.6);
-      box(x + 8.5, y + 3, 2, 2.5, '#ff9a3c', '#6a3b12', 0.4);
-    });
-    circle(7.5, 36, 3, '#1b2c4a', '#0e1a2e');
-    circle(7.5, 36, 2, '#2e7bd6', '#123a6b');
-    circle(7.5, 36, 1, '#8fd3ff');
-    for (let i = 0; i < 4; i++) box(1.5, 31 + i * 3, 1, 1.4, '#2a3348');
-    box(23.5, 28.3, 8, 1.6, '#232838', '#11151f');
-    for (let i = 0; i < 4; i++) box(24 + i * 1.9, 28.5, 1.6, 0.9, '#2e8f6a', null, 0.1);
-    for (let i = 0; i < 5; i++) box(37 + i * 2.5, 38.2, 1.8, 1.2, '#4b4636', '#2a2619');
-    c.strokeStyle = 'rgba(255,200,80,0.35)';
-    c.lineWidth = 2;
-    for (let i = 0; i < 6; i++) {
-      c.beginPath();
-      c.moveTo((37 + i * 2) * P, 39.5 * P);
-      c.bezierCurveTo((38 + i * 2) * P, 42 * P, (36 + i * 2) * P, 44 * P, (38 + i * 2) * P, 47 * P);
-      c.stroke();
-    }
-    [[57, 50, 3, 3], [65, 48, 4, 3], [58, 57, 3, 2.5], [66, 55, 3, 3], [63, 60, 2.5, 2.5]].forEach(([x, y, w, h]) => {
-      box(x, y, w, h, '#7a6442', '#3d311f', 0.2);
-      c.strokeStyle = 'rgba(0,0,0,0.25)';
-      c.beginPath();
-      c.moveTo(x * P, y * P);
-      c.lineTo((x + w) * P, (y + h) * P);
-      c.stroke();
-    });
-    box(M.ADMIN_TABLE.x - 2.5, M.ADMIN_TABLE.y - 1.6, 5, 3.2, '#23304a', '#101828', 0.4);
-    box(M.ADMIN_TABLE.x - 2.1, M.ADMIN_TABLE.y - 1.2, 4.2, 2.4, 'rgba(90,240,160,0.3)', '#3ae08a', 0.3);
-    box(77, 66, 4, 2, '#2b3348', '#141a28');
-    circle(83, 66.5, 1.6, '#48536d', '#1e2536');
-    for (let i = 0; i < 7; i++) {
-      const a = (i / 7) * Math.PI * 2;
-      const hx = 102 + Math.cos(a) * 2.2, hy = 59 + Math.sin(a) * 2.2;
-      c.beginPath();
-      for (let k = 0; k < 6; k++) {
-        const b = (k / 6) * Math.PI * 2;
-        const px = (hx + Math.cos(b) * 0.9) * P, py = (hy + Math.sin(b) * 0.9) * P;
-        if (k) c.lineTo(px, py);
-        else c.moveTo(px, py);
-      }
-      c.closePath();
-      c.fillStyle = '#39405c';
-      c.fill();
-      c.strokeStyle = '#1c2033';
-      c.stroke();
-    }
-    box(131.4, 29, 2.2, 14, '#141a28', '#07090f', 0.8);
-    for (let i = 0; i < 18; i++) circle(131.8 + Math.random() * 1.5, 29.5 + Math.random() * 13, 0.05, '#ffffff');
-    box(126, 34.5, 3, 3, '#2b3348', '#141a28', 0.6);
-    [[87, 23], [89.5, 23], [92, 23]].forEach(([x, y]) => {
-      box(x, y, 2, 1.6, '#3f5a2d', '#1e2c16', 0.3);
-      circle(x + 1, y + 0.6, 0.5, '#6fc95a');
-    });
-    box(96.5, 5, 6, 3, '#141a28', '#07090f', 1);
-    circle(99.5, 10.5, 1.3, '#48536d', '#1e2536');
-    for (const v of M.VENTS) {
-      box(v.x - 0.7, v.y - 0.45, 1.4, 0.9, '#2a2f3b', '#0b0d12', 0.1);
-      c.strokeStyle = '#11141b';
-      c.lineWidth = 2;
-      for (let i = 1; i < 4; i++) {
-        c.beginPath();
-        c.moveTo((v.x - 0.7 + i * 0.35) * P, (v.y - 0.4) * P);
-        c.lineTo((v.x - 0.7 + i * 0.35) * P, (v.y + 0.4) * P);
-        c.stroke();
-      }
-    }
-    for (const k of Object.keys(M.STATIONS)) {
-      const s = M.STATIONS[k];
-      if (k === 'scan' || k === 'upload') continue;
-      box(s.x - 0.45, s.y - 0.45, 0.9, 0.9, '#262c3a', '#0b0d12', 0.15);
-      box(s.x - 0.3, s.y - 0.3, 0.6, 0.35, '#3b8fd8', null, 0.08);
-    }
-    box(M.STATIONS.upload.x - 0.6, M.STATIONS.upload.y - 0.45, 1.2, 0.9, '#262c3a', '#0b0d12', 0.15);
-    for (const k of Object.keys(M.SAB_STATIONS)) {
-      const s = M.SAB_STATIONS[k];
-      box(s.x - 0.5, s.y - 0.5, 1, 1, '#3a2a2e', '#0b0d12', 0.15);
-      box(s.x - 0.32, s.y - 0.32, 0.64, 0.4, '#d8763b', null, 0.08);
-    }
-    box(M.SECURITY.x - 0.6, M.SECURITY.y - 0.4, 1.2, 0.8, '#262c3a', '#0b0d12', 0.15);
-    for (const cam of M.CAMS) circle(cam.x, cam.y - 1.6, 0.25, '#20252f', '#0b0d12');
+    staticCanvas = AU.Decor.build(PX);
+    return staticCanvas;
   }
 
   /* ---------- fundo estrelado ---------- */
@@ -695,8 +518,9 @@
             ctx.stroke();
           }
         } else if (p.visual.type === 'shields') {
-          if (!this.visibleToHuman(g, 102, 59)) continue;
-          const o = S(102, 59);
+          const F = AU.Decor.SHIELD_FX;
+          if (!this.visibleToHuman(g, F.x, F.y)) continue;
+          const o = S(F.x, F.y);
           ctx.fillStyle = `rgba(90,180,255,${0.25 + Math.sin(t * 8) * 0.1})`;
           ctx.beginPath();
           ctx.arc(o.x, o.y, ppt * 3.4, 0, Math.PI * 2);
