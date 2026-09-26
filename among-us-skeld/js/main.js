@@ -66,7 +66,7 @@
 
     startGame() {
       /* clique em "Começar": momento certo para pedir a permissão do Claude, se for o caso */
-      if (AU.LLM.status === 'available' && AU.Menu.S.ui.aiChat !== 'off') AU.LLM.warmup();
+      if (AU.Menu.S.ui.aiChat !== 'off') AU.LLM.ensure();
       const S = U.clone(AU.Menu.S);
       if (!this.roster || this.roster.length !== S.room.players) this.roster = AU.Menu.buildRoster(AU.Menu.S);
       this.teardown();

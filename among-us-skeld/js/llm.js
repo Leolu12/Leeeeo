@@ -38,7 +38,13 @@
     running: 0,
     waiters: [],
     coolUntil: 0,
-    stats: { calls: 0, fails: 0 },
+    stats: { calls: 0, fails: 0, ok: 0 },
+    lastError: null,
+    failStreak: 0,
+    wantWarm: false,
+    /* No link do claude.ai a página roda sem acesso à internet: só o Claude funciona lá. */
+    inClaude: typeof window !== 'undefined' && !!(window.claude && (typeof window.claude.use === 'function' || typeof window.claude.complete === 'function')),
+    claudeFlat: null,
 
     save() {
       U.store.set(KEY, this.cfg);
@@ -74,27 +80,46 @@
 
     /* Chamado no carregamento: descobre se o Claude está disponível (link do claude.ai). */
     async detect() {
+      this.set(this.status, this.inClaude ? 'Procurando o Claude…' : this.detail);
       try {
         if (window.claude && typeof window.claude.use === 'function') {
           const s = await window.claude.use('sample');
-          if (s) this.claudeSample = s;
+          if (typeof s === 'function') this.claudeSample = s;
+        } else if (window.claude && typeof window.claude.complete === 'function') {
+          /* artefato de chat antigo: API "achatada" window.claude.complete(prompt) */
+          this.claudeFlat = window.claude.complete;
         }
       } catch (e) {
         this.claudeSample = null;
       }
       this.claudeChecked = true;
       await this.applyMode(false);
+      /* a partida começou antes de o Claude responder: pede a permissão agora */
+      if (this.wantWarm && this.status === 'available') this.warmup();
+    },
+    hasClaude() {
+      return !!(this.claudeSample || this.claudeFlat);
+    },
+    /* Chamado ao iniciar a partida e ao abrir uma reunião. */
+    ensure() {
+      if (this.status === 'available') return this.warmup();
+      if (!this.claudeChecked && this.inClaude) this.wantWarm = true;
+      return null;
     },
 
     async applyMode(userAction) {
       const mode = this.cfg.mode;
       this.provider = null;
       if (mode === 'off') return this.set('off', 'Conversas por regras (sem IA).');
-      if ((mode === 'auto' || mode === 'claude') && this.claudeSample) {
+      if ((mode === 'auto' || mode === 'claude' || this.inClaude) && this.hasClaude()) {
         this.provider = 'claude';
-        if (this.claudeGranted) return this.set('ready', 'Claude conectado.');
+        if (this.claudeGranted || this.claudeFlat) return this.set('ready', 'Claude conectado.');
         if (userAction) return this.warmup();
-        return this.set('available', 'Claude disponível: começa a funcionar quando a partida iniciar.');
+        return this.set('available', 'Claude disponível: na primeira fala o claude.ai pede sua permissão.');
+      }
+      if (this.inClaude) {
+        if (!this.claudeChecked) return this.set('off', 'Procurando o Claude…');
+        return this.set('error', 'O claude.ai não liberou o Claude nesta tela. Abra o jogo pelo link no navegador (claude.ai), com a conta conectada. Aqui dentro não há internet para outros modelos.');
       }
       if (mode === 'claude') return this.set('error', 'O Claude só funciona quando o jogo é aberto pelo link do claude.ai.');
       if (mode === 'api' || (mode === 'auto' && this.cfg.key && this.cfg.base)) {
@@ -113,19 +138,32 @@
 
     /* Primeira chamada ao Claude (pede consentimento ao jogador). Só em resposta a um clique. */
     async warmup() {
+      this.wantWarm = false;
       if (this.provider === 'claude' && this.claudeSample && !this.claudeGranted) {
-        this.set('loading', 'Pedindo permissão para usar o Claude…', 0.5);
-        try {
-          await this.claudeSample('Responda apenas com a palavra: pronto', { modelTier: 'quick', cache: false });
-          this.claudeGranted = true;
-          this.set('ready', 'Claude conectado.');
-        } catch (e) {
-          this.handleError(e);
-        }
+        if (this.warming) return this.warming;
+        this.set('loading', 'Pedindo permissão para usar o Claude (confira o aviso do claude.ai)…', 0.5);
+        const sample = this.claudeSample;
+        this.warming = (async () => {
+          try {
+            await sample('Responda apenas com a palavra: pronto', { modelTier: 'quick', cache: false });
+            this.claudeGranted = true;
+            this.failStreak = 0;
+            this.set('ready', 'Claude conectado.');
+          } catch (e) {
+            this.handleError(e);
+          } finally {
+            this.warming = null;
+          }
+        })();
+        return this.warming;
       } else if (this.provider === 'webllm' && !this.engine) await this.loadWebLLM();
     },
 
     async loadWebLLM() {
+      if (this.inClaude) {
+        this.set('error', 'O modelo local não pode ser baixado dentro do claude.ai (a página não tem internet). Aqui use o Claude, ou abra o arquivo do jogo no navegador.');
+        return;
+      }
       if (!navigator.gpu) {
         this.set('error', 'Este navegador não tem WebGPU. Use Chrome ou Edge atualizados num computador, ou configure uma API grátis.');
         return;
@@ -135,9 +173,9 @@
       try {
         const webllm = await import(WEBLLM_URL);
         this.set('loading', 'Baixando o modelo (só na primeira vez)…', 0);
-        this.engine = await webllm.CreateMLCEngine(this.cfg.webllmModel, {
-          initProgressCallback: (r) => this.set('loading', r.text || 'Carregando…', r.progress || 0),
-        });
+        const conf = { initProgressCallback: (r) => this.set('loading', r.text || 'Carregando…', r.progress || 0) };
+        if (typeof caches === 'undefined' && webllm.prebuiltAppConfig) conf.appConfig = Object.assign({}, webllm.prebuiltAppConfig, { useIndexedDBCache: true });
+        this.engine = await webllm.CreateMLCEngine(this.cfg.webllmModel, conf);
         this.cfg.webllmAuto = true;
         this.save();
         this.set('ready', 'Modelo local pronto.');
@@ -150,10 +188,14 @@
     handleError(e) {
       const code = e && e.code;
       this.stats.fails++;
+      this.failStreak++;
+      this.lastError = { code: code || 'erro', message: String((e && (e.message || e.code)) || e).slice(0, 200), at: Date.now() };
       if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'].includes(code)) {
         this.claudeSample = null;
         this.provider = null;
-        this.set('off', 'O Claude não foi liberado nesta visualização: as conversas usam o sistema de regras.');
+        this.set('off', code === 'not_granted'
+          ? 'A permissão do Claude foi recusada. Para ligar a IA, recarregue a página e aceite o aviso do claude.ai.'
+          : 'O claude.ai não liberou o Claude nesta conta ou tela (' + code + '). As conversas usam o sistema de regras.');
         return;
       }
       if (code === 'rate_limited') {
@@ -165,7 +207,11 @@
         this.set('error', 'Sessão do Claude expirada: entre de novo no claude.ai.');
         return;
       }
-      if (this.status === 'loading') this.set('error', 'Falha na IA: ' + ((e && (e.message || e.code)) || e));
+      if (this.status === 'loading' || this.failStreak >= 3) {
+        this.set('error', 'A IA falhou ' + this.failStreak + 'x seguidas (' + this.lastError.message + '). As falas voltam para as regras; use "Testar" para tentar de novo.');
+        return;
+      }
+      this.set(this.status, 'Falha momentânea da IA: ' + this.lastError.message);
     },
 
     async slot() {
@@ -192,8 +238,16 @@
       try {
         let text = '';
         if (this.provider === 'claude') {
-          const r = await this.claudeSample(system + '\n\n' + prompt, { modelTier: 'quick', cache: false, signal: opts.signal });
-          text = r.text;
+          const input = system + '\n\n' + prompt;
+          if (this.claudeSample) {
+            const o = { modelTier: 'quick', cache: false };
+            if (opts.signal) o.signal = opts.signal;
+            const sample = this.claudeSample;
+            const r = await sample(input, o);
+            text = r && r.text;
+          } else if (this.claudeFlat) {
+            text = await this.claudeFlat.call(window.claude, input);
+          }
         } else if (this.provider === 'webllm') {
           const r = await this.engine.chat.completions.create({
             messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }],
@@ -204,7 +258,13 @@
         } else if (this.provider === 'api') {
           text = await this.apiCall(system, prompt, opts);
         }
-        return cleanReply(text);
+        const out = cleanReply(text);
+        if (out) {
+          this.stats.ok++;
+          this.failStreak = 0;
+          this.lastError = null;
+        }
+        return out;
       } catch (e) {
         if (!(e && (e.code === 'cancelled' || e.name === 'AbortError'))) {
           if (window.console) console.warn('IA falhou', e);
@@ -217,6 +277,7 @@
     },
 
     async apiCall(system, prompt, opts) {
+      if (this.inClaude) throw new Error('Dentro do claude.ai a página não tem internet: use o Claude ou abra o jogo fora do claude.ai.');
       const base = this.cfg.base.replace(/\/+$/, '');
       const headers = { 'Content-Type': 'application/json' };
       if (this.cfg.key) headers.Authorization = 'Bearer ' + this.cfg.key;
@@ -264,18 +325,27 @@
 
     async test() {
       const prev = this.status;
-      this.set('loading', 'Testando…', 0.5);
+      if (this.provider === 'claude' && this.claudeSample && !this.claudeGranted) {
+        await this.warmup();
+        if (!this.claudeGranted) return null;
+      }
       const ok = this.provider === 'api' || this.provider === 'webllm' || this.provider === 'claude';
       if (!ok) {
         this.set(prev, this.detail);
         return null;
       }
+      this.set('loading', 'Testando…', 0.5);
       this.status = 'ready';
+      this.coolUntil = 0;
+      this.failStreak = 0;
       const t0 = performance.now();
       const r = await this.complete('Você é um jogador num chat de jogo.', 'Diga "oi, bora jogar" de um jeito descontraído, em até 8 palavras.', { maxTokens: 40, timeout: 20000 });
       const ms = Math.round(performance.now() - t0);
       if (r) this.set('ready', 'Funcionando (' + ms + ' ms): "' + r.slice(0, 60) + '"');
-      else if (this.status !== 'off') this.set('error', 'A IA não respondeu. Confira a chave, o endereço e o modelo.');
+      else if (this.status !== 'off') {
+        const why = this.lastError ? ' Erro: ' + this.lastError.message : '';
+        this.set('error', (this.provider === 'claude' ? 'O Claude não respondeu.' : 'A IA não respondeu. Confira a chave, o endereço e o modelo.') + why);
+      }
       return r;
     },
   };

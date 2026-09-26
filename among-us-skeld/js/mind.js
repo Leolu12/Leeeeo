@@ -30,6 +30,7 @@
     this.claims = {};
     this.voted = false;
     this.askedHuman = false;
+    this.alibi = null;
     const body = mt.info.body;
     if (body && (this.mem.bodies.some((b) => b.id === body.id) || mt.info.caller === p.id)) {
       this.knowsBody = body.area;
@@ -277,7 +278,8 @@
     }
     if (pers.offtopic && U.chance(pers.offtopic)) items.push({ k: 'offtopic' });
     if (pers.lost && this.lostCount > 0 && U.chance(0.5)) items.push({ k: 'lost' });
-    if (g.human && g.human.alive && g.human !== p && (pers.leader || pers.skeptic || pers.offtopic) && U.chance(0.6)) items.push({ k: 'askHuman', late: true });
+    const aiTalk = !!(mt.dir && mt.dir.on());
+    if (g.human && g.human.alive && g.human !== p && (pers.leader || pers.skeptic || pers.offtopic || (aiTalk && pers.talk >= 0.6)) && U.chance(aiTalk ? 0.8 : 0.6)) items.push({ k: 'askHuman', late: true });
     if ((pers.leader || pers.skeptic) && U.chance(0.7)) items.push({ k: 'leaderVote', late: true });
     const firstPri = items.filter((it) => ['reportInfo', 'reportDetail', 'callReason', 'organize'].includes(it.k) || (it.k === 'accuse' && STRONG[it.reason]));
     const rest = items.filter((it) => !firstPri.includes(it));
@@ -304,7 +306,7 @@
           this.budget--;
         }
         it.posted = true;
-        mt.post(this.p, msg.text, msg.intents);
+        mt.say(this, msg, { kind: it.k, important });
         break;
       }
     }
@@ -378,6 +380,41 @@
     return best;
   };
 
+  /* O álibi da reunião é decidido uma vez só: o que o bot conta e o que a IA escreve precisam bater. */
+  B.getAlibi = function () {
+    if (!this.alibi) {
+      const rooms = this.myRooms();
+      this.alibi = { rooms, task: this.myTask(rooms), with: this.p.isImp ? null : this.companion(rooms) };
+    }
+    return this.alibi;
+  };
+
+  /* Em quem o tripulante votaria agora (sem sorteio), para a fala combinar com o voto. */
+  B.voteLean = function () {
+    if (!this.mt) return null;
+    if (this.p.isImp) return this.impTarget();
+    const ranked = this.mt.alive.filter((id) => id !== this.p.id).map((id) => ({ id, s: this.susp[id] || 0 })).sort((a, b) => b.s - a.s);
+    const top = ranked[0], second = ranked[1] || { s: -999 };
+    return top && top.s >= this.pers.thr && top.s - second.s >= 8 ? top.id : null;
+  };
+
+  /* Motivo curto do voto, só com o que o bot sabe. */
+  B.voteReason = function (v) {
+    const g = this.g, mt = this.mt;
+    if (v === 'skip' || v == null) return this.p.isImp ? 'não tem nada concreto' : 'sem prova suficiente';
+    if (this.p.isImp) return v === this.scapegoat ? 'desconfia dele desde o começo' : mt.votesOn(v) >= 2 ? 'a maioria está votando nele' : 'o álibi dele não convenceu';
+    const ev = ((this.ev && this.ev[v]) || []).filter((e) => e.w > 0).sort((a, b) => b.w - a.w)[0];
+    if (ev) {
+      const t = { kill: 'viu matando', vent: 'viu no duto', shift: 'viu mudando de forma', vanish: 'viu sumindo', noscan: 'fingiu o scan', follow: 'estava seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava com a vítima' }[ev.reason];
+      if (t) return t;
+    }
+    if ((this.chatDelta[v] || 0) > 8) return 'o álibi não bate com o que viu';
+    if ((this.chatClaim[v] || 0) > 12) return 'acusaram com prova no chat';
+    if (mt.votesOn(v) >= 2) return 'a maioria está votando nele';
+    void g;
+    return 'está suspeito';
+  };
+
   B.compose = function (it) {
     const g = this.g, p = this.p, mt = this.mt, pers = this.pers;
     const msg = (kind, d, intents, opts) => ({ text: this.say(kind, d, opts), intents: intents || [] });
@@ -418,9 +455,10 @@
       case 'claimLoc': {
         if (this.claimed) return null;
         this.claimed = true;
-        const rooms = this.myRooms();
-        const w = p.isImp ? null : this.companion(rooms);
-        const task = this.myTask(rooms);
+        const al = this.getAlibi();
+        const rooms = al.rooms;
+        const w = al.with;
+        const task = al.task;
         const segs = this.mem.trail.filter((s) => s.t1 >= this.rs);
         const leftAgo = segs.length > 1 ? Math.round((mt.info.t - segs[segs.length - 2].t1) / 5) * 5 : null;
         if (!rooms.length) return msg('claimNone', {}, []);
@@ -547,20 +585,23 @@
   B.reply = function (delay, fn, direct) {
     const mt = this.mt;
     if (!mt || mt.closed) return;
-    /* a IA já vai responder por este bot a esta mensagem */
-    if (this.curMsgObj && this.curMsgObj.aiResponders && this.curMsgObj.aiResponders.has(this.p.id)) return;
     const src = this.curMsg;
+    const so = this.curMsgObj;
+    const meta = { kind: 'reply', direct: !!direct, toHuman: !!(so && so.fromHuman), srcFrom: so ? so.from : null, srcText: so ? so.text : null };
     if (!direct) {
       if (this.budget <= 0) return;
       if (src != null && !mt.canReply(src)) return;
       this.budget--;
       if (src != null) mt.noteReply(src);
     }
-    mt.schedule(delay * mt.pace + U.rf(0.8, 2.4), this, () => {
+    /* com IA o diretor cuida do ritmo: a reação entra logo na fila da próxima rodada */
+    const viaAI = mt.dir && mt.dir.accepts(meta);
+    const wait = viaAI ? U.rf(0.15, meta.toHuman ? 0.3 : 1.2) : delay * mt.pace + U.rf(0.8, 2.4);
+    mt.schedule(wait, this, () => {
       if (!this.p.alive || mt.closed) return;
       const m = fn();
-      if (m && m.text) mt.post(this.p, m.text, m.intents || []);
-    }, { ttl: direct ? 20 : 9 });
+      if (m && m.text) mt.say(this, m, meta);
+    }, { ttl: direct ? 20 : 9, raw: viaAI });
   };
 
   B.mOnMessage = function (msg) {

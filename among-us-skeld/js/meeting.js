@@ -43,11 +43,10 @@
       this.nextSlot = 0;
       this.endT = null;
       this.typing = new Set();
-      this.holdUntil = 0;
-      this.followups = 0;
-      this.aiBusy = false;
       this.lastMsgT = 0;
-      this.lastAiReplyT = -99;
+      /* a IA (se houver) conduz a conversa; sem ela, as falas saem direto do motor */
+      if (!g.headless && g.S.ui.aiChat !== 'off' && AU.LLM) AU.LLM.ensure();
+      this.dir = !g.headless && AU.Voice ? AU.Voice.director(this) : null;
       this.ui = g.headless ? null : new MeetingUI(this);
       for (const p of g.players) if (p.brain && p.alive && p.brain.mStart) p.brain.mStart(this);
       for (const p of g.players) {
@@ -58,7 +57,7 @@
           this.post(p, T.line(kind, { who: p.brain.killedBy }, g, p.brain), []);
         });
       }
-      if (AU.Voice && AU.Voice.active(this)) AU.Voice.opening(this);
+      if (this.dir) this.dir.opening();
     }
 
     get votingStart() { return this.durI + this.durD; }
@@ -68,7 +67,15 @@
       opts = opts || {};
       const base = Math.max(this.t, this.durI);
       const at = base + Math.max(0.2, delay);
-      this.sched.push({ at, brain, fn, deadline: opts.ttl ? at + opts.ttl : null, agenda: !!opts.agenda, force: !!opts.force });
+      this.sched.push({ at, brain, fn, deadline: opts.ttl ? at + opts.ttl : null, agenda: !!opts.agenda, force: !!opts.force, dir: !!opts.dir, raw: !!opts.raw });
+    }
+
+    /* Fala de um bot: com IA ativa vai para o diretor da conversa; sem IA sai direto. */
+    say(brain, m, meta) {
+      if (!m || !m.text || this.closed) return;
+      meta = meta || {};
+      if (this.dir && this.dir.accepts(meta)) this.dir.enqueue(brain, m, meta);
+      else this.post(brain.p, m.text, m.intents || []);
     }
 
     setPaused(v) {
@@ -102,13 +109,8 @@
           const it = this.sched.shift();
           if (it.deadline != null && t > it.deadline) continue;
           const b = it.brain;
-          if (b && b.p.alive) {
-            /* enquanto a IA reescreve as falas de abertura, a agenda espera um pouco */
-            if (it.agenda && this.holdUntil && t < this.holdUntil) {
-              it.at = this.holdUntil + U.rf(0.2, 2.5);
-              this.sched.push(it);
-              continue;
-            }
+          /* "raw": só entrega a fala ao diretor da IA, sem postar; não precisa esperar a vez */
+          if (b && b.p.alive && !it.raw) {
             /* ritmo humano: um bot digita uma mensagem por vez e a sala não recebe rajadas */
             const free = Math.max(this.nextSlot || 0, it.force ? 0 : b.nextSpeak || 0);
             const forceWaiting = !it.force && this.sched.some((x) => x.force && x.at <= t);
@@ -125,10 +127,8 @@
           }
         }
         this.checkPrompts();
+        if (this.dir) this.dir.tick();
         this.updateTyping();
-        if (AU.Voice && !this.aiBusy && this.followups < 2 && t - this.lastMsgT > 7 && t > this.durI + 12 && t < this.votingEnd - 15) {
-          if (AU.Voice.active(this)) AU.Voice.followup(this);
-        }
       }
       if (this.phase === 'voting') {
         for (const id of Object.keys(this.voteAt)) {
@@ -144,8 +144,9 @@
             if (window.console) console.warn('voto falhou', e);
           }
           this.castVote(+id, v);
-          if (U.chance(0.15 + p.brain.pers.talk * 0.15)) {
-            this.post(p, T.line('voteSay', { who: v === 'skip' ? null : v }, this.g, p.brain), []);
+          const aiTalk = this.dir && this.dir.on();
+          if (U.chance(aiTalk ? 0.3 + p.brain.pers.talk * 0.35 : 0.15 + p.brain.pers.talk * 0.15)) {
+            this.say(p.brain, { text: T.line('voteSay', { who: v === 'skip' ? null : v }, this.g, p.brain), intents: [] }, { kind: 'vote', vote: v, reason: p.brain.voteReason ? p.brain.voteReason(v) : '' });
           }
         }
         const allVoted = this.alive.every((id) => this.votes[id] !== undefined);
@@ -186,12 +187,12 @@
       if (h0 && h0.alive && this.info.kind === 'report' && this.info.caller === h0.id && !this.facts.bodyArea && !this.flags.askBody && t > this.durI + 6) {
         this.flags.askBody = true;
         const b = U.pick(bots);
-        this.post(b, T.line('askBody', {}, g, b.brain, { question: true }), [{ type: 'askBody' }]);
+        this.say(b.brain, { text: T.line('askBody', {}, g, b.brain, { question: true }), intents: [{ type: 'askBody' }] }, { kind: 'askBody', important: true });
       }
       if (h0 && h0.alive && !this.humanSpoke && !this.flags.quiet && t > this.durI + 28) {
         this.flags.quiet = true;
         const b = bots.find((p) => p.brain.pers.skeptic || p.brain.pers.leader) || null;
-        if (b) this.post(b, T.line('quiet', { who: h0.id }, g, b.brain), [{ type: 'quiet', who: h0.id }]);
+        if (b) this.say(b.brain, { text: T.line('quiet', { who: h0.id }, g, b.brain), intents: [{ type: 'quiet', who: h0.id }] }, { kind: 'quiet', important: true });
       }
       if (h0 && h0.alive && this.askedHumanAt != null && !this.humanClaimed && !this.flags.unanswered && t - this.askedHumanAt > 18) {
         this.flags.unanswered = true;
@@ -227,21 +228,15 @@
         humanReported: this.info.kind === 'report' && this.info.caller === hp.id,
         bodyKnown: !!this.facts.bodyArea,
       });
-      let responders = [];
-      const V = AU.Voice;
-      if (V && V.active(this) && this.t - this.lastAiReplyT > 2.5) {
-        responders = V.pickResponders(this, text, intents);
-        this.lastAiReplyT = this.t;
-      }
-      const msg = this.post(hp, text, intents, { aiResponders: new Set(responders.map((p) => p.id)) });
-      if (msg && responders.length) V.reply(this, msg, responders);
+      const msg = this.post(hp, text, intents);
+      if (msg && this.dir) this.dir.onHuman(msg);
     }
 
     post(p, text, intents, opts) {
       if (this.closed || !text) return null;
       opts = opts || {};
       const g = this.g;
-      const msg = { id: ++this.msgId, from: p.id, text, intents: intents || [], t: this.t, fromHuman: p.isHuman, ghost: !p.alive, ai: !!opts.ai, aiResponders: opts.aiResponders || null };
+      const msg = { id: ++this.msgId, from: p.id, text, intents: intents || [], t: this.t, fromHuman: p.isHuman, ghost: !p.alive, ai: !!opts.ai };
       if (msg.ghost) {
         this.ghostMsgs.push(msg);
         if (this.ui) this.ui.addMsg(msg);
@@ -447,8 +442,8 @@
         h('div', { class: 'mt-splash-sub' }, isReport ? `${caller.name} encontrou o corpo de ${g.players[info.body.pid].name}` : `${caller.name} apertou o botão`));
       this.timer = h('div', { class: 'mt-timer' }, '');
       this.pauseBtn = h('button', { class: 'mt-pause', type: 'button', title: 'Pausar a reunião para ler com calma', onclick: () => mt.setPaused(!mt.paused) }, '⏸ Pausar');
-      const aiOn = AU.Voice && AU.Voice.active(mt);
-      this.aiBadge = h('span', { class: 'mt-ai' + (aiOn ? ' on' : ''), title: aiOn ? 'As falas dos bots usam IA' : 'As falas dos bots usam o sistema de regras' }, aiOn ? 'IA: ' + AU.LLM.label() : 'IA desligada');
+      this.aiBadge = h('button', { class: 'mt-ai', type: 'button', onclick: () => this.aiClick() }, '');
+      this.paintAI();
       this.cards = h('div', { class: 'mt-cards' });
       this.log = h('div', { class: 'mt-log', 'aria-live': 'polite' });
       this.log.addEventListener('scroll', () => {
@@ -565,8 +560,53 @@
       this.pauseBtn.classList.toggle('on', p);
       this.root.classList.toggle('paused', p);
     }
+    /* Selo da IA no cabeçalho: diz se está ativa e, se não estiver, por quê. */
+    paintAI() {
+      const mt = this.mt, L = AU.LLM, g = mt.g;
+      if (!this.aiBadge) return;
+      let cls = 'mt-ai', txt, tip;
+      if (g.S.ui.aiChat === 'off') {
+        txt = 'IA desligada';
+        tip = 'A IA das conversas está desligada nas configurações da partida.';
+      } else if (AU.Voice && AU.Voice.active(mt) && (!mt.dir || mt.dir.on())) {
+        cls += ' on';
+        txt = 'IA: ' + L.label();
+        tip = 'As falas dos bots estão sendo escritas pela IA (' + L.label() + ')' + (mt.dir && mt.dir.aiLines ? ': ' + mt.dir.aiLines + ' mensagens nesta reunião.' : '.');
+      } else if (L.status === 'loading') {
+        cls += ' wait';
+        txt = 'IA: aguardando…';
+        tip = L.detail || 'Preparando a IA.';
+      } else if (L.status === 'available') {
+        cls += ' wait';
+        txt = 'IA: toque para ativar';
+        tip = L.detail;
+      } else {
+        cls += ' err';
+        txt = L.status === 'error' || (mt.dir && mt.dir.fails >= 3) ? 'IA com problema' : 'IA indisponível';
+        tip = (L.detail || 'Sem IA configurada.') + (L.lastError ? ' Último erro: ' + L.lastError.message : '');
+      }
+      const key = cls + '|' + txt + '|' + tip;
+      if (key === this._aiKey) return;
+      this._aiKey = key;
+      this.aiBadge.className = cls;
+      this.aiBadge.textContent = txt;
+      this.aiBadge.title = tip;
+      this.aiBadge.setAttribute('aria-label', txt + '. ' + tip);
+    }
+    aiClick() {
+      const L = AU.LLM, mt = this.mt;
+      if (L.status === 'available') L.warmup();
+      else if (L.status === 'error' || (mt.dir && mt.dir.fails >= 3)) {
+        if (mt.dir) mt.dir.fails = 0;
+        L.failStreak = 0;
+        L.applyMode(false).then(() => L.test());
+      }
+      AU.HUD.toast(this.aiBadge.title || this.aiBadge.textContent);
+    }
+
     tick() {
       const mt = this.mt;
+      this.paintAI();
       let label = '';
       if (mt.phase === 'discussion') label = 'Discussão · ' + Math.ceil(mt.votingStart - mt.t) + 's';
       else if (mt.phase === 'voting') label = 'Votação · ' + U.fmtTime(mt.votingEnd - mt.t);

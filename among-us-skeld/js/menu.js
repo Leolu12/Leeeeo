@@ -326,12 +326,33 @@
 
     secAI(change) {
       const L = AU.LLM, cfg = L.cfg, UI = this.S.ui;
-      const inClaude = !!L.claudeSample;
+      const inClaude = L.inClaude;
       const body = h('div', { class: 'ai-body' });
       const draw = () => {
         body.innerHTML = '';
-        const modes = [['auto', 'Automático', inClaude ? 'Usa o Claude deste link' : 'Usa o que estiver configurado abaixo']];
-        if (inClaude) modes.push(['claude', 'Claude', 'Grátis pelo seu acesso ao claude.ai']);
+        if (inClaude) {
+          body.appendChild(this.field('Fonte da IA', this.seg('ai-mode', [['auto', 'Claude', 'Grátis pelo seu acesso ao claude.ai'], ['off', 'Desligada', 'Só o sistema de regras']], () => (cfg.mode === 'off' ? 'off' : 'auto'), (v) => {
+            cfg.mode = v;
+            L.save();
+            L.applyMode(false);
+            draw();
+          })));
+          body.append(
+            h('p', { class: 'cfg-desc' }, 'Você abriu o jogo pelo claude.ai: os bots conversam usando o Claude, sem instalar nada. Na primeira vez o claude.ai mostra um aviso pedindo permissão; é só aceitar. As mensagens contam no seu uso do Claude.'),
+            h('p', { class: 'cfg-desc' }, 'Dentro do claude.ai a página não tem acesso à internet, então o modelo no navegador e as APIs grátis só aparecem quando você abre o arquivo do jogo direto no navegador (veja o README).'),
+            h('div', { class: 'row-btns' }, h('button', { class: 'btn', type: 'button', onclick: async () => {
+              if (cfg.mode === 'off') {
+                cfg.mode = 'auto';
+                L.save();
+                draw();
+              }
+              await L.applyMode(false);
+              L.test();
+            } }, 'Ativar e testar o Claude')));
+          body.appendChild(this.field('Uso da IA nas reuniões', this.seg('ai-use', Object.keys(C.AI_CHAT).map((k) => [k, C.AI_CHAT[k]]), () => UI.aiChat, (v) => { UI.aiChat = v; change(); })));
+          return;
+        }
+        const modes = [['auto', 'Automático', 'Usa o que estiver configurado abaixo']];
         modes.push(['webllm', 'Modelo no navegador', 'Grátis, roda no seu computador']);
         modes.push(['api', 'API grátis', 'OpenRouter, Groq, Gemini ou Ollama']);
         modes.push(['off', 'Desligada', 'Só o sistema de regras']);
@@ -343,9 +364,6 @@
         })));
         const showWeb = cfg.mode === 'webllm' || (cfg.mode === 'auto' && !inClaude && !cfg.key);
         const showApi = cfg.mode === 'api' || (cfg.mode === 'auto' && !inClaude && !!cfg.key);
-        if (inClaude && (cfg.mode === 'auto' || cfg.mode === 'claude')) {
-          body.appendChild(h('p', { class: 'cfg-desc' }, 'Você abriu o jogo pelo claude.ai: os bots conversam usando o Claude, sem instalar nada. Na primeira partida o claude.ai pede sua permissão; as mensagens contam no seu uso do Claude.'));
-        }
         if (showWeb) {
           const sel = this.select('ai-web-model', L.WEBLLM_MODELS.map((m) => [m.id, m.name + ' — ' + m.note]), () => cfg.webllmModel, (v) => {
             cfg.webllmModel = v;

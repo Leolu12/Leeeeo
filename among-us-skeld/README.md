@@ -30,18 +30,25 @@ Durante a reunião você pode **pausar** o relógio para ler com calma, rolar o 
 
 ## IA das conversas (modelo de linguagem)
 
-Sem nenhum modelo, os bots já conversam com frases próprias. Com um modelo de linguagem ligado, eles respondem de verdade ao que você escreve e reescrevem as próprias falas no estilo de cada personalidade. As decisões (onde cada um esteve, o que viu, em quem vota) continuam vindo da simulação: o modelo só recebe as anotações daquele bot, então ninguém fica sabendo mais do que viu, e cada impostor é consultado em separado, com o álibi falso dele.
+Sem nenhum modelo, os bots já conversam com frases próprias. Com um modelo de linguagem ligado, **a IA escreve a reunião inteira**: as falas de abertura, as respostas ao que você digita, as brigas e defesas entre os bots, as cobranças a quem está quieto e os anúncios de voto.
 
-Em **Criar partida → IA das conversas** dá para escolher:
+Como funciona:
+- O motor do jogo continua decidindo o que cada bot sabe, de quem desconfia, o que afirma e em quem vota. Um "diretor" junta essas falas em rodadas e pede ao modelo para escrevê-las como um chat de verdade, cada bot no seu estilo.
+- Nos silêncios, o diretor dá a vez a quem tem motivo para falar: quem foi acusado, quem recebeu pergunta, quem desconfia de alguém, o líder que cobra quem não disse onde estava.
+- Quando você escreve, os bots citados, os que você cobrou e os que sabem algo do assunto respondem primeiro.
+- O modelo só recebe as anotações de cada bot (onde esteve, quem viu, de quem desconfia). O impostor aparece só com a versão que ele conta, então o modelo nunca sabe quem é impostor.
+- O selo no topo da reunião mostra se a IA está ativa. Se não estiver, passe o mouse (ou toque) para ver o motivo.
 
-| Opção | Custo | Como funciona |
+Onde cada opção funciona:
+
+| Opção | Onde funciona | Custo |
 |---|---|---|
-| **Claude** | grátis para quem abre o link publicado no claude.ai | Usa a conta de quem está jogando. Na primeira fala o claude.ai pede permissão. |
-| **Modelo local (WebLLM)** | grátis, roda no seu computador | Baixa uma vez um modelo pequeno (Qwen 2.5 1.5B, Gemma 2 2B ou Qwen 2.5 3B, de 1 a 2 GB) e roda no navegador com WebGPU (Chrome ou Edge recentes). Depois funciona offline. |
-| **API compatível com OpenAI** | depende do provedor | Presets para OpenRouter (tem modelos `:free`), Groq, Google Gemini e Ollama local. Cole sua chave, liste os modelos e teste. |
-| **Desligada** | — | Só as frases do próprio jogo. |
+| **Claude** | No link publicado no claude.ai, aberto no navegador com a sua conta. Na primeira fala o claude.ai mostra um aviso pedindo permissão. | Grátis para jogar; conta no seu uso do Claude. |
+| **Modelo local (WebLLM)** | Só com o arquivo do jogo aberto direto no navegador (ou no GitHub Pages), no Chrome ou Edge com WebGPU. Baixa uma vez um modelo pequeno (Qwen 2.5 ou Gemma 2, de 1 a 2 GB). | Grátis. |
+| **API compatível com OpenAI** | Só fora do claude.ai. Presets para OpenRouter (modelos `:free`), Groq, Google Gemini e Ollama. Cole sua chave, liste os modelos e teste. | Plano grátis do serviço. |
+| **Desligada** | Em qualquer lugar. | — |
 
-A chave de API fica salva só no seu navegador (`localStorage`) e é enviada apenas para o endereço que você escolheu. Em **Conversa** dá para escolher se o modelo reescreve tudo (respostas e conversa entre bots), só responde ao que você escreve, ou fica desligado.
+Dentro do claude.ai a página roda sem acesso à internet, por isso lá só o Claude funciona. A chave de API fica salva só no seu navegador (`localStorage`) e é enviada apenas para o endereço que você escolheu.
 
 ## O que tem no jogo
 

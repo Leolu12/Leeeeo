@@ -493,6 +493,9 @@ body.touch .act kbd { display: none; }
 .mt-pause.on { background: var(--task); border-color: #9c7c00; }
 .mt-ai { display: inline-block; padding: 1px 8px; border-radius: 999px; background: #d3dae7; color: #3a4660; font-size: 12px; font-weight: 800; }
 .mt-ai.on { background: #1f7a4a; color: #fff; }
+button.mt-ai { border: 0; cursor: pointer; font-family: inherit; line-height: 1.5; }
+.mt-ai.wait { background: #f3d27a; color: #4a3500; }
+.mt-ai.err { background: #f2b8b5; color: #6a1414; }
 .meeting.paused .mt-log, .meeting.paused .mt-board { filter: saturate(0.6); }
 .mt-tabs { display: flex; gap: 4px; padding: 6px 10px 0; background: #aab6cc; }
 .mt-tab { padding: 7px 14px; border-radius: 10px 10px 0 0; border: 0; background: #c3ccdc; color: #2e3a52; font-weight: 800; display: inline-flex; }
