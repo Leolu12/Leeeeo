@@ -161,6 +161,7 @@
         case 'Escape':
           if (AU.MG.isOpen()) AU.MG.close();
           else if (HUD.overlay) HUD.closeOverlay();
+          else if (HUD.el.ghostPanel && !HUD.el.ghostPanel.hidden) HUD.toggleGhost(false);
           else HUD.openPause();
           break;
         case 'KeyE':
@@ -179,6 +180,13 @@
           HUD.toggleMap();
           break;
         case 'KeyH': HUD.openHistory(); break;
+        case 'KeyG': HUD.doFollow(); break;
+        case 'Enter':
+          if (g.human && !g.human.alive) {
+            e.preventDefault();
+            HUD.toggleGhost(true);
+          }
+          break;
         case 'Digit1': HUD.ventKey(0); break;
         case 'Digit2': HUD.ventKey(1); break;
         case 'Digit3': HUD.ventKey(2); break;

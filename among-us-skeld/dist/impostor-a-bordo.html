@@ -467,10 +467,6 @@ body.touch .act kbd { display: none; }
   .lobby-side { position: static; }
   .mt-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
   .mt-left { border-right: 0; }
-  .mt-tab[data-tab='players'] { display: inline-flex; }
-  .mt-body[data-tab='players'] .mt-right { display: none; }
-  .mt-body:not([data-tab='players']) .mt-left { display: none; }
-  .mt-tabs.flash .mt-tab[data-tab='players'] { animation: blink 0.8s steps(2) 4; }
   .mt-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mt-card { min-height: 48px; padding: 4px 6px; }
   .mt-card .bean { width: 30px; height: 30px; }
@@ -564,6 +560,50 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
 
 .ai-status .ai-retry { margin-left: 8px; padding: 3px 10px; font-size: 12px; min-height: 0; }
 .ai-status.limited .ai-dot { background: #f3b93a; }
+
+/* reunião em tela estreita: abas Jogadores/Chat/Quadro (fica depois das regras base de propósito) */
+.mt-votecta { display: none; }
+@media (max-width: 860px) {
+  .mt-tabs .mt-tab[data-tab='players'] { display: inline-flex; }
+  .mt-body[data-tab='players'] .mt-right { display: none; }
+  .mt-body:not([data-tab='players']) .mt-left { display: none; }
+  .mt-tabs.flash .mt-tab[data-tab='players'] { animation: blink 0.8s steps(2) 4; }
+  .meeting.can-vote .mt-tab[data-tab='players'] { background: #1f7a4a; color: #fff; }
+  .meeting.can-vote .mt-votecta { display: block; margin: 6px 10px 0; padding: 10px 12px; border: 0; border-radius: 12px; background: #1f7a4a; color: #fff; font-weight: 900; font-size: 15px; text-align: center; }
+  .meeting.can-vote .mt-body[data-tab='players'] .mt-votecta { display: none; }
+  .mt-tabs { overflow-x: auto; }
+  .mt-tab { padding: 7px 11px; white-space: nowrap; }
+  .mt-skiprow { position: sticky; bottom: -8px; z-index: 3; margin: 0 -8px -8px; padding: 6px 8px 8px; background: #cfd8e8; border-top: 2px solid #aab6cc; }
+}
+@media (max-width: 860px) and (max-height: 520px) {
+  .mt-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .mt-title { font-size: 17px; }
+}
+@media (max-height: 520px) {
+  .mt-head { padding-top: 4px; padding-bottom: 4px; }
+  .mt-cards { gap: 5px; }
+  .mt-card { min-height: 40px; }
+}
+
+/* chat dos fantasmas (só aparece para quem morreu) */
+.hud-btn.ghost-btn { position: relative; }
+.hud-btn.ghost-btn.on { background: rgba(140, 170, 255, 0.35); }
+.gbadge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #e04848; color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+.hud-ghost { position: absolute; left: 12px; bottom: 150px; width: min(340px, calc(100vw - 24px)); max-height: 46vh; display: flex; flex-direction: column; background: rgba(18, 24, 44, 0.86); border: 1px solid rgba(160, 180, 255, 0.35); border-radius: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); z-index: 6; pointer-events: auto; backdrop-filter: blur(4px); }
+.hud-ghost[hidden] { display: none; }
+.gh-head { display: flex; align-items: baseline; gap: 8px; padding: 8px 10px 6px; font-weight: 800; color: #dfe6ff; border-bottom: 1px solid rgba(160, 180, 255, 0.2); }
+.gh-head small { color: #8f9bc4; font-weight: 600; font-size: 11px; }
+.gh-close { margin-left: auto; background: none; border: 0; color: #dfe6ff; font-size: 16px; cursor: pointer; min-height: 0; padding: 0 4px; }
+.gh-log { flex: 1; min-height: 60px; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; font-size: 13.5px; color: #e8ecff; }
+.gh-msg { line-height: 1.3; word-break: break-word; }
+.gh-msg.mine { opacity: 0.85; }
+.gh-bean { display: inline-block; vertical-align: -5px; margin-right: 4px; opacity: 0.8; }
+.gh-form { display: flex; gap: 6px; padding: 8px; border-top: 1px solid rgba(160, 180, 255, 0.2); }
+.gh-input { flex: 1; min-width: 0; background: rgba(0, 0, 0, 0.35); color: #fff; border: 1px solid rgba(160, 180, 255, 0.35); border-radius: 9px; padding: 8px 10px; font-size: 14px; }
+.gh-send { padding: 6px 12px; border-radius: 9px; border: 0; background: #5b6fd8; color: #fff; font-weight: 800; }
+@media (max-width: 700px) { .hud-ghost { left: 8px; right: 8px; width: auto; bottom: auto; top: 64px; max-height: 42vh; } }
+.meeting.dead-me .mt-chips { display: none; }
+.gh-head { flex-wrap: wrap; row-gap: 0; }
 
 </style>
 </head>
@@ -834,9 +874,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
 
   C.IMP_LEVELS = {
     iniciante: { name: 'Iniciante', desc: 'Arrisca abates com gente por perto e mente mal.', need: 0.3, eager: 0.95, miss: 0.35, riskTol: 0.3, useVents: 0.35, sabotage: 0.25, lie: 0.3, selfReport: 0.15, bus: 0, stalk: 0.2, fakeVisual: 0.45, camsAware: false, sabKill: false },
-    competente: { name: 'Competente', desc: 'Só mata sem testemunhas e cria álibis simples.', need: 0.55, eager: 0.92, miss: 0.2, riskTol: 0.1, useVents: 0.6, sabotage: 0.5, lie: 0.6, selfReport: 0.3, bus: 0.1, stalk: 0.4, fakeVisual: 0.1, camsAware: false, sabKill: false },
-    veterano: { name: 'Veterano', desc: 'Checa câmeras, usa dutos com calma e sabe entregar o parceiro.', need: 0.6, eager: 0.82, miss: 0.09, riskTol: 0.04, useVents: 0.75, sabotage: 0.7, lie: 0.8, selfReport: 0.4, bus: 0.35, stalk: 0.6, fakeVisual: 0, camsAware: true, sabKill: false },
-    implacavel: { name: 'Implacável', desc: 'Usa sabotagens para isolar vítimas e mente com detalhes.', need: 0.5, eager: 0.85, miss: 0.02, riskTol: 0.02, useVents: 0.85, sabotage: 0.9, lie: 0.95, selfReport: 0.5, bus: 0.5, stalk: 0.8, fakeVisual: 0, camsAware: true, sabKill: true },
+    competente: { name: 'Competente', desc: 'Só mata sem testemunhas e cria álibis simples.', need: 0.48, eager: 0.92, miss: 0.2, riskTol: 0.1, useVents: 0.6, sabotage: 0.5, lie: 0.6, selfReport: 0.3, bus: 0.1, stalk: 0.4, fakeVisual: 0.1, camsAware: false, sabKill: false },
+    veterano: { name: 'Veterano', desc: 'Checa câmeras, usa dutos com calma e sabe entregar o parceiro.', need: 0.54, eager: 0.82, miss: 0.09, riskTol: 0.04, useVents: 0.75, sabotage: 0.7, lie: 0.8, selfReport: 0.4, bus: 0.35, stalk: 0.6, fakeVisual: 0, camsAware: true, sabKill: false },
+    implacavel: { name: 'Implacável', desc: 'Usa sabotagens para isolar vítimas e mente com detalhes.', need: 0.45, eager: 0.85, miss: 0.02, riskTol: 0.02, useVents: 0.85, sabotage: 0.9, lie: 0.95, selfReport: 0.5, bus: 0.5, stalk: 0.8, fakeVisual: 0, camsAware: true, sabKill: true },
   };
 
   C.HUMAN_ERROR = {
@@ -872,7 +912,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     room: { players: 10, impostors: 2, draw: 'A', drawChance: 50 },
     rules: {
       confirmEjects: true, emergencyMeetings: 3, emergencyCooldown: 15, discussionTime: 15, votingTime: 120,
-      anonymousVotes: false, playerSpeed: 1, crewVision: 1, impostorVision: 1.5, killCooldown: 25, killDistance: 'media',
+      anonymousVotes: false, playerSpeed: 1, crewVision: 1, impostorVision: 1.5, killCooldown: 25, killDistance: 'media', angelDuration: 10, angelCooldown: 60,
       taskBar: 'sempre', visualTasks: true, commonTasks: 1, longTasks: 2, shortTasks: 3,
     },
     roles: {
@@ -1607,7 +1647,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     askBody: () => pick([`onde foi o corpo?`, `onde?`, `cadê o corpo?`, `onde estava o corpo??`, `quem morreu e onde?`]),
     answerBody: (d, x) => pick([`${x.inA(d.area)}`, `foi ${x.inA(d.area)}`, `o corpo estava ${x.inA(d.area)}`]),
     claimLoc: (d, x) => {
-      const rs = d.rooms;
+      /* sem repetir sala seguida ("em armas, depois em armas") */
+      const rs = d.rooms.filter((r, i, a) => i === 0 || x.nA(r) !== x.nA(a[i - 1]));
       const w = d.with != null ? ' ' + x.R(d.with, 'com') : '';
       const tk = d.task ? ' fazendo ' + x.task(d.task) : '';
       if (rs.length >= 3) {
@@ -2459,6 +2500,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.dispatchT = 0;
       this.roundStart = 0;
       this.tactics = !this.headless && AU.Tactics ? AU.Tactics.create(this) : null;
+      this.ghosts = !this.headless && AU.Ghosts ? AU.Ghosts.create(this) : null;
       this.consts = { USE_DIST, REPORT_DIST, BUTTON_DIST, VENT_DIST, BASE_VISION };
       M.resetDoors();
       this.assignRoles();
@@ -2650,6 +2692,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     /* ---------- laço principal ---------- */
     update(dt) {
       if (this.phase === 'ended') return;
+      if (this.ghosts) this.ghosts.tick(dt);
       if (this.phase === 'meeting') {
         if (this.meeting) this.meeting.update(dt);
         return;
@@ -2705,6 +2748,18 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           const s = this.speedOf(h) * Math.min(1, len);
           this.moveEntity(h, (this.input.x / len) * s, (this.input.y / len) * s, dt);
           if (h.busy && !h.busy.minigame) h.busy = null;
+          h.ghostFollow = null;
+        } else if (!h.alive && h.ghostFollow != null) {
+          /* fantasma seguindo alguém: vai atrás atravessando paredes */
+          const q = this.players[h.ghostFollow];
+          if (!q || !q.alive) h.ghostFollow = null;
+          else {
+            const dx = q.x - h.x, dy = q.y - h.y, d = Math.hypot(dx, dy);
+            if (d > 1.1) {
+              const s = this.speedOf(h) * (d > 6 ? 1.8 : d > 2.5 ? 1.15 : 0.9);
+              this.moveEntity(h, (dx / d) * s, (dy / d) * s, dt);
+            }
+          }
         }
       }
       for (const p of this.players) if (p.brain) p.brain.update(dt);
@@ -2807,6 +2862,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         k.killCd = this.S.rules.killCooldown * 0.5;
         this.addFx({ type: 'shield', x: v.x, y: v.y, dur: 1.2 });
         this.log({ type: 'protectBlock', killer: k.id, victim: v.id });
+        if (this.ghosts) this.ghosts.onShield(v);
         if (k.isHuman || v.isHuman) this.say('toast', 'Um escudo de anjo bloqueou o abate!');
         this.sfx('shield');
         return false;
@@ -2845,6 +2901,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         }
       }
       if (v.brain) v.brain.onDeath(k, apparent);
+      if (this.ghosts) this.ghosts.onKill(k, v, apparent, area.id);
       this.addFx({ type: 'kill', x: v.x, y: v.y, dur: 0.8 });
       this.log({ type: 'kill', killer: k.id, victim: v.id, area: area.id, apparent, witnesses: wit.map((w) => w.p.id) });
       const h = this.human;
@@ -2946,6 +3003,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         ej.ejected = true;
         ej.deathT = this.t;
         ej.busy = null;
+        if (this.ghosts) this.ghosts.onEject(ej);
       }
       this.log({ type: 'vote', index: this.meeting ? this.meeting.info.index : this.meetings, ejected: ej ? ej.id : null, tie: !!result.tie, votes: result.votes });
       this.bodies.forEach((b) => (b.gone = true));
@@ -3183,9 +3241,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (p.special !== 'anjo' || p.alive || p.abilityCd > 0 || p.isImp) return false;
       const tg = this.players[targetId];
       if (!tg || !tg.alive || U.dist(p, tg) > 4) return false;
-      tg.protectedUntil = this.t + 35;
-      p.abilityCd = 60;
+      /* padrão do jogo original: escudo de 10s, recarga de 60s */
+      tg.protectedUntil = this.t + (this.S.rules.angelDuration || 10);
+      p.abilityCd = this.S.rules.angelCooldown || 60;
       this.log({ type: 'protect', by: p.id, target: targetId });
+      if (this.ghosts) this.ghosts.onProtect(p, tg);
       return true;
     }
 
@@ -3378,7 +3438,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.lostCount = 0;
       this.trackT = 0;
       this.trailT = 0;
-      this.startDelay = U.rf(0.3, 2.2);
+      this.startDelay = U.rf(0.1, 0.9);
       this.isoT = 0;
       this.isoTarget = null;
       this.eagerRoll = null;
@@ -3438,10 +3498,21 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         this.retryT -= dt;
         if (this.retryT <= 0) {
           this.retryT = 1;
-          this.routeTo(this.dest.x, this.dest.y);
+          const dest = this.dest;
+          this.routeTo(dest.x, dest.y);
           if (this.plan) {
             this.plan.fails = (this.plan.fails || 0) + 1;
             if (this.plan.fails > 6) this.plan = null;
+          }
+          /* caminho bloqueado (porta trancada): anda pela sala esperando, em vez de ficar plantado na porta */
+          if (!this.path.length && this.plan) {
+            const c = M.randomPointIn(M.roomOf(M.areaAt(p.x, p.y), p.x, p.y).id);
+            const alt = Nav.find(p.x, p.y, c.x, c.y, !p.alive);
+            if (alt && alt.length) {
+              this.path = alt;
+              this.pi = 0;
+              this.retryT = U.rf(1.5, 2.5);
+            }
           }
         }
         return false;
@@ -3489,9 +3560,30 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           if (d > (pl.keep || 0.8)) {
             this.routeTo(tg.x, tg.y);
             pl.stage = 'go';
-          } else {
+            pl.still = 0;
+            pl.shuffling = false;
+          } else if (!(pl.shuffling && this.dest)) {
             this.path = [];
             this.dest = null;
+            pl.shuffling = false;
+            /* esperando do lado de quem segue: muda de posição de vez em quando, sem ficar plantado */
+            if (!pl.noShuffle) {
+              pl.still = (pl.still || 0) + (pl.dynEvery || 0.5);
+              if (pl.still > (pl.shuffleAt || (pl.shuffleAt = U.rf(1.2, 2.6)))) {
+                pl.still = 0;
+                pl.shuffleAt = U.rf(1.4, 3.2);
+                const k = pl.keep || 0.8;
+                for (let i = 0; i < 4; i++) {
+                  const a = Math.random() * Math.PI * 2, rr = Math.max(0.9, k * U.rf(0.55, 0.95));
+                  const fx = tg.x + Math.cos(a) * rr, fy = tg.y + Math.sin(a) * rr;
+                  if (U.d2(fx, fy, this.p.x, this.p.y) > 0.7 && M.walkAt(fx, fy) && Nav.los(tg.x, tg.y, fx, fy)) {
+                    this.routeTo(fx, fy);
+                    pl.shuffling = true;
+                    break;
+                  }
+                }
+              }
+            }
           }
         }
         if (pl.endAt && g.t >= pl.endAt) {
@@ -3499,7 +3591,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           if (pl.onEnd) pl.onEnd(pl);
           return;
         }
-        if (this.dest) this.moveAlong(dt);
+        if (this.dest && this.moveAlong(dt) && pl.shuffling) {
+          pl.shuffling = false;
+          this.dest = null;
+        }
         if (pl.tick) pl.tick(dt, pl);
         return;
       }
@@ -3521,10 +3616,78 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     }
 
     /* ---------- planos ---------- */
-    planWander(areaId, idle) {
+    /* "look": tempo olhando a sala; em vez de ficar parado, dá umas voltinhas por ela, como gente de verdade. */
+    planWander(areaId, look) {
       const g = this.g;
       const pos = M.randomPointIn(areaId);
-      this.setPlan({ type: 'wander', area: areaId, x: pos.x, y: pos.y, onArrive: (pl) => (pl.until = g.t + (idle != null ? idle : U.rf(2, 6))) });
+      const span = look != null ? look : U.rf(2, 5);
+      this.setPlan({
+        type: 'wander', area: areaId, x: pos.x, y: pos.y,
+        onArrive: (pl) => {
+          pl.until = g.t + U.rf(0.15, 0.6);
+          pl.strollEnd = g.t + span;
+        },
+        onDone: (pl) => this.stroll(areaId, pl.strollEnd),
+      });
+    }
+    stroll(areaId, end) {
+      const g = this.g, p = this.p;
+      if (this.plan || g.t >= end - 0.5) return;
+      let pos = null;
+      for (let i = 0; i < 5 && !pos; i++) {
+        const c = M.randomPointIn(areaId);
+        const d = U.d2(p.x, p.y, c.x, c.y);
+        if (d > 1.4 && d < 6.5) pos = c;
+      }
+      if (!pos) return;
+      this.setPlan({ type: 'wander', area: areaId, stroll: true, x: pos.x, y: pos.y, onArrive: (pl) => (pl.until = g.t + U.rf(0.15, 0.55)), onDone: () => this.stroll(areaId, end) });
+    }
+    /* Sem tarefas: ronda pelas salas vazias procurando corpos (as menos vistas há mais tempo primeiro). */
+    planPatrol(n) {
+      const g = this.g, p = this.p;
+      this.checked = this.checked || {};
+      const quiet = ['electrical', 'lowerEngine', 'reactor', 'security', 'upperEngine', 'medbay', 'storage', 'comms', 'shields', 'navigation', 'o2', 'weapons'];
+      const here = M.roomOf(M.areaAt(p.x, p.y), p.x, p.y).id;
+      const route = [];
+      let cx = p.x, cy = p.y;
+      for (let i = 0; i < (n || 3); i++) {
+        let best = null, bs = -1e9;
+        for (const id of quiet) {
+          if (route.includes(id) || id === here || !M.AREA[id]) continue;
+          const a = M.AREA[id];
+          const age = g.t - (this.checked[id] != null ? this.checked[id] : g.roundStart - 40);
+          const sc = -U.d2(cx, cy, a.cx, a.cy) + Math.min(age, 70) * 0.45 + U.rf(0, 12);
+          if (sc > bs) {
+            bs = sc;
+            best = id;
+          }
+        }
+        if (!best) break;
+        route.push(best);
+        cx = M.AREA[best].cx;
+        cy = M.AREA[best].cy;
+      }
+      this.patrolRoute = route;
+      return this.nextPatrol();
+    }
+    nextPatrol() {
+      const g = this.g;
+      const id = this.patrolRoute && this.patrolRoute.shift();
+      if (!id) return false;
+      const pos = M.randomPointIn(id);
+      this.setPlan({
+        type: 'patrol', area: id, x: pos.x, y: pos.y,
+        onArrive: (pl) => {
+          this.checked[id] = g.t;
+          pl.until = g.t + U.rf(0.2, 0.7);
+        },
+        onDone: () => {
+          if (this.plan) return;
+          if (U.chance(0.35)) this.stroll(id, g.t + U.rf(1.5, 3));
+          if (!this.plan) this.nextPatrol();
+        },
+      });
+      return true;
     }
     planTask(tk) {
       const g = this.g, p = this.p;
@@ -3550,7 +3713,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           if (!tk.done && tk.step === stepIdx && g.taskAvailable(tk)) g.completeStep(p, tk);
           /* pausa humana: olhar a lista, conferir o mapa, hesitar */
           if (p.alive && !this.plan) {
-            const idle = U.rf(0.6, 3.2) * (this.pers.lost ? 1.6 : 1) * (this.pers.offtopic ? 1.3 : 1);
+            const idle = U.rf(0.15, 0.9) * (this.pers.lost ? 1.5 : 1) * (this.pers.offtopic ? 1.2 : 1);
             this.setPlan({ type: 'pause', stage: 'do', until: g.t + idle });
           }
         },
@@ -3778,6 +3941,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           return g.commsDown() ? false : this.planAdmin();
         case 'go':
           return o.room ? this.planWander(o.room, U.rf(2, 5)) : false;
+        case 'patrol':
+          return this.planPatrol(U.rint(2, 4));
         case 'button':
           if (p.emergencyLeft <= 0) return false;
           {
@@ -3995,7 +4160,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     planHunt(tgt) {
       const g = this.g;
       this.setPlan({
-        type: 'hunt', target: tgt.id, keep: g.killDist * 0.7, dynEvery: 0.3,
+        type: 'hunt', target: tgt.id, keep: g.killDist * 0.7, dynEvery: 0.3, noShuffle: true,
         dyn: () => {
           const s = this.lastSeenAt[g.appearId(tgt)];
           if (!tgt.alive || !s || g.t - s.t > 2.5) return null;
@@ -4149,29 +4314,40 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
       this.planPostTasks();
     }
+    /* Terminou as tarefas: faz o que um jogador de verdade faz — ronda procurando corpos, câmeras, admin,
+       vigia suspeito de longe, anda com quem confia ou acompanha quem ainda tem tarefa. Nunca fica plantado. */
     planPostTasks() {
       const g = this.g, p = this.p, pers = this.pers;
       const r = Math.random();
-      /* sem tarefas: seguir de longe quem é suspeito, ou andar junto de alguém de confiança */
-      const sus = this.seenNow.filter((q) => q.alive && (this.susp[g.appearId(q)] || 0) >= 30);
-      if (sus.length && (pers.leader || pers.skeptic || pers.times) && r < 0.4) return this.planFollow(sus[0], U.rf(12, 22), U.rf(4, 5.5));
-      const pals = this.seenNow.filter((q) => q.alive && (this.susp[g.appearId(q)] || 0) <= -20);
-      if (pals.length && r < 0.25 + pers.follow * 0.3) return this.planFollow(U.pick(pals), U.rf(12, 22), 2.4);
-      if (!pers.panic && r < 0.2) return this.planWander(U.pick(['electrical', 'navigation', 'shields', 'comms']), U.rf(1.5, 3));
       const watcher = pers.leader || pers.times || pers.skeptic;
-      if (watcher && r < 0.3 && !g.commsDown()) return this.planCams(U.rf(12, 25));
-      if (watcher && r < 0.42 && !g.commsDown()) return this.planAdmin();
-      if (pers.follow > 0.5 && r < 0.75) {
-        const cand = this.seenNow.filter((q) => (this.susp[g.appearId(q)] || 0) < 30);
-        if (cand.length) return this.planFollow(U.pick(cand), U.rf(12, 25));
-      }
+      const camsOk = !g.commsDown() && !g.players.some((q) => q !== p && q.alive && q.onCams && !q.isImp);
+      this.postN = (this.postN || 0) + 1;
+      const sus = this.seenNow.filter((q) => q.alive && this.liveSusp(g.appearId(q)) >= 30);
+      if (sus.length && r < (watcher ? 0.55 : 0.3)) return this.planFollow(sus[0], U.rf(12, 22), U.rf(4, 5.5));
+      const pals = this.seenNow.filter((q) => q.alive && (this.susp[g.appearId(q)] || 0) <= -20);
+      if (pals.length && r < 0.2 + pers.follow * 0.3) return this.planFollow(U.pick(pals), U.rf(12, 22), 2.4);
       if (pers.chaos && !this.chaosButton && U.chance(0.12) && p.emergencyLeft > 0) {
         this.chaosButton = true;
         this.wantButton = { reason: 'chaos' };
         return;
       }
-      const room = U.chance(0.3) ? 'cafeteria' : U.pick(M.ROOMS).id;
-      this.planWander(room);
+      const q = Math.random();
+      /* câmeras: um de cada vez; quem é observador fica mais tempo */
+      if (camsOk && q < (watcher ? 0.3 : 0.14) && !this.camsRound) {
+        this.camsRound = true;
+        return this.planCams(watcher ? U.rf(14, 26) : U.rf(8, 15));
+      }
+      if (!g.commsDown() && q < (watcher ? 0.42 : 0.22) && g.t - (this.adminAt || -99) > 40) {
+        this.adminAt = g.t;
+        return this.planAdmin();
+      }
+      /* acompanha quem ainda tem tarefa (segurança em grupo) */
+      if (q < 0.4 + pers.follow * 0.25) {
+        const cand = this.seenNow.filter((x) => x.alive && this.liveSusp(g.appearId(x)) < 20 && U.dist(p, x) < 7);
+        if (cand.length) return this.planFollow(U.pick(cand), U.rf(10, 20), U.rf(2.2, 3.4));
+      }
+      if (!pers.panic || U.chance(0.4)) return this.planPatrol(U.rint(2, 4));
+      this.planWander(U.chance(0.5) ? 'cafeteria' : U.pick(['admin', 'storage']), U.rf(3, 6));
     }
 
     /* ---------- impostor ---------- */
@@ -4325,7 +4501,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const st = U.pick(g.sabStationsNeeded());
         if (st) {
           const pos = M.SAB_STATIONS[st];
-          this.setPlan({ type: 'loiter', x: pos.x + U.rf(-2, 2), y: pos.y + U.rf(-2, 2), onArrive: (pl) => (pl.until = g.t + U.rf(2, 5)) });
+          this.setPlan({ type: 'loiter', x: pos.x + U.rf(-2, 2), y: pos.y + U.rf(-2, 2), onArrive: (pl) => (pl.until = g.t + U.rf(0.8, 2)) });
           return;
         }
       }
@@ -4512,6 +4688,58 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     }
 
     /* ---------- fantasma ---------- */
+    /* Anjo da guarda: o fantasma sabe quem o matou (e o que viu depois de morto). Protege quem está perto
+       desse assassino ou sozinho num canto perigoso; às vezes, o jogador. Entre escudos, fica rondando o protegido. */
+    angelThink() {
+      const g = this.g, p = this.p;
+      const alive = g.players.filter((q) => q.alive);
+      if (!alive.length) return false;
+      const tasksLeft = p.tasks.some((tk) => !tk.done);
+      if (p.abilityCd > 8 && tasksLeft) return false;
+      const know = g.ghosts ? g.ghosts.k(p.id) : { saw: [] };
+      const killers = new Set();
+      if (this.killedBy != null && g.players[this.killedBy] && g.players[this.killedBy].alive) killers.add(this.killedBy);
+      (know.saw || []).forEach((x) => g.players[x.killer] && g.players[x.killer].alive && killers.add(x.killer));
+      const danger = (q) => {
+        let s = 0;
+        for (const kid of killers) {
+          const k = g.players[kid];
+          if (k === q) return -999;
+          const d = U.dist(k, q);
+          if (d < 14) s += 60 - d * 3;
+        }
+        const near = alive.filter((o) => o !== q && U.dist(o, q) < 7).length;
+        if (near === 0) s += 18;
+        else if (near === 1) s += 10;
+        const a = M.areaAt(q.x, q.y).id;
+        if (['electrical', 'lowerEngine', 'reactor', 'navigation', 'shields', 'comms', 'o2', 'security'].includes(a)) s += 8;
+        if (q.isHuman) s += 6;
+        s -= (this.susp[q.id] || 0) * 0.3;
+        return s + U.rf(0, 6);
+      };
+      if (!this.angelPick || g.t > this.angelPick.until || !g.players[this.angelPick.id].alive) {
+        const best = alive.slice().sort((a, b) => danger(b) - danger(a))[0];
+        this.angelPick = { id: best.id, until: g.t + U.rf(6, 12), since: g.t, risk: danger(best) };
+      }
+      const tg = g.players[this.angelPick.id];
+      /* como gente de verdade: nem sempre está prestando atenção quando o escudo fica pronto. Em cada janela
+         de recarga decide se vai usar (uns 40-50%, mais para quem é atento); distraído, espera e tenta de novo. */
+      if (p.abilityCd <= 0 && (!this.angelWin || this.angelWin.until < g.t)) {
+        const pUse = 0.2 + this.pers.att * 0.3;
+        this.angelWin = { use: U.chance(pUse), until: g.t + U.rf(20, 40), react: g.t + U.rf(0.6, 2.2) };
+      }
+      const win = this.angelWin;
+      if (win && !win.use && win.until > g.t && tasksLeft) return false;
+      const urgent = this.angelPick.risk >= 30;
+      if (p.abilityCd <= 0 && win && win.use && g.t >= win.react && U.dist(p, tg) <= 3.5 && !(tg.protectedUntil > g.t) && (urgent || g.t - this.angelPick.since > 8)) {
+        if (g.protect(p, tg.id)) this.angelWin = null;
+        this.angelPick.until = g.t + U.rf(10, 20);
+      }
+      if (!this.plan || this.plan.type !== 'guard' || this.plan.target !== tg.id) {
+        this.setPlan({ type: 'guard', target: tg.id, dyn: () => (tg.alive ? { x: tg.x, y: tg.y } : null), keep: 2.4, endAt: g.t + 25, dynEvery: 0.6 });
+      }
+      return true;
+    }
     ghostUpdate(dt) {
       const g = this.g, p = this.p;
       this.thinkT -= dt;
@@ -4528,19 +4756,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
             }
           }
           if (!this.plan) this.planWander(U.pick(M.ROOMS).id, U.rf(3, 8));
-        } else if (p.special === 'anjo' && p.abilityCd <= 0) {
-          const cands = g.players.filter((q) => q.alive);
-          cands.sort((a, b) => (this.susp[a.id] || 0) - (this.susp[b.id] || 0));
-          const tg = cands[Math.min(cands.length - 1, U.rint(0, 2))];
-          if (tg) {
-            if (U.dist(p, tg) <= 3.5) {
-              g.protect(p, tg.id);
-              this.plan = null;
-            } else if (!this.plan || this.plan.type !== 'guard') {
-              this.setPlan({ type: 'guard', dyn: () => (tg.alive ? { x: tg.x, y: tg.y } : null), keep: 2.5, endAt: g.t + 20, dynEvery: 0.8 });
-            }
-          }
-        } else if (!this.plan) {
+        } else if (p.special === 'anjo' && !p.isImp && this.angelThink()) {
+          /* anjo cuidando de alguém */
+        } else if (!this.plan || this.plan.type === 'guard') {
           const avail = p.tasks.filter((tk) => !tk.done && g.taskAvailable(tk));
           if (avail.length) {
             avail.sort((a, b) => {
@@ -4763,7 +4981,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.groupedRound = false;
       this.escort = null;
       this.shownVisual = false;
-      this.startDelay = U.rf(0.5, 2.5);
+      this.camsRound = false;
+      this.patrolRoute = null;
+      this.startDelay = U.rf(0.2, 1.1);
       this.lostCount = Math.max(0, this.lostCount - 1);
     }
   }
@@ -7022,6 +7242,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     'sinal NOME — fazer zigue-zague "vem comigo" para a pessoa e mostrar uma tarefa visual',
     'cameras — olhar as câmeras na Segurança',
     'admin — olhar o mapa do Admin',
+    'patrulhar — rodar pelas salas vazias procurando corpos (bom para quem já terminou as tarefas)',
     'ir SALA — ir para uma sala (ex.: juntar-se ao grupo, checar um lugar)',
     'botao — ir apertar o botão de emergência (só com motivo forte)',
   ];
@@ -7131,7 +7352,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         '',
       ];
       if (team === 'crew') {
-        head.push('Estes são TRIPULANTES. Cada um só sabe o que está na própria lista. Decida como um jogador esperto: fazer tarefas é o principal; andar em dupla com quem confia; vigiar de longe quem é suspeito; nunca ficar sozinho com suspeito; mostrar tarefa visual para quem desconfia de você; checar câmeras/admin quando terminou; botão só com motivo forte.');
+        head.push('Estes são TRIPULANTES. Cada um só sabe o que está na própria lista. Decida como um jogador esperto: fazer tarefas é o principal; andar em dupla com quem confia; vigiar de longe quem é suspeito; nunca ficar sozinho com suspeito; mostrar tarefa visual para quem desconfia de você; quem terminou as tarefas não fica parado: patrulha as salas isoladas procurando corpos, olha câmeras/admin ou acompanha quem ainda tem tarefa; botão só com motivo forte.');
         head.push('Ações possíveis:', CREW_ACTIONS.map((a) => '- ' + a).join('\n'));
       } else {
         const team2 = g.players.filter((p) => p.isImp && p.alive).map((p) => p.name).join(', ');
@@ -7195,7 +7416,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const K = {
         tarefa: 'task', tarefas: 'task', task: 'task', seguir: 'follow', vigiar: 'tail', evitar: 'avoid', sinal: 'signal', cameras: 'cams', camera: 'cams',
         admin: 'admin', ir: 'go', botao: 'button', cacar: 'hunt', fingir: 'fake', grupo: 'group', sabotar: 'sab', portas: 'doors', porta: 'doors',
-        duto: 'vent', atrair: 'lure', double: 'double',
+        duto: 'vent', atrair: 'lure', double: 'double', patrulhar: 'patrol', patrulha: 'patrol', rondar: 'patrol', ronda: 'patrol',
       }[verb];
       if (!K) return null;
       const o = { kind: K, until, at: g.t };
@@ -7213,12 +7434,391 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (!o.sab) return null;
       }
       if (!p.isImp && ['fake', 'group', 'sab', 'doors', 'vent'].includes(K)) return null;
-      if (p.isImp && ['task', 'cams', 'admin', 'button', 'follow', 'tail'].includes(K)) return null;
+      if (p.isImp && ['task', 'cams', 'admin', 'button', 'follow', 'tail', 'patrol'].includes(K)) return null;
       return o;
     }
   }
 
   AU.Tactics = T;
+})();
+
+</script>
+  <script>
+/* Chat dos fantasmas: quem morreu conversa com os outros mortos, durante a rodada e nas reuniões.
+   Os vivos nunca leem. Cada fantasma-bot sabe quem o matou e o que viu depois de morrer (fantasma
+   atravessa paredes e enxerga longe). Com IA ativa as falas vêm do modelo; sem IA, de frases prontas. */
+(function () {
+  'use strict';
+  const AU = window.AU;
+  const U = AU.U, C = AU.C, M = AU.Map;
+
+  /* {k} {v} {x}: nome ("Carol") ou cor com artigo ("o rosa"); {kn} {vn} {xn}: só o nome (depois de preposição
+     ou chamando a pessoa); {a}: sala com preposição ("na Elétrica", "no Motor Superior"). */
+  const LINES = {
+    greet: ['rip {vn}', 'bem-vindo ao clube, {vn}', 'mais um aqui kkk', 'ih, pegaram {v}', 'quem te pegou, {vn}?', 'f {vn}', '{vn} chegou', 'nãao, {v} também'],
+    greetHuman: ['bem-vindo, {vn}', 'rip {vn}', 'quem te matou, {vn}?', 'pegaram você também, {vn}?', 'f {vn}', 'e aí {vn}, quem foi?'],
+    selfKiller: ['foi {k}', '{k} me matou {a}', '{k} é impostor, me pegou {a}', 'morri, foi {k} kkk', 'tava sozinho {a} e {k} veio', '{k}... nem vi chegar'],
+    selfUnknown: ['nem vi quem foi', 'morri do nada', 'nem sei quem me pegou'],
+    sawKill: ['{k} acabou de matar {v}!!', 'vish, {k} pegou {v} {a}', 'eu vi, foi {k} que pegou {v}', 'caramba, {k} matou {v} {a}'],
+    sawKillAgain: ['{k} de novo...', 'de novo {kn}, que isso', '{k} pegou mais um'],
+    ejImp: ['gg, era eu mesmo', 'fui pego kkk', 'é, era eu', 'me pegaram, bem jogado', 'ok ok, era eu'],
+    ejCrew: ['eu era inocente!!', 'votaram errado, que raiva', 'não era eu gente', 'sério que me ejetaram?', 'tô bravo, eu fazendo task'],
+    reactEjImp: ['boa, acertaram', 'finalmente', 'aee', 'mandaram bem'],
+    reactEjCrew: ['votaram errado...', 'coitado', 'sabia que ia dar ruim', 'não acredito'],
+    tellHuman: ['{k} que me pegou, fica de olho', 'quem me pegou foi {k}, {a}', '{k} me matou, espero que votem certo'],
+    whoKnown: ['foi {k}', '{k}, certeza', '{k} me pegou {a}', '{k}, {a}'],
+    whoAgain: ['já falei, foi {k}', '{k}, já disse', '{k}, eu falei ali em cima', 'foi {k} mesmo'],
+    whoSaw: ['vi {k} matando {v}', '{k}, vi pegar {v}'],
+    whoUnknown: ['não vi', 'sei não', 'não faço ideia', 'nem imagino'],
+    whoUnknownEj: ['fui ejetado, não sei de nada', 'sei não, me votaram antes'],
+    hello: ['oi', 'eai', 'salve', 'opa', 'fala'],
+    agree: ['verdade', 'pois é', 'é isso', 'kkk', 'total', 'também acho', 'faz sentido'],
+    nameReact: ['sabia', 'vish, {x}?', '{x}? não esperava', 'faz sentido, tava estranho', 'hmm, {x}'],
+    idleKnown: ['{k} tá solto ainda', 'votem em {kn} pfv', 'ninguém desconfia de {kn}...', 'fica de olho em {kn}, tripulação'],
+    idle: ['vamo tripulação', 'termina as tasks aí gente', 'que partida', 'tô torcendo aqui', 'esse jogo tá tenso', 'alguém faz as tasks'],
+    impIdle: ['vai parceiro', 'ainda dá pra ganhar', 'kkk tão perdidos', 'tá indo bem'],
+    protect: ['protegi {x}', 'escudo em {xn}', 'tô cuidando de {xn}', 'coloquei escudo em {xn}'],
+    shieldHit: ['o escudo salvou {x}!!', 'kkk o escudo funcionou em {xn}', 'salvei {x}'],
+  };
+
+  const G = {
+    create(g) {
+      return new GhostRoom(g);
+    },
+  };
+
+  class GhostRoom {
+    constructor(g) {
+      this.g = g;
+      this.msgs = [];
+      this.know = {};
+      this.queue = [];
+      this.clock = 0;
+      this.idleAt = U.rf(45, 80);
+      this.aiBusy = false;
+      this.aiNext = 0;
+      this.aiCalls = 0;
+      this.used = new Set();
+      this.seq = 0;
+      this.lastHumanAt = -99;
+    }
+    get open() {
+      const h = this.g.human;
+      return !!h && !h.alive;
+    }
+    ghostBots() {
+      return this.g.players.filter((p) => !p.alive && p.brain);
+    }
+    name(id) {
+      const p = this.g.players[id];
+      return p ? p.name : 'alguém';
+    }
+    /* "na Elétrica", "no Motor Superior", "em Armas" */
+    room(a) {
+      const A = M.AREA[a];
+      if (!A) return 'em algum lugar';
+      const ch = A.chat || [];
+      const hit = ch.find((c) => U.norm(c[0]) === U.norm(A.name)) || ch[0];
+      return (hit ? hit[1] : 'na') + ' ' + A.name;
+    }
+    k(id) {
+      return this.know[id] || (this.know[id] = { killer: null, area: null, saw: [], ejected: false, protect: [] });
+    }
+    aiOn() {
+      const g = this.g;
+      return !g.headless && g.S.ui.aiChat !== 'off' && AU.LLM && AU.LLM.ready() && this.aiCalls < 40;
+    }
+
+    /* ---------- eventos do jogo ---------- */
+    onKill(killer, victim, apparent, area) {
+      const kv = this.k(victim.id);
+      kv.killer = apparent;
+      kv.area = area;
+      for (const p of this.g.players) {
+        if (p.alive || p === victim || !p.brain) continue;
+        if (U.d2(p.x, p.y, victim.x, victim.y) > 11) continue;
+        this.k(p.id).saw.push({ killer: apparent, victim: victim.id, area });
+        if (this.open && U.chance(0.6)) this.later(p, U.rf(1, 3), { kind: 'sawKill', k: apparent, v: victim.id, a: area });
+      }
+      this.joined(victim);
+    }
+    onEject(p) {
+      this.k(p.id).ejected = true;
+      this.joined(p, true);
+    }
+    onProtect(by, target) {
+      this.k(by.id).protect.push(target.id);
+      if (this.open && by.brain && U.chance(0.45)) this.later(by, U.rf(0.8, 2.5), { kind: 'protect', x: target.id });
+    }
+    onShield(victim) {
+      if (!this.open) return;
+      const angel = this.ghostBots().find((q) => this.k(q.id).protect.includes(victim.id));
+      if (angel) this.later(angel, U.rf(0.8, 2), { kind: 'shieldHit', x: victim.id });
+    }
+    joined(v, ejected) {
+      const g = this.g;
+      if (v.isHuman) {
+        /* o jogador acabou de morrer: os outros fantasmas recebem ele (uma fala por fantasma; quem viu o abate já falou) */
+        const others = this.ghostBots();
+        const spoke = new Set(this.queue.map((q) => q.who));
+        const fresh = U.shuffle(others.filter((q) => !spoke.has(q.id)));
+        fresh.slice(0, 2).forEach((q, i) => this.later(q, 3.5 + i * 2.2 + U.rf(0, 1.5), { kind: 'greetHuman', v: v.id }));
+        const teller = U.shuffle(others.slice()).find((q) => !fresh.slice(0, 2).includes(q) && this.k(q.id).killer != null && g.players[this.k(q.id).killer] && g.players[this.k(q.id).killer].alive)
+          || (others.length === 1 && this.k(others[0].id).killer != null ? others[0] : null);
+        if (teller && U.chance(0.7)) this.later(teller, U.rf(9, 13), { kind: 'tellHuman' });
+        return;
+      }
+      if (!this.open) return;
+      const kv = this.k(v.id);
+      if (ejected) {
+        if (U.chance(0.75)) this.later(v, U.rf(2, 5), { kind: v.isImp && g.S.rules.confirmEjects ? 'ejImp' : v.isImp ? (U.chance(0.5) ? 'ejImp' : 'ejCrew') : 'ejCrew' });
+        const r = this.ghostBots().filter((q) => q !== v);
+        if (r.length && U.chance(0.6)) this.later(U.pick(r), U.rf(4, 7), { kind: g.S.rules.confirmEjects ? (v.isImp ? 'reactEjImp' : 'reactEjCrew') : 'agree', v: v.id });
+        return;
+      }
+      const others = this.ghostBots().filter((q) => q !== v);
+      if (others.length && U.chance(0.55)) this.later(U.pick(others), U.rf(1.5, 4), { kind: 'greet', v: v.id });
+      if (U.chance(0.7)) this.later(v, U.rf(3, 6), { kind: kv.killer != null ? 'selfKiller' : 'selfUnknown', k: kv.killer, a: kv.area });
+    }
+
+    /* ---------- o jogador fala ---------- */
+    onHuman(text, recorded) {
+      const g = this.g, hp = g.human;
+      if (!hp || hp.alive) return;
+      text = String(text || '').trim().slice(0, 160);
+      if (!text) return;
+      if (!recorded) this.record({ from: hp.id, text });
+      this.lastHumanAt = this.clock;
+      const bots = this.ghostBots();
+      if (!bots.length) return;
+      const n = U.norm(text);
+      const named = bots.filter((q) => n.includes(U.norm(q.name)) || n.includes(U.norm(C.COLOR[q.color].name)));
+      let resp = named.length ? named.slice(0, 2) : U.shuffle(bots.slice()).slice(0, bots.length > 1 && U.chance(0.45) ? 2 : 1);
+      resp.forEach((q, i) => this.later(q, U.rf(1.4, 3) + i * U.rf(1.5, 2.5), { kind: 'reply', text, human: true }));
+    }
+
+    /* ---------- fila de falas ---------- */
+    later(p, delay, ctx) {
+      this.queue.push({ at: this.clock + delay, who: p.id, ctx, tries: 0 });
+    }
+    tick(dt) {
+      this.clock += dt;
+      if (!this.open) {
+        this.queue.length = 0;
+        return;
+      }
+      const due = this.queue.filter((q) => q.at <= this.clock);
+      if (due.length) {
+        this.queue = this.queue.filter((q) => q.at > this.clock);
+        const alive = due.filter((d) => {
+          const p = this.g.players[d.who];
+          return p && !p.alive;
+        });
+        if (alive.length) this.deliver(alive);
+      }
+      if (this.clock >= this.idleAt) {
+        this.idleAt = this.clock + U.rf(45, 85);
+        const bots = this.ghostBots();
+        if (bots.length && this.g.phase === 'play' && U.chance(0.5)) this.later(U.pick(bots), 0.1, { kind: 'idle' });
+      }
+    }
+    deliver(items) {
+      if (this.aiOn() && !this.aiBusy && this.clock >= this.aiNext) {
+        this.aiLines(items);
+        return;
+      }
+      if (this.aiOn()) {
+        /* a IA está ocupada: espera um pouco antes de cair nas frases prontas */
+        const retry = items.filter((it) => it.tries++ < 3);
+        retry.forEach((it) => (it.at = this.clock + 1.5));
+        this.queue.push(...retry);
+        items.filter((it) => !retry.includes(it)).forEach((it) => this.say(this.g.players[it.who], this.template(this.g.players[it.who], it.ctx)));
+        return;
+      }
+      items.forEach((it) => this.say(this.g.players[it.who], this.template(this.g.players[it.who], it.ctx)));
+    }
+
+    /* ---------- frases prontas ---------- */
+    /* nome ou cor ("Carol" / "o rosa"), como no resto do chat */
+    ref(id) {
+      const q = this.g.players[id];
+      if (!q) return 'alguém';
+      return U.chance(0.6) ? q.name : 'o ' + C.COLOR[q.color].name.toLowerCase();
+    }
+    fill(s, ctx) {
+      const r = {};
+      const R = (key) => (r[key] || (r[key] = this.ref(ctx[key])));
+      return s
+        .replace(/\{kn\}/g, () => this.name(ctx.k))
+        .replace(/\{vn\}/g, () => this.name(ctx.v))
+        .replace(/\{xn\}/g, () => this.name(ctx.x))
+        .replace(/\{k\}/g, () => R('k'))
+        .replace(/\{v\}/g, () => R('v'))
+        .replace(/\{x\}/g, () => R('x'))
+        .replace(/\{a\}/g, () => this.room(ctx.a));
+    }
+    choose(list, ctx) {
+      const fresh = list.map((s) => this.fill(s, ctx)).filter((s) => !this.used.has(s));
+      const s = fresh.length ? U.pick(fresh) : this.fill(U.pick(list), ctx);
+      this.used.add(s);
+      return s;
+    }
+    template(p, ctx) {
+      const g = this.g, kp = this.k(p.id);
+      const liveKiller = () => {
+        if (kp.killer != null && g.players[kp.killer] && g.players[kp.killer].alive) return { k: kp.killer, a: kp.area };
+        const s = kp.saw.find((x) => g.players[x.killer] && g.players[x.killer].alive);
+        return s ? { k: s.killer, a: s.area } : null;
+      };
+      switch (ctx.kind) {
+        case 'reply': {
+          const n = U.norm(ctx.text);
+          if (/\b(quem|qm)\b.*\b(mat|pegou|foi|imp)|\bimpostor|\bimp\b|\bsus\b/.test(n)) {
+            if (kp.killer != null) return this.choose(this.saidName(p, kp.killer) ? LINES.whoAgain : LINES.whoKnown, { k: kp.killer, a: kp.area });
+            if (kp.saw.length) return this.choose(LINES.whoSaw, { k: kp.saw[0].killer, v: kp.saw[0].victim });
+            return this.choose(kp.ejected ? LINES.whoUnknownEj : LINES.whoUnknown, {});
+          }
+          if (/^(oi|ola|eai|e ai|salve|opa|fala|hey|hello)\b/.test(n)) return this.choose(LINES.hello, {});
+          const x = g.players.find((q) => q !== g.human && (n.split(/\W+/).includes(U.norm(q.name)) || n.includes(U.norm(C.COLOR[q.color].name))));
+          if (x && x !== p) return this.choose(LINES.nameReact, { x: x.id });
+          return this.choose(LINES.agree, {});
+        }
+        case 'idle': {
+          if (p.isImp) return this.choose(LINES.impIdle, {});
+          const lk = liveKiller();
+          return lk && U.chance(0.7) ? this.choose(LINES.idleKnown, lk) : this.choose(LINES.idle, {});
+        }
+        case 'tellHuman': {
+          const lk = liveKiller();
+          if (lk && this.saidName(p, lk.k)) return null;
+          return lk ? this.choose(LINES.tellHuman, lk) : null;
+        }
+        case 'sawKill':
+          return this.choose(ctx.k === kp.killer ? LINES.sawKillAgain : LINES.sawKill, ctx);
+        default:
+          return this.choose(LINES[ctx.kind] || LINES.agree, ctx);
+      }
+    }
+
+    /* esse fantasma já citou essa pessoa há pouco? (não repete a mesma informação) */
+    saidName(p, id) {
+      const q = this.g.players[id];
+      if (!q) return false;
+      const keys = [U.norm(q.name), U.norm(C.COLOR[q.color].name)];
+      return this.msgs.slice(-12).some((m) => m.from === p.id && keys.some((k) => U.norm(m.text).includes(k)));
+    }
+
+    /* ---------- IA ---------- */
+    fact(p) {
+      const g = this.g, kp = this.k(p.id), out = [];
+      if (kp.ejected) out.push('Foi ejetado na votação' + (g.S.rules.confirmEjects ? ' (todos viram se era impostor).' : '.'));
+      else if (kp.killer != null) out.push('Foi morto por ' + AU.Voice.who(g, kp.killer) + ' ' + this.room(kp.area) + '.');
+      if (p.isImp) {
+        const mates = g.players.filter((q) => q.isImp && q !== p).map((q) => q.name);
+        out.push('Era IMPOSTOR' + (mates.length ? ' (parceiro: ' + mates.join(', ') + ')' : '') + '. Morto, pode admitir ou zoar; não precisa mais mentir.');
+      }
+      kp.saw.forEach((s) => out.push('Depois de morto viu ' + AU.Voice.who(g, s.killer) + ' matar ' + this.name(s.victim) + ' ' + this.room(s.area) + '.'));
+      if (p.special === 'anjo' && !p.isImp) out.push('É Anjo da Guarda: pode pôr escudo em um vivo' + (kp.protect.length ? '; já protegeu ' + kp.protect.map((id) => this.name(id)).join(', ') : '') + '.');
+      return out.join(' ');
+    }
+    describe(it) {
+      const g = this.g, c = it.ctx, p = g.players[it.who];
+      const hp = g.human;
+      switch (c.kind) {
+        case 'reply': return AU.Voice.who(g, hp.id) + ' escreveu: "' + c.text + '". ' + p.name + ' responde a isso.';
+        case 'greet': return this.name(c.v) + ' acabou de morrer e chegou no chat dos fantasmas. ' + p.name + ' recebe.';
+        case 'greetHuman': return this.name(c.v) + ' (o jogador) acabou de morrer. ' + p.name + ' recebe e talvez pergunte quem matou.';
+        case 'selfKiller': return p.name + ' acabou de morrer e conta quem o matou.';
+        case 'selfUnknown': return p.name + ' acabou de morrer sem ver quem foi.';
+        case 'sawKill': return p.name + ' (fantasma) acabou de ver ' + this.name(c.k) + ' matar ' + this.name(c.v) + ' ' + this.room(c.a) + '.';
+        case 'ejImp': case 'ejCrew': return p.name + ' acabou de ser ejetado e comenta.';
+        case 'reactEjImp': case 'reactEjCrew': case 'agree': return this.name(c.v) + ' foi ejetado; ' + p.name + ' comenta.';
+        case 'tellHuman': return p.name + ' conta ao jogador recém-chegado o que sabe.';
+        case 'protect': return p.name + ' (anjo) acabou de pôr escudo em ' + this.name(c.x) + '.';
+        case 'shieldHit': return 'O escudo que ' + p.name + ' pôs em ' + this.name(c.x) + ' acabou de bloquear um abate!';
+        default: return p.name + ' comenta a partida, do seu jeito.';
+      }
+    }
+    async aiLines(items) {
+      const g = this.g, V = AU.Voice;
+      const speakers = [];
+      for (const it of items) if (!speakers.includes(it.who)) speakers.push(it.who);
+      const ps = speakers.map((id) => g.players[id]).filter((p) => p && p.brain).slice(0, 3);
+      if (!ps.length) return;
+      this.aiBusy = true;
+      this.aiCalls++;
+      const tp = g.taskProgress();
+      const dead = g.players.filter((q) => !q.alive).map((q) => q.name + (q.ejected ? ' (ejetado' + (g.S.rules.confirmEjects ? (q.isImp ? ', era impostor' : ', era inocente') : '') + ')' : ''));
+      const prompt = [
+        'Partida estilo Among Us na nave The Skeld. Este é o CHAT DOS FANTASMAS: só os mortos leem; os vivos não veem nada daqui e os fantasmas não podem votar nem avisar os vivos.',
+        'Fase: ' + (g.phase === 'meeting' ? 'reunião em andamento (os vivos estão discutindo)' : 'rodada em andamento') + '. Barra de tarefas: ' + (tp.total ? Math.round((tp.done / tp.total) * 100) : 0) + '%.',
+        'Vivos: ' + g.players.filter((q) => q.alive).map((q) => V.who(g, q.id)).join(', ') + '.',
+        'Mortos (fantasmas): ' + dead.join(', ') + '.',
+        '',
+        'Chat dos fantasmas até agora:',
+        this.msgs.slice(-14).map((m) => this.name(m.from) + ': ' + m.text).join('\n') || '(vazio)',
+        '',
+        'O que acabou de acontecer:',
+        ...items.filter((it) => ps.some((p) => p.id === it.who)).map((it) => '- ' + this.describe(it)),
+        '',
+        'Quem escreve agora:',
+        ...ps.map((p) => '### ' + V.persona(p.brain) + '\n' + (this.fact(p) || 'Não sabe quem o matou.')),
+        '',
+        'Escreva 1 mensagem curta para cada um (no máximo 2), no formato "Nome: mensagem". Cada um só sabe o que está no próprio bloco e o que foi dito aqui.',
+      ].join('\n');
+      const system = [
+        'Você escreve as mensagens do chat dos fantasmas de um jogo igual a Among Us, jogado por brasileiros.',
+        '- Chat de jogo de verdade: mensagens curtas (até 100 caracteres), sem narração, sem aspas, sem emojis, sem asteriscos.',
+        '- Cada um tem o próprio jeito de escrever (descrito): siga. Ninguém repete o que já foi dito.',
+        '- Fantasmas lamentam, zoam, torcem, comentam a partida e respondem quem falou. Contam quem os matou se sabem. Não inventam o que não viram.',
+        '- Entenda erros de digitação e ditado de voz pelo sentido mais provável.',
+        '- Nunca diga que é IA ou bot.',
+      ].join('\n');
+      let text = null;
+      try {
+        text = await AU.LLM.complete(system, prompt, { maxTokens: 50 + ps.length * 45 });
+      } catch (e) {
+        text = null;
+      }
+      this.aiBusy = false;
+      this.aiNext = this.clock + 3;
+      const round = ps.map((p) => ({ b: p.brain, beats: [] }));
+      const lines = text ? V.parseRound(text, round) : [];
+      if (!lines.length) {
+        items.forEach((it) => {
+          const p = g.players[it.who];
+          if (p && !p.alive) this.say(p, this.template(p, it.ctx));
+        });
+        return;
+      }
+      let delay = 0;
+      for (const ln of lines) {
+        const p = ln.s.b.p;
+        const t = ln.text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').trim();
+        if (!t || this.msgs.slice(-10).some((m) => U.norm(m.text) === U.norm(t))) continue;
+        setTimeout(() => {
+          if (this.g.phase !== 'ended' && !p.alive) this.say(p, t);
+        }, delay);
+        delay += U.rf(900, 2200);
+      }
+    }
+
+    /* ---------- saída ---------- */
+    record(m) {
+      const msg = { id: ++this.seq, from: m.from, text: m.text, t: this.clock, meeting: this.g.phase === 'meeting' };
+      this.msgs.push(msg);
+      if (this.msgs.length > 120) this.msgs.shift();
+      return msg;
+    }
+    say(p, text) {
+      if (!p || p.alive || !text) return;
+      const g = this.g;
+      if (g.phase === 'meeting' && g.meeting && !g.meeting.closed) g.meeting.post(p, text, []);
+      else this.record({ from: p.id, text });
+    }
+  }
+
+  AU.Ghosts = G;
 })();
 
 </script>
@@ -7277,6 +7877,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.ui = g.headless ? null : new MeetingUI(this);
       for (const p of g.players) if (p.brain && p.alive && p.brain.mStart) p.brain.mStart(this);
       for (const p of g.players) {
+        if (g.ghosts) break; /* o chat dos fantasmas cuida disso (e já reagiu na hora da morte) */
         if (!p.brain || p.alive || p.ejected || p.deathT == null || p.deathT < info.roundStart) continue;
         if (!U.chance(0.6)) continue;
         this.schedule(U.rf(4, 14), p.brain, () => {
@@ -7461,6 +8062,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (this.phase !== 'discussion' && this.phase !== 'voting') return;
       if (!hp.alive) {
         this.post(hp, text, []);
+        if (g.ghosts) g.ghosts.onHuman(text, true);
         return;
       }
       const intents = T.parse(text, g, {
@@ -7481,6 +8083,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (!msg.ghost && this.askedAt && this.askedAt[p.id] != null && this.t - this.askedAt[p.id] < 30) this.answered[p.id] = msg.id;
       if (msg.ghost) {
         this.ghostMsgs.push(msg);
+        if (g.ghosts) g.ghosts.record({ from: p.id, text });
         if (this.ui) this.ui.addMsg(msg);
         return msg;
       }
@@ -7741,7 +8344,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           k === 'players' ? 'Jogadores' : k === 'chat' ? 'Chat' : 'Quadro de álibis')));
       const left = h('div', { class: 'mt-left' }, this.cards, h('div', { class: 'mt-skiprow' }, this.skipBtn, this.skipVotes), this.status);
       const logWrap = h('div', { class: 'mt-logwrap' }, this.log, this.newPill);
-      const right = h('div', { class: 'mt-right' }, logWrap, this.board, this.typingEl, h('div', { class: 'mt-chips' }, chips), form);
+      this.voteCta = h('button', { class: 'mt-votecta', type: 'button', onclick: () => this.setTab('players') }, '🗳 Votação aberta — toque aqui para votar');
+      const right = h('div', { class: 'mt-right' }, this.voteCta, logWrap, this.board, this.typingEl, h('div', { class: 'mt-chips' }, chips), form);
       this.body = h('div', { class: 'mt-body', 'data-tab': 'chat' }, left, right);
       this.panel = h('div', { class: 'mt-panel' }, head, this.tabs, this.body);
       this.eject = h('div', { class: 'mt-eject', hidden: true });
@@ -7801,11 +8405,16 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (mt.phase !== 'intro') this.splash.classList.add('gone');
       const canVote = mt.phase === 'voting' && hp && hp.alive && mt.votes[hp.id] === undefined;
       this.root.classList.toggle('can-vote', !!canVote);
+      this.root.classList.toggle('dead-me', !!hp && !hp.alive);
       this.skipBtn.disabled = !canVote;
       if (mt.phase === 'discussion' && hp && hp.alive && window.matchMedia('(pointer:fine)').matches) setTimeout(() => this.input.focus(), 60);
+      const pt = this.tabs.querySelector(".mt-tab[data-tab='players']");
+      if (pt) pt.textContent = canVote ? '🗳 Votar' : 'Jogadores';
       if (mt.phase === 'voting' && canVote && window.innerWidth <= 860 && !this.autoSwitched) {
+        /* tela estreita: a votação abre direto na aba de votar */
         this.autoSwitched = true;
         this.tabs.classList.add('flash');
+        this.setTab('players');
       }
       this.status.textContent = !hp || !hp.alive ? 'Você está morto: só pode assistir e falar no chat dos fantasmas.' : mt.phase === 'discussion' ? 'Discussão: a votação ainda não abriu. Toque num jogador para citá-lo no chat.' : mt.phase === 'voting' ? (canVote ? 'Clique num jogador para votar, ou pule.' : 'Voto registrado.') : '';
     }
@@ -10642,6 +11251,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     o2: 'Alerta de oxigênio: o ar começa a rarear. Os teclados do O2 e do Admin precisam do código.',
     comms: 'A estática toma os fones. Lista de tarefas, câmeras e Admin ficam cegos.',
   };
+  /* cor do nome legível no fundo escuro: clareia as cores escuras (preto, azul, marrom…) */
+  const soft = (hex) => {
+    const n = parseInt(hex.slice(1), 16), r = n >> 16, gg = (n >> 8) & 255, b = n & 255;
+    if (0.299 * r + 0.587 * gg + 0.114 * b > 120) return hex;
+    const m = (c) => Math.round(c + (255 - c) * 0.5);
+    return 'rgb(' + m(r) + ',' + m(gg) + ',' + m(b) + ')';
+  };
   const SAB_NAME = { lights: 'Luzes', reactor: 'Colapso do reator', o2: 'Oxigênio esgotando', comms: 'Comunicações' };
 
   const HUD = {
@@ -10675,7 +11291,26 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       e.soundBtn = h('button', { class: 'hud-btn', title: 'Som', onclick: () => this.toggleSound() }, AU.Audio.enabled ? '🔊' : '🔈', h('span', {}, 'Som'));
       e.menuBtn = h('button', { class: 'hud-btn', title: 'Menu (Esc)', onclick: () => this.openPause() }, '☰', h('span', {}, 'Menu'));
       e.histBtn = h('button', { class: 'hud-btn', title: 'Conversas das reuniões (H)', onclick: () => this.openHistory() }, '📜', h('span', {}, 'Chats'));
-      const topRight = h('div', { class: 'hud-topright' }, e.mapBtn, e.histBtn, e.soundBtn, e.menuBtn);
+      e.ghostBadge = h('b', { class: 'gbadge', hidden: true });
+      e.ghostBtn = h('button', { class: 'hud-btn ghost-btn', title: 'Chat dos fantasmas (Enter)', hidden: true, onclick: () => this.toggleGhost() }, '👻', h('span', {}, 'Fantasmas'), e.ghostBadge);
+      const topRight = h('div', { class: 'hud-topright' }, e.ghostBtn, e.mapBtn, e.histBtn, e.soundBtn, e.menuBtn);
+      e.ghostLog = h('div', { class: 'gh-log', 'aria-live': 'polite' });
+      e.ghostInput = h('input', { class: 'gh-input', type: 'text', maxlength: '160', placeholder: 'Fale com os fantasmas…', autocomplete: 'off' });
+      const ghostForm = h('form', {
+        class: 'gh-form',
+        onsubmit: (ev) => {
+          ev.preventDefault();
+          const v = e.ghostInput.value.trim();
+          if (!v || !this.g || !this.g.ghosts) return;
+          e.ghostInput.value = '';
+          this.g.ghosts.onHuman(v);
+        },
+      }, e.ghostInput, h('button', { class: 'gh-send', type: 'submit' }, 'Enviar'));
+      e.ghostPanel = h('div', { class: 'hud-ghost', hidden: true },
+        h('div', { class: 'gh-head' }, h('span', {}, '👻 Chat dos fantasmas'), h('small', {}, 'os vivos não leem'), h('button', { class: 'gh-close', type: 'button', 'aria-label': 'Fechar', onclick: () => this.toggleGhost(false) }, '✕')),
+        e.ghostLog, ghostForm);
+      this.ghostShown = 0;
+      this.ghostAuto = false;
       const act = (id, icon, label, key, fn, cls) => {
         const cd = h('span', { class: 'cd' });
         const b = h('button', { class: 'act ' + (cls || ''), 'data-act': id, onclick: fn, title: label + ' (' + key + ')' },
@@ -10690,10 +11325,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       e.actVent = act('vent', '🕳', 'Duto', 'V', () => this.doVent());
       e.actSab = act('sab', '⚠', 'Sabotar', 'X', () => this.toggleMap(true), 'red');
       e.actAbility = act('ability', '✦', 'Habilidade', 'F', () => this.doAbility(), 'violet');
-      e.actions = h('div', { class: 'hud-actions' }, e.actAbility, e.actSab, e.actVent, e.actKill, e.actReport, e.actUse);
+      e.actFollow = act('follow', '👁', 'Seguir', 'G', () => this.doFollow());
+      e.actions = h('div', { class: 'hud-actions' }, e.actFollow, e.actAbility, e.actSab, e.actVent, e.actKill, e.actReport, e.actUse);
       e.ventNav = h('div', { class: 'hud-ventnav', hidden: true });
       e.joy = h('div', { class: 'hud-joy', 'aria-hidden': 'true' }, h('div', { class: 'knob' }));
-      root.append(e.tasks, topRight, e.sab, e.toast, e.feedBox, e.actions, e.ventNav, e.joy);
+      root.append(e.tasks, topRight, e.sab, e.toast, e.feedBox, e.ghostPanel, e.actions, e.ventNav, e.joy);
       if (window.innerWidth < 600) e.tasks.classList.add('collapsed');
       this.setupJoystick(e.joy);
       const hp = g.human;
@@ -10793,6 +11429,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         e.sab.classList.toggle('crit', s.timer != null);
       } else e.sab.hidden = true;
       this.updateActions();
+      this.updateGhost();
       this.updateVentNav();
       this.updateNarration(dt);
       if (this.overlay && this.overlay.tick) this.overlay.tick(dt);
@@ -10843,6 +11480,73 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         ablOk = play && hp.abilityCd <= 0 && g.players.some((q) => q.alive && U.dist(q, hp) <= 4);
       }
       this.setAct(e.actAbility, !!abl, ablOk, abl, ablCd);
+      if (hp.ghostFollow != null) {
+        const q = g.players[hp.ghostFollow];
+        if (!q || !q.alive) hp.ghostFollow = null;
+      }
+      this.setAct(e.actFollow, !hp.alive, play, hp.ghostFollow != null ? 'Parar' : 'Seguir');
+    },
+
+    /* ---------- fantasma: seguir alguém e chat dos mortos ---------- */
+    doFollow() {
+      const g = this.g, hp = g && g.human;
+      if (!hp || hp.alive || g.phase !== 'play') return;
+      if (hp.ghostFollow != null) {
+        hp.ghostFollow = null;
+        this.toast('Parou de seguir.');
+        return;
+      }
+      const alive = g.players.filter((q) => q.alive && q !== hp);
+      this.openPicker('Seguir quem?', alive, (q) => {
+        hp.ghostFollow = q.id;
+        this.toast('Seguindo ' + q.name + '. Mexa-se para parar.', 3000);
+      });
+    },
+    toggleGhost(force) {
+      const e = this.el, g = this.g;
+      if (!g || !g.human || g.human.alive) return;
+      const open = force != null ? force : e.ghostPanel.hidden;
+      e.ghostPanel.hidden = !open;
+      e.ghostBtn.classList.toggle('on', open);
+      if (open) {
+        this.ghostUnread = 0;
+        e.ghostBadge.hidden = true;
+        e.ghostLog.scrollTop = e.ghostLog.scrollHeight;
+        if (window.matchMedia('(pointer:fine)').matches) setTimeout(() => e.ghostInput.focus(), 30);
+      } else if (document.activeElement === e.ghostInput) e.ghostInput.blur();
+    },
+    updateGhost() {
+      const g = this.g, hp = g.human, e = this.el;
+      const dead = !hp.alive;
+      if (e.ghostBtn.hidden !== !dead) e.ghostBtn.hidden = !dead;
+      if (!dead || !g.ghosts) return;
+      if (g.phase === 'meeting' && !e.ghostPanel.hidden) this.toggleGhost(false);
+      if (!this.ghostAuto && g.phase === 'play') {
+        this.ghostAuto = true;
+        this.ghostOpenAt = performance.now() + 3600;
+      }
+      if (this.ghostOpenAt && performance.now() >= this.ghostOpenAt) {
+        this.ghostOpenAt = 0;
+        if (window.innerWidth > 700) this.toggleGhost(true);
+      }
+      const msgs = g.ghosts.msgs;
+      if (this.ghostShown > msgs.length) this.ghostShown = 0;
+      while (this.ghostShown < msgs.length) {
+        const m = msgs[this.ghostShown++];
+        const p = g.players[m.from];
+        if (!p) continue;
+        const col = soft(C.COLOR[p.color].hex);
+        e.ghostLog.appendChild(h('div', { class: 'gh-msg' + (p.isHuman ? ' mine' : '') },
+          h('span', { class: 'gh-bean', html: AU.Render.beanSVG(p.color, { size: 20, visor: p.visor, ghost: true }) }),
+          h('b', { style: { color: col } }, p.name), ' ', h('span', {}, m.text)));
+        if (!p.isHuman && e.ghostPanel.hidden && g.phase === 'play') {
+          this.ghostUnread = (this.ghostUnread || 0) + 1;
+          e.ghostBadge.textContent = String(this.ghostUnread);
+          e.ghostBadge.hidden = false;
+        }
+      }
+      while (e.ghostLog.childElementCount > 80) e.ghostLog.firstChild.remove();
+      if (!e.ghostPanel.hidden) e.ghostLog.scrollTop = e.ghostLog.scrollHeight;
     },
 
     /* ---------- ações do jogador ---------- */
@@ -10908,7 +11612,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       } else if (sp === 'cientista') this.openVitals();
       else if (sp === 'anjo') {
         const near = g.players.filter((q) => q.alive && U.dist(q, hp) <= 4);
-        this.openPicker('Proteger quem?', near, (q) => g.protect(hp, q.id) && this.toast(q.name + ' está protegido por 35s.'));
+        this.openPicker('Proteger quem?', near, (q) => g.protect(hp, q.id) && this.toast(q.name + ' está protegido por ' + (g.S.rules.angelDuration || 10) + 's.'));
       }
     },
 
@@ -12166,6 +12870,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         case 'Escape':
           if (AU.MG.isOpen()) AU.MG.close();
           else if (HUD.overlay) HUD.closeOverlay();
+          else if (HUD.el.ghostPanel && !HUD.el.ghostPanel.hidden) HUD.toggleGhost(false);
           else HUD.openPause();
           break;
         case 'KeyE':
@@ -12184,6 +12889,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           HUD.toggleMap();
           break;
         case 'KeyH': HUD.openHistory(); break;
+        case 'KeyG': HUD.doFollow(); break;
+        case 'Enter':
+          if (g.human && !g.human.alive) {
+            e.preventDefault();
+            HUD.toggleGhost(true);
+          }
+          break;
         case 'Digit1': HUD.ventKey(0); break;
         case 'Digit2': HUD.ventKey(1); break;
         case 'Digit3': HUD.ventKey(2); break;

@@ -52,6 +52,7 @@
       this.ui = g.headless ? null : new MeetingUI(this);
       for (const p of g.players) if (p.brain && p.alive && p.brain.mStart) p.brain.mStart(this);
       for (const p of g.players) {
+        if (g.ghosts) break; /* o chat dos fantasmas cuida disso (e já reagiu na hora da morte) */
         if (!p.brain || p.alive || p.ejected || p.deathT == null || p.deathT < info.roundStart) continue;
         if (!U.chance(0.6)) continue;
         this.schedule(U.rf(4, 14), p.brain, () => {
@@ -236,6 +237,7 @@
       if (this.phase !== 'discussion' && this.phase !== 'voting') return;
       if (!hp.alive) {
         this.post(hp, text, []);
+        if (g.ghosts) g.ghosts.onHuman(text, true);
         return;
       }
       const intents = T.parse(text, g, {
@@ -256,6 +258,7 @@
       if (!msg.ghost && this.askedAt && this.askedAt[p.id] != null && this.t - this.askedAt[p.id] < 30) this.answered[p.id] = msg.id;
       if (msg.ghost) {
         this.ghostMsgs.push(msg);
+        if (g.ghosts) g.ghosts.record({ from: p.id, text });
         if (this.ui) this.ui.addMsg(msg);
         return msg;
       }
@@ -516,7 +519,8 @@
           k === 'players' ? 'Jogadores' : k === 'chat' ? 'Chat' : 'Quadro de álibis')));
       const left = h('div', { class: 'mt-left' }, this.cards, h('div', { class: 'mt-skiprow' }, this.skipBtn, this.skipVotes), this.status);
       const logWrap = h('div', { class: 'mt-logwrap' }, this.log, this.newPill);
-      const right = h('div', { class: 'mt-right' }, logWrap, this.board, this.typingEl, h('div', { class: 'mt-chips' }, chips), form);
+      this.voteCta = h('button', { class: 'mt-votecta', type: 'button', onclick: () => this.setTab('players') }, '🗳 Votação aberta — toque aqui para votar');
+      const right = h('div', { class: 'mt-right' }, this.voteCta, logWrap, this.board, this.typingEl, h('div', { class: 'mt-chips' }, chips), form);
       this.body = h('div', { class: 'mt-body', 'data-tab': 'chat' }, left, right);
       this.panel = h('div', { class: 'mt-panel' }, head, this.tabs, this.body);
       this.eject = h('div', { class: 'mt-eject', hidden: true });
@@ -576,11 +580,16 @@
       if (mt.phase !== 'intro') this.splash.classList.add('gone');
       const canVote = mt.phase === 'voting' && hp && hp.alive && mt.votes[hp.id] === undefined;
       this.root.classList.toggle('can-vote', !!canVote);
+      this.root.classList.toggle('dead-me', !!hp && !hp.alive);
       this.skipBtn.disabled = !canVote;
       if (mt.phase === 'discussion' && hp && hp.alive && window.matchMedia('(pointer:fine)').matches) setTimeout(() => this.input.focus(), 60);
+      const pt = this.tabs.querySelector(".mt-tab[data-tab='players']");
+      if (pt) pt.textContent = canVote ? '🗳 Votar' : 'Jogadores';
       if (mt.phase === 'voting' && canVote && window.innerWidth <= 860 && !this.autoSwitched) {
+        /* tela estreita: a votação abre direto na aba de votar */
         this.autoSwitched = true;
         this.tabs.classList.add('flash');
+        this.setTab('players');
       }
       this.status.textContent = !hp || !hp.alive ? 'Você está morto: só pode assistir e falar no chat dos fantasmas.' : mt.phase === 'discussion' ? 'Discussão: a votação ainda não abriu. Toque num jogador para citá-lo no chat.' : mt.phase === 'voting' ? (canVote ? 'Clique num jogador para votar, ou pule.' : 'Voto registrado.') : '';
     }

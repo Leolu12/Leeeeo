@@ -16,6 +16,7 @@
     'sinal NOME — fazer zigue-zague "vem comigo" para a pessoa e mostrar uma tarefa visual',
     'cameras — olhar as câmeras na Segurança',
     'admin — olhar o mapa do Admin',
+    'patrulhar — rodar pelas salas vazias procurando corpos (bom para quem já terminou as tarefas)',
     'ir SALA — ir para uma sala (ex.: juntar-se ao grupo, checar um lugar)',
     'botao — ir apertar o botão de emergência (só com motivo forte)',
   ];
@@ -125,7 +126,7 @@
         '',
       ];
       if (team === 'crew') {
-        head.push('Estes são TRIPULANTES. Cada um só sabe o que está na própria lista. Decida como um jogador esperto: fazer tarefas é o principal; andar em dupla com quem confia; vigiar de longe quem é suspeito; nunca ficar sozinho com suspeito; mostrar tarefa visual para quem desconfia de você; checar câmeras/admin quando terminou; botão só com motivo forte.');
+        head.push('Estes são TRIPULANTES. Cada um só sabe o que está na própria lista. Decida como um jogador esperto: fazer tarefas é o principal; andar em dupla com quem confia; vigiar de longe quem é suspeito; nunca ficar sozinho com suspeito; mostrar tarefa visual para quem desconfia de você; quem terminou as tarefas não fica parado: patrulha as salas isoladas procurando corpos, olha câmeras/admin ou acompanha quem ainda tem tarefa; botão só com motivo forte.');
         head.push('Ações possíveis:', CREW_ACTIONS.map((a) => '- ' + a).join('\n'));
       } else {
         const team2 = g.players.filter((p) => p.isImp && p.alive).map((p) => p.name).join(', ');
@@ -189,7 +190,7 @@
       const K = {
         tarefa: 'task', tarefas: 'task', task: 'task', seguir: 'follow', vigiar: 'tail', evitar: 'avoid', sinal: 'signal', cameras: 'cams', camera: 'cams',
         admin: 'admin', ir: 'go', botao: 'button', cacar: 'hunt', fingir: 'fake', grupo: 'group', sabotar: 'sab', portas: 'doors', porta: 'doors',
-        duto: 'vent', atrair: 'lure', double: 'double',
+        duto: 'vent', atrair: 'lure', double: 'double', patrulhar: 'patrol', patrulha: 'patrol', rondar: 'patrol', ronda: 'patrol',
       }[verb];
       if (!K) return null;
       const o = { kind: K, until, at: g.t };
@@ -207,7 +208,7 @@
         if (!o.sab) return null;
       }
       if (!p.isImp && ['fake', 'group', 'sab', 'doors', 'vent'].includes(K)) return null;
-      if (p.isImp && ['task', 'cams', 'admin', 'button', 'follow', 'tail'].includes(K)) return null;
+      if (p.isImp && ['task', 'cams', 'admin', 'button', 'follow', 'tail', 'patrol'].includes(K)) return null;
       return o;
     }
   }

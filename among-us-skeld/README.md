@@ -22,6 +22,8 @@ Jogo de dedução social no mapa **The Skeld**, inspirado em *Among Us*, para jo
 | Sabotar (impostor) | X | Sabotar |
 | Habilidade da função | F | botão roxo |
 | Mapa | M ou Tab | Mapa |
+| Fantasma: seguir alguém | G | 👁 Seguir |
+| Fantasma: chat dos mortos | Enter | 👻 Fantasmas |
 | Fechar ou pausar | Esc | ✕ ou Menu |
 
 Na reunião, digite livremente no chat. Os bots entendem frases como *"eu tava na elétrica com o azul"*, *"vi o vermelho ventar no admin"*, *"verde é safe, fez scan"*, *"rosa onde vc tava?"*, *"corpo na nav"* ou *"skip"*, e respondem, confirmam, contradizem ou questionam.
@@ -34,7 +36,7 @@ Sem nenhum modelo, os bots já conversam com frases próprias. Com um modelo de 
 
 - **A IA escreve a reunião inteira**: as falas de abertura, as respostas ao que você digita, as brigas e defesas entre os bots, as cobranças a quem está quieto e os anúncios de voto. Cada bot tem um jeito próprio de escrever (uns certinhos, outros abreviando, poucos com gíria), sem repetir o que já foi dito.
 - **A IA decide os votos**: cada bot vota com base no que ele sabe e no que ouviu no chat. Em situação crítica, ele vota em vez de pular.
-- **A IA decide as ações no mapa**: os tripulantes escolhem fazer tarefas, andar em dupla, vigiar um suspeito, evitar alguém, olhar câmeras ou chamar alguém para ver a tarefa visual. Os impostores escolhem a vítima, fingem tarefa, sabotam, trancam portas, usam dutos, atraem alguém para um canto ou combinam double kill.
+- **A IA decide as ações no mapa**: os tripulantes escolhem fazer tarefas, andar em dupla, vigiar um suspeito, evitar alguém, olhar câmeras, patrulhar as salas vazias depois das tarefas ou chamar alguém para ver a tarefa visual. Os impostores escolhem a vítima, fingem tarefa, sabotam, trancam portas, usam dutos, atraem alguém para um canto ou combinam double kill.
 
 O motor do jogo executa as ordens e garante as regras e os reflexos (reportar corpo, fugir de quem viu matar, não matar com testemunha). Dá para deixar só a conversa com a IA em **Votos e ações dos bots**.
 
@@ -105,8 +107,10 @@ Dentro do claude.ai a página roda sem acesso à internet, por isso lá só o Cl
   - O2: código nos dois teclados.
   - Comunicações: sintonia.
   - Portas.
-- Habilidades: Metamorfo se disfarça, Fantasma fica invisível, Rastreador segue um alvo, Cientista vê os sinais vitais, Anjo protege, Engenheiro usa dutos e o Barulhento dispara um alerta ao morrer.
-- Modo fantasma depois de morrer: atravessa paredes, termina as tarefas e tem um chat só dos mortos.
+- Habilidades: Metamorfo se disfarça, Fantasma fica invisível, Rastreador segue um alvo, Cientista vê os sinais vitais,  Anjo protege (escudo de 10 s, recarga de 60 s, como no jogo original), Engenheiro usa dutos e o Barulhento dispara um alerta ao morrer.
+- Modo fantasma depois de morrer: atravessa paredes, termina as tarefas, pode **seguir** qualquer vivo (👁 Seguir; mexer-se cancela) e tem o **chat dos fantasmas**, na partida e nas reuniões. Os vivos nunca leem. Os fantasmas-bots sabem quem os matou e o que viram depois de mortos: recebem você, contam quem foi, comentam as ejeções, torcem e respondem ao que você escreve (pela IA, quando ligada).
+- Anjo da Guarda bot: protege quem está perto de quem o matou ou sozinho num lugar perigoso (às vezes você). Como uma pessoa, nem sempre está atento quando o escudo fica pronto: usa em mais ou menos metade das chances e, distraído, vai fazer as tarefas de fantasma.
+- Bots que terminam as tarefas não ficam parados: rondam as salas isoladas procurando corpos, olham câmeras e Admin, acompanham quem ainda tem tarefa ou vigiam um suspeito de longe. Ao chegar numa sala dão uma volta por ela em vez de ficar plantados, e esperando alguém mudam de posição de vez em quando.
 - Narrador com descrição das salas, das sabotagens e do ambiente.
 
 **Bots**
@@ -152,6 +156,7 @@ js/talk.js        frases, tom do chat e leitura das mensagens do jogador
 js/llm.js         provedores de modelo de linguagem (Claude, WebLLM, APIs)
 js/voice.js       diretor da reunião: o que cada bot sabe, falas e votos pela IA
 js/tactics.js     estrategista: ações no mapa decididas pela IA
+js/ghosts.js      chat dos fantasmas: o que cada morto sabe e as falas deles
 js/meeting.js     fluxo e interface da reunião, quadro de álibis e histórico
 js/decor.js       desenho estático das salas: pisos, paredes, móveis e consoles
 js/render.js      desenho dos tripulantes, efeitos e névoa

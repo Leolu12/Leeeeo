@@ -88,6 +88,7 @@
       this.dispatchT = 0;
       this.roundStart = 0;
       this.tactics = !this.headless && AU.Tactics ? AU.Tactics.create(this) : null;
+      this.ghosts = !this.headless && AU.Ghosts ? AU.Ghosts.create(this) : null;
       this.consts = { USE_DIST, REPORT_DIST, BUTTON_DIST, VENT_DIST, BASE_VISION };
       M.resetDoors();
       this.assignRoles();
@@ -279,6 +280,7 @@
     /* ---------- laço principal ---------- */
     update(dt) {
       if (this.phase === 'ended') return;
+      if (this.ghosts) this.ghosts.tick(dt);
       if (this.phase === 'meeting') {
         if (this.meeting) this.meeting.update(dt);
         return;
@@ -334,6 +336,18 @@
           const s = this.speedOf(h) * Math.min(1, len);
           this.moveEntity(h, (this.input.x / len) * s, (this.input.y / len) * s, dt);
           if (h.busy && !h.busy.minigame) h.busy = null;
+          h.ghostFollow = null;
+        } else if (!h.alive && h.ghostFollow != null) {
+          /* fantasma seguindo alguém: vai atrás atravessando paredes */
+          const q = this.players[h.ghostFollow];
+          if (!q || !q.alive) h.ghostFollow = null;
+          else {
+            const dx = q.x - h.x, dy = q.y - h.y, d = Math.hypot(dx, dy);
+            if (d > 1.1) {
+              const s = this.speedOf(h) * (d > 6 ? 1.8 : d > 2.5 ? 1.15 : 0.9);
+              this.moveEntity(h, (dx / d) * s, (dy / d) * s, dt);
+            }
+          }
         }
       }
       for (const p of this.players) if (p.brain) p.brain.update(dt);
@@ -436,6 +450,7 @@
         k.killCd = this.S.rules.killCooldown * 0.5;
         this.addFx({ type: 'shield', x: v.x, y: v.y, dur: 1.2 });
         this.log({ type: 'protectBlock', killer: k.id, victim: v.id });
+        if (this.ghosts) this.ghosts.onShield(v);
         if (k.isHuman || v.isHuman) this.say('toast', 'Um escudo de anjo bloqueou o abate!');
         this.sfx('shield');
         return false;
@@ -474,6 +489,7 @@
         }
       }
       if (v.brain) v.brain.onDeath(k, apparent);
+      if (this.ghosts) this.ghosts.onKill(k, v, apparent, area.id);
       this.addFx({ type: 'kill', x: v.x, y: v.y, dur: 0.8 });
       this.log({ type: 'kill', killer: k.id, victim: v.id, area: area.id, apparent, witnesses: wit.map((w) => w.p.id) });
       const h = this.human;
@@ -575,6 +591,7 @@
         ej.ejected = true;
         ej.deathT = this.t;
         ej.busy = null;
+        if (this.ghosts) this.ghosts.onEject(ej);
       }
       this.log({ type: 'vote', index: this.meeting ? this.meeting.info.index : this.meetings, ejected: ej ? ej.id : null, tie: !!result.tie, votes: result.votes });
       this.bodies.forEach((b) => (b.gone = true));
@@ -812,9 +829,11 @@
       if (p.special !== 'anjo' || p.alive || p.abilityCd > 0 || p.isImp) return false;
       const tg = this.players[targetId];
       if (!tg || !tg.alive || U.dist(p, tg) > 4) return false;
-      tg.protectedUntil = this.t + 35;
-      p.abilityCd = 60;
+      /* padrão do jogo original: escudo de 10s, recarga de 60s */
+      tg.protectedUntil = this.t + (this.S.rules.angelDuration || 10);
+      p.abilityCd = this.S.rules.angelCooldown || 60;
       this.log({ type: 'protect', by: p.id, target: targetId });
+      if (this.ghosts) this.ghosts.onProtect(p, tg);
       return true;
     }
 

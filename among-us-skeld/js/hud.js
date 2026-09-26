@@ -36,6 +36,13 @@
     o2: 'Alerta de oxigênio: o ar começa a rarear. Os teclados do O2 e do Admin precisam do código.',
     comms: 'A estática toma os fones. Lista de tarefas, câmeras e Admin ficam cegos.',
   };
+  /* cor do nome legível no fundo escuro: clareia as cores escuras (preto, azul, marrom…) */
+  const soft = (hex) => {
+    const n = parseInt(hex.slice(1), 16), r = n >> 16, gg = (n >> 8) & 255, b = n & 255;
+    if (0.299 * r + 0.587 * gg + 0.114 * b > 120) return hex;
+    const m = (c) => Math.round(c + (255 - c) * 0.5);
+    return 'rgb(' + m(r) + ',' + m(gg) + ',' + m(b) + ')';
+  };
   const SAB_NAME = { lights: 'Luzes', reactor: 'Colapso do reator', o2: 'Oxigênio esgotando', comms: 'Comunicações' };
 
   const HUD = {
@@ -69,7 +76,26 @@
       e.soundBtn = h('button', { class: 'hud-btn', title: 'Som', onclick: () => this.toggleSound() }, AU.Audio.enabled ? '🔊' : '🔈', h('span', {}, 'Som'));
       e.menuBtn = h('button', { class: 'hud-btn', title: 'Menu (Esc)', onclick: () => this.openPause() }, '☰', h('span', {}, 'Menu'));
       e.histBtn = h('button', { class: 'hud-btn', title: 'Conversas das reuniões (H)', onclick: () => this.openHistory() }, '📜', h('span', {}, 'Chats'));
-      const topRight = h('div', { class: 'hud-topright' }, e.mapBtn, e.histBtn, e.soundBtn, e.menuBtn);
+      e.ghostBadge = h('b', { class: 'gbadge', hidden: true });
+      e.ghostBtn = h('button', { class: 'hud-btn ghost-btn', title: 'Chat dos fantasmas (Enter)', hidden: true, onclick: () => this.toggleGhost() }, '👻', h('span', {}, 'Fantasmas'), e.ghostBadge);
+      const topRight = h('div', { class: 'hud-topright' }, e.ghostBtn, e.mapBtn, e.histBtn, e.soundBtn, e.menuBtn);
+      e.ghostLog = h('div', { class: 'gh-log', 'aria-live': 'polite' });
+      e.ghostInput = h('input', { class: 'gh-input', type: 'text', maxlength: '160', placeholder: 'Fale com os fantasmas…', autocomplete: 'off' });
+      const ghostForm = h('form', {
+        class: 'gh-form',
+        onsubmit: (ev) => {
+          ev.preventDefault();
+          const v = e.ghostInput.value.trim();
+          if (!v || !this.g || !this.g.ghosts) return;
+          e.ghostInput.value = '';
+          this.g.ghosts.onHuman(v);
+        },
+      }, e.ghostInput, h('button', { class: 'gh-send', type: 'submit' }, 'Enviar'));
+      e.ghostPanel = h('div', { class: 'hud-ghost', hidden: true },
+        h('div', { class: 'gh-head' }, h('span', {}, '👻 Chat dos fantasmas'), h('small', {}, 'os vivos não leem'), h('button', { class: 'gh-close', type: 'button', 'aria-label': 'Fechar', onclick: () => this.toggleGhost(false) }, '✕')),
+        e.ghostLog, ghostForm);
+      this.ghostShown = 0;
+      this.ghostAuto = false;
       const act = (id, icon, label, key, fn, cls) => {
         const cd = h('span', { class: 'cd' });
         const b = h('button', { class: 'act ' + (cls || ''), 'data-act': id, onclick: fn, title: label + ' (' + key + ')' },
@@ -84,10 +110,11 @@
       e.actVent = act('vent', '🕳', 'Duto', 'V', () => this.doVent());
       e.actSab = act('sab', '⚠', 'Sabotar', 'X', () => this.toggleMap(true), 'red');
       e.actAbility = act('ability', '✦', 'Habilidade', 'F', () => this.doAbility(), 'violet');
-      e.actions = h('div', { class: 'hud-actions' }, e.actAbility, e.actSab, e.actVent, e.actKill, e.actReport, e.actUse);
+      e.actFollow = act('follow', '👁', 'Seguir', 'G', () => this.doFollow());
+      e.actions = h('div', { class: 'hud-actions' }, e.actFollow, e.actAbility, e.actSab, e.actVent, e.actKill, e.actReport, e.actUse);
       e.ventNav = h('div', { class: 'hud-ventnav', hidden: true });
       e.joy = h('div', { class: 'hud-joy', 'aria-hidden': 'true' }, h('div', { class: 'knob' }));
-      root.append(e.tasks, topRight, e.sab, e.toast, e.feedBox, e.actions, e.ventNav, e.joy);
+      root.append(e.tasks, topRight, e.sab, e.toast, e.feedBox, e.ghostPanel, e.actions, e.ventNav, e.joy);
       if (window.innerWidth < 600) e.tasks.classList.add('collapsed');
       this.setupJoystick(e.joy);
       const hp = g.human;
@@ -187,6 +214,7 @@
         e.sab.classList.toggle('crit', s.timer != null);
       } else e.sab.hidden = true;
       this.updateActions();
+      this.updateGhost();
       this.updateVentNav();
       this.updateNarration(dt);
       if (this.overlay && this.overlay.tick) this.overlay.tick(dt);
@@ -237,6 +265,73 @@
         ablOk = play && hp.abilityCd <= 0 && g.players.some((q) => q.alive && U.dist(q, hp) <= 4);
       }
       this.setAct(e.actAbility, !!abl, ablOk, abl, ablCd);
+      if (hp.ghostFollow != null) {
+        const q = g.players[hp.ghostFollow];
+        if (!q || !q.alive) hp.ghostFollow = null;
+      }
+      this.setAct(e.actFollow, !hp.alive, play, hp.ghostFollow != null ? 'Parar' : 'Seguir');
+    },
+
+    /* ---------- fantasma: seguir alguém e chat dos mortos ---------- */
+    doFollow() {
+      const g = this.g, hp = g && g.human;
+      if (!hp || hp.alive || g.phase !== 'play') return;
+      if (hp.ghostFollow != null) {
+        hp.ghostFollow = null;
+        this.toast('Parou de seguir.');
+        return;
+      }
+      const alive = g.players.filter((q) => q.alive && q !== hp);
+      this.openPicker('Seguir quem?', alive, (q) => {
+        hp.ghostFollow = q.id;
+        this.toast('Seguindo ' + q.name + '. Mexa-se para parar.', 3000);
+      });
+    },
+    toggleGhost(force) {
+      const e = this.el, g = this.g;
+      if (!g || !g.human || g.human.alive) return;
+      const open = force != null ? force : e.ghostPanel.hidden;
+      e.ghostPanel.hidden = !open;
+      e.ghostBtn.classList.toggle('on', open);
+      if (open) {
+        this.ghostUnread = 0;
+        e.ghostBadge.hidden = true;
+        e.ghostLog.scrollTop = e.ghostLog.scrollHeight;
+        if (window.matchMedia('(pointer:fine)').matches) setTimeout(() => e.ghostInput.focus(), 30);
+      } else if (document.activeElement === e.ghostInput) e.ghostInput.blur();
+    },
+    updateGhost() {
+      const g = this.g, hp = g.human, e = this.el;
+      const dead = !hp.alive;
+      if (e.ghostBtn.hidden !== !dead) e.ghostBtn.hidden = !dead;
+      if (!dead || !g.ghosts) return;
+      if (g.phase === 'meeting' && !e.ghostPanel.hidden) this.toggleGhost(false);
+      if (!this.ghostAuto && g.phase === 'play') {
+        this.ghostAuto = true;
+        this.ghostOpenAt = performance.now() + 3600;
+      }
+      if (this.ghostOpenAt && performance.now() >= this.ghostOpenAt) {
+        this.ghostOpenAt = 0;
+        if (window.innerWidth > 700) this.toggleGhost(true);
+      }
+      const msgs = g.ghosts.msgs;
+      if (this.ghostShown > msgs.length) this.ghostShown = 0;
+      while (this.ghostShown < msgs.length) {
+        const m = msgs[this.ghostShown++];
+        const p = g.players[m.from];
+        if (!p) continue;
+        const col = soft(C.COLOR[p.color].hex);
+        e.ghostLog.appendChild(h('div', { class: 'gh-msg' + (p.isHuman ? ' mine' : '') },
+          h('span', { class: 'gh-bean', html: AU.Render.beanSVG(p.color, { size: 20, visor: p.visor, ghost: true }) }),
+          h('b', { style: { color: col } }, p.name), ' ', h('span', {}, m.text)));
+        if (!p.isHuman && e.ghostPanel.hidden && g.phase === 'play') {
+          this.ghostUnread = (this.ghostUnread || 0) + 1;
+          e.ghostBadge.textContent = String(this.ghostUnread);
+          e.ghostBadge.hidden = false;
+        }
+      }
+      while (e.ghostLog.childElementCount > 80) e.ghostLog.firstChild.remove();
+      if (!e.ghostPanel.hidden) e.ghostLog.scrollTop = e.ghostLog.scrollHeight;
     },
 
     /* ---------- ações do jogador ---------- */
@@ -302,7 +397,7 @@
       } else if (sp === 'cientista') this.openVitals();
       else if (sp === 'anjo') {
         const near = g.players.filter((q) => q.alive && U.dist(q, hp) <= 4);
-        this.openPicker('Proteger quem?', near, (q) => g.protect(hp, q.id) && this.toast(q.name + ' está protegido por 35s.'));
+        this.openPicker('Proteger quem?', near, (q) => g.protect(hp, q.id) && this.toast(q.name + ' está protegido por ' + (g.S.rules.angelDuration || 10) + 's.'));
       }
     },
 

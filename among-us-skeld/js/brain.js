@@ -93,7 +93,7 @@
       this.lostCount = 0;
       this.trackT = 0;
       this.trailT = 0;
-      this.startDelay = U.rf(0.3, 2.2);
+      this.startDelay = U.rf(0.1, 0.9);
       this.isoT = 0;
       this.isoTarget = null;
       this.eagerRoll = null;
@@ -153,10 +153,21 @@
         this.retryT -= dt;
         if (this.retryT <= 0) {
           this.retryT = 1;
-          this.routeTo(this.dest.x, this.dest.y);
+          const dest = this.dest;
+          this.routeTo(dest.x, dest.y);
           if (this.plan) {
             this.plan.fails = (this.plan.fails || 0) + 1;
             if (this.plan.fails > 6) this.plan = null;
+          }
+          /* caminho bloqueado (porta trancada): anda pela sala esperando, em vez de ficar plantado na porta */
+          if (!this.path.length && this.plan) {
+            const c = M.randomPointIn(M.roomOf(M.areaAt(p.x, p.y), p.x, p.y).id);
+            const alt = Nav.find(p.x, p.y, c.x, c.y, !p.alive);
+            if (alt && alt.length) {
+              this.path = alt;
+              this.pi = 0;
+              this.retryT = U.rf(1.5, 2.5);
+            }
           }
         }
         return false;
@@ -204,9 +215,30 @@
           if (d > (pl.keep || 0.8)) {
             this.routeTo(tg.x, tg.y);
             pl.stage = 'go';
-          } else {
+            pl.still = 0;
+            pl.shuffling = false;
+          } else if (!(pl.shuffling && this.dest)) {
             this.path = [];
             this.dest = null;
+            pl.shuffling = false;
+            /* esperando do lado de quem segue: muda de posição de vez em quando, sem ficar plantado */
+            if (!pl.noShuffle) {
+              pl.still = (pl.still || 0) + (pl.dynEvery || 0.5);
+              if (pl.still > (pl.shuffleAt || (pl.shuffleAt = U.rf(1.2, 2.6)))) {
+                pl.still = 0;
+                pl.shuffleAt = U.rf(1.4, 3.2);
+                const k = pl.keep || 0.8;
+                for (let i = 0; i < 4; i++) {
+                  const a = Math.random() * Math.PI * 2, rr = Math.max(0.9, k * U.rf(0.55, 0.95));
+                  const fx = tg.x + Math.cos(a) * rr, fy = tg.y + Math.sin(a) * rr;
+                  if (U.d2(fx, fy, this.p.x, this.p.y) > 0.7 && M.walkAt(fx, fy) && Nav.los(tg.x, tg.y, fx, fy)) {
+                    this.routeTo(fx, fy);
+                    pl.shuffling = true;
+                    break;
+                  }
+                }
+              }
+            }
           }
         }
         if (pl.endAt && g.t >= pl.endAt) {
@@ -214,7 +246,10 @@
           if (pl.onEnd) pl.onEnd(pl);
           return;
         }
-        if (this.dest) this.moveAlong(dt);
+        if (this.dest && this.moveAlong(dt) && pl.shuffling) {
+          pl.shuffling = false;
+          this.dest = null;
+        }
         if (pl.tick) pl.tick(dt, pl);
         return;
       }
@@ -236,10 +271,78 @@
     }
 
     /* ---------- planos ---------- */
-    planWander(areaId, idle) {
+    /* "look": tempo olhando a sala; em vez de ficar parado, dá umas voltinhas por ela, como gente de verdade. */
+    planWander(areaId, look) {
       const g = this.g;
       const pos = M.randomPointIn(areaId);
-      this.setPlan({ type: 'wander', area: areaId, x: pos.x, y: pos.y, onArrive: (pl) => (pl.until = g.t + (idle != null ? idle : U.rf(2, 6))) });
+      const span = look != null ? look : U.rf(2, 5);
+      this.setPlan({
+        type: 'wander', area: areaId, x: pos.x, y: pos.y,
+        onArrive: (pl) => {
+          pl.until = g.t + U.rf(0.15, 0.6);
+          pl.strollEnd = g.t + span;
+        },
+        onDone: (pl) => this.stroll(areaId, pl.strollEnd),
+      });
+    }
+    stroll(areaId, end) {
+      const g = this.g, p = this.p;
+      if (this.plan || g.t >= end - 0.5) return;
+      let pos = null;
+      for (let i = 0; i < 5 && !pos; i++) {
+        const c = M.randomPointIn(areaId);
+        const d = U.d2(p.x, p.y, c.x, c.y);
+        if (d > 1.4 && d < 6.5) pos = c;
+      }
+      if (!pos) return;
+      this.setPlan({ type: 'wander', area: areaId, stroll: true, x: pos.x, y: pos.y, onArrive: (pl) => (pl.until = g.t + U.rf(0.15, 0.55)), onDone: () => this.stroll(areaId, end) });
+    }
+    /* Sem tarefas: ronda pelas salas vazias procurando corpos (as menos vistas há mais tempo primeiro). */
+    planPatrol(n) {
+      const g = this.g, p = this.p;
+      this.checked = this.checked || {};
+      const quiet = ['electrical', 'lowerEngine', 'reactor', 'security', 'upperEngine', 'medbay', 'storage', 'comms', 'shields', 'navigation', 'o2', 'weapons'];
+      const here = M.roomOf(M.areaAt(p.x, p.y), p.x, p.y).id;
+      const route = [];
+      let cx = p.x, cy = p.y;
+      for (let i = 0; i < (n || 3); i++) {
+        let best = null, bs = -1e9;
+        for (const id of quiet) {
+          if (route.includes(id) || id === here || !M.AREA[id]) continue;
+          const a = M.AREA[id];
+          const age = g.t - (this.checked[id] != null ? this.checked[id] : g.roundStart - 40);
+          const sc = -U.d2(cx, cy, a.cx, a.cy) + Math.min(age, 70) * 0.45 + U.rf(0, 12);
+          if (sc > bs) {
+            bs = sc;
+            best = id;
+          }
+        }
+        if (!best) break;
+        route.push(best);
+        cx = M.AREA[best].cx;
+        cy = M.AREA[best].cy;
+      }
+      this.patrolRoute = route;
+      return this.nextPatrol();
+    }
+    nextPatrol() {
+      const g = this.g;
+      const id = this.patrolRoute && this.patrolRoute.shift();
+      if (!id) return false;
+      const pos = M.randomPointIn(id);
+      this.setPlan({
+        type: 'patrol', area: id, x: pos.x, y: pos.y,
+        onArrive: (pl) => {
+          this.checked[id] = g.t;
+          pl.until = g.t + U.rf(0.2, 0.7);
+        },
+        onDone: () => {
+          if (this.plan) return;
+          if (U.chance(0.35)) this.stroll(id, g.t + U.rf(1.5, 3));
+          if (!this.plan) this.nextPatrol();
+        },
+      });
+      return true;
     }
     planTask(tk) {
       const g = this.g, p = this.p;
@@ -265,7 +368,7 @@
           if (!tk.done && tk.step === stepIdx && g.taskAvailable(tk)) g.completeStep(p, tk);
           /* pausa humana: olhar a lista, conferir o mapa, hesitar */
           if (p.alive && !this.plan) {
-            const idle = U.rf(0.6, 3.2) * (this.pers.lost ? 1.6 : 1) * (this.pers.offtopic ? 1.3 : 1);
+            const idle = U.rf(0.15, 0.9) * (this.pers.lost ? 1.5 : 1) * (this.pers.offtopic ? 1.2 : 1);
             this.setPlan({ type: 'pause', stage: 'do', until: g.t + idle });
           }
         },
@@ -493,6 +596,8 @@
           return g.commsDown() ? false : this.planAdmin();
         case 'go':
           return o.room ? this.planWander(o.room, U.rf(2, 5)) : false;
+        case 'patrol':
+          return this.planPatrol(U.rint(2, 4));
         case 'button':
           if (p.emergencyLeft <= 0) return false;
           {
@@ -710,7 +815,7 @@
     planHunt(tgt) {
       const g = this.g;
       this.setPlan({
-        type: 'hunt', target: tgt.id, keep: g.killDist * 0.7, dynEvery: 0.3,
+        type: 'hunt', target: tgt.id, keep: g.killDist * 0.7, dynEvery: 0.3, noShuffle: true,
         dyn: () => {
           const s = this.lastSeenAt[g.appearId(tgt)];
           if (!tgt.alive || !s || g.t - s.t > 2.5) return null;
@@ -864,29 +969,40 @@
       }
       this.planPostTasks();
     }
+    /* Terminou as tarefas: faz o que um jogador de verdade faz — ronda procurando corpos, câmeras, admin,
+       vigia suspeito de longe, anda com quem confia ou acompanha quem ainda tem tarefa. Nunca fica plantado. */
     planPostTasks() {
       const g = this.g, p = this.p, pers = this.pers;
       const r = Math.random();
-      /* sem tarefas: seguir de longe quem é suspeito, ou andar junto de alguém de confiança */
-      const sus = this.seenNow.filter((q) => q.alive && (this.susp[g.appearId(q)] || 0) >= 30);
-      if (sus.length && (pers.leader || pers.skeptic || pers.times) && r < 0.4) return this.planFollow(sus[0], U.rf(12, 22), U.rf(4, 5.5));
-      const pals = this.seenNow.filter((q) => q.alive && (this.susp[g.appearId(q)] || 0) <= -20);
-      if (pals.length && r < 0.25 + pers.follow * 0.3) return this.planFollow(U.pick(pals), U.rf(12, 22), 2.4);
-      if (!pers.panic && r < 0.2) return this.planWander(U.pick(['electrical', 'navigation', 'shields', 'comms']), U.rf(1.5, 3));
       const watcher = pers.leader || pers.times || pers.skeptic;
-      if (watcher && r < 0.3 && !g.commsDown()) return this.planCams(U.rf(12, 25));
-      if (watcher && r < 0.42 && !g.commsDown()) return this.planAdmin();
-      if (pers.follow > 0.5 && r < 0.75) {
-        const cand = this.seenNow.filter((q) => (this.susp[g.appearId(q)] || 0) < 30);
-        if (cand.length) return this.planFollow(U.pick(cand), U.rf(12, 25));
-      }
+      const camsOk = !g.commsDown() && !g.players.some((q) => q !== p && q.alive && q.onCams && !q.isImp);
+      this.postN = (this.postN || 0) + 1;
+      const sus = this.seenNow.filter((q) => q.alive && this.liveSusp(g.appearId(q)) >= 30);
+      if (sus.length && r < (watcher ? 0.55 : 0.3)) return this.planFollow(sus[0], U.rf(12, 22), U.rf(4, 5.5));
+      const pals = this.seenNow.filter((q) => q.alive && (this.susp[g.appearId(q)] || 0) <= -20);
+      if (pals.length && r < 0.2 + pers.follow * 0.3) return this.planFollow(U.pick(pals), U.rf(12, 22), 2.4);
       if (pers.chaos && !this.chaosButton && U.chance(0.12) && p.emergencyLeft > 0) {
         this.chaosButton = true;
         this.wantButton = { reason: 'chaos' };
         return;
       }
-      const room = U.chance(0.3) ? 'cafeteria' : U.pick(M.ROOMS).id;
-      this.planWander(room);
+      const q = Math.random();
+      /* câmeras: um de cada vez; quem é observador fica mais tempo */
+      if (camsOk && q < (watcher ? 0.3 : 0.14) && !this.camsRound) {
+        this.camsRound = true;
+        return this.planCams(watcher ? U.rf(14, 26) : U.rf(8, 15));
+      }
+      if (!g.commsDown() && q < (watcher ? 0.42 : 0.22) && g.t - (this.adminAt || -99) > 40) {
+        this.adminAt = g.t;
+        return this.planAdmin();
+      }
+      /* acompanha quem ainda tem tarefa (segurança em grupo) */
+      if (q < 0.4 + pers.follow * 0.25) {
+        const cand = this.seenNow.filter((x) => x.alive && this.liveSusp(g.appearId(x)) < 20 && U.dist(p, x) < 7);
+        if (cand.length) return this.planFollow(U.pick(cand), U.rf(10, 20), U.rf(2.2, 3.4));
+      }
+      if (!pers.panic || U.chance(0.4)) return this.planPatrol(U.rint(2, 4));
+      this.planWander(U.chance(0.5) ? 'cafeteria' : U.pick(['admin', 'storage']), U.rf(3, 6));
     }
 
     /* ---------- impostor ---------- */
@@ -1040,7 +1156,7 @@
         const st = U.pick(g.sabStationsNeeded());
         if (st) {
           const pos = M.SAB_STATIONS[st];
-          this.setPlan({ type: 'loiter', x: pos.x + U.rf(-2, 2), y: pos.y + U.rf(-2, 2), onArrive: (pl) => (pl.until = g.t + U.rf(2, 5)) });
+          this.setPlan({ type: 'loiter', x: pos.x + U.rf(-2, 2), y: pos.y + U.rf(-2, 2), onArrive: (pl) => (pl.until = g.t + U.rf(0.8, 2)) });
           return;
         }
       }
@@ -1227,6 +1343,58 @@
     }
 
     /* ---------- fantasma ---------- */
+    /* Anjo da guarda: o fantasma sabe quem o matou (e o que viu depois de morto). Protege quem está perto
+       desse assassino ou sozinho num canto perigoso; às vezes, o jogador. Entre escudos, fica rondando o protegido. */
+    angelThink() {
+      const g = this.g, p = this.p;
+      const alive = g.players.filter((q) => q.alive);
+      if (!alive.length) return false;
+      const tasksLeft = p.tasks.some((tk) => !tk.done);
+      if (p.abilityCd > 8 && tasksLeft) return false;
+      const know = g.ghosts ? g.ghosts.k(p.id) : { saw: [] };
+      const killers = new Set();
+      if (this.killedBy != null && g.players[this.killedBy] && g.players[this.killedBy].alive) killers.add(this.killedBy);
+      (know.saw || []).forEach((x) => g.players[x.killer] && g.players[x.killer].alive && killers.add(x.killer));
+      const danger = (q) => {
+        let s = 0;
+        for (const kid of killers) {
+          const k = g.players[kid];
+          if (k === q) return -999;
+          const d = U.dist(k, q);
+          if (d < 14) s += 60 - d * 3;
+        }
+        const near = alive.filter((o) => o !== q && U.dist(o, q) < 7).length;
+        if (near === 0) s += 18;
+        else if (near === 1) s += 10;
+        const a = M.areaAt(q.x, q.y).id;
+        if (['electrical', 'lowerEngine', 'reactor', 'navigation', 'shields', 'comms', 'o2', 'security'].includes(a)) s += 8;
+        if (q.isHuman) s += 6;
+        s -= (this.susp[q.id] || 0) * 0.3;
+        return s + U.rf(0, 6);
+      };
+      if (!this.angelPick || g.t > this.angelPick.until || !g.players[this.angelPick.id].alive) {
+        const best = alive.slice().sort((a, b) => danger(b) - danger(a))[0];
+        this.angelPick = { id: best.id, until: g.t + U.rf(6, 12), since: g.t, risk: danger(best) };
+      }
+      const tg = g.players[this.angelPick.id];
+      /* como gente de verdade: nem sempre está prestando atenção quando o escudo fica pronto. Em cada janela
+         de recarga decide se vai usar (uns 40-50%, mais para quem é atento); distraído, espera e tenta de novo. */
+      if (p.abilityCd <= 0 && (!this.angelWin || this.angelWin.until < g.t)) {
+        const pUse = 0.2 + this.pers.att * 0.3;
+        this.angelWin = { use: U.chance(pUse), until: g.t + U.rf(20, 40), react: g.t + U.rf(0.6, 2.2) };
+      }
+      const win = this.angelWin;
+      if (win && !win.use && win.until > g.t && tasksLeft) return false;
+      const urgent = this.angelPick.risk >= 30;
+      if (p.abilityCd <= 0 && win && win.use && g.t >= win.react && U.dist(p, tg) <= 3.5 && !(tg.protectedUntil > g.t) && (urgent || g.t - this.angelPick.since > 8)) {
+        if (g.protect(p, tg.id)) this.angelWin = null;
+        this.angelPick.until = g.t + U.rf(10, 20);
+      }
+      if (!this.plan || this.plan.type !== 'guard' || this.plan.target !== tg.id) {
+        this.setPlan({ type: 'guard', target: tg.id, dyn: () => (tg.alive ? { x: tg.x, y: tg.y } : null), keep: 2.4, endAt: g.t + 25, dynEvery: 0.6 });
+      }
+      return true;
+    }
     ghostUpdate(dt) {
       const g = this.g, p = this.p;
       this.thinkT -= dt;
@@ -1243,19 +1411,9 @@
             }
           }
           if (!this.plan) this.planWander(U.pick(M.ROOMS).id, U.rf(3, 8));
-        } else if (p.special === 'anjo' && p.abilityCd <= 0) {
-          const cands = g.players.filter((q) => q.alive);
-          cands.sort((a, b) => (this.susp[a.id] || 0) - (this.susp[b.id] || 0));
-          const tg = cands[Math.min(cands.length - 1, U.rint(0, 2))];
-          if (tg) {
-            if (U.dist(p, tg) <= 3.5) {
-              g.protect(p, tg.id);
-              this.plan = null;
-            } else if (!this.plan || this.plan.type !== 'guard') {
-              this.setPlan({ type: 'guard', dyn: () => (tg.alive ? { x: tg.x, y: tg.y } : null), keep: 2.5, endAt: g.t + 20, dynEvery: 0.8 });
-            }
-          }
-        } else if (!this.plan) {
+        } else if (p.special === 'anjo' && !p.isImp && this.angelThink()) {
+          /* anjo cuidando de alguém */
+        } else if (!this.plan || this.plan.type === 'guard') {
           const avail = p.tasks.filter((tk) => !tk.done && g.taskAvailable(tk));
           if (avail.length) {
             avail.sort((a, b) => {
@@ -1478,7 +1636,9 @@
       this.groupedRound = false;
       this.escort = null;
       this.shownVisual = false;
-      this.startDelay = U.rf(0.5, 2.5);
+      this.camsRound = false;
+      this.patrolRoute = null;
+      this.startDelay = U.rf(0.2, 1.1);
       this.lostCount = Math.max(0, this.lostCount - 1);
     }
   }

@@ -84,7 +84,8 @@
     askBody: () => pick([`onde foi o corpo?`, `onde?`, `cadê o corpo?`, `onde estava o corpo??`, `quem morreu e onde?`]),
     answerBody: (d, x) => pick([`${x.inA(d.area)}`, `foi ${x.inA(d.area)}`, `o corpo estava ${x.inA(d.area)}`]),
     claimLoc: (d, x) => {
-      const rs = d.rooms;
+      /* sem repetir sala seguida ("em armas, depois em armas") */
+      const rs = d.rooms.filter((r, i, a) => i === 0 || x.nA(r) !== x.nA(a[i - 1]));
       const w = d.with != null ? ' ' + x.R(d.with, 'com') : '';
       const tk = d.task ? ' fazendo ' + x.task(d.task) : '';
       if (rs.length >= 3) {

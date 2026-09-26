@@ -456,10 +456,6 @@ body.touch .act kbd { display: none; }
   .lobby-side { position: static; }
   .mt-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
   .mt-left { border-right: 0; }
-  .mt-tab[data-tab='players'] { display: inline-flex; }
-  .mt-body[data-tab='players'] .mt-right { display: none; }
-  .mt-body:not([data-tab='players']) .mt-left { display: none; }
-  .mt-tabs.flash .mt-tab[data-tab='players'] { animation: blink 0.8s steps(2) 4; }
   .mt-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mt-card { min-height: 48px; padding: 4px 6px; }
   .mt-card .bean { width: 30px; height: 30px; }
@@ -553,3 +549,47 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
 
 .ai-status .ai-retry { margin-left: 8px; padding: 3px 10px; font-size: 12px; min-height: 0; }
 .ai-status.limited .ai-dot { background: #f3b93a; }
+
+/* reunião em tela estreita: abas Jogadores/Chat/Quadro (fica depois das regras base de propósito) */
+.mt-votecta { display: none; }
+@media (max-width: 860px) {
+  .mt-tabs .mt-tab[data-tab='players'] { display: inline-flex; }
+  .mt-body[data-tab='players'] .mt-right { display: none; }
+  .mt-body:not([data-tab='players']) .mt-left { display: none; }
+  .mt-tabs.flash .mt-tab[data-tab='players'] { animation: blink 0.8s steps(2) 4; }
+  .meeting.can-vote .mt-tab[data-tab='players'] { background: #1f7a4a; color: #fff; }
+  .meeting.can-vote .mt-votecta { display: block; margin: 6px 10px 0; padding: 10px 12px; border: 0; border-radius: 12px; background: #1f7a4a; color: #fff; font-weight: 900; font-size: 15px; text-align: center; }
+  .meeting.can-vote .mt-body[data-tab='players'] .mt-votecta { display: none; }
+  .mt-tabs { overflow-x: auto; }
+  .mt-tab { padding: 7px 11px; white-space: nowrap; }
+  .mt-skiprow { position: sticky; bottom: -8px; z-index: 3; margin: 0 -8px -8px; padding: 6px 8px 8px; background: #cfd8e8; border-top: 2px solid #aab6cc; }
+}
+@media (max-width: 860px) and (max-height: 520px) {
+  .mt-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .mt-title { font-size: 17px; }
+}
+@media (max-height: 520px) {
+  .mt-head { padding-top: 4px; padding-bottom: 4px; }
+  .mt-cards { gap: 5px; }
+  .mt-card { min-height: 40px; }
+}
+
+/* chat dos fantasmas (só aparece para quem morreu) */
+.hud-btn.ghost-btn { position: relative; }
+.hud-btn.ghost-btn.on { background: rgba(140, 170, 255, 0.35); }
+.gbadge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #e04848; color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+.hud-ghost { position: absolute; left: 12px; bottom: 150px; width: min(340px, calc(100vw - 24px)); max-height: 46vh; display: flex; flex-direction: column; background: rgba(18, 24, 44, 0.86); border: 1px solid rgba(160, 180, 255, 0.35); border-radius: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); z-index: 6; pointer-events: auto; backdrop-filter: blur(4px); }
+.hud-ghost[hidden] { display: none; }
+.gh-head { display: flex; align-items: baseline; gap: 8px; padding: 8px 10px 6px; font-weight: 800; color: #dfe6ff; border-bottom: 1px solid rgba(160, 180, 255, 0.2); }
+.gh-head small { color: #8f9bc4; font-weight: 600; font-size: 11px; }
+.gh-close { margin-left: auto; background: none; border: 0; color: #dfe6ff; font-size: 16px; cursor: pointer; min-height: 0; padding: 0 4px; }
+.gh-log { flex: 1; min-height: 60px; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; font-size: 13.5px; color: #e8ecff; }
+.gh-msg { line-height: 1.3; word-break: break-word; }
+.gh-msg.mine { opacity: 0.85; }
+.gh-bean { display: inline-block; vertical-align: -5px; margin-right: 4px; opacity: 0.8; }
+.gh-form { display: flex; gap: 6px; padding: 8px; border-top: 1px solid rgba(160, 180, 255, 0.2); }
+.gh-input { flex: 1; min-width: 0; background: rgba(0, 0, 0, 0.35); color: #fff; border: 1px solid rgba(160, 180, 255, 0.35); border-radius: 9px; padding: 8px 10px; font-size: 14px; }
+.gh-send { padding: 6px 12px; border-radius: 9px; border: 0; background: #5b6fd8; color: #fff; font-weight: 800; }
+@media (max-width: 700px) { .hud-ghost { left: 8px; right: 8px; width: auto; bottom: auto; top: 64px; max-height: 42vh; } }
+.meeting.dead-me .mt-chips { display: none; }
+.gh-head { flex-wrap: wrap; row-gap: 0; }
