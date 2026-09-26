@@ -26,7 +26,7 @@
   const LLM = {
     WEBLLM_MODELS, API_PRESETS,
     cfg: Object.assign({}, DEFAULT_CFG, U.store.get(KEY, {})),
-    status: 'off', // off | available | ready | loading | busy-consent | error
+    status: 'off', // off | available | ready | loading | limited | error
     provider: null, // 'claude' | 'webllm' | 'api'
     detail: '',
     progress: 0,
@@ -100,11 +100,20 @@
     hasClaude() {
       return !!(this.claudeSample || this.claudeFlat);
     },
-    /* Chamado ao iniciar a partida e ao abrir uma reunião. */
-    ensure() {
+    /* Chamado ao iniciar a partida (userAction) e ao abrir uma reunião. */
+    ensure(userAction) {
       if (this.status === 'available') return this.warmup();
+      if (userAction && this.status === 'limited' && Date.now() >= this.coolUntil) return this.retry();
       if (!this.claudeChecked && this.inClaude) this.wantWarm = true;
       return null;
+    },
+    /* Nova tentativa pedida pelo jogador (botão), depois de limite ou erro. */
+    async retry() {
+      this.coolUntil = 0;
+      this.failStreak = 0;
+      if (this.status === 'limited' || this.status === 'error') this.status = this.provider === 'claude' && !this.claudeGranted && !this.claudeFlat ? 'available' : 'ready';
+      if (!this.provider) await this.applyMode(true);
+      return this.test();
     },
 
     async applyMode(userAction) {
@@ -198,9 +207,14 @@
           : 'O claude.ai não liberou o Claude nesta conta ou tela (' + code + '). As conversas usam o sistema de regras.');
         return;
       }
-      if (code === 'rate_limited') {
-        this.coolUntil = Date.now() + 30000;
-        this.set(this.status, 'Limite de uso momentâneo: usando regras por alguns segundos.');
+      const http429 = /^HTTP 429/.test(this.lastError.message);
+      if (code === 'rate_limited' || http429) {
+        /* nada de tentar de novo sozinho: o jogador decide quando (botão "Tentar de novo") */
+        this.coolUntil = Date.now() + 90000;
+        const why = http429
+          ? 'O serviço da API recusou por limite de uso do plano grátis.'
+          : 'O claude.ai recusou por limite de uso: ou o limite da sua conta do Claude acabou por enquanto, ou houve chamadas demais seguidas (por exemplo, o jogo aberto em outra aba ou no app ao mesmo tempo).';
+        this.set('limited', why + ' As falas voltam para as regras. Espere alguns minutos e toque em "Tentar de novo".');
         return;
       }
       if (code === 'session_expired') {
@@ -215,7 +229,8 @@
     },
 
     async slot() {
-      const max = this.provider === 'webllm' ? 1 : 2;
+      /* uma chamada por vez: o claude.ai limita chamadas simultâneas por pessoa */
+      const max = this.provider === 'api' ? 2 : 1;
       if (this.running < max) {
         this.running++;
         return;
@@ -342,7 +357,7 @@
       const r = await this.complete('Você é um jogador num chat de jogo.', 'Diga "oi, bora jogar" de um jeito descontraído, em até 8 palavras.', { maxTokens: 40, timeout: 20000 });
       const ms = Math.round(performance.now() - t0);
       if (r) this.set('ready', 'Funcionando (' + ms + ' ms): "' + r.slice(0, 60) + '"');
-      else if (this.status !== 'off') {
+      else if (this.status !== 'off' && this.status !== 'limited') {
         const why = this.lastError ? ' Erro: ' + this.lastError.message : '';
         this.set('error', (this.provider === 'claude' ? 'O Claude não respondeu.' : 'A IA não respondeu. Confira a chave, o endereço e o modelo.') + why);
       }

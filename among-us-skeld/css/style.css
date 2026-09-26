@@ -550,3 +550,6 @@ button.mt-ai { border: 0; cursor: pointer; font-family: inherit; line-height: 1.
 .lobby-side .ai-status { margin: 8px 0 6px; font-size: 13px; }
 .pause-ai { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
 input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 9px 11px; width: 100%; min-width: 0; }
+
+.ai-status .ai-retry { margin-left: 8px; padding: 3px 10px; font-size: 12px; min-height: 0; }
+.ai-status.limited .ai-dot { background: #f3b93a; }

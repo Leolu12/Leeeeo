@@ -355,8 +355,9 @@
     get webllm() {
       return AU.LLM.provider === 'webllm';
     }
+    /* teto de chamadas por reunião, para não gastar o uso de quem joga nem bater no limite */
     maxCalls() {
-      return this.webllm ? 12 : 26;
+      return this.webllm ? 12 : AU.LLM.provider === 'claude' ? 16 : 20;
     }
     on() {
       return V.active(this.mt) && this.calls < this.maxCalls() && this.fails < 3;
@@ -415,7 +416,7 @@
     /* Monta a próxima rodada: falas planejadas primeiro, depois quem tem motivo para falar. */
     plan() {
       const mt = this.mt, g = this.g, t = mt.t;
-      const maxSp = this.webllm ? 2 : 4;
+      const maxSp = this.webllm ? 2 : 5;
       const sp = new Map();
       const add = (b, beat, motive) => {
         const id = b.p.id;
@@ -619,7 +620,8 @@
       }
       /* falas planejadas que o modelo pulou saem com o texto do motor */
       for (const s of round) if (s.beats.length && !firstOf.has(s.b.p.id)) s.beats.forEach((x) => this.postRaw(x, delay + 0.5));
-      this.nextRoundAt = mt.t + 0.4;
+      /* intervalo mínimo entre chamadas: menos pedidos, rodadas com mais falas */
+      this.nextRoundAt = mt.t + (AU.LLM.provider === 'claude' ? 3 : 1);
     }
 
     /* Primeira rodada começa já na abertura da reunião, para as falas saírem assim que a discussão abre. */

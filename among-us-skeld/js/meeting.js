@@ -580,6 +580,14 @@
         cls += ' wait';
         txt = 'IA: toque para ativar';
         tip = L.detail;
+      } else if (L.status === 'limited') {
+        cls += ' wait';
+        txt = 'IA pausada: limite de uso';
+        tip = L.detail;
+      } else if (mt.dir && mt.dir.calls >= mt.dir.maxCalls()) {
+        cls += ' wait';
+        txt = 'IA: cota da reunião usada';
+        tip = 'Esta reunião já usou as chamadas de IA previstas; o resto sai pelo sistema de regras. Na próxima reunião volta.';
       } else {
         cls += ' err';
         txt = L.status === 'error' || (mt.dir && mt.dir.fails >= 3) ? 'IA com problema' : 'IA indisponível';
@@ -596,10 +604,9 @@
     aiClick() {
       const L = AU.LLM, mt = this.mt;
       if (L.status === 'available') L.warmup();
-      else if (L.status === 'error' || (mt.dir && mt.dir.fails >= 3)) {
+      else if (L.status === 'error' || L.status === 'limited' || (mt.dir && mt.dir.fails >= 3)) {
         if (mt.dir) mt.dir.fails = 0;
-        L.failStreak = 0;
-        L.applyMode(false).then(() => L.test());
+        L.retry();
       }
       AU.HUD.toast(this.aiBadge.title || this.aiBadge.textContent);
     }

@@ -307,12 +307,16 @@
       const el = h('div', { class: 'ai-status' });
       const bar = h('div', { class: 'ai-bar' }, h('div', {}));
       const txt = h('span', {});
-      el.append(h('span', { class: 'ai-dot' }), txt, bar);
+      const btn = h('button', { class: 'btn ai-retry', type: 'button', hidden: true, onclick: () => (L.status === 'available' ? L.warmup() : L.retry()) }, '');
+      el.append(h('span', { class: 'ai-dot' }), txt, btn, bar);
       const paint = () => {
         el.className = 'ai-status ' + L.status;
         const who = L.provider ? L.label() : 'regras';
-        const head = { ready: 'IA ativa: ' + who, available: 'IA disponível: ' + who, loading: 'Preparando a IA…', error: 'IA com problema', off: 'IA desligada' }[L.status] || L.status;
+        const head = { ready: 'IA ativa: ' + who, available: 'IA disponível: ' + who, loading: 'Preparando a IA…', limited: 'IA pausada (limite de uso)', error: 'IA com problema', off: 'IA desligada' }[L.status] || L.status;
         txt.textContent = head + (L.detail ? ' — ' + L.detail : '');
+        const act = { available: 'Ativar agora', limited: 'Tentar de novo', error: 'Tentar de novo' }[L.status];
+        btn.hidden = !act || (L.status === 'available' && L.provider !== 'claude');
+        btn.textContent = act || '';
         bar.hidden = L.status !== 'loading';
         bar.firstChild.style.width = Math.round((L.progress || 0) * 100) + '%';
       };
