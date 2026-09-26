@@ -4,6 +4,7 @@
   const AU = window.AU;
   const U = AU.U, C = AU.C, M = AU.Map, Nav = AU.Nav;
 
+  const VISUAL_ST = ['scan', 'asteroids', 'shields'];
   const HIGH_TRAFFIC = new Set(['cafeteria', 'admin', 'storage', 'hallAdmin', 'hallUpper', 'hallStorage', 'hallRight', 'hallLower', 'hallLeft', 'hallWeapons']);
 
   class Memory {
@@ -417,11 +418,11 @@
           if (then) then();
         },
       });
-      g.gesture(p, 'wiggle', text || 'vem!');
+      g.gesture(p, 'wiggle');
+      void text;
     }
-    emote(text, dur) {
-      this.p.emote = { text, until: this.g.t + (dur || 1.6) };
-    }
+    /* Sem balões: a comunicação no mapa é só pelo movimento. */
+    emote() {}
     /* ---------- ordens da IA (estrategista) ---------- */
     /* Executa a ordem atual; devolve false para o motor escolher sozinho. */
     runOrder() {
@@ -635,7 +636,7 @@
         /* depende de quanto confia, da personalidade e do clima: escuro, corpo recente, pouca gente por perto */
         const recentBody = this.mem.bodies.some((b) => g.t - b.t < 40) || g.t - g.roundStart < 25 && g.meetings > 0 && (g.events || []).some((e) => e.type === 'kill' && e.t > g.roundStart - 60);
         const crowd = this.seenNow.filter((o) => o !== q).length;
-        pAcc = s >= 35 ? 0 : 0.35 + this.pers.follow * 0.35 + (this.pers.leader ? 0.1 : 0) - (this.pers.skeptic ? 0.15 : 0) - (this.pers.panic ? 0.1 : 0) + (q.isHuman ? 0.12 : 0)
+        pAcc = s >= 35 ? 0 : 0.45 + this.pers.follow * 0.35 + (this.pers.leader ? 0.1 : 0) - (this.pers.skeptic ? 0.15 : 0) - (this.pers.panic ? 0.1 : 0) + (q.isHuman ? 0.12 : 0)
           - Math.max(0, s) / 45 + Math.max(0, -s) / 200 - (g.sab && g.sab.type === 'lights' ? 0.2 : 0) - (recentBody ? 0.12 : 0) + (crowd >= 1 ? 0.08 : 0);
       }
       if (p.busy && !U.chance(0.35)) pAcc *= 0.3;
@@ -838,6 +839,7 @@
       if (sus.length && (pers.leader || pers.skeptic || pers.times) && r < 0.4) return this.planFollow(sus[0], U.rf(12, 22), U.rf(4, 5.5));
       const pals = this.seenNow.filter((q) => q.alive && (this.susp[g.appearId(q)] || 0) <= -20);
       if (pals.length && r < 0.25 + pers.follow * 0.3) return this.planFollow(U.pick(pals), U.rf(12, 22), 2.4);
+      if (!pers.panic && r < 0.2) return this.planWander(U.pick(['electrical', 'navigation', 'shields', 'comms']), U.rf(1.5, 3));
       const watcher = pers.leader || pers.times || pers.skeptic;
       if (watcher && r < 0.3 && !g.commsDown()) return this.planCams(U.rf(12, 25));
       if (watcher && r < 0.42 && !g.commsDown()) return this.planAdmin();
@@ -970,7 +972,9 @@
         const busy = HIGH_TRAFFIC.has(M.areaAt(tgt ? tgt.x : p.x, tgt ? tgt.y : p.y).id);
         const lowKey = this.layLowUntil && t < this.layLowUntil;
         const grudge = tgt && (tgt.id === this.grudge || (this.prey && t < this.prey.until && tgt.id === this.prey.id));
-        const need = L.need * (busy ? 1.8 : 1) * (lowKey ? 1.8 : 1) * (grudge ? 0.75 : 1);
+        const nearVent = tgt && M.VENTS.some((v) => U.d2(v.x, v.y, tgt.x, tgt.y) < 4.5);
+        const threat = tgt && ((tgt.brain && (tgt.brain.pers.leader || tgt.brain.pers.times)) || this.mem.events.some((e) => e.type === 'visual' && e.who === tgt.id));
+        const need = L.need * (busy ? 1.8 : 1) * (lowKey ? 1.8 : 1) * (grudge ? 0.75 : 1) * (nearVent && L.useVents > 0.5 ? 0.92 : 1) * (threat ? 0.92 : 1);
         if (tgt && this.eagerRoll == null && this.isoT >= need) {
           const waited = t - this.readyT;
           this.eagerRoll = U.chance(L.eager * U.clamp(0.7 + waited / 15, 0.7, 1) * (busy ? 0.7 : 1) * (lowKey && !grudge ? 0.55 : 1));
@@ -1289,9 +1293,11 @@
               this.planFlee(q);
             }
           }
-          if (g.S.rules.visualTasks && U.d2(q.x, q.y, M.STATIONS.scan.x, M.STATIONS.scan.y) < 0.9 && !q.visual && !q.moving) {
+          /* parado numa tarefa visual sem a animação aparecer = tarefa falsa */
+          const vst = g.S.rules.visualTasks ? VISUAL_ST.find((k) => U.d2(q.x, q.y, M.STATIONS[k].x, M.STATIONS[k].y) < 0.9) : null;
+          if (vst && !q.visual && !q.moving) {
             this.scanWatch[aid] = (this.scanWatch[aid] || 0) + 0.2;
-            if (this.scanWatch[aid] >= 3.2) mem.event({ type: 'noscan', t, who: aid, area }, 'noscan:' + aid + ':' + g.meetings);
+            if (this.scanWatch[aid] >= 3.2) mem.event({ type: 'noscan', t, who: aid, area, task: vst }, 'noscan:' + aid + ':' + g.meetings);
           }
         }
       }

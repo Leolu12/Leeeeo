@@ -102,6 +102,10 @@
         if (alone.length === 1) out.push(this.who(alone[0].id) + ' está sozinho perto dele.');
         if (b.layLowUntil && g.t < b.layLowUntil) out.push('Foi acusado na última reunião: precisa parecer inocente por um tempo.');
         if (b.grudge != null && g.players[b.grudge].alive) out.push(this.who(b.grudge) + ' o acusou.');
+        const cleared = [...new Set(b.mem.events.filter((e) => e.type === 'visual' && g.players[e.who] && g.players[e.who].alive && !g.players[e.who].isImp).map((e) => e.who))];
+        if (cleared.length) out.push('Já provaram inocência com tarefa visual (os outros confiam neles; bons alvos): ' + cleared.map((id) => this.who(id)).join(', ') + '.');
+        const near = M.VENTS.filter((v) => U.d2(v.x, v.y, p.x, p.y) < 6).map((v) => M.AREA[v.area].name);
+        if (near.length) out.push('Duto perto: ' + near[0] + '.');
         if (p.special) out.push('Função: ' + C.ROLES[p.special].name + '.');
       }
       if (p.emergencyLeft > 0 && !p.isImp) out.push('Botões de emergência restantes: ' + p.emergencyLeft + '.');

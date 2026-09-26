@@ -110,7 +110,7 @@
     const victim = mt.info.body ? mt.info.body.pid : null;
     const reporter = mt.info.kind === 'report' ? mt.info.caller : null;
     const tR = mt.info.t;
-    for (const id of Object.keys(this.ev)) this.ev[id] = this.ev[id].filter((e) => e.reason !== 'nearBody' && e.reason !== 'lastWith' && e.reason !== 'alibi' && e.reason !== 'withVictim' && e.reason !== 'fromBody');
+    for (const id of Object.keys(this.ev)) this.ev[id] = this.ev[id].filter((e) => !['nearBody', 'lastWith', 'alibi', 'withVictim', 'fromBody', 'ventLink'].includes(e.reason));
     const add = (id, w, reason, extra) => {
       if (id === me || id === victim) return;
       const list = (this.ev[id] = this.ev[id] || []);
@@ -166,6 +166,21 @@
         if (s.area !== bodyArea && !M.isNear(s.area, bodyArea)) continue;
         const d0 = Math.hypot(s.x0 - bc.cx, s.y0 - bc.cy), d1 = Math.hypot(s.x - bc.cx, s.y - bc.cy);
         if (d1 - d0 >= 2.5) add(s.who, 15, 'fromBody', { area: s.area, bodyArea, t: s.t1 });
+      }
+    }
+    /* apareceu do nada numa sala ligada por duto à sala do corpo, pouco antes de acharem */
+    const linked = new Set();
+    for (const v of M.VENTS) if (v.area === bodyArea) v.links.forEach((l) => linked.add(M.VENT[l].area));
+    linked.delete(bodyArea);
+    if (linked.size) {
+      for (const s of this.mem.seen) {
+        if (s.who === victim || s.who === me || s.via !== 'eyes' || !linked.has(s.area)) continue;
+        if (s.t0 < tFound - 20 || s.t0 > tFound + 1) continue;
+        /* "apareceu": o bot já estava na sala e a pessoa surgiu no meio dela (não pela porta) */
+        const r = M.AREA[s.area];
+        if (!r || r.kind !== 'room' || s.x0 == null || Math.hypot(s.x0 - r.cx, s.y0 - r.cy) > Math.min(r.rect[2], r.rect[3]) * 0.45) continue;
+        if (this.myStay(s.area) < 6) continue;
+        add(s.who, 8, 'ventLink', { area: s.area, bodyArea });
       }
     }
     /* quem foi visto andando colado na vítima pouco antes */
@@ -336,7 +351,7 @@
     }
     /* depois de dizer onde está o corpo, quem viu o abate já fala quem foi */
     const urgent = this.queue.length && this.queue[0].k === 'accuse' && STRONG[this.queue[0].reason];
-    if (this.queue.length) mt.schedule(urgent ? U.rf(0.8, 1.5) * mt.pace : this.typeDelay(), this, () => this.nextAgenda(), { agenda: true });
+    if (this.queue.length) mt.schedule(urgent ? U.rf(0.8, 1.5) * mt.pace : this.typeDelay(), this, () => this.nextAgenda(), { agenda: true, force: !!urgent });
   };
 
   B.typeDelay = function (text) {

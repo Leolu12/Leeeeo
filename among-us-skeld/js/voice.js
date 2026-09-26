@@ -90,7 +90,9 @@
         R.visualTasks
           ? '- Tarefas visuais (scan da MedBay, asteroides em Armas, escudos, lixo) mostram para quem vê que a pessoa é tripulante' + (H.noVisualHardClear ? ' (regra da casa: não inocenta de vez).' : '.')
           : '- Tarefas visuais estão desligadas nesta partida: ver alguém no scan não prova nada.',
-        '- Onde se vigia: câmeras na Segurança, mapa do Admin (mostra quantas pessoas por sala, sem cores). Botão de emergência na Cafeteria.',
+        '- Onde se vigia: câmeras na Segurança (vigiam os corredores de fora da Segurança, da MedBay, do Admin e da Navegação), mapa do Admin (mostra quantas pessoas por sala, sem cores). Botão de emergência na Cafeteria.',
+        '- Dutos da Skeld (só dá para ir entre salas ligadas): Elétrica ↔ MedBay ↔ Segurança; Cafeteria ↔ Admin ↔ corredor dos Escudos; Armas ↔ Navegação (norte); Navegação (sul) ↔ Escudos; Motor Superior ↔ Reator ↔ Motor Inferior. Quem aparece do nada numa sala ligada por duto ao local do corpo pode ter ventado.',
+        '- A Elétrica é o lugar mais perigoso (entrada estreita, duto no canto). Navegação, Escudos e Comunicações são isoladas. Impostor não consegue fazer tarefa visual: quem fica parado numa tarefa visual sem a animação está fingindo.',
         '- Argumentos comuns: self report (o impostor reporta o próprio corpo), stack kill (matar no meio de um grupo), "quem estava sozinho?", "quem confirma o álibi?", "estava perto do corpo", "saiu do duto". Quem mente no álibi fica suspeito. Pular (skip) quando não há prova é normal.',
       ];
       const roles = Object.keys(C.ROLES).filter(on);
@@ -208,7 +210,7 @@
     reasonOf(b, id) {
       const ev = ((b.ev && b.ev[id]) || []).filter((e) => e.w > 0).sort((a, c) => c.w - a.w)[0];
       if (ev) {
-        const t = { fromBody: 'vinha da direção do corpo', kill: 'você viu matando', vent: 'você viu no duto', shift: 'você viu mudando de forma', vanish: 'você viu sumindo', noscan: 'fingiu o scan', follow: 'ficou te seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava colado na vítima', odd: 'agiu estranho na rodada (te chamou e ficou enrolando / ficou na sua cola)' }[ev.reason];
+        const t = { ventLink: 'apareceu numa sala ligada por duto ao corpo', fromBody: 'vinha da direção do corpo', kill: 'você viu matando', vent: 'você viu no duto', shift: 'você viu mudando de forma', vanish: 'você viu sumindo', noscan: 'fingiu o scan', follow: 'ficou te seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava colado na vítima', odd: 'agiu estranho na rodada (te chamou e ficou enrolando / ficou na sua cola)' }[ev.reason];
         if (t) return t + (ev.area ? ' (' + V.area(ev.area) + ')' : '');
       }
       if ((b.chatClaim[id] || 0) > 12) return 'outros disseram que viram algo';
@@ -236,7 +238,8 @@
           for (const e of b.ev[id]) {
             if (strongTxt[e.reason]) out.push('VIU ' + nm(+id) + ' ' + strongTxt[e.reason] + (e.area ? ' em ' + V.area(e.area) : '') + '. Tem certeza absoluta.');
             if (e.reason === 'visual') out.push('Viu ' + nm(+id) + ' fazendo ' + (M.VISUAL_NAMES[e.task] || 'uma tarefa visual') + ': inocente com certeza.');
-            if (e.reason === 'noscan') out.push('Viu ' + nm(+id) + ' parado no scanner sem escanear.');
+            if (e.reason === 'noscan') out.push('Viu ' + nm(+id) + ' parado ' + ({ scan: 'no scanner da MedBay', asteroids: 'na arma de asteroides', shields: 'no painel dos escudos' }[e.task] || 'numa tarefa visual') + ' sem a animação aparecer (tarefa falsa).');
+            if (e.reason === 'ventLink') out.push('Viu ' + nm(+id) + ' aparecer em ' + V.area(e.area) + ', que tem duto ligado a ' + V.area(e.bodyArea) + ' (onde estava o corpo), pouco antes.');
             if (e.reason === 'withVictim' || e.reason === 'lastWith') out.push('Viu ' + nm(+id) + ' junto da vítima pouco antes' + (e.area ? ', em ' + V.area(e.area) : '') + '.');
             if (e.reason === 'nearBody' && e.w >= 14) out.push('Viu ' + nm(+id) + ' perto de onde estava o corpo' + (e.area ? ' (' + V.area(e.area) + ')' : '') + ' pouco antes.');
             if (e.reason === 'together' && e.secs >= 20) out.push('Ficou um tempo junto de ' + nm(+id) + ' e nada aconteceu.');

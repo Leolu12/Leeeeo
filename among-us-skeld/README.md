@@ -21,7 +21,6 @@ Jogo de dedução social no mapa **The Skeld**, inspirado em *Among Us*, para jo
 | Entrar/sair do duto | V; 1–3 troca de duto | Duto e setas na tela |
 | Sabotar (impostor) | X | Sabotar |
 | Habilidade da função | F | botão roxo |
-| Sinal "vem comigo" (zigue-zague) | G, ou vai e volta rápido no lugar | Sinal |
 | Mapa | M ou Tab | Mapa |
 | Fechar ou pausar | Esc | ✕ ou Menu |
 
@@ -126,11 +125,12 @@ Dentro do claude.ai a página roda sem acesso à internet, por isso lá só o Cl
   - Votam por eliminação: quem já foi inocentado sai da lista.
 
 **Sinais e inteligência no mapa**
-- Sinal "vem comigo": aperte G (ou o botão Sinal), ou faça zigue-zague no lugar. Quem está perto pode aceitar ("ok") e te seguir, ou recusar ("?", "não") se desconfiar de você. Quem te segue vigia você: se você ficar parado à toa, levar para um canto isolado ou fizer algo estranho, ele para de seguir ou foge.
-- Os bots também chamam você ou outros para mostrar uma tarefa visual e ganhar álibi. Quem é seguido por alguém de confiança mostra a tarefa visual.
+- Linguagem corporal, sem texto nem botão: faça zigue-zague no lugar (vai e volta rápido) perto de alguém. Quem está olhando talvez perceba, dependendo da atenção, da distância, de estar ocupado e da luz, e, se confiar em você, passa a te seguir. Quem te segue vigia você: se você ficar parado à toa, levar para um canto isolado ou fizer algo estranho, ele para de seguir ou foge.
+- Os bots também fazem zigue-zague para chamar você ou outros e mostrar uma tarefa visual (álibi). Se você segue alguém de confiança, ele percebe e mostra a tarefa visual.
 - Os bots andam em dupla com quem confiam, vigiam de longe quem é suspeito, se juntam quando as luzes caem e mudam o comportamento depois de cada reunião: quem foi acusado tenta provar inocência; o impostor acusado se esconde no grupo e guarda rancor de quem o acusou.
-- Impostores: álibi no começo da rodada, isca ("vem comigo" até um canto vazio), parceria falsa e double kill. Se você for impostor e fizer o sinal perto do parceiro bot, ele responde "fechou" e mata junto quando você matar.
-- Nas reuniões os bots deduzem: quem vinha da direção do corpo, quem disse que estava justamente na sala do corpo, quem sabia onde era o corpo antes de alguém contar, quem mentiu no álibi. Eles também lembram quem já respondeu, conhecem as regras e as funções da partida (metamorfo, engenheiro etc.) e o impostor defende o parceiro com discrição, ou o entrega quando ele já está perdido.
+- Impostores: álibi no começo da rodada, isca ("vem comigo" até um canto vazio), parceria falsa e double kill. Se você for impostor e fizer zigue-zague perto do parceiro bot, ele entende, fica por perto e mata junto quando você matar.
+- Conhecimento de mapa: rede de dutos da Skeld, Elétrica como sala mais perigosa, câmeras nos corredores. Quem fica parado numa tarefa visual (scan, asteroides, escudos) sem a animação é pego fingindo; o impostor prefere matar perto de duto e tirar primeiro quem lidera ou já provou inocência; quem terminou as tarefas faz ronda nas salas isoladas.
+- Nas reuniões os bots deduzem: quem vinha da direção do corpo, quem disse que estava justamente na sala do corpo, quem sabia onde era o corpo antes de alguém contar, quem apareceu do nada numa sala ligada por duto ao corpo, quem mentiu no álibi. Eles também lembram quem já respondeu, conhecem as regras e as funções da partida (metamorfo, engenheiro etc.) e o impostor defende o parceiro com discrição, ou o entrega quando ele já está perdido.
 
 **Relatório final:** revela funções e personalidades, mostra o destino de cada um, as tarefas feitas e o principal suspeito de cada bot. Também traz a linha do tempo completa: abates com testemunhas, dutos, sabotagens, votos e ejeções.
 

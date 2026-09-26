@@ -2603,25 +2603,20 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         }
       }
       const net = Math.hypot(mv[mv.length - 1].x - mv[0].x, mv[mv.length - 1].y - mv[0].y);
-      if ((rx >= 3 || ry >= 3) && path > 1.2 && net < 1.6) this.gesture(h, 'wiggle', 'vem!');
+      if ((rx >= 3 || ry >= 3) && path > 1.2 && net < 1.6) this.gesture(h, 'wiggle');
     }
-    humanSignal() {
-      const h = this.human, t = this.t;
-      if (!h || !h.alive || h.inVent || this.phase !== 'play' || (h.gestT && t - h.gestT < 1.5)) return;
-      h.signalT0 = t;
-      h.signalUntil = t + 1.1;
-      h.signalAxis = this.canStand(h.x + 0.7, h.y) && this.canStand(h.x - 0.7, h.y) ? 'x' : 'y';
-      this.gesture(h, 'wiggle', 'vem!');
-    }
-    /* Quem vê o sinal (perto e com linha de visão) decide se atende. */
-    gesture(p, kind, text) {
+    /* O zigue-zague não aparece como texto: quem está olhando talvez perceba (atenção, distância, ocupado, escuro). */
+    gesture(p, kind) {
       const t = this.t;
       p.gestT = t;
-      p.emote = { text: text || 'vem!', until: t + 1.8 };
       this.log({ type: 'gesture', by: p.id, kind });
       for (const q of this.players) {
         if (q === p || !q.alive || !q.brain || !q.brain.seenNow) continue;
-        if (!q.brain.seenNow.includes(p) || U.dist(p, q) > 7) continue;
+        if (!q.brain.seenNow.includes(p)) continue;
+        const d = U.dist(p, q);
+        if (d > 7) continue;
+        const notice = (0.45 + (q.brain.pers.att || 0.7) * 0.5) * (d < 3.5 ? 1 : d < 5.5 ? 0.7 : 0.4) * (q.busy ? 0.6 : 1) * (this.sab && this.sab.type === 'lights' ? 0.6 : 1);
+        if (!U.chance(notice)) continue;
         try {
           q.brain.onGesture(p, kind);
         } catch (e) {
@@ -2705,11 +2700,6 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           const s = this.speedOf(h) * Math.min(1, len);
           this.moveEntity(h, (this.input.x / len) * s, (this.input.y / len) * s, dt);
           if (h.busy && !h.busy.minigame) h.busy = null;
-        } else if (h.signalUntil > t) {
-          /* sinal "vem comigo": zigue-zague automático */
-          const ph = Math.floor((t - h.signalT0) / 0.17) % 2 ? 1 : -1;
-          const s = this.speedOf(h) * 0.85;
-          if (!this.moveEntity(h, h.signalAxis === 'x' ? ph * s : 0, h.signalAxis === 'y' ? ph * s : 0, dt)) h.signalUntil = 0;
         }
       }
       for (const p of this.players) if (p.brain) p.brain.update(dt);
@@ -3294,6 +3284,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   const AU = window.AU;
   const U = AU.U, C = AU.C, M = AU.Map, Nav = AU.Nav;
 
+  const VISUAL_ST = ['scan', 'asteroids', 'shields'];
   const HIGH_TRAFFIC = new Set(['cafeteria', 'admin', 'storage', 'hallAdmin', 'hallUpper', 'hallStorage', 'hallRight', 'hallLower', 'hallLeft', 'hallWeapons']);
 
   class Memory {
@@ -3707,11 +3698,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           if (then) then();
         },
       });
-      g.gesture(p, 'wiggle', text || 'vem!');
+      g.gesture(p, 'wiggle');
+      void text;
     }
-    emote(text, dur) {
-      this.p.emote = { text, until: this.g.t + (dur || 1.6) };
-    }
+    /* Sem balões: a comunicação no mapa é só pelo movimento. */
+    emote() {}
     /* ---------- ordens da IA (estrategista) ---------- */
     /* Executa a ordem atual; devolve false para o motor escolher sozinho. */
     runOrder() {
@@ -3925,7 +3916,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         /* depende de quanto confia, da personalidade e do clima: escuro, corpo recente, pouca gente por perto */
         const recentBody = this.mem.bodies.some((b) => g.t - b.t < 40) || g.t - g.roundStart < 25 && g.meetings > 0 && (g.events || []).some((e) => e.type === 'kill' && e.t > g.roundStart - 60);
         const crowd = this.seenNow.filter((o) => o !== q).length;
-        pAcc = s >= 35 ? 0 : 0.35 + this.pers.follow * 0.35 + (this.pers.leader ? 0.1 : 0) - (this.pers.skeptic ? 0.15 : 0) - (this.pers.panic ? 0.1 : 0) + (q.isHuman ? 0.12 : 0)
+        pAcc = s >= 35 ? 0 : 0.45 + this.pers.follow * 0.35 + (this.pers.leader ? 0.1 : 0) - (this.pers.skeptic ? 0.15 : 0) - (this.pers.panic ? 0.1 : 0) + (q.isHuman ? 0.12 : 0)
           - Math.max(0, s) / 45 + Math.max(0, -s) / 200 - (g.sab && g.sab.type === 'lights' ? 0.2 : 0) - (recentBody ? 0.12 : 0) + (crowd >= 1 ? 0.08 : 0);
       }
       if (p.busy && !U.chance(0.35)) pAcc *= 0.3;
@@ -4128,6 +4119,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (sus.length && (pers.leader || pers.skeptic || pers.times) && r < 0.4) return this.planFollow(sus[0], U.rf(12, 22), U.rf(4, 5.5));
       const pals = this.seenNow.filter((q) => q.alive && (this.susp[g.appearId(q)] || 0) <= -20);
       if (pals.length && r < 0.25 + pers.follow * 0.3) return this.planFollow(U.pick(pals), U.rf(12, 22), 2.4);
+      if (!pers.panic && r < 0.2) return this.planWander(U.pick(['electrical', 'navigation', 'shields', 'comms']), U.rf(1.5, 3));
       const watcher = pers.leader || pers.times || pers.skeptic;
       if (watcher && r < 0.3 && !g.commsDown()) return this.planCams(U.rf(12, 25));
       if (watcher && r < 0.42 && !g.commsDown()) return this.planAdmin();
@@ -4260,7 +4252,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const busy = HIGH_TRAFFIC.has(M.areaAt(tgt ? tgt.x : p.x, tgt ? tgt.y : p.y).id);
         const lowKey = this.layLowUntil && t < this.layLowUntil;
         const grudge = tgt && (tgt.id === this.grudge || (this.prey && t < this.prey.until && tgt.id === this.prey.id));
-        const need = L.need * (busy ? 1.8 : 1) * (lowKey ? 1.8 : 1) * (grudge ? 0.75 : 1);
+        const nearVent = tgt && M.VENTS.some((v) => U.d2(v.x, v.y, tgt.x, tgt.y) < 4.5);
+        const threat = tgt && ((tgt.brain && (tgt.brain.pers.leader || tgt.brain.pers.times)) || this.mem.events.some((e) => e.type === 'visual' && e.who === tgt.id));
+        const need = L.need * (busy ? 1.8 : 1) * (lowKey ? 1.8 : 1) * (grudge ? 0.75 : 1) * (nearVent && L.useVents > 0.5 ? 0.92 : 1) * (threat ? 0.92 : 1);
         if (tgt && this.eagerRoll == null && this.isoT >= need) {
           const waited = t - this.readyT;
           this.eagerRoll = U.chance(L.eager * U.clamp(0.7 + waited / 15, 0.7, 1) * (busy ? 0.7 : 1) * (lowKey && !grudge ? 0.55 : 1));
@@ -4579,9 +4573,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
               this.planFlee(q);
             }
           }
-          if (g.S.rules.visualTasks && U.d2(q.x, q.y, M.STATIONS.scan.x, M.STATIONS.scan.y) < 0.9 && !q.visual && !q.moving) {
+          /* parado numa tarefa visual sem a animação aparecer = tarefa falsa */
+          const vst = g.S.rules.visualTasks ? VISUAL_ST.find((k) => U.d2(q.x, q.y, M.STATIONS[k].x, M.STATIONS[k].y) < 0.9) : null;
+          if (vst && !q.visual && !q.moving) {
             this.scanWatch[aid] = (this.scanWatch[aid] || 0) + 0.2;
-            if (this.scanWatch[aid] >= 3.2) mem.event({ type: 'noscan', t, who: aid, area }, 'noscan:' + aid + ':' + g.meetings);
+            if (this.scanWatch[aid] >= 3.2) mem.event({ type: 'noscan', t, who: aid, area, task: vst }, 'noscan:' + aid + ':' + g.meetings);
           }
         }
       }
@@ -4852,7 +4848,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     const victim = mt.info.body ? mt.info.body.pid : null;
     const reporter = mt.info.kind === 'report' ? mt.info.caller : null;
     const tR = mt.info.t;
-    for (const id of Object.keys(this.ev)) this.ev[id] = this.ev[id].filter((e) => e.reason !== 'nearBody' && e.reason !== 'lastWith' && e.reason !== 'alibi' && e.reason !== 'withVictim' && e.reason !== 'fromBody');
+    for (const id of Object.keys(this.ev)) this.ev[id] = this.ev[id].filter((e) => !['nearBody', 'lastWith', 'alibi', 'withVictim', 'fromBody', 'ventLink'].includes(e.reason));
     const add = (id, w, reason, extra) => {
       if (id === me || id === victim) return;
       const list = (this.ev[id] = this.ev[id] || []);
@@ -4908,6 +4904,21 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (s.area !== bodyArea && !M.isNear(s.area, bodyArea)) continue;
         const d0 = Math.hypot(s.x0 - bc.cx, s.y0 - bc.cy), d1 = Math.hypot(s.x - bc.cx, s.y - bc.cy);
         if (d1 - d0 >= 2.5) add(s.who, 15, 'fromBody', { area: s.area, bodyArea, t: s.t1 });
+      }
+    }
+    /* apareceu do nada numa sala ligada por duto à sala do corpo, pouco antes de acharem */
+    const linked = new Set();
+    for (const v of M.VENTS) if (v.area === bodyArea) v.links.forEach((l) => linked.add(M.VENT[l].area));
+    linked.delete(bodyArea);
+    if (linked.size) {
+      for (const s of this.mem.seen) {
+        if (s.who === victim || s.who === me || s.via !== 'eyes' || !linked.has(s.area)) continue;
+        if (s.t0 < tFound - 20 || s.t0 > tFound + 1) continue;
+        /* "apareceu": o bot já estava na sala e a pessoa surgiu no meio dela (não pela porta) */
+        const r = M.AREA[s.area];
+        if (!r || r.kind !== 'room' || s.x0 == null || Math.hypot(s.x0 - r.cx, s.y0 - r.cy) > Math.min(r.rect[2], r.rect[3]) * 0.45) continue;
+        if (this.myStay(s.area) < 6) continue;
+        add(s.who, 8, 'ventLink', { area: s.area, bodyArea });
       }
     }
     /* quem foi visto andando colado na vítima pouco antes */
@@ -5078,7 +5089,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     }
     /* depois de dizer onde está o corpo, quem viu o abate já fala quem foi */
     const urgent = this.queue.length && this.queue[0].k === 'accuse' && STRONG[this.queue[0].reason];
-    if (this.queue.length) mt.schedule(urgent ? U.rf(0.8, 1.5) * mt.pace : this.typeDelay(), this, () => this.nextAgenda(), { agenda: true });
+    if (this.queue.length) mt.schedule(urgent ? U.rf(0.8, 1.5) * mt.pace : this.typeDelay(), this, () => this.nextAgenda(), { agenda: true, force: !!urgent });
   };
 
   B.typeDelay = function (text) {
@@ -6008,7 +6019,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         R.visualTasks
           ? '- Tarefas visuais (scan da MedBay, asteroides em Armas, escudos, lixo) mostram para quem vê que a pessoa é tripulante' + (H.noVisualHardClear ? ' (regra da casa: não inocenta de vez).' : '.')
           : '- Tarefas visuais estão desligadas nesta partida: ver alguém no scan não prova nada.',
-        '- Onde se vigia: câmeras na Segurança, mapa do Admin (mostra quantas pessoas por sala, sem cores). Botão de emergência na Cafeteria.',
+        '- Onde se vigia: câmeras na Segurança (vigiam os corredores de fora da Segurança, da MedBay, do Admin e da Navegação), mapa do Admin (mostra quantas pessoas por sala, sem cores). Botão de emergência na Cafeteria.',
+        '- Dutos da Skeld (só dá para ir entre salas ligadas): Elétrica ↔ MedBay ↔ Segurança; Cafeteria ↔ Admin ↔ corredor dos Escudos; Armas ↔ Navegação (norte); Navegação (sul) ↔ Escudos; Motor Superior ↔ Reator ↔ Motor Inferior. Quem aparece do nada numa sala ligada por duto ao local do corpo pode ter ventado.',
+        '- A Elétrica é o lugar mais perigoso (entrada estreita, duto no canto). Navegação, Escudos e Comunicações são isoladas. Impostor não consegue fazer tarefa visual: quem fica parado numa tarefa visual sem a animação está fingindo.',
         '- Argumentos comuns: self report (o impostor reporta o próprio corpo), stack kill (matar no meio de um grupo), "quem estava sozinho?", "quem confirma o álibi?", "estava perto do corpo", "saiu do duto". Quem mente no álibi fica suspeito. Pular (skip) quando não há prova é normal.',
       ];
       const roles = Object.keys(C.ROLES).filter(on);
@@ -6126,7 +6139,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     reasonOf(b, id) {
       const ev = ((b.ev && b.ev[id]) || []).filter((e) => e.w > 0).sort((a, c) => c.w - a.w)[0];
       if (ev) {
-        const t = { fromBody: 'vinha da direção do corpo', kill: 'você viu matando', vent: 'você viu no duto', shift: 'você viu mudando de forma', vanish: 'você viu sumindo', noscan: 'fingiu o scan', follow: 'ficou te seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava colado na vítima', odd: 'agiu estranho na rodada (te chamou e ficou enrolando / ficou na sua cola)' }[ev.reason];
+        const t = { ventLink: 'apareceu numa sala ligada por duto ao corpo', fromBody: 'vinha da direção do corpo', kill: 'você viu matando', vent: 'você viu no duto', shift: 'você viu mudando de forma', vanish: 'você viu sumindo', noscan: 'fingiu o scan', follow: 'ficou te seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava colado na vítima', odd: 'agiu estranho na rodada (te chamou e ficou enrolando / ficou na sua cola)' }[ev.reason];
         if (t) return t + (ev.area ? ' (' + V.area(ev.area) + ')' : '');
       }
       if ((b.chatClaim[id] || 0) > 12) return 'outros disseram que viram algo';
@@ -6154,7 +6167,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           for (const e of b.ev[id]) {
             if (strongTxt[e.reason]) out.push('VIU ' + nm(+id) + ' ' + strongTxt[e.reason] + (e.area ? ' em ' + V.area(e.area) : '') + '. Tem certeza absoluta.');
             if (e.reason === 'visual') out.push('Viu ' + nm(+id) + ' fazendo ' + (M.VISUAL_NAMES[e.task] || 'uma tarefa visual') + ': inocente com certeza.');
-            if (e.reason === 'noscan') out.push('Viu ' + nm(+id) + ' parado no scanner sem escanear.');
+            if (e.reason === 'noscan') out.push('Viu ' + nm(+id) + ' parado ' + ({ scan: 'no scanner da MedBay', asteroids: 'na arma de asteroides', shields: 'no painel dos escudos' }[e.task] || 'numa tarefa visual') + ' sem a animação aparecer (tarefa falsa).');
+            if (e.reason === 'ventLink') out.push('Viu ' + nm(+id) + ' aparecer em ' + V.area(e.area) + ', que tem duto ligado a ' + V.area(e.bodyArea) + ' (onde estava o corpo), pouco antes.');
             if (e.reason === 'withVictim' || e.reason === 'lastWith') out.push('Viu ' + nm(+id) + ' junto da vítima pouco antes' + (e.area ? ', em ' + V.area(e.area) : '') + '.');
             if (e.reason === 'nearBody' && e.w >= 14) out.push('Viu ' + nm(+id) + ' perto de onde estava o corpo' + (e.area ? ' (' + V.area(e.area) + ')' : '') + ' pouco antes.');
             if (e.reason === 'together' && e.secs >= 20) out.push('Ficou um tempo junto de ' + nm(+id) + ' e nada aconteceu.');
@@ -7015,6 +7029,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (alone.length === 1) out.push(this.who(alone[0].id) + ' está sozinho perto dele.');
         if (b.layLowUntil && g.t < b.layLowUntil) out.push('Foi acusado na última reunião: precisa parecer inocente por um tempo.');
         if (b.grudge != null && g.players[b.grudge].alive) out.push(this.who(b.grudge) + ' o acusou.');
+        const cleared = [...new Set(b.mem.events.filter((e) => e.type === 'visual' && g.players[e.who] && g.players[e.who].alive && !g.players[e.who].isImp).map((e) => e.who))];
+        if (cleared.length) out.push('Já provaram inocência com tarefa visual (os outros confiam neles; bons alvos): ' + cleared.map((id) => this.who(id)).join(', ') + '.');
+        const near = M.VENTS.filter((v) => U.d2(v.x, v.y, p.x, p.y) < 6).map((v) => M.AREA[v.area].name);
+        if (near.length) out.push('Duto perto: ' + near[0] + '.');
         if (p.special) out.push('Função: ' + C.ROLES[p.special].name + '.');
       }
       if (p.emergencyLeft > 0 && !p.isImp) out.push('Botões de emergência restantes: ' + p.emergencyLeft + '.');
@@ -9052,24 +9070,6 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         ctx.strokeText(ap.name, sp.x, sp.y - ppt * 0.95);
         ctx.fillStyle = partner ? '#ff5a5a' : '#ffffff';
         ctx.fillText(ap.name, sp.x, sp.y - ppt * 0.95);
-        if (p.emote && p.emote.until > g.t && p.alive) {
-          /* balão curto de sinal ("vem!", "ok", "?") acima do nome */
-          const txt = p.emote.text;
-          ctx.font = `800 ${Math.max(11, ppt * 0.4)}px "Nunito", system-ui, sans-serif`;
-          const w = ctx.measureText(txt).width + ppt * 0.4, bh = ppt * 0.55, by = sp.y - ppt * 1.75;
-          ctx.fillStyle = 'rgba(255,255,255,0.95)';
-          rr(ctx, sp.x - w / 2, by - bh / 2, w, bh, bh * 0.4);
-          ctx.fill();
-          ctx.beginPath();
-          ctx.moveTo(sp.x - ppt * 0.1, by + bh / 2 - 1);
-          ctx.lineTo(sp.x + ppt * 0.1, by + bh / 2 - 1);
-          ctx.lineTo(sp.x, by + bh / 2 + ppt * 0.14);
-          ctx.fill();
-          ctx.fillStyle = '#10131c';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(txt, sp.x, by + 1);
-          ctx.textBaseline = 'alphabetic';
-        }
         ctx.globalAlpha = 1;
       }
       /* efeitos */
@@ -10611,9 +10611,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       e.actVent = act('vent', '🕳', 'Duto', 'V', () => this.doVent());
       e.actSab = act('sab', '⚠', 'Sabotar', 'X', () => this.toggleMap(true), 'red');
       e.actAbility = act('ability', '✦', 'Habilidade', 'F', () => this.doAbility(), 'violet');
-      e.actSignal = act('signal', '〰', 'Sinal', 'G', () => this.g.humanSignal());
-      e.actSignal.title = 'Zigue-zague "vem comigo" (G): quem estiver perto pode te seguir';
-      e.actions = h('div', { class: 'hud-actions' }, e.actSignal, e.actAbility, e.actSab, e.actVent, e.actKill, e.actReport, e.actUse);
+      e.actions = h('div', { class: 'hud-actions' }, e.actAbility, e.actSab, e.actVent, e.actKill, e.actReport, e.actUse);
       e.ventNav = h('div', { class: 'hud-ventnav', hidden: true });
       e.joy = h('div', { class: 'hud-joy', 'aria-hidden': 'true' }, h('div', { class: 'knob' }));
       root.append(e.tasks, topRight, e.sab, e.toast, e.feedBox, e.actions, e.ventNav, e.joy);
@@ -10739,7 +10737,6 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.setAct(e.actUse, true, useOk && !hp.inVent, use ? use.label : 'Usar');
       const body = play ? g.bodyInReach(hp) : null;
       this.setAct(e.actReport, hp.alive, !!body);
-      this.setAct(e.actSignal, hp.alive && play, !hp.inVent && !(hp.gestT && g.t - hp.gestT < 1.5));
       const isImp = hp.isImp;
       const target = play && isImp ? g.killTargetFor(hp) : null;
       this.setAct(e.actKill, isImp && hp.alive, !!target && hp.killCd <= 0 && !(hp.invisUntil > g.t), null, hp.killCd);
@@ -12108,7 +12105,6 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           HUD.toggleMap();
           break;
         case 'KeyH': HUD.openHistory(); break;
-        case 'KeyG': g.humanSignal(); break;
         case 'Digit1': HUD.ventKey(0); break;
         case 'Digit2': HUD.ventKey(1); break;
         case 'Digit3': HUD.ventKey(2); break;

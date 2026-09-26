@@ -179,7 +179,6 @@
           HUD.toggleMap();
           break;
         case 'KeyH': HUD.openHistory(); break;
-        case 'KeyG': g.humanSignal(); break;
         case 'Digit1': HUD.ventKey(0); break;
         case 'Digit2': HUD.ventKey(1); break;
         case 'Digit3': HUD.ventKey(2); break;

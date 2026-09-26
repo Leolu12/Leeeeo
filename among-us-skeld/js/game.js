@@ -237,25 +237,20 @@
         }
       }
       const net = Math.hypot(mv[mv.length - 1].x - mv[0].x, mv[mv.length - 1].y - mv[0].y);
-      if ((rx >= 3 || ry >= 3) && path > 1.2 && net < 1.6) this.gesture(h, 'wiggle', 'vem!');
+      if ((rx >= 3 || ry >= 3) && path > 1.2 && net < 1.6) this.gesture(h, 'wiggle');
     }
-    humanSignal() {
-      const h = this.human, t = this.t;
-      if (!h || !h.alive || h.inVent || this.phase !== 'play' || (h.gestT && t - h.gestT < 1.5)) return;
-      h.signalT0 = t;
-      h.signalUntil = t + 1.1;
-      h.signalAxis = this.canStand(h.x + 0.7, h.y) && this.canStand(h.x - 0.7, h.y) ? 'x' : 'y';
-      this.gesture(h, 'wiggle', 'vem!');
-    }
-    /* Quem vê o sinal (perto e com linha de visão) decide se atende. */
-    gesture(p, kind, text) {
+    /* O zigue-zague não aparece como texto: quem está olhando talvez perceba (atenção, distância, ocupado, escuro). */
+    gesture(p, kind) {
       const t = this.t;
       p.gestT = t;
-      p.emote = { text: text || 'vem!', until: t + 1.8 };
       this.log({ type: 'gesture', by: p.id, kind });
       for (const q of this.players) {
         if (q === p || !q.alive || !q.brain || !q.brain.seenNow) continue;
-        if (!q.brain.seenNow.includes(p) || U.dist(p, q) > 7) continue;
+        if (!q.brain.seenNow.includes(p)) continue;
+        const d = U.dist(p, q);
+        if (d > 7) continue;
+        const notice = (0.45 + (q.brain.pers.att || 0.7) * 0.5) * (d < 3.5 ? 1 : d < 5.5 ? 0.7 : 0.4) * (q.busy ? 0.6 : 1) * (this.sab && this.sab.type === 'lights' ? 0.6 : 1);
+        if (!U.chance(notice)) continue;
         try {
           q.brain.onGesture(p, kind);
         } catch (e) {
@@ -339,11 +334,6 @@
           const s = this.speedOf(h) * Math.min(1, len);
           this.moveEntity(h, (this.input.x / len) * s, (this.input.y / len) * s, dt);
           if (h.busy && !h.busy.minigame) h.busy = null;
-        } else if (h.signalUntil > t) {
-          /* sinal "vem comigo": zigue-zague automático */
-          const ph = Math.floor((t - h.signalT0) / 0.17) % 2 ? 1 : -1;
-          const s = this.speedOf(h) * 0.85;
-          if (!this.moveEntity(h, h.signalAxis === 'x' ? ph * s : 0, h.signalAxis === 'y' ? ph * s : 0, dt)) h.signalUntil = 0;
         }
       }
       for (const p of this.players) if (p.brain) p.brain.update(dt);
