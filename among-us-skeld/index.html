@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Impostor a Bordo</title>
+  <meta name="description" content="Jogo de dedução social na nave The Skeld com tripulantes controlados por IA.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Nunito:wght@400;700;800;900&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main id="app">
+    <section id="screen-title" class="screen"></section>
+    <section id="screen-create" class="screen" hidden></section>
+    <section id="screen-lobby" class="screen" hidden></section>
+    <section id="screen-reveal" class="screen" hidden></section>
+    <section id="screen-game" class="screen" hidden>
+      <canvas id="world" aria-label="Nave The Skeld"></canvas>
+      <div id="hud"></div>
+      <div id="mg-layer"></div>
+      <div id="overlay-layer"></div>
+      <div id="meeting-layer"></div>
+    </section>
+    <section id="screen-end" class="screen" hidden></section>
+  </main>
+  <script src="js/util.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/talk.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/brain.js"></script>
+  <script src="js/mind.js"></script>
+  <script src="js/meeting.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/minigames.js"></script>
+  <script src="js/hud.js"></script>
+  <script src="js/menu.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

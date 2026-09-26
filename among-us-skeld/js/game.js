@@ -1,0 +1,848 @@
+/* Engine de regras: jogadores, abates, dutos, sabotagens, tarefas, reuniões e vitória. */
+(function () {
+  'use strict';
+  const AU = window.AU;
+  const U = AU.U, C = AU.C, M = AU.Map, Nav = AU.Nav;
+
+  const BASE_SPEED = 5.2;
+  const BASE_VISION = 7;
+  const KILL_DIST = { curta: 1.3, media: 1.9, longa: 2.6 };
+  const USE_DIST = 1.7, REPORT_DIST = 3.6, BUTTON_DIST = 2.6, VENT_DIST = 1.4;
+  const CRIT_TIME = 45;
+
+  class Player {
+    constructor(id, o) {
+      this.id = id;
+      this.name = o.name;
+      this.color = o.color;
+      this.isHuman = !!o.isHuman;
+      this.hat = o.hat || 'nenhum';
+      this.pet = o.pet || 'nenhum';
+      this.visor = o.visor || 'classico';
+      this.personality = o.personality || null;
+      this.role = 'crew';
+      this.special = null;
+      this.x = 0;
+      this.y = 0;
+      this.facing = 1;
+      this.moving = false;
+      this.walkT = 0;
+      this.alive = true;
+      this.tasks = [];
+      this.killCd = 10;
+      this.inVent = null;
+      this.ventT = 0;
+      this.emergencyLeft = 0;
+      this.shiftAs = null;
+      this.shiftUntil = 0;
+      this.abilityCd = 10;
+      this.invisUntil = 0;
+      this.protectedUntil = 0;
+      this.trackTarget = null;
+      this.trackUntil = 0;
+      this.battery = 10;
+      this.visual = null;
+      this.busy = null;
+      this.deathT = null;
+      this.killerId = null;
+      this.ejected = false;
+      this.brain = null;
+      this.onCams = false;
+      this.onAdmin = false;
+      this.lastKillT = -99;
+      this.petX = 0;
+      this.petY = 0;
+    }
+    get isImp() { return this.role === 'impostor'; }
+    get colorObj() { return C.COLOR[this.color]; }
+  }
+
+  class Game {
+    constructor(settings, roster, opts) {
+      opts = opts || {};
+      this.S = settings;
+      this.ui = opts.ui || {};
+      this.headless = !!opts.headless;
+      this.t = 0;
+      this.phase = 'play';
+      this.players = roster.map((r, i) => new Player(i, r));
+      this.human = this.players.find((p) => p.isHuman) || null;
+      this.bodies = [];
+      this.sab = null;
+      this.sabCd = 12;
+      this.doorUntil = {};
+      this.doorCd = {};
+      this.events = [];
+      this.meeting = null;
+      this.meetings = 0;
+      this.bodyFound = false;
+      this.emergencyCdUntil = settings.rules.emergencyCooldown;
+      this.pings = [];
+      this.fx = [];
+      this.lightLevel = 1;
+      this.winner = null;
+      this.endReason = '';
+      this.input = { x: 0, y: 0 };
+      this.killDist = KILL_DIST[settings.rules.killDistance] || KILL_DIST.media;
+      this.percT = 0;
+      this.dispatchT = 0;
+      this.roundStart = 0;
+      this.consts = { USE_DIST, REPORT_DIST, BUTTON_DIST, VENT_DIST, BASE_VISION };
+      M.resetDoors();
+      this.assignRoles();
+      this.assignTasks();
+      this.players.forEach((p) => {
+        p.emergencyLeft = settings.rules.emergencyMeetings;
+        p.killCd = 10;
+      });
+      this.placeAtTable();
+      this.players.forEach((p) => {
+        if (!p.isHuman || opts.autopilot) p.brain = new AU.Brain(this, p);
+      });
+      this.log({ type: 'start' });
+    }
+
+    /* ---------- configuração inicial ---------- */
+    assignRoles() {
+      const S = this.S;
+      const nImp = Math.min(S.room.impostors, Math.max(1, Math.floor((this.players.length - 1) / 2)));
+      const human = this.human;
+      const bots = this.players.filter((p) => p !== human);
+      let humanImp = null;
+      if (human) {
+        if (S.room.draw === 'B') humanImp = true;
+        else if (S.room.draw === 'C') humanImp = false;
+        else if (S.room.draw === 'D') humanImp = U.chance((S.room.drawChance || 0) / 100);
+      }
+      let imps;
+      if (humanImp === null) imps = U.shuffle(this.players).slice(0, nImp);
+      else {
+        imps = humanImp ? [human] : [];
+        imps = imps.concat(U.shuffle(bots).slice(0, nImp - imps.length));
+      }
+      imps.forEach((p) => (p.role = 'impostor'));
+      const crew = U.shuffle(this.players.filter((p) => !p.isImp));
+      const impl = U.shuffle(imps);
+      for (const rid of C.ROLE_IDS) {
+        const cfg = S.roles[rid] || { n: 0, chance: 0 };
+        for (let i = 0; i < cfg.n; i++) {
+          if (!U.chance((cfg.chance || 0) / 100)) continue;
+          const pool = C.ROLES[rid].team === 'crew' ? crew : impl;
+          const cand = pool.find((p) => !p.special);
+          if (cand) cand.special = rid;
+        }
+      }
+    }
+
+    assignTasks() {
+      const R = this.S.rules;
+      const commonIds = U.shuffle(M.TASK_KINDS.common).slice(0, R.commonTasks);
+      const commonSteps = {};
+      commonIds.forEach((id) => (commonSteps[id] = M.TASKS[id].steps()));
+      for (const p of this.players) {
+        const ids = commonIds.slice();
+        U.shuffle(M.TASK_KINDS.long).slice(0, R.longTasks).forEach((id) => ids.push(id));
+        U.shuffle(M.TASK_KINDS.short).slice(0, R.shortTasks).forEach((id) => ids.push(id));
+        p.tasks = ids.map((id) => ({
+          id,
+          def: M.TASKS[id],
+          steps: commonSteps[id] ? commonSteps[id].slice() : M.TASKS[id].steps(),
+          step: 0,
+          done: false,
+          readyAt: 0,
+          fake: p.isImp,
+        }));
+      }
+    }
+
+    placeAtTable() {
+      const alive = this.players;
+      const n = alive.length;
+      alive.forEach((p, i) => {
+        const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+        p.x = M.EMERGENCY.x + Math.cos(a) * 3.4;
+        p.y = M.EMERGENCY.y + Math.sin(a) * 3.4;
+        p.petX = p.x;
+        p.petY = p.y;
+        p.facing = Math.cos(a) > 0 ? -1 : 1;
+        p.inVent = null;
+        p.busy = null;
+        p.visual = null;
+        p.onCams = false;
+        p.onAdmin = false;
+      });
+    }
+
+    /* ---------- utilidades ---------- */
+    appearId(p) { return p.shiftAs != null ? p.shiftAs : p.id; }
+    appear(p) { return this.players[this.appearId(p)]; }
+    isPartner(a, b) { return a !== b && a.isImp && b.isImp; }
+    alivePlayers() { return this.players.filter((p) => p.alive); }
+    speedOf(p) {
+      let s = BASE_SPEED * this.S.rules.playerSpeed;
+      if (!p.alive) s *= 1.3;
+      return s;
+    }
+    visionOf(p) {
+      if (!p.alive) return 60;
+      if (p.isImp) return BASE_VISION * this.S.rules.impostorVision;
+      return BASE_VISION * this.S.rules.crewVision * (0.25 + 0.75 * this.lightLevel);
+    }
+    canSeePoint(p, x, y) {
+      if (!p.alive) return true;
+      if (p.inVent) return false;
+      const r = this.visionOf(p);
+      return U.d2(p.x, p.y, x, y) <= r && Nav.los(p.x, p.y, x, y);
+    }
+    commsDown() { return !!(this.sab && this.sab.type === 'comms'); }
+    sabCritical() { return !!(this.sab && (this.sab.type === 'reactor' || this.sab.type === 'o2')); }
+    anyoneOnCams() { return this.players.some((p) => p.alive && p.onCams) && !this.commsDown(); }
+    areaOf(p) { return M.areaAt(p.x, p.y); }
+    log(ev) {
+      ev.t = this.t;
+      this.events.push(ev);
+    }
+    say(kind, ...a) {
+      if (this.ui[kind]) this.ui[kind](...a);
+    }
+    sfx(name) { if (!this.headless) AU.Audio.play(name); }
+    addFx(fx) {
+      fx.t0 = this.t;
+      this.fx.push(fx);
+    }
+
+    canStand(x, y, ghost) {
+      if (ghost) return x > 0.5 && y > 0.5 && x < M.W - 0.5 && y < M.H - 0.5;
+      const r = 0.3;
+      return M.walkAt(x - r, y - r) && M.walkAt(x + r, y - r) && M.walkAt(x - r, y + r) && M.walkAt(x + r, y + r);
+    }
+    moveEntity(p, vx, vy, dt) {
+      const ghost = !p.alive;
+      const nx = p.x + vx * dt, ny = p.y + vy * dt;
+      let moved = false;
+      if (this.canStand(nx, p.y, ghost)) { p.x = nx; moved = true; }
+      if (this.canStand(p.x, ny, ghost)) { p.y = ny; moved = true; }
+      if (Math.abs(vx) > 0.01) p.facing = vx < 0 ? -1 : 1;
+      p.moving = moved && (Math.abs(vx) + Math.abs(vy) > 0.01);
+      if (p.moving) p.walkT += dt;
+      return moved;
+    }
+
+    /* ---------- laço principal ---------- */
+    update(dt) {
+      if (this.phase === 'ended') return;
+      if (this.phase === 'meeting') {
+        if (this.meeting) this.meeting.update(dt);
+        return;
+      }
+      this.t += dt;
+      const t = this.t;
+      for (const p of this.players) {
+        p.killCd = Math.max(0, p.killCd - dt);
+        p.abilityCd = Math.max(0, p.abilityCd - dt);
+        if (p.special === 'cientista' && p.battery < 10) p.battery = Math.min(10, p.battery + dt * 0.04);
+        if (p.shiftAs != null && t >= p.shiftUntil) this.unshift(p);
+        if (p.invisUntil && t >= p.invisUntil) this.reappear(p);
+        if (p.inVent && p.special === 'engenheiro' && t - p.ventT > 15) this.exitVent(p);
+        if (p.visual && p.visual.until < t) p.visual = null;
+        if (p.busy && p.busy.until && p.busy.until < t - 0.5 && !p.isHuman) p.busy = null;
+        p.moving = false;
+      }
+      this.sabCd = Math.max(0, this.sabCd - dt);
+      const lightTarget = this.sab && this.sab.type === 'lights' ? 0 : 1;
+      this.lightLevel += U.clamp(lightTarget - this.lightLevel, -dt / 1.5, dt / 1.5);
+      for (const room of M.DOOR_ROOMS) {
+        if (this.doorUntil[room] && t >= this.doorUntil[room]) {
+          this.doorUntil[room] = 0;
+          M.setDoorsClosed(room, false);
+        }
+      }
+      if (this.sab) {
+        if (this.sab.timer != null) {
+          this.sab.timer -= dt;
+          if (this.sab.type === 'reactor') {
+            const h = this.sab.hold;
+            if (t - h.A < 0.3 && t - h.B < 0.3) {
+              this.sab.both += dt;
+              if (this.sab.both >= 1.2) this.sabFixed(null);
+            } else this.sab.both = 0;
+          }
+          if (this.sab && this.sab.timer <= 0) {
+            this.end('impostor', this.sab.type === 'reactor' ? 'O reator derreteu.' : 'O oxigênio acabou.');
+            return;
+          }
+        }
+        this.dispatchT -= dt;
+        if (this.dispatchT <= 0) {
+          this.dispatchT = 3;
+          this.dispatchFix();
+        }
+      }
+
+      const h = this.human;
+      if (h && this.phase === 'play' && !h.inVent && !h.frozen) {
+        const len = Math.hypot(this.input.x, this.input.y);
+        if (len > 0.05) {
+          const s = this.speedOf(h) * Math.min(1, len);
+          this.moveEntity(h, (this.input.x / len) * s, (this.input.y / len) * s, dt);
+          if (h.busy && !h.busy.minigame) h.busy = null;
+        }
+      }
+      for (const p of this.players) if (p.brain) p.brain.update(dt);
+      if (this.phase !== 'play') return;
+
+      this.percT -= dt;
+      if (this.percT <= 0) {
+        this.percT = 0.2;
+        this.perceive();
+      }
+      for (const p of this.players) {
+        const tx = p.x - p.facing * 0.9, ty = p.y + 0.25;
+        p.petX += (tx - p.petX) * Math.min(1, dt * 4);
+        p.petY += (ty - p.petY) * Math.min(1, dt * 4);
+      }
+      this.fx = this.fx.filter((f) => t - f.t0 < (f.dur || 1));
+      this.pings = this.pings.filter((pg) => pg.until > t);
+      this.checkWin();
+    }
+
+    /* ---------- percepção dos bots ---------- */
+    perceive() {
+      const t = this.t;
+      const targets = this.players.filter((q) => q.alive && !q.inVent && !(q.invisUntil > t));
+      const bodies = this.bodies.filter((b) => !b.gone);
+      const commsDown = this.commsDown();
+      for (const b of this.players) {
+        if (!b.brain || !b.alive || b.inVent) continue;
+        const r = this.visionOf(b);
+        const seen = [];
+        for (const q of targets) {
+          if (q === b) continue;
+          if (U.d2(b.x, b.y, q.x, q.y) <= r && Nav.los(b.x, b.y, q.x, q.y)) seen.push(q);
+        }
+        const bs = bodies.filter((bd) => U.d2(b.x, b.y, bd.x, bd.y) <= r && Nav.los(b.x, b.y, bd.x, bd.y));
+        b.brain.perceive(seen, bs, 'eyes');
+        if (b.onCams && !commsDown) {
+          const cs = [], cb = [];
+          for (const cam of M.CAMS) {
+            for (const q of targets) {
+              if (q === b || cs.includes(q) || seen.includes(q)) continue;
+              if (U.d2(cam.x, cam.y, q.x, q.y) <= M.CAM_R && Nav.los(cam.x, cam.y, q.x, q.y)) cs.push(q);
+            }
+            for (const bd of bodies) {
+              if (!cb.includes(bd) && U.d2(cam.x, cam.y, bd.x, bd.y) <= M.CAM_R && Nav.los(cam.x, cam.y, bd.x, bd.y)) cb.push(bd);
+            }
+          }
+          if (cs.length || cb.length) b.brain.perceive(cs, cb, 'cams');
+        }
+        if (b.trackTarget != null && b.trackUntil > t) {
+          const q = this.players[b.trackTarget];
+          if (q.alive) b.brain.perceiveTrack(q);
+        }
+      }
+    }
+
+    witnesses(points, exclude) {
+      const res = [];
+      const commsDown = this.commsDown();
+      for (const b of this.players) {
+        if (!b.alive || b.inVent || exclude.includes(b.id)) continue;
+        const r = this.visionOf(b);
+        let via = null;
+        if (points.some((pt) => U.d2(b.x, b.y, pt.x, pt.y) <= r && Nav.los(b.x, b.y, pt.x, pt.y))) via = 'eyes';
+        else if (b.onCams && !commsDown && points.some((pt) => M.CAMS.some((c) => U.d2(c.x, c.y, pt.x, pt.y) <= M.CAM_R && Nav.los(c.x, c.y, pt.x, pt.y)))) via = 'cams';
+        if (via) res.push({ p: b, via });
+      }
+      return res;
+    }
+
+    /* ---------- abate e reporte ---------- */
+    killTargetFor(k) {
+      if (!k.alive || !k.isImp || k.inVent) return null;
+      let best = null, bd = 1e9;
+      for (const v of this.players) {
+        if (!v.alive || v.isImp || v.inVent || v === k) continue;
+        const d = U.dist(k, v);
+        if (d <= this.killDist && d < bd && Nav.los(k.x, k.y, v.x, v.y)) {
+          bd = d;
+          best = v;
+        }
+      }
+      return best;
+    }
+
+    partnerKilledRecently(k) {
+      return this.players.some((p) => p !== k && p.isImp && this.t - p.lastKillT < 8);
+    }
+
+    tryKill(k, v) {
+      const t = this.t;
+      if (this.phase !== 'play' || !k.alive || !k.isImp || k.killCd > 0 || !v || !v.alive || v.isImp || k.inVent || v.inVent) return false;
+      if (k.invisUntil > t) return false;
+      if (U.dist(k, v) > this.killDist + 0.05) return false;
+      if (this.S.house.noDoubleKill && this.partnerKilledRecently(k)) return false;
+      if (v.protectedUntil > t) {
+        v.protectedUntil = 0;
+        k.killCd = this.S.rules.killCooldown * 0.5;
+        this.addFx({ type: 'shield', x: v.x, y: v.y, dur: 1.2 });
+        this.log({ type: 'protectBlock', killer: k.id, victim: v.id });
+        if (k.isHuman || v.isHuman) this.say('toast', 'Um escudo de anjo bloqueou o abate!');
+        this.sfx('shield');
+        return false;
+      }
+      const kx = k.x, ky = k.y;
+      const area = M.areaAt(v.x, v.y);
+      const apparent = this.appearId(k);
+      v.alive = false;
+      v.deathT = t;
+      v.killerId = k.id;
+      v.killerApparent = apparent;
+      v.busy = null;
+      v.visual = null;
+      v.onCams = false;
+      v.onAdmin = false;
+      v.trackTarget = null;
+      const body = { id: this.bodies.length, pid: v.id, x: v.x, y: v.y, t, area: area.id, reported: false, gone: false, killer: k.id };
+      this.bodies.push(body);
+      k.x = v.x;
+      k.y = v.y;
+      k.killCd = this.S.rules.killCooldown;
+      k.lastKillT = t;
+      k.busy = null;
+      const wit = this.witnesses([{ x: kx, y: ky }, { x: v.x, y: v.y }], [k.id, v.id]);
+      for (const w of wit) if (w.p.brain) w.p.brain.onWitnessKill(apparent, v.id, area.id, w.via, body);
+      if (k.brain) k.brain.onKilled(v, body, wit);
+      if (v.brain) v.brain.onDeath(k, apparent);
+      this.addFx({ type: 'kill', x: v.x, y: v.y, dur: 0.8 });
+      this.log({ type: 'kill', killer: k.id, victim: v.id, area: area.id, apparent, witnesses: wit.map((w) => w.p.id) });
+      const h = this.human;
+      if (v.isHuman) {
+        this.sfx('kill');
+        this.say('onHumanKilled', k, this.players[apparent]);
+      } else if (k.isHuman) {
+        this.sfx('kill');
+      } else if (h && h.alive && this.canSeePoint(h, v.x, v.y)) {
+        this.sfx('kill');
+        this.say('narrate', 'Você viu um abate acontecer diante dos seus olhos.', 'event');
+      }
+      if (v.special === 'barulhento') {
+        this.pings.push({ x: v.x, y: v.y, until: t + 10, pid: v.id });
+        for (const p of this.players) if (p.brain && p.alive) p.brain.onNoise(body);
+        if (h && h.alive) this.say('toast', 'Alerta! Um tripulante morreu — siga o sinal.');
+      }
+      this.checkWin();
+      return true;
+    }
+
+    bodyInReach(p) {
+      if (!p.alive || p.inVent) return null;
+      let best = null, bd = 1e9;
+      for (const b of this.bodies) {
+        if (b.gone || b.reported) continue;
+        const d = U.d2(p.x, p.y, b.x, b.y);
+        if (d <= REPORT_DIST && d < bd && Nav.los(p.x, p.y, b.x, b.y)) {
+          bd = d;
+          best = b;
+        }
+      }
+      if (best && this.S.house.noSelfReport && best.killer === p.id) return null;
+      return best;
+    }
+
+    tryReport(p, body) {
+      if (this.phase !== 'play' || !p.alive || !body || body.reported || body.gone) return false;
+      if (U.d2(p.x, p.y, body.x, body.y) > REPORT_DIST + 0.2 || !Nav.los(p.x, p.y, body.x, body.y)) return false;
+      if (this.S.house.noSelfReport && body.killer === p.id) return false;
+      body.reported = true;
+      this.bodyFound = true;
+      this.log({ type: 'report', by: p.id, victim: body.pid, area: body.area });
+      this.startMeeting({ kind: 'report', caller: p.id, body });
+      return true;
+    }
+
+    canEmergency(p) {
+      return this.phase === 'play' && p.alive && !p.inVent && p.emergencyLeft > 0 && this.t >= this.emergencyCdUntil && !this.sabCritical();
+    }
+    nearButton(p) { return U.d2(p.x, p.y, M.EMERGENCY.x, M.EMERGENCY.y) <= BUTTON_DIST; }
+    tryEmergency(p) {
+      if (!this.canEmergency(p) || !this.nearButton(p)) return false;
+      p.emergencyLeft--;
+      this.log({ type: 'emergency', by: p.id });
+      this.startMeeting({ kind: 'emergency', caller: p.id });
+      return true;
+    }
+
+    /* ---------- reuniões ---------- */
+    startMeeting(info) {
+      this.phase = 'meeting';
+      this.say('closeOverlays');
+      if (this.sabCritical()) {
+        this.log({ type: 'sabFix', sab: this.sab.type, by: null, meeting: true });
+        this.sab = null;
+        AU.Audio.alarm(false);
+      }
+      for (const p of this.players) {
+        if (p.inVent) p.inVent = null;
+        if (p.shiftAs != null) p.shiftAs = null;
+        p.invisUntil = 0;
+        p.onCams = false;
+        p.onAdmin = false;
+        p.busy = null;
+        p.visual = null;
+        p.moving = false;
+      }
+      for (const room of M.DOOR_ROOMS) {
+        this.doorUntil[room] = 0;
+        M.setDoorsClosed(room, false);
+      }
+      this.meetings++;
+      info.index = this.meetings;
+      info.t = this.t;
+      info.roundStart = this.roundStart;
+      this.log({ type: 'meeting', kind: info.kind, by: info.caller, index: this.meetings });
+      this.sfx(info.kind === 'report' ? 'report' : 'meeting');
+      this.meeting = new AU.Meeting(this, info);
+      this.meetingLog = this.meetingLog || [];
+      this.meetingLog.push(this.meeting);
+      this.say('onMeetingStart', this.meeting);
+    }
+
+    finishMeeting(result) {
+      const ej = result.ejected != null ? this.players[result.ejected] : null;
+      if (ej) {
+        ej.alive = false;
+        ej.ejected = true;
+        ej.deathT = this.t;
+        ej.busy = null;
+      }
+      this.log({ type: 'vote', index: this.meeting ? this.meeting.info.index : this.meetings, ejected: ej ? ej.id : null, tie: !!result.tie, votes: result.votes });
+      this.bodies.forEach((b) => (b.gone = true));
+      this.placeAtTable();
+      for (const p of this.players) {
+        if (p.isImp) p.killCd = this.S.rules.killCooldown;
+        if (p.special) p.abilityCd = Math.max(p.abilityCd, 10);
+      }
+      this.sabCd = Math.max(this.sabCd, 12);
+      this.emergencyCdUntil = this.t + this.S.rules.emergencyCooldown;
+      this.roundStart = this.t;
+      for (const p of this.players) if (p.brain) p.brain.onMeetingEnd(result);
+      this.meeting = null;
+      this.phase = 'play';
+      this.checkWin();
+    }
+
+    /* ---------- sabotagem ---------- */
+    canSabotage(p) {
+      return !!p && p.isImp && this.phase === 'play' && !this.sab && this.sabCd <= 0 && !p.inVent;
+    }
+    critAllowed() { return !this.S.house.critAfterFirstBody || this.bodyFound; }
+    sabotage(type, p) {
+      if (!this.canSabotage(p)) return false;
+      if ((type === 'reactor' || type === 'o2') && !this.critAllowed()) return false;
+      const s = { type, t0: this.t, by: p.id };
+      if (type === 'lights') {
+        s.switches = [0, 1, 2, 3, 4].map(() => U.chance(0.5));
+        if (s.switches.every(Boolean)) s.switches[U.rint(0, 4)] = false;
+        s.switches[U.rint(0, 4)] = false;
+      } else if (type === 'reactor') {
+        s.timer = CRIT_TIME;
+        s.hold = { A: -9, B: -9 };
+        s.both = 0;
+      } else if (type === 'o2') {
+        s.timer = CRIT_TIME;
+        s.code = String(U.rint(10000, 99999));
+        s.done = { A: false, B: false };
+      } else if (type === 'comms') {
+        s.target = U.rf(-2.4, 2.4);
+      } else return false;
+      this.sab = s;
+      this.dispatchT = 0;
+      this.log({ type: 'sabotage', sab: type, by: p.id });
+      for (const q of this.players) if (q.brain) q.brain.onSabotage(s);
+      this.say('onSabotage', s);
+      this.sfx('sabotage');
+      if (type === 'reactor' || type === 'o2') {
+        if (!this.headless) AU.Audio.alarm(true);
+      }
+      return true;
+    }
+    sabFixed(by) {
+      if (!this.sab) return;
+      const s = this.sab;
+      this.log({ type: 'sabFix', sab: s.type, by: by ? by.id : null, dur: this.t - s.t0 });
+      this.sab = null;
+      this.sabCd = 30;
+      AU.Audio.alarm(false);
+      for (const q of this.players) if (q.brain) q.brain.onSabFixed(s);
+      this.say('onSabFixed', s);
+    }
+    fixLightsToggle(i, p) {
+      const s = this.sab;
+      if (!s || s.type !== 'lights') return;
+      s.switches[i] = !s.switches[i];
+      if (s.switches.every(Boolean)) this.sabFixed(p);
+    }
+    botFixLights(p) {
+      if (this.sab && this.sab.type === 'lights') {
+        this.sab.switches = this.sab.switches.map(() => true);
+        this.sabFixed(p);
+      }
+    }
+    reactorHold(p, which) {
+      if (this.sab && this.sab.type === 'reactor') this.sab.hold[which] = this.t;
+    }
+    o2Enter(which, code, p) {
+      const s = this.sab;
+      if (!s || s.type !== 'o2') return false;
+      if (String(code) !== s.code) return false;
+      s.done[which] = true;
+      this.log({ type: 'o2pad', which, by: p.id });
+      if (s.done.A && s.done.B) this.sabFixed(p);
+      return true;
+    }
+    fixComms(p) {
+      if (this.sab && this.sab.type === 'comms') this.sabFixed(p);
+    }
+    sabStationsNeeded() {
+      const s = this.sab;
+      if (!s) return [];
+      if (s.type === 'lights') return ['lights'];
+      if (s.type === 'comms') return ['comms'];
+      if (s.type === 'reactor') return ['reactorA', 'reactorB'];
+      if (s.type === 'o2') return ['o2A', 'o2B'].filter((k) => !s.done[k.slice(-1)]);
+      return [];
+    }
+    dispatchFix() {
+      const s = this.sab;
+      if (!s) return;
+      const need = this.sabStationsNeeded();
+      const want = s.type === 'lights' ? 2 : s.type === 'comms' ? 1 : 2;
+      for (const st of need) {
+        const pos = M.SAB_STATIONS[st];
+        const assigned = this.players.filter((p) => p.alive && p.brain && p.brain.fix === st);
+        if (assigned.length >= want) continue;
+        const cands = this.players
+          .filter((p) => p.alive && p.brain && !p.isImp && !p.brain.fix && !p.inVent)
+          .sort((a, b) => U.d2(a.x, a.y, pos.x, pos.y) - U.d2(b.x, b.y, pos.x, pos.y));
+        for (const c of cands.slice(0, want - assigned.length)) c.brain.assignFix(st);
+      }
+    }
+
+    doorReady(room) { return (this.doorCd[room] || 0) <= this.t; }
+    closeDoors(room, p) {
+      if (!p || !p.isImp || this.phase !== 'play' || !this.doorReady(room) || !M.DOOR_ROOMS.includes(room)) return false;
+      this.doorUntil[room] = this.t + 10;
+      this.doorCd[room] = this.t + 26;
+      M.setDoorsClosed(room, true);
+      this.log({ type: 'doors', room, by: p.id });
+      for (const q of this.players) if (q.brain) q.brain.onDoors(room);
+      const h = this.human;
+      if (h && U.d2(h.x, h.y, M.AREA[room].cx, M.AREA[room].cy) < 16) this.sfx('door');
+      return true;
+    }
+
+    /* ---------- dutos ---------- */
+    canVent(p) { return p.alive && (p.isImp || p.special === 'engenheiro') && this.phase === 'play'; }
+    nearestVent(p) {
+      let best = null, bd = VENT_DIST;
+      for (const v of M.VENTS) {
+        const d = U.d2(p.x, p.y, v.x, v.y);
+        if (d <= bd) {
+          bd = d;
+          best = v;
+        }
+      }
+      return best;
+    }
+    enterVent(p, v) {
+      if (!this.canVent(p) || p.inVent || !v) return false;
+      if (p.special === 'engenheiro' && p.abilityCd > 0) return false;
+      if (p.invisUntil > this.t) return false;
+      p.inVent = v.id;
+      p.x = v.x;
+      p.y = v.y;
+      p.ventT = this.t;
+      p.busy = null;
+      p.onCams = false;
+      const wit = this.witnesses([v], [p.id]);
+      const ap = this.appearId(p);
+      for (const w of wit) if (w.p.brain) w.p.brain.onWitnessVent(ap, 'in', v, w.via);
+      this.addFx({ type: 'vent', x: v.x, y: v.y, dur: 0.5 });
+      this.log({ type: 'vent', by: p.id, vent: v.id, dir: 'in', witnesses: wit.map((w) => w.p.id) });
+      if (this.human && (p.isHuman || this.canSeePoint(this.human, v.x, v.y))) this.sfx('vent');
+      return true;
+    }
+    ventTo(p, vid) {
+      if (!p.inVent) return false;
+      const cur = M.VENT[p.inVent];
+      if (!cur.links.includes(vid)) return false;
+      const v = M.VENT[vid];
+      p.inVent = vid;
+      p.x = v.x;
+      p.y = v.y;
+      if (p.isHuman) this.sfx('vent');
+      return true;
+    }
+    exitVent(p) {
+      if (!p.inVent) return false;
+      const v = M.VENT[p.inVent];
+      p.inVent = null;
+      const wit = this.witnesses([v], [p.id]);
+      const ap = this.appearId(p);
+      for (const w of wit) if (w.p.brain) w.p.brain.onWitnessVent(ap, 'out', v, w.via);
+      this.addFx({ type: 'vent', x: v.x, y: v.y, dur: 0.5 });
+      this.log({ type: 'vent', by: p.id, vent: v.id, dir: 'out', witnesses: wit.map((w) => w.p.id) });
+      if (p.special === 'engenheiro') p.abilityCd = 20;
+      if (this.human && (p.isHuman || this.canSeePoint(this.human, v.x, v.y))) this.sfx('vent');
+      return true;
+    }
+
+    /* ---------- habilidades especiais ---------- */
+    shapeshift(p, targetId) {
+      const t = this.t;
+      if (p.special !== 'metamorfo' || !p.alive || p.abilityCd > 0 || p.inVent || p.shiftAs != null || this.phase !== 'play') return false;
+      const tg = this.players[targetId];
+      if (!tg || tg === p) return false;
+      const wit = this.witnesses([p], [p.id]);
+      for (const w of wit) if (w.p.brain) w.p.brain.onWitnessShift(p.id, targetId, w.via);
+      p.shiftAs = targetId;
+      p.shiftUntil = t + 30;
+      this.addFx({ type: 'puff', x: p.x, y: p.y, dur: 0.6 });
+      this.log({ type: 'shift', by: p.id, into: targetId, witnesses: wit.map((w) => w.p.id) });
+      return true;
+    }
+    unshift(p) {
+      if (p.shiftAs == null) return;
+      const wit = this.witnesses([p], [p.id]);
+      for (const w of wit) if (w.p.brain) w.p.brain.onWitnessShift(p.id, p.shiftAs, w.via);
+      p.shiftAs = null;
+      p.abilityCd = 25;
+      this.addFx({ type: 'puff', x: p.x, y: p.y, dur: 0.6 });
+    }
+    vanish(p) {
+      if (p.special !== 'fantasma' || !p.alive || p.abilityCd > 0 || p.inVent || p.invisUntil > this.t || this.phase !== 'play') return false;
+      const wit = this.witnesses([p], [p.id]);
+      for (const w of wit) if (w.p.brain) w.p.brain.onWitnessVanish(p.id, w.via);
+      p.invisUntil = this.t + 10;
+      this.addFx({ type: 'puff', x: p.x, y: p.y, dur: 0.6 });
+      this.log({ type: 'vanish', by: p.id, witnesses: wit.map((w) => w.p.id) });
+      return true;
+    }
+    reappear(p) {
+      p.invisUntil = 0;
+      p.abilityCd = 25;
+      const wit = this.witnesses([p], [p.id]);
+      for (const w of wit) if (w.p.brain) w.p.brain.onWitnessVanish(p.id, w.via);
+      this.addFx({ type: 'puff', x: p.x, y: p.y, dur: 0.6 });
+    }
+    track(p, targetId) {
+      if (p.special !== 'rastreador' || !p.alive || p.abilityCd > 0) return false;
+      const tg = this.players[targetId];
+      if (!tg || !tg.alive || tg === p || U.dist(p, tg) > 3.5) return false;
+      p.trackTarget = targetId;
+      p.trackUntil = this.t + 30;
+      p.abilityCd = 45;
+      this.log({ type: 'track', by: p.id, target: targetId });
+      return true;
+    }
+    protect(p, targetId) {
+      if (p.special !== 'anjo' || p.alive || p.abilityCd > 0 || p.isImp) return false;
+      const tg = this.players[targetId];
+      if (!tg || !tg.alive || U.dist(p, tg) > 4) return false;
+      tg.protectedUntil = this.t + 35;
+      p.abilityCd = 60;
+      this.log({ type: 'protect', by: p.id, target: targetId });
+      return true;
+    }
+
+    /* ---------- tarefas ---------- */
+    stationOfTask(task) {
+      if (task.done) return null;
+      return M.STATIONS[task.steps[task.step]];
+    }
+    taskAvailable(task) {
+      if (task.done) return false;
+      if (task.id === 'inspect' && task.step === 1 && this.t < task.readyAt) return false;
+      return true;
+    }
+    completeStep(p, task) {
+      if (task.done) return;
+      if (task.id === 'inspect' && task.step === 0) task.readyAt = this.t + (task.def.wait || 45);
+      task.step++;
+      if (task.step >= task.steps.length) {
+        task.done = true;
+        if (!p.isImp) this.log({ type: 'task', by: p.id, task: task.id });
+        if (p.special === 'cientista') p.battery = Math.min(10, p.battery + 3);
+      }
+      if (task.def.visual === 'shields' && task.done) p.visual = { type: 'shields', until: this.t + 2.5 };
+      this.say('onTaskProgress', p, task);
+      if (!p.isImp) this.checkWin();
+    }
+    resetInspect(task) {
+      task.step = 0;
+      task.readyAt = 0;
+    }
+    taskProgress() {
+      let total = 0, done = 0;
+      for (const p of this.players) {
+        if (p.isImp) continue;
+        for (const tk of p.tasks) {
+          total++;
+          if (tk.done) done++;
+        }
+      }
+      return { total, done, ratio: total ? done / total : 0 };
+    }
+
+    /* Alvo de "Usar" para um jogador (humano). */
+    useTarget(p) {
+      if (this.phase !== 'play' || p.inVent) return null;
+      const near = (x, y, d) => U.d2(p.x, p.y, x, y) <= (d || USE_DIST);
+      const s = this.sab;
+      if (s && p.alive) {
+        for (const st of this.sabStationsNeeded()) {
+          const pos = M.SAB_STATIONS[st];
+          if (near(pos.x, pos.y)) return { kind: 'sab', station: st, label: 'Consertar' };
+        }
+      } else if (s && !p.alive && !p.isImp) {
+        /* fantasmas não consertam sabotagens */
+      }
+      if (!p.isImp) {
+        for (const tk of p.tasks) {
+          if (tk.done) continue;
+          const st = M.STATIONS[tk.steps[tk.step]];
+          if (near(st.x, st.y)) return { kind: 'task', task: tk, station: st, label: 'Tarefa' };
+        }
+      }
+      if (p.alive && near(M.EMERGENCY.x, M.EMERGENCY.y, BUTTON_DIST)) return { kind: 'button', label: 'Emergência' };
+      if (p.alive && near(M.SECURITY.x, M.SECURITY.y)) return { kind: 'cams', label: 'Câmeras' };
+      if (near(M.ADMIN_TABLE.x, M.ADMIN_TABLE.y, 2.2)) return { kind: 'admin', label: 'Admin' };
+      return null;
+    }
+
+    /* ---------- vitória ---------- */
+    checkWin() {
+      if (this.phase === 'ended' || this.phase === 'meeting') return;
+      const alive = this.alivePlayers();
+      const imp = alive.filter((p) => p.isImp).length;
+      const crew = alive.length - imp;
+      if (imp === 0) return this.end('crew', 'Todos os impostores foram eliminados.');
+      if (imp >= crew) return this.end('impostor', 'Os impostores igualaram o número de tripulantes.');
+      const tp = this.taskProgress();
+      if (tp.total > 0 && tp.done >= tp.total) return this.end('crew', 'Todas as tarefas foram concluídas.');
+    }
+    end(winner, reason) {
+      if (this.phase === 'ended') return;
+      this.phase = 'ended';
+      this.winner = winner;
+      this.endReason = reason;
+      AU.Audio.alarm(false);
+      this.log({ type: 'end', winner, reason });
+      this.say('closeOverlays');
+      this.say('onGameEnd', { winner, reason });
+    }
+  }
+
+  AU.Game = Game;
+  AU.Player = Player;
+})();
