@@ -28,6 +28,10 @@ Jogo de dedução social no mapa **The Skeld**, inspirado em *Among Us*, para jo
 
 Na reunião, digite livremente no chat. Os bots entendem frases como *"eu tava na elétrica com o azul"*, *"vi o vermelho ventar no admin"*, *"verde é safe, fez scan"*, *"rosa onde vc tava?"*, *"corpo na nav"* ou *"skip"*, e respondem, confirmam, contradizem ou questionam.
 
+No **lobby** tem um chat de verdade: os bots se cumprimentam, comentam as regras escolhidas e respondem ao que você escreve (pela IA quando ela está ligada).
+
+Na reunião, um **mapinha mostra onde você estava** quando ela começou (só o seu lugar, sem corpo nem os outros).
+
 Durante a reunião você pode **pausar** o relógio para ler com calma, rolar o chat para cima (as mensagens novas ficam num aviso "↓ novas mensagens" em vez de puxar a tela) e abrir o **Quadro de álibis**, que resume quem disse onde estava, quem confirma e quem acusa quem. O histórico de todas as reuniões fica no botão 📜 (ou tecla H) durante a partida e no relatório final.
 
 ## IA das conversas (modelo de linguagem)
@@ -75,6 +79,7 @@ Dentro do claude.ai a página roda sem acesso à internet, por isso lá só o Cl
   - Barra de tarefas.
   - Tarefas visuais.
   - Quantidade de tarefas comuns, longas e curtas.
+- Tempos configuráveis: duração e recarga de cada função (disfarce, invisibilidade, rastreio, escudo, duto do engenheiro, bateria do cientista, alerta do barulhento), tempo para consertar reator/O2, recarga das sabotagens e tempo/recarga das portas.
 - 7 funções especiais, cada uma com quantidade e chance: Cientista, Engenheiro, Rastreador, Barulhento, Anjo da Guarda, Metamorfo e Fantasma.
 - Bots:
   - Nomes automáticos ou definidos por você.
@@ -110,6 +115,10 @@ Dentro do claude.ai a página roda sem acesso à internet, por isso lá só o Cl
 - Habilidades: Metamorfo se disfarça, Fantasma fica invisível, Rastreador segue um alvo, Cientista vê os sinais vitais,  Anjo protege (escudo de 10 s, recarga de 60 s, como no jogo original), Engenheiro usa dutos e o Barulhento dispara um alerta ao morrer.
 - Modo fantasma depois de morrer: atravessa paredes, termina as tarefas, pode **seguir** qualquer vivo (👁 Seguir; mexer-se cancela) e tem o **chat dos fantasmas**, na partida e nas reuniões. Os vivos nunca leem. Os fantasmas-bots sabem quem os matou e o que viram depois de mortos: recebem você, contam quem foi, comentam as ejeções, torcem e respondem ao que você escreve (pela IA, quando ligada).
 - Anjo da Guarda bot: protege quem está perto de quem o matou ou sozinho num lugar perigoso (às vezes você). Como uma pessoa, nem sempre está atento quando o escudo fica pronto: usa em mais ou menos metade das chances e, distraído, vai fazer as tarefas de fantasma.
+- Memória da partida inteira: quem o bot viu fazer tarefa visual em qualquer rodada é tripulante para sempre (ele não acusa por coisa fraca e defende se alguém acusar); o que viu de grave antes (abate, duto, transformação) continua cobrando; lembra quem pegou mentindo e quem ficou sozinho com ele sem matar.
+- Locais certos: o álibi conta as salas em que o bot entrou de verdade (passar pelo corredor não vira "estava na Segurança"), inclui onde estava na hora da reunião e a passagem pela sala do corpo; "passei lá e não tinha ninguém" só se passou mesmo. Chamar alguém de mentiroso exige que não bata de verdade: visto perto do corpo e escondeu isso, ou visto há tão pouco tempo num lugar tão longe que não daria para chegar na sala que disse. Salas digitadas com erro ("eletrca", "reatro") são entendidas.
+- Metamorfo e Fantasma: quem vê a transformação nem sempre percebe (distância, luz, ocupado numa tarefa, câmeras), às vezes fica só com uma impressão e confunde a cor, e nem sempre corre para o botão. Uma testemunha sozinha pesa menos para os outros; duas fecham o caso.
+- Provar inocência vale entre bots também: o bot acusado oferece fazer a tarefa visual, outros bots vão junto para conferir e, se virem, defendem na reunião seguinte.
 - Bots que terminam as tarefas não ficam parados: rondam as salas isoladas procurando corpos, olham câmeras e Admin, acompanham quem ainda tem tarefa ou vigiam um suspeito de longe. Ao chegar numa sala dão uma volta por ela em vez de ficar plantados, e esperando alguém mudam de posição de vez em quando.
 - Narrador com descrição das salas, das sabotagens e do ambiente.
 
@@ -157,6 +166,7 @@ js/llm.js         provedores de modelo de linguagem (Claude, WebLLM, APIs)
 js/voice.js       diretor da reunião: o que cada bot sabe, falas e votos pela IA
 js/tactics.js     estrategista: ações no mapa decididas pela IA
 js/ghosts.js      chat dos fantasmas: o que cada morto sabe e as falas deles
+js/lobby.js       chat do lobby antes da partida
 js/meeting.js     fluxo e interface da reunião, quadro de álibis e histórico
 js/decor.js       desenho estático das salas: pisos, paredes, móveis e consoles
 js/render.js      desenho dos tripulantes, efeitos e névoa

@@ -26,6 +26,9 @@
       this.accusers = {};
       this.defenders = {};
       this.alive = g.players.filter((p) => p.alive).map((p) => p.id);
+      /* onde o jogador estava quando a reunião começou (só para ele ver no mapinha) */
+      const hp0 = g.human;
+      this.myPos = hp0 ? { x: hp0.x, y: hp0.y, area: M.areaAt(hp0.x, hp0.y).id } : null;
       this.impostorsLeft = g.S.room.impostors - g.players.filter((p) => p.ejected && p.isImp).length;
       this.humanClaimed = false;
       this.humanSpoke = false;
@@ -524,8 +527,9 @@
         h('div', { class: 'mt-head-r' }, this.pauseBtn, this.timer));
       this.tabs = h('div', { class: 'mt-tabs', role: 'tablist' },
         ['players', 'chat', 'board'].map((k) => h('button', { class: 'mt-tab', type: 'button', role: 'tab', 'data-tab': k, onclick: () => this.setTab(k) },
-          k === 'players' ? 'Jogadores' : k === 'chat' ? 'Chat' : 'Quadro de álibis')));
-      const left = h('div', { class: 'mt-left' }, this.cards, h('div', { class: 'mt-skiprow' }, this.skipBtn, this.skipVotes), this.status);
+          k === 'players' ? 'Jogadores' : k === 'chat' ? 'Chat' : h('span', {}, h('span', { class: 'tab-long' }, 'Quadro de álibis'), h('span', { class: 'tab-short' }, 'Álibis')))));
+      this.myMap = this.buildMyMap();
+      const left = h('div', { class: 'mt-left' }, this.cards, h('div', { class: 'mt-skiprow' }, this.skipBtn, this.skipVotes), this.status, this.myMap);
       const logWrap = h('div', { class: 'mt-logwrap' }, this.log, this.newPill);
       this.voteCta = h('button', { class: 'mt-votecta', type: 'button', onclick: () => this.setTab('players') }, '🗳 Votação aberta — toque aqui para votar');
       const right = h('div', { class: 'mt-right' }, this.voteCta, logWrap, this.board, this.typingEl, h('div', { class: 'mt-chips' }, chips), form);
@@ -812,6 +816,39 @@
       }, 45);
       this.iv = iv;
     }
+    /* Mapinha só com o lugar onde VOCÊ estava quando a reunião começou (nada de corpo nem dos outros). */
+    buildMyMap() {
+      const mt = this.mt, g = mt.g, hp = g.human, pos = mt.myPos;
+      if (!hp || !pos || !AU.HUD || !AU.HUD.drawMapBase) return null;
+      const cv = h('canvas', { class: 'mt-map-cv', width: 544, height: 304, 'aria-hidden': 'true' });
+      const A = M.AREA[pos.area];
+      const box = h('div', { class: 'mt-map' },
+        h('div', { class: 'mt-map-h' }, '🗺 Onde você estava', h('span', {}, A ? A.name : '')), cv);
+      try {
+        const { ctx, sx, sy } = AU.HUD.drawMapBase(cv);
+        const x = pos.x * sx, y = pos.y * sy, col = C.COLOR[hp.color].hex;
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        ctx.beginPath();
+        ctx.arc(x, y, 26, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.arc(x, y, 17, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(x, y, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#10151f';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+      } catch (e) {
+        return null;
+      }
+      return box;
+    }
+
     destroy() {
       if (this.iv) clearInterval(this.iv);
       this.root.remove();

@@ -91,9 +91,13 @@
           this.g.ghosts.onHuman(v);
         },
       }, e.ghostInput, h('button', { class: 'gh-send', type: 'submit' }, 'Enviar'));
+      e.ghostNew = h('button', { class: 'gh-new', type: 'button', hidden: true, onclick: () => { e.ghostLog.scrollTop = e.ghostLog.scrollHeight; e.ghostNew.hidden = true; } }, '↓ novas mensagens');
+      e.ghostLog.addEventListener('scroll', () => {
+        if (e.ghostLog.scrollHeight - e.ghostLog.scrollTop - e.ghostLog.clientHeight < 40) e.ghostNew.hidden = true;
+      });
       e.ghostPanel = h('div', { class: 'hud-ghost', hidden: true },
         h('div', { class: 'gh-head' }, h('span', {}, '👻 Chat dos fantasmas'), h('small', {}, 'os vivos não leem'), h('button', { class: 'gh-close', type: 'button', 'aria-label': 'Fechar', onclick: () => this.toggleGhost(false) }, '✕')),
-        e.ghostLog, ghostForm);
+        h('div', { class: 'gh-logwrap' }, e.ghostLog, e.ghostNew), ghostForm);
       this.ghostShown = 0;
       this.ghostAuto = false;
       this.ghostUnread = 0;
@@ -318,6 +322,10 @@
       }
       const msgs = g.ghosts.msgs;
       if (this.ghostShown > msgs.length) this.ghostShown = 0;
+      if (this.ghostShown >= msgs.length) return;
+      /* só desce sozinho se você já estava lendo o fim; rolou para cima, fica onde está */
+      const log = e.ghostLog;
+      const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
       while (this.ghostShown < msgs.length) {
         const m = msgs[this.ghostShown++];
         const p = g.players[m.from];
@@ -332,8 +340,10 @@
           e.ghostBadge.hidden = false;
         }
       }
-      while (e.ghostLog.childElementCount > 80) e.ghostLog.firstChild.remove();
-      if (!e.ghostPanel.hidden) e.ghostLog.scrollTop = e.ghostLog.scrollHeight;
+      while (log.childElementCount > 120) log.firstChild.remove();
+      if (e.ghostPanel.hidden) return;
+      if (atBottom) log.scrollTop = log.scrollHeight;
+      else e.ghostNew.hidden = false;
     },
 
     /* ---------- ações do jogador ---------- */
@@ -399,7 +409,7 @@
       } else if (sp === 'cientista') this.openVitals();
       else if (sp === 'anjo') {
         const near = g.players.filter((q) => q.alive && U.dist(q, hp) <= 4);
-        this.openPicker('Proteger quem?', near, (q) => g.protect(hp, q.id) && this.toast(q.name + ' está protegido por ' + (g.S.rules.angelDuration || 10) + 's.'));
+        this.openPicker('Proteger quem?', near, (q) => g.protect(hp, q.id) && this.toast(q.name + ' está protegido por ' + g.ro('anjo', 'dur', 10) + 's.'));
       }
     },
 
@@ -491,8 +501,8 @@
       return this.overlay;
     },
 
-    drawMiniMap(cv, opts) {
-      const g = this.g, hp = g.human;
+    /* Planta da nave: salas, corredores e nomes (sem ninguém). */
+    drawMapBase(cv) {
       const ctx = cv.getContext('2d');
       const sx = cv.width / M.W, sy = cv.height / M.H;
       ctx.clearRect(0, 0, cv.width, cv.height);
@@ -509,6 +519,12 @@
       ctx.font = `700 ${Math.max(9, cv.width / 90)}px "Chakra Petch", system-ui, sans-serif`;
       ctx.textAlign = 'center';
       for (const r of M.ROOMS) ctx.fillText(r.name, (r.rect[0] + r.rect[2] / 2) * sx, (r.rect[1] + 1.8) * sy);
+      return { ctx, sx, sy };
+    },
+
+    drawMiniMap(cv, opts) {
+      const g = this.g, hp = g.human;
+      const { ctx, sx, sy } = this.drawMapBase(cv);
       for (const d of M.DOORS) {
         if (!d.closed) continue;
         ctx.fillStyle = '#ff4747';

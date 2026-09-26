@@ -107,7 +107,7 @@
       };
       if (roles.length) {
         out.push('Funções especiais que EXISTEM nesta partida (ninguém sabe quem tem; alguém pode dizer que tem, e pode ser mentira):');
-        for (const r of roles) out.push('- ' + C.ROLES[r].name + ' (' + (C.ROLES[r].team === 'crew' ? 'tripulante' : 'impostor') + '): ' + C.ROLES[r].desc + ' — ' + IMPL[r] + '.');
+        for (const r of roles) out.push('- ' + C.ROLES[r].name + ' (' + (C.ROLES[r].team === 'crew' ? 'tripulante' : 'impostor') + '): ' + C.roleDesc(r, g.S) + ' — ' + IMPL[r] + '.');
         const off = Object.keys(C.ROLES).filter((r) => !on(r));
         if (off.length) out.push('Funções que NÃO existem nesta partida: ' + off.map((r) => C.ROLES[r].name).join(', ') + '. Se alguém falar delas, dá para corrigir.');
       } else out.push('Nesta partida não há funções especiais (nada de metamorfo, fantasma, engenheiro, cientista etc.). Se alguém falar disso, dá para corrigir: não tem isso nessa partida.');
@@ -236,8 +236,10 @@
         const strongTxt = { kill: 'matando alguém', vent: 'entrando ou saindo de um duto', shift: 'mudando de aparência', vanish: 'ficando invisível' };
         for (const id of Object.keys(b.ev || {})) {
           for (const e of b.ev[id]) {
-            if (strongTxt[e.reason]) out.push('VIU ' + nm(+id) + ' ' + strongTxt[e.reason] + (e.area ? ' em ' + V.area(e.area) : '') + '. Tem certeza absoluta.');
-            if (e.reason === 'visual') out.push('Viu ' + nm(+id) + ' fazendo ' + (M.VISUAL_NAMES[e.task] || 'uma tarefa visual') + ': inocente com certeza.');
+            if (strongTxt[e.reason]) out.push('VIU ' + nm(+id) + ' ' + strongTxt[e.reason] + (e.area ? ' em ' + V.area(e.area) : '') + (e.past ? ' numa rodada anterior (e ele continua vivo)' : '') + '. Tem certeza absoluta.');
+            if (e.reason === 'visual') out.push('Viu ' + nm(+id) + ' fazendo ' + (M.VISUAL_NAMES[e.task] || 'uma tarefa visual') + (e.past ? ' numa rodada anterior' : '') + ': é tripulante com certeza, lembra disso e NUNCA acusa ' + nm(+id) + ' por coisa fraca (seguir, estar perto, jeito estranho).');
+            if (e.reason === 'lie' && e.past) out.push('Já pegou ' + nm(+id) + ' mentindo sobre onde estava numa reunião anterior.');
+            if (e.reason === 'spared') out.push('Já ficou sozinho com ' + nm(+id) + ' (' + e.secs + 's no total) e não morreu.');
             if (e.reason === 'noscan') out.push('Viu ' + nm(+id) + ' parado ' + ({ scan: 'no scanner da MedBay', asteroids: 'na arma de asteroides', shields: 'no painel dos escudos' }[e.task] || 'numa tarefa visual') + ' sem a animação aparecer (tarefa falsa).');
             if (e.reason === 'ventLink') out.push('Viu ' + nm(+id) + ' aparecer em ' + V.area(e.area) + ', que tem duto ligado a ' + V.area(e.bodyArea) + ' (onde estava o corpo), pouco antes.');
             if (e.reason === 'withVictim' || e.reason === 'lastWith') out.push('Viu ' + nm(+id) + ' junto da vítima pouco antes' + (e.area ? ', em ' + V.area(e.area) : '') + '.');

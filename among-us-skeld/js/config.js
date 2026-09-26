@@ -104,6 +104,23 @@
     fantasma: { name: 'Fantasma', team: 'impostor', desc: 'Fica invisível por 10s (não pode matar invisível).' },
   };
   C.ROLE_IDS = Object.keys(C.ROLES);
+  /* opções de cada função mostradas na criação da partida: [chave, rótulo, mín, máx, passo] */
+  C.ROLE_OPTS = {
+    cientista: [['dur', 'Bateria dos sinais vitais', 5, 30, 5]],
+    engenheiro: [['dur', 'Tempo máximo no duto', 5, 30, 5], ['cd', 'Recarga do duto', 5, 60, 5]],
+    rastreador: [['dur', 'Duração do rastreio', 10, 60, 5], ['cd', 'Recarga', 15, 90, 5]],
+    barulhento: [['dur', 'Duração do alerta', 5, 20, 1]],
+    anjo: [['dur', 'Duração do escudo', 5, 30, 5], ['cd', 'Recarga do escudo', 30, 120, 5]],
+    metamorfo: [['dur', 'Duração do disfarce', 10, 60, 5], ['cd', 'Recarga', 10, 60, 5]],
+    fantasma: [['dur', 'Tempo invisível', 5, 20, 1], ['cd', 'Recarga', 10, 60, 5]],
+  };
+  /* descrição com os tempos configurados (para a tela e para a IA) */
+  C.roleDesc = function (id, S) {
+    const r = C.ROLES[id], o = (S && S.roles && S.roles[id]) || {};
+    let d = r.desc;
+    if (o.dur != null) d = d.replace(/\d+s\b/, o.dur + 's');
+    return d;
+  };
 
   C.BOT_NAMES = [
     'Kaio', 'Mari', 'Dudu', 'Tiagão', 'Lulu', 'Nando', 'Bia', 'Rafa', 'Gui', 'Juju', 'Pedrinho', 'Carol', 'Zé', 'Nina',
@@ -116,12 +133,13 @@
     room: { players: 10, impostors: 2, draw: 'A', drawChance: 50 },
     rules: {
       confirmEjects: true, emergencyMeetings: 3, emergencyCooldown: 15, discussionTime: 15, votingTime: 120,
-      anonymousVotes: false, playerSpeed: 1, crewVision: 1, impostorVision: 1.5, killCooldown: 25, killDistance: 'media', angelDuration: 10, angelCooldown: 60,
+      anonymousVotes: false, playerSpeed: 1, crewVision: 1, impostorVision: 1.5, killCooldown: 25, killDistance: 'media', critTime: 45, sabCooldown: 30, doorTime: 10, doorCooldown: 16,
       taskBar: 'sempre', visualTasks: true, commonTasks: 1, longTasks: 2, shortTasks: 3,
     },
+    /* dur/cd: duração e recarga de cada habilidade (padrões do jogo original) */
     roles: {
-      cientista: { n: 0, chance: 100 }, engenheiro: { n: 0, chance: 100 }, rastreador: { n: 0, chance: 100 },
-      barulhento: { n: 0, chance: 100 }, anjo: { n: 0, chance: 100 }, metamorfo: { n: 0, chance: 100 }, fantasma: { n: 0, chance: 100 },
+      cientista: { n: 0, chance: 100, dur: 10 }, engenheiro: { n: 0, chance: 100, dur: 15, cd: 20 }, rastreador: { n: 0, chance: 100, dur: 30, cd: 45 },
+      barulhento: { n: 0, chance: 100, dur: 10 }, anjo: { n: 0, chance: 100, dur: 10, cd: 60 }, metamorfo: { n: 0, chance: 100, dur: 30, cd: 25 }, fantasma: { n: 0, chance: 100, dur: 10, cd: 25 },
     },
     bots: {
       names: 'auto', customNames: '', personalities: 'sorteadas', allowed: C.PERSONALITY_IDS.slice(),

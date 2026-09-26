@@ -20,6 +20,9 @@
       this.keys = new Set();
       this.ignoreUntil = {};
       this.pairs = {};
+      /* memória de longo prazo (a partida inteira): mentiras que pegou, quem ficou sozinho com ele e não matou */
+      this.lies = {};
+      this.spared = {};
     }
     see(t, who, area, act, via, x, y) {
       const l = this.last[who];
@@ -691,20 +694,35 @@
     }
 
     /* Suspeita "ao vivo" durante a rodada: o que ficou das reuniões + o que viu agora. */
+    /* Viu fazer tarefa visual em QUALQUER rodada: é tripulante, e o bot não esquece. */
+    hardCleared(id) {
+      if (this.g.S.house.noVisualHardClear || !this.g.S.rules.visualTasks) return false;
+      return this.mem.events.some((e) => (e.type === 'visual' || e.type === 'escortVisual') && e.who === id);
+    }
     liveSusp(id) {
       const g = this.g, rs = g.roundStart;
       let s = Math.max(this.susp[id] || 0, (this.carry[id] || 0) * 0.8);
       const eng = ((g.S.roles && g.S.roles.engenheiro) || {}).n > 0;
+      let strong = false;
       for (const e of this.mem.events) {
-        if (e.who !== id || e.t < rs) continue;
-        if (e.type === 'kill' || e.type === 'shift' || e.type === 'vanish') s = Math.max(s, 100);
-        else if (e.type === 'vent') s = Math.max(s, eng ? 55 : 85);
+        if (e.who !== id) continue;
+        /* o que viu de grave em rodadas anteriores continua valendo */
+        if (e.type === 'kill' || e.type === 'shift' || e.type === 'vanish') {
+          s = Math.max(s, e.t < rs ? 90 : 100);
+          strong = true;
+        } else if (e.type === 'vent') {
+          s = Math.max(s, eng ? 55 : e.t < rs ? 75 : 85);
+          strong = true;
+        } else if (e.t < rs) continue;
         else if (e.type === 'noscan') s += 25;
         else if (e.type === 'follow') s += 8;
         else if (e.type === 'visual' && g.S.rules.visualTasks) s -= 60;
       }
       for (const b of this.mem.bodies) if (b.t >= rs && (b.near || []).includes(id)) s += 25;
-      return s + ((this.fieldSus && this.fieldSus[id]) || 0);
+      s += (this.mem.lies[id] || 0) * 10;
+      s += (this.fieldSus && this.fieldSus[id]) || 0;
+      if (!strong && this.hardCleared(id)) return Math.min(s, -40);
+      return s;
     }
     /* Segue quem chamou, mas de olho: parado à toa, sozinho demais num canto ou fazendo algo estranho = para de seguir. */
     startEscort(q) {
@@ -1242,7 +1260,7 @@
         });
         return;
       }
-      if (p.special === 'fantasma' && p.abilityCd <= 0 && U.chance(0.7)) g.vanish(p);
+      if (p.special === 'fantasma' && p.abilityCd <= 0 && (this.crewVisible().length === 0 || U.chance(this.lvl.riskTol)) && U.chance(0.7)) g.vanish(p);
       const far = M.ROOMS.filter((r) => r.id !== e.area && U.d2(r.cx, r.cy, p.x, p.y) > 14 && U.d2(r.cx, r.cy, p.x, p.y) < 45);
       const room = far.length ? U.pick(far) : U.pick(M.ROOMS);
       if (U.chance(0.6)) this.planFakeTask(room.id);
@@ -1506,7 +1524,8 @@
           }
           if (this.followWatch[aid] >= 7) {
             this.followWatch[aid] = 0;
-            if (mem.event({ type: 'follow', t, who: aid, area }, 'follow:' + aid + ':' + g.meetings) && pers.panic) {
+            /* quem já provou ser tripulante (tarefa visual) andando atrás é só companhia */
+            if (!this.hardCleared(aid) && mem.event({ type: 'follow', t, who: aid, area }, 'follow:' + aid + ':' + g.meetings) && pers.panic) {
               this.fear = { who: aid, t };
               this.planFlee(q);
             }
@@ -1570,19 +1589,36 @@
       }
     }
     onWitnessShift(realId, intoId, via) {
-      const g = this.g;
-      if (this.p.isImp) return;
-      const area = M.areaAt(g.players[realId].x, g.players[realId].y).id;
-      if (this.mem.event({ type: 'shift', t: g.t, who: realId, into: intoId, area, via }, 'shift:' + realId + ':' + g.meetings) && this.p.emergencyLeft > 0) {
-        this.wantButton = { reason: 'shift', who: realId, area };
-      }
+      this.witnessAbility('shift', realId, via, intoId);
     }
     onWitnessVanish(realId, via) {
-      const g = this.g;
-      if (this.p.isImp) return;
-      const area = M.areaAt(g.players[realId].x, g.players[realId].y).id;
-      if (this.mem.event({ type: 'vanish', t: g.t, who: realId, area, via }, 'vanish:' + realId + ':' + g.meetings) && this.p.emergencyLeft > 0) {
-        this.wantButton = { reason: 'vanish', who: realId, area };
+      this.witnessAbility('vanish', realId, via);
+    }
+    /* Ver alguém se transformar ou sumir não é garantido: depende de estar olhando, da distância, da luz e de estar
+       ocupado numa tarefa. Quem vê de longe fica só com uma impressão (e pode confundir a cor); quem tem certeza
+       nem sempre corre para o botão: às vezes guarda para a próxima reunião ou só se afasta. */
+    witnessAbility(kind, realId, via, intoId) {
+      const g = this.g, p = this.p, q = g.players[realId], pers = this.pers;
+      if (p.isImp || !q || !p.alive) return;
+      const d = U.dist(p, q);
+      const dark = g.lightLevel < 0.6;
+      const pNotice = (0.3 + pers.att * 0.45) * (d < 3.5 ? 1 : d < 6 ? 0.7 : 0.45) * (p.busy ? 0.5 : 1) * (dark ? 0.6 : 1) * (via === 'cams' ? 0.45 : 1) * (kind === 'vanish' ? 0.85 : 1);
+      if (!U.chance(pNotice)) return;
+      const area = M.areaAt(q.x, q.y).id;
+      const sure = via === 'eyes' && d < 4.5 && !dark && U.chance(0.5 + pers.att * 0.35);
+      if (!sure) {
+        let who = realId;
+        if (U.chance((1 - pers.att) * 0.5)) who = this.confuse(realId);
+        this.fieldSus[who] = (this.fieldSus[who] || 0) + 14;
+        this.mem.event({ type: 'oddAbility', t: g.t, who, area, kind, via }, 'oddAbility:' + who + ':' + g.meetings);
+        return;
+      }
+      if (!this.mem.event({ type: kind, t: g.t, who: realId, into: intoId, area, via }, kind + ':' + realId + ':' + g.meetings)) return;
+      const pBtn = 0.3 + (pers.leader ? 0.2 : 0) + (pers.panic ? 0.15 : 0) + (pers.skeptic ? 0.05 : 0);
+      if (p.emergencyLeft > 0 && U.chance(pBtn)) this.wantButton = { reason: kind, who: realId, area };
+      else {
+        this.fear = { who: realId, t: g.t };
+        this.avoid = { who: realId, until: g.t + 40 };
       }
     }
     onNoise(body) {

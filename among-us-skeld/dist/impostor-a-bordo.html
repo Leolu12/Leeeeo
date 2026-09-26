@@ -614,6 +614,87 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   .hud-feed > :nth-last-child(n + 3) { display: none; }
 }
 
+/* reunião: mapinha com o lugar onde o jogador estava */
+.mt-map { margin-top: 4px; background: #eef2f8; border: 2px solid #9aa6bd; border-radius: 12px; padding: 6px 8px 8px; }
+.mt-map-h { display: flex; justify-content: space-between; gap: 8px; font-weight: 800; font-size: 13px; color: #2e3a52; margin-bottom: 5px; }
+.mt-map-h span { color: #10151f; }
+.mt-map-cv { display: block; width: auto; height: auto; max-width: 100%; max-height: 190px; margin: 0 auto; border-radius: 8px; }
+@media (max-height: 520px) { .mt-map-cv { max-height: 62vh; } }
+@media (min-width: 861px) {
+  .mt-left { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); grid-template-areas: 'cards cards' 'skip map' 'status map'; align-content: start; column-gap: 12px; }
+  .mt-cards { grid-area: cards; }
+  .mt-left > .mt-skiprow { grid-area: skip; align-self: start; flex-wrap: wrap; }
+  .mt-left > .mt-status { grid-area: status; }
+  .mt-left > .mt-map { grid-area: map; margin-top: 0; align-self: start; }
+}
+.role-row .role-opts { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 4px 16px; padding-top: 4px; border-top: 1px dashed var(--line-2); }
+
+/* chat do lobby */
+.lobby-chat { max-height: 280px; overflow-y: auto; justify-content: flex-start; }
+.lobby-line { line-height: 1.35; word-break: break-word; }
+.lobby-line.mine { opacity: 0.9; }
+.lobby-form { display: flex; gap: 6px; margin-bottom: 8px; }
+.lobby-input { flex: 1; min-width: 0; background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 10px; color: inherit; }
+@media (max-width: 860px) { .lobby-side { order: -1; } .lobby-chat { max-height: 190px; min-height: 120px; } }
+.lobby-form .btn { padding: 8px 12px; min-height: 0; font-size: 13px; }
+
+.gh-logwrap { position: relative; flex: 1; min-height: 60px; display: flex; flex-direction: column; }
+.gh-log { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.gh-new { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); padding: 4px 10px; border-radius: 999px; border: 0; background: #5b6fd8; color: #fff; font-size: 12px; font-weight: 800; min-height: 0; }
+.gh-new[hidden] { display: none; }
+
+/* ===== revisão de layout por tamanho de tela ===== */
+.tab-short { display: none; }
+@media (max-width: 420px) { .tab-long { display: none; } .tab-short { display: inline; } }
+/* celular em pé: botões do topo em coluna à direita; tarefas ocupam o resto da largura */
+@media (max-width: 520px) and (orientation: portrait) {
+  .hud-topright { flex-direction: column; }
+  .hud-tasks { width: calc(100vw - 78px); max-width: 320px; }
+  .hud-sab { top: 84px; left: 12px; right: 66px; transform: none; max-width: none; }
+  .hud-toast { max-width: calc(100vw - 100px); left: calc(50% - 30px); }
+  .hud-ghost { right: 64px; }
+}
+/* celular bem estreito: joystick e botões menores para não encostarem */
+@media (max-width: 360px) {
+  .hud-joy { width: 108px; height: 108px; left: 12px; bottom: 16px; }
+  .hud-joy .knob { width: 46px; height: 46px; margin: -23px 0 0 -23px; }
+  .hud-actions { grid-template-columns: repeat(3, 56px); gap: 6px; right: 10px; bottom: 12px; }
+  .act { width: 56px; height: 56px; }
+  body.touch .hud-feed { bottom: 136px; }
+}
+/* toque: alvos maiores */
+@media (pointer: coarse) {
+  .hud-collapse { min-width: 40px; min-height: 36px; }
+  button.mt-ai { padding: 5px 10px; }
+}
+/* reunião: sugestões quebram linha no computador; no celular rolam de lado com um esfumado mostrando que tem mais */
+@media (min-width: 861px) { .mt-chips { flex-wrap: wrap; overflow: visible; } }
+@media (max-width: 860px) {
+  .mt-chips { scrollbar-width: none; padding-right: 28px; -webkit-mask-image: linear-gradient(90deg, #000 82%, transparent); mask-image: linear-gradient(90deg, #000 82%, transparent); }
+  .mt-chips::-webkit-scrollbar { display: none; }
+}
+/* narração menor em tela baixa */
+@media (max-height: 500px) { .feed-line { font-size: 12.5px; padding: 5px 8px; } }
+/* telas grandes: reunião e HUD maiores (não fica um painel pequeno no meio do monitor) */
+@media (min-width: 1700px) and (min-height: 950px) {
+  .mt-panel { width: min(1480px, 100%); height: min(940px, 100%); }
+  .mt-title { font-size: 26px; }
+  .mt-card { min-height: 66px; }
+  .mt-card-name { font-size: 17px; }
+  .mt-msg-body { font-size: 16px; }
+  .mt-map-cv { max-height: 230px; }
+  .hud-btn { width: 60px; height: 60px; font-size: 23px; }
+  .hud-actions { grid-template-columns: repeat(3, 86px); }
+  .act { width: 86px; height: 86px; }
+  .act .ico { font-size: 30px; }
+  .hud-tasks { width: 360px; }
+  .hud-task-list li { font-size: 14.5px; }
+  .feed-line { font-size: 15px; }
+  .hud-ghost { width: 400px; }
+}
+@media (max-width: 360px) { .act .lbl { font-size: 8.5px; letter-spacing: 0; max-width: 54px; } }
+@media (pointer: coarse) { button.mt-ai { min-height: 32px; } }
+
 </style>
 </head>
 <body>
@@ -909,6 +990,23 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     fantasma: { name: 'Fantasma', team: 'impostor', desc: 'Fica invisível por 10s (não pode matar invisível).' },
   };
   C.ROLE_IDS = Object.keys(C.ROLES);
+  /* opções de cada função mostradas na criação da partida: [chave, rótulo, mín, máx, passo] */
+  C.ROLE_OPTS = {
+    cientista: [['dur', 'Bateria dos sinais vitais', 5, 30, 5]],
+    engenheiro: [['dur', 'Tempo máximo no duto', 5, 30, 5], ['cd', 'Recarga do duto', 5, 60, 5]],
+    rastreador: [['dur', 'Duração do rastreio', 10, 60, 5], ['cd', 'Recarga', 15, 90, 5]],
+    barulhento: [['dur', 'Duração do alerta', 5, 20, 1]],
+    anjo: [['dur', 'Duração do escudo', 5, 30, 5], ['cd', 'Recarga do escudo', 30, 120, 5]],
+    metamorfo: [['dur', 'Duração do disfarce', 10, 60, 5], ['cd', 'Recarga', 10, 60, 5]],
+    fantasma: [['dur', 'Tempo invisível', 5, 20, 1], ['cd', 'Recarga', 10, 60, 5]],
+  };
+  /* descrição com os tempos configurados (para a tela e para a IA) */
+  C.roleDesc = function (id, S) {
+    const r = C.ROLES[id], o = (S && S.roles && S.roles[id]) || {};
+    let d = r.desc;
+    if (o.dur != null) d = d.replace(/\d+s\b/, o.dur + 's');
+    return d;
+  };
 
   C.BOT_NAMES = [
     'Kaio', 'Mari', 'Dudu', 'Tiagão', 'Lulu', 'Nando', 'Bia', 'Rafa', 'Gui', 'Juju', 'Pedrinho', 'Carol', 'Zé', 'Nina',
@@ -921,12 +1019,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     room: { players: 10, impostors: 2, draw: 'A', drawChance: 50 },
     rules: {
       confirmEjects: true, emergencyMeetings: 3, emergencyCooldown: 15, discussionTime: 15, votingTime: 120,
-      anonymousVotes: false, playerSpeed: 1, crewVision: 1, impostorVision: 1.5, killCooldown: 25, killDistance: 'media', angelDuration: 10, angelCooldown: 60,
+      anonymousVotes: false, playerSpeed: 1, crewVision: 1, impostorVision: 1.5, killCooldown: 25, killDistance: 'media', critTime: 45, sabCooldown: 30, doorTime: 10, doorCooldown: 16,
       taskBar: 'sempre', visualTasks: true, commonTasks: 1, longTasks: 2, shortTasks: 3,
     },
+    /* dur/cd: duração e recarga de cada habilidade (padrões do jogo original) */
     roles: {
-      cientista: { n: 0, chance: 100 }, engenheiro: { n: 0, chance: 100 }, rastreador: { n: 0, chance: 100 },
-      barulhento: { n: 0, chance: 100 }, anjo: { n: 0, chance: 100 }, metamorfo: { n: 0, chance: 100 }, fantasma: { n: 0, chance: 100 },
+      cientista: { n: 0, chance: 100, dur: 10 }, engenheiro: { n: 0, chance: 100, dur: 15, cd: 20 }, rastreador: { n: 0, chance: 100, dur: 30, cd: 45 },
+      barulhento: { n: 0, chance: 100, dur: 10 }, anjo: { n: 0, chance: 100, dur: 10, cd: 60 }, metamorfo: { n: 0, chance: 100, dur: 30, cd: 25 }, fantasma: { n: 0, chance: 100, dur: 10, cd: 25 },
     },
     bots: {
       names: 'auto', customNames: '', personalities: 'sorteadas', allowed: C.PERSONALITY_IDS.slice(),
@@ -1694,6 +1793,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       `${x.R(d.who, 'o')} e ${x.R(d.victim, 'o')} estavam juntos ${x.inA(d.area)} pouco antes`,
     ]),
     noOneNear: (d, x) => pick([`não vi ninguém perto ${x.deA(d.area)}`, `passei ${x.inA(d.area)} antes e não tinha ninguém`]),
+    noOneNearBy: (d, x) => pick([`passei perto ${x.deA(d.area)} e não vi ninguém`, `passei do lado ${x.deA(d.area)}, não tinha ninguém por ali`]),
+    notSureWith: (d, x) => pick([`comigo? não lembro de você lá, ${x.R(d.who)}`, `hmm, não reparei em você comigo`, `acho que ${x.R(d.who, 'o')} só passou por mim`, `não tenho certeza se tava comigo`]),
     accuse: (d, x) => {
       const w = x.R(d.who, 'o');
       switch (d.reason) {
@@ -1726,6 +1827,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     knewBody: (d, x) => pick([`como ${x.R(d.who, 'o')} sabe onde tava o corpo? ninguém falou ainda`, `ué ${x.R(d.who)}, ninguém disse onde era o corpo`, `${x.R(d.who, 'o')} sabia do corpo antes de falarem... sus`]),
     contradictStay: (d, x) => pick([`eu fiquei ${x.inA(d.area)} um tempão e não vi ${x.R(d.who, 'o')}`, `${x.R(d.who)}, eu estava ${x.inA(d.area)} e você não passou lá`]),
     contradictSeen: (d, x) => pick([`mas eu vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`, `${x.R(d.who)}, eu te vi ${x.inA(d.area)}, não ${x.inA(d.claimed)}`, `estranho, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`]),
+    hidBodyRoom: (d, x) => pick([`mas eu te vi ${x.inA(d.area)}, ${x.R(d.who)}, bem onde tava o corpo`, `${x.R(d.who)}, você tava ${x.inA(d.area)} e não falou isso`, `estranho, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}, perto do corpo, e agora diz ${x.inA(d.claimed)}`]),
     notThere: (d, x) => pick([`eu nem passei ${x.inA(d.area)}`, `mentira, eu não estava ${x.inA(d.area)}`, `quê? eu estava ${x.inA(d.mine)}`]),
     wasThere: (d, x) => pick([`sim, eu estava ${x.inA(d.area)}`, `é, passei ${x.inA(d.area)}`]),
     deny: (d, x) => pick([`não fui eu`, d.area ? `o quê? eu estava ${x.inA(d.area)}` : `o quê?`, d.area ? `não, eu estava ${x.inA(d.area)}` : `não sou eu`, `não fui eu, juro`, `por que eu?`]),
@@ -1867,14 +1969,15 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         found.push({ [key]: it[key], i: start });
       }
     }
-    if (key === 'pid') {
-      /* tolera um erro de digitação em nomes e cores com 4+ letras */
+    if (key === 'pid' || key === 'area') {
+      /* tolera um erro de digitação em nomes e cores (4+ letras) e em salas (5+ letras: "eletrca", "reatro") */
+      const min = key === 'area' ? 5 : 4;
       const re = /[a-z0-9]+/g;
       let m;
       while ((m = re.exec(n))) {
         const w = m[0];
-        if (w.length < 4 || COMMON.has(w) || used[m.index]) continue;
-        const hit = table.find((it) => it.a.length >= 4 && !it.a.includes(' ') && it.a[0] === w[0] && lev1(w, it.a));
+        if (w.length < min || COMMON.has(w) || used[m.index]) continue;
+        const hit = table.find((it) => it.a.length >= min && !it.a.includes(' ') && it.a[0] === w[0] && lev1(w, it.a));
         if (hit) {
           for (let i = m.index; i < m.index + w.length; i++) used[i] = true;
           found.push({ [key]: hit[key], i: m.index });
@@ -2555,6 +2658,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           if (cand) cand.special = rid;
         }
       }
+      for (const p of this.players) if (p.special === 'cientista') p.battery = this.ro('cientista', 'dur', 10);
     }
 
     assignTasks() {
@@ -2621,6 +2725,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     sabCritical() { return !!(this.sab && (this.sab.type === 'reactor' || this.sab.type === 'o2')); }
     anyoneOnCams() { return this.players.some((p) => p.alive && p.onCams) && !this.commsDown(); }
     areaOf(p) { return M.areaAt(p.x, p.y); }
+    /* opção de uma função (duração/recarga) com o padrão do jogo original como reserva */
+    ro(id, key, def) {
+      const r = this.S.roles && this.S.roles[id];
+      return r && r[key] != null ? r[key] : def;
+    }
     log(ev) {
       ev.t = this.t;
       this.events.push(ev);
@@ -2711,10 +2820,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       for (const p of this.players) {
         p.killCd = Math.max(0, p.killCd - dt);
         p.abilityCd = Math.max(0, p.abilityCd - dt);
-        if (p.special === 'cientista' && p.battery < 10) p.battery = Math.min(10, p.battery + dt * 0.04);
+        if (p.special === 'cientista' && p.battery < this.ro('cientista', 'dur', 10)) p.battery = Math.min(this.ro('cientista', 'dur', 10), p.battery + dt * 0.04);
         if (p.shiftAs != null && t >= p.shiftUntil) this.unshift(p);
         if (p.invisUntil && t >= p.invisUntil) this.reappear(p);
-        if (p.inVent && p.special === 'engenheiro' && t - p.ventT > 15) this.exitVent(p);
+        if (p.inVent && p.special === 'engenheiro' && t - p.ventT > this.ro('engenheiro', 'dur', 15)) this.exitVent(p);
         if (p.visual && p.visual.until < t) p.visual = null;
         if (p.busy && p.busy.until && p.busy.until < t - 0.5 && !p.isHuman) p.busy = null;
         p.moving = false;
@@ -2924,7 +3033,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         this.say('narrate', 'Você viu um abate acontecer diante dos seus olhos.', 'event');
       }
       if (v.special === 'barulhento') {
-        this.pings.push({ x: v.x, y: v.y, until: t + 10, pid: v.id });
+        this.pings.push({ x: v.x, y: v.y, until: t + this.ro('barulhento', 'dur', 10), pid: v.id });
         for (const p of this.players) if (p.brain && p.alive) p.brain.onNoise(body);
         if (h && h.alive) this.say('toast', 'Alerta! Um tripulante morreu — siga o sinal.');
       }
@@ -3045,11 +3154,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (s.switches.every(Boolean)) s.switches[U.rint(0, 4)] = false;
         s.switches[U.rint(0, 4)] = false;
       } else if (type === 'reactor') {
-        s.timer = CRIT_TIME;
+        s.timer = this.S.rules.critTime || CRIT_TIME;
         s.hold = { A: -9, B: -9 };
         s.both = 0;
       } else if (type === 'o2') {
-        s.timer = CRIT_TIME;
+        s.timer = this.S.rules.critTime || CRIT_TIME;
         s.code = String(U.rint(10000, 99999));
         s.done = { A: false, B: false };
       } else if (type === 'comms') {
@@ -3072,7 +3181,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const s = this.sab;
       this.log({ type: 'sabFix', sab: s.type, by: by ? by.id : null, dur: this.t - s.t0 });
       this.sab = null;
-      this.sabCd = 30;
+      this.sabCd = this.S.rules.sabCooldown != null ? this.S.rules.sabCooldown : 30;
       AU.Audio.alarm(false);
       for (const q of this.players) if (q.brain) q.brain.onSabFixed(s);
       this.say('onSabFixed', s);
@@ -3132,8 +3241,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     doorReady(room) { return (this.doorCd[room] || 0) <= this.t; }
     closeDoors(room, p) {
       if (!p || !p.isImp || this.phase !== 'play' || !this.doorReady(room) || !M.DOOR_ROOMS.includes(room)) return false;
-      this.doorUntil[room] = this.t + 10;
-      this.doorCd[room] = this.t + 26;
+      const dt0 = this.S.rules.doorTime || 10;
+      this.doorUntil[room] = this.t + dt0;
+      this.doorCd[room] = this.t + dt0 + (this.S.rules.doorCooldown != null ? this.S.rules.doorCooldown : 16);
       M.setDoorsClosed(room, true);
       this.unstickFromDoors();
       this.log({ type: 'doors', room, by: p.id });
@@ -3218,7 +3328,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       for (const w of wit) if (w.p.brain) w.p.brain.onWitnessVent(ap, 'out', v, w.via);
       this.addFx({ type: 'vent', x: v.x, y: v.y, dur: 0.5 });
       this.log({ type: 'vent', by: p.id, vent: v.id, dir: 'out', witnesses: wit.map((w) => w.p.id) });
-      if (p.special === 'engenheiro') p.abilityCd = 20;
+      if (p.special === 'engenheiro') p.abilityCd = this.ro('engenheiro', 'cd', 20);
       if (this.human && (p.isHuman || this.canSeePoint(this.human, v.x, v.y))) this.sfx('vent');
       return true;
     }
@@ -3232,7 +3342,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const wit = this.witnesses([p], [p.id]);
       for (const w of wit) if (w.p.brain) w.p.brain.onWitnessShift(p.id, targetId, w.via);
       p.shiftAs = targetId;
-      p.shiftUntil = t + 30;
+      p.shiftUntil = t + this.ro('metamorfo', 'dur', 30);
       this.addFx({ type: 'puff', x: p.x, y: p.y, dur: 0.6 });
       this.log({ type: 'shift', by: p.id, into: targetId, witnesses: wit.map((w) => w.p.id) });
       return true;
@@ -3242,21 +3352,21 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const wit = this.witnesses([p], [p.id]);
       for (const w of wit) if (w.p.brain) w.p.brain.onWitnessShift(p.id, p.shiftAs, w.via);
       p.shiftAs = null;
-      p.abilityCd = 25;
+      p.abilityCd = this.ro('metamorfo', 'cd', 25);
       this.addFx({ type: 'puff', x: p.x, y: p.y, dur: 0.6 });
     }
     vanish(p) {
       if (p.special !== 'fantasma' || !p.alive || p.abilityCd > 0 || p.inVent || p.invisUntil > this.t || this.phase !== 'play') return false;
       const wit = this.witnesses([p], [p.id]);
       for (const w of wit) if (w.p.brain) w.p.brain.onWitnessVanish(p.id, w.via);
-      p.invisUntil = this.t + 10;
+      p.invisUntil = this.t + this.ro('fantasma', 'dur', 10);
       this.addFx({ type: 'puff', x: p.x, y: p.y, dur: 0.6 });
       this.log({ type: 'vanish', by: p.id, witnesses: wit.map((w) => w.p.id) });
       return true;
     }
     reappear(p) {
       p.invisUntil = 0;
-      p.abilityCd = 25;
+      p.abilityCd = this.ro('fantasma', 'cd', 25);
       const wit = this.witnesses([p], [p.id]);
       for (const w of wit) if (w.p.brain) w.p.brain.onWitnessVanish(p.id, w.via);
       this.addFx({ type: 'puff', x: p.x, y: p.y, dur: 0.6 });
@@ -3266,8 +3376,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const tg = this.players[targetId];
       if (!tg || !tg.alive || tg === p || U.dist(p, tg) > 3.5) return false;
       p.trackTarget = targetId;
-      p.trackUntil = this.t + 30;
-      p.abilityCd = 45;
+      p.trackUntil = this.t + this.ro('rastreador', 'dur', 30);
+      p.abilityCd = this.ro('rastreador', 'cd', 45);
       this.log({ type: 'track', by: p.id, target: targetId });
       return true;
     }
@@ -3276,8 +3386,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const tg = this.players[targetId];
       if (!tg || !tg.alive || U.dist(p, tg) > 4) return false;
       /* padrão do jogo original: escudo de 10s, recarga de 60s */
-      tg.protectedUntil = this.t + (this.S.rules.angelDuration || 10);
-      p.abilityCd = this.S.rules.angelCooldown || 60;
+      tg.protectedUntil = this.t + this.ro('anjo', 'dur', 10);
+      p.abilityCd = this.ro('anjo', 'cd', 60);
       this.log({ type: 'protect', by: p.id, target: targetId });
       if (this.ghosts) this.ghosts.onProtect(p, tg);
       return true;
@@ -3300,7 +3410,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (task.step >= task.steps.length) {
         task.done = true;
         if (!p.isImp) this.log({ type: 'task', by: p.id, task: task.id });
-        if (p.special === 'cientista') p.battery = Math.min(10, p.battery + 3);
+        if (p.special === 'cientista') p.battery = Math.min(this.ro('cientista', 'dur', 10), p.battery + 3);
       }
       if (task.def.visual === 'shields' && task.done) p.visual = { type: 'shields', until: this.t + 2.5 };
       this.say('onTaskProgress', p, task);
@@ -3399,6 +3509,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.keys = new Set();
       this.ignoreUntil = {};
       this.pairs = {};
+      /* memória de longo prazo (a partida inteira): mentiras que pegou, quem ficou sozinho com ele e não matou */
+      this.lies = {};
+      this.spared = {};
     }
     see(t, who, area, act, via, x, y) {
       const l = this.last[who];
@@ -4070,20 +4183,35 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     }
 
     /* Suspeita "ao vivo" durante a rodada: o que ficou das reuniões + o que viu agora. */
+    /* Viu fazer tarefa visual em QUALQUER rodada: é tripulante, e o bot não esquece. */
+    hardCleared(id) {
+      if (this.g.S.house.noVisualHardClear || !this.g.S.rules.visualTasks) return false;
+      return this.mem.events.some((e) => (e.type === 'visual' || e.type === 'escortVisual') && e.who === id);
+    }
     liveSusp(id) {
       const g = this.g, rs = g.roundStart;
       let s = Math.max(this.susp[id] || 0, (this.carry[id] || 0) * 0.8);
       const eng = ((g.S.roles && g.S.roles.engenheiro) || {}).n > 0;
+      let strong = false;
       for (const e of this.mem.events) {
-        if (e.who !== id || e.t < rs) continue;
-        if (e.type === 'kill' || e.type === 'shift' || e.type === 'vanish') s = Math.max(s, 100);
-        else if (e.type === 'vent') s = Math.max(s, eng ? 55 : 85);
+        if (e.who !== id) continue;
+        /* o que viu de grave em rodadas anteriores continua valendo */
+        if (e.type === 'kill' || e.type === 'shift' || e.type === 'vanish') {
+          s = Math.max(s, e.t < rs ? 90 : 100);
+          strong = true;
+        } else if (e.type === 'vent') {
+          s = Math.max(s, eng ? 55 : e.t < rs ? 75 : 85);
+          strong = true;
+        } else if (e.t < rs) continue;
         else if (e.type === 'noscan') s += 25;
         else if (e.type === 'follow') s += 8;
         else if (e.type === 'visual' && g.S.rules.visualTasks) s -= 60;
       }
       for (const b of this.mem.bodies) if (b.t >= rs && (b.near || []).includes(id)) s += 25;
-      return s + ((this.fieldSus && this.fieldSus[id]) || 0);
+      s += (this.mem.lies[id] || 0) * 10;
+      s += (this.fieldSus && this.fieldSus[id]) || 0;
+      if (!strong && this.hardCleared(id)) return Math.min(s, -40);
+      return s;
     }
     /* Segue quem chamou, mas de olho: parado à toa, sozinho demais num canto ou fazendo algo estranho = para de seguir. */
     startEscort(q) {
@@ -4621,7 +4749,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         });
         return;
       }
-      if (p.special === 'fantasma' && p.abilityCd <= 0 && U.chance(0.7)) g.vanish(p);
+      if (p.special === 'fantasma' && p.abilityCd <= 0 && (this.crewVisible().length === 0 || U.chance(this.lvl.riskTol)) && U.chance(0.7)) g.vanish(p);
       const far = M.ROOMS.filter((r) => r.id !== e.area && U.d2(r.cx, r.cy, p.x, p.y) > 14 && U.d2(r.cx, r.cy, p.x, p.y) < 45);
       const room = far.length ? U.pick(far) : U.pick(M.ROOMS);
       if (U.chance(0.6)) this.planFakeTask(room.id);
@@ -4885,7 +5013,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           }
           if (this.followWatch[aid] >= 7) {
             this.followWatch[aid] = 0;
-            if (mem.event({ type: 'follow', t, who: aid, area }, 'follow:' + aid + ':' + g.meetings) && pers.panic) {
+            /* quem já provou ser tripulante (tarefa visual) andando atrás é só companhia */
+            if (!this.hardCleared(aid) && mem.event({ type: 'follow', t, who: aid, area }, 'follow:' + aid + ':' + g.meetings) && pers.panic) {
               this.fear = { who: aid, t };
               this.planFlee(q);
             }
@@ -4949,19 +5078,36 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
     }
     onWitnessShift(realId, intoId, via) {
-      const g = this.g;
-      if (this.p.isImp) return;
-      const area = M.areaAt(g.players[realId].x, g.players[realId].y).id;
-      if (this.mem.event({ type: 'shift', t: g.t, who: realId, into: intoId, area, via }, 'shift:' + realId + ':' + g.meetings) && this.p.emergencyLeft > 0) {
-        this.wantButton = { reason: 'shift', who: realId, area };
-      }
+      this.witnessAbility('shift', realId, via, intoId);
     }
     onWitnessVanish(realId, via) {
-      const g = this.g;
-      if (this.p.isImp) return;
-      const area = M.areaAt(g.players[realId].x, g.players[realId].y).id;
-      if (this.mem.event({ type: 'vanish', t: g.t, who: realId, area, via }, 'vanish:' + realId + ':' + g.meetings) && this.p.emergencyLeft > 0) {
-        this.wantButton = { reason: 'vanish', who: realId, area };
+      this.witnessAbility('vanish', realId, via);
+    }
+    /* Ver alguém se transformar ou sumir não é garantido: depende de estar olhando, da distância, da luz e de estar
+       ocupado numa tarefa. Quem vê de longe fica só com uma impressão (e pode confundir a cor); quem tem certeza
+       nem sempre corre para o botão: às vezes guarda para a próxima reunião ou só se afasta. */
+    witnessAbility(kind, realId, via, intoId) {
+      const g = this.g, p = this.p, q = g.players[realId], pers = this.pers;
+      if (p.isImp || !q || !p.alive) return;
+      const d = U.dist(p, q);
+      const dark = g.lightLevel < 0.6;
+      const pNotice = (0.3 + pers.att * 0.45) * (d < 3.5 ? 1 : d < 6 ? 0.7 : 0.45) * (p.busy ? 0.5 : 1) * (dark ? 0.6 : 1) * (via === 'cams' ? 0.45 : 1) * (kind === 'vanish' ? 0.85 : 1);
+      if (!U.chance(pNotice)) return;
+      const area = M.areaAt(q.x, q.y).id;
+      const sure = via === 'eyes' && d < 4.5 && !dark && U.chance(0.5 + pers.att * 0.35);
+      if (!sure) {
+        let who = realId;
+        if (U.chance((1 - pers.att) * 0.5)) who = this.confuse(realId);
+        this.fieldSus[who] = (this.fieldSus[who] || 0) + 14;
+        this.mem.event({ type: 'oddAbility', t: g.t, who, area, kind, via }, 'oddAbility:' + who + ':' + g.meetings);
+        return;
+      }
+      if (!this.mem.event({ type: kind, t: g.t, who: realId, into: intoId, area, via }, kind + ':' + realId + ':' + g.meetings)) return;
+      const pBtn = 0.3 + (pers.leader ? 0.2 : 0) + (pers.panic ? 0.15 : 0) + (pers.skeptic ? 0.05 : 0);
+      if (p.emergencyLeft > 0 && U.chance(pBtn)) this.wantButton = { reason: kind, who: realId, area };
+      else {
+        this.fear = { who: realId, t: g.t };
+        this.avoid = { who: realId, until: g.t + 40 };
       }
     }
     onNoise(body) {
@@ -5063,7 +5209,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   const B = AU.Brain.prototype;
 
   const STRONG = { kill: 1, vent: 0.85, shift: 1, vanish: 0.95 };
-  const CLAIM_W = { kill: 70, vent: 58, shift: 70, vanish: 65, noscan: 32, follow: 8, nearBody: 13, lastWith: 16, lie: 24, tracker: 30, sus: 16, hunch: 9, claim: 16, vote: 7, mention: 4, fromBody: 14 };
+  const CLAIM_W = { kill: 70, vent: 58, shift: 36, vanish: 32, noscan: 32, follow: 8, nearBody: 13, lastWith: 16, lie: 24, tracker: 30, sus: 16, hunch: 9, claim: 16, vote: 7, mention: 4, fromBody: 14 };
 
   B.mStart = function (mt) {
     const g = this.g, p = this.p;
@@ -5125,16 +5271,30 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       (ev[id] = ev[id] || []).push(Object.assign({ w, reason }, extra || {}));
     };
     const engineers = (g.S.roles.engenheiro || {}).n > 0;
+    const visDone = new Set();
     for (const e of this.mem.events) {
-      if (e.t < rs) continue;
+      /* memória da partida inteira: tarefa visual vista em qualquer rodada inocenta; o que viu de grave antes continua valendo */
+      if ((e.type === 'visual' || e.type === 'escortVisual') && g.S.rules.visualTasks && !visDone.has(e.who)) {
+        visDone.add(e.who);
+        add(e.who, g.S.house.noVisualHardClear ? -25 : -70, 'visual', { task: e.task, area: e.area, past: e.t < rs });
+        continue;
+      }
+      if (e.t < rs) {
+        if (e.type === 'kill') add(e.who, 90, 'kill', { area: e.area, victim: e.victim, past: true });
+        else if (e.type === 'vent') add(e.who, engineers ? 40 : 75, 'vent', { area: e.area, past: true });
+        else if (e.type === 'shift' || e.type === 'vanish') add(e.who, 80, e.type, { area: e.area, past: true });
+        continue;
+      }
       if (e.type === 'kill') add(e.who, 100, 'kill', { area: e.area, victim: e.victim });
       else if (e.type === 'vent') add(e.who, engineers ? 50 : 88, 'vent', { area: e.area });
       else if (e.type === 'shift') add(e.who, 100, 'shift', { area: e.area });
       else if (e.type === 'vanish') add(e.who, 95, 'vanish', { area: e.area });
-      else if (e.type === 'visual') add(e.who, g.S.house.noVisualHardClear ? -25 : -70, 'visual', { task: e.task, area: e.area });
       else if (e.type === 'noscan') add(e.who, 32, 'noscan', { area: e.area });
       else if (e.type === 'follow') add(e.who, 6, 'follow', { area: e.area });
     }
+    /* mentiras que ele mesmo pegou em reuniões anteriores; e quem já ficou sozinho com ele sem matar */
+    for (const id of Object.keys(this.mem.lies || {})) if (this.mem.lies[id] > 0) add(+id, Math.min(30, 12 * this.mem.lies[id]), 'lie', { past: true });
+    for (const id of Object.keys(this.mem.spared || {})) if (this.mem.spared[id] >= 10) add(+id, -Math.min(14, this.mem.spared[id] * 0.6), 'spared', { secs: Math.round(this.mem.spared[id]), past: true });
     const tog = this.togetherMap();
     for (const id of Object.keys(tog)) if (tog[id] >= 20) add(+id, -12, 'together', { secs: tog[id] });
     /* comportamento estranho durante a rodada (chamou para seguir e enrolou, ficou na cola) */
@@ -5146,7 +5306,16 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     for (const id of Object.keys(alone)) if (alone[id] >= 6) add(+id, -9, 'spared', { secs: alone[id] });
     this.ev = ev;
     if (this.knowsBody) this.bodyEvidence(this.knowsBody);
+    this.dropWeakOnCleared();
     this.recalc();
+  };
+  /* Quem já provou ser tripulante não leva acusação fraca (seguiu, perto do corpo, estranho...): o bot lembra. */
+  B.dropWeakOnCleared = function () {
+    if (!this.ev) return;
+    for (const id of Object.keys(this.ev)) {
+      if (!this.hardCleared(+id)) continue;
+      this.ev[id] = this.ev[id].filter((e) => e.w <= 0 || STRONG[e.reason]);
+    }
   };
 
   /* Os primeiros segundos de cada rodada acontecem com todos juntos na Cafeteria: não contam como pista. */
@@ -5174,6 +5343,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     for (const id of Object.keys(this.ev)) this.ev[id] = this.ev[id].filter((e) => !['nearBody', 'lastWith', 'alibi', 'withVictim', 'fromBody', 'ventLink'].includes(e.reason));
     const add = (id, w, reason, extra) => {
       if (id === me || id === victim) return;
+      if (w > 0 && this.hardCleared(id)) return;
       const list = (this.ev[id] = this.ev[id] || []);
       const ex = list.find((e) => e.reason === reason);
       if (ex) {
@@ -5297,9 +5467,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     const roomsOf = (segs) => {
       const out = [];
       for (const s of segs) {
-        const a = M.AREA[s.area];
-        const r = a.kind === 'room' ? a.id : M.roomOf(a, a.cx, a.cy).id;
-        if (out[out.length - 1] !== r) out.push(r);
+        const r = placeOf(s, s.t1 - Math.max(s.t0, from));
+        if (r && out[out.length - 1] !== r) out.push(r);
       }
       return out;
     };
@@ -5425,22 +5594,56 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     return T.line(kind, d, this.g, this, opts);
   };
 
-  /* Local real (ou inventado) para o álibi. */
-  const toRoom = (areaId) => {
-    const a = M.AREA[areaId];
-    return a.kind === 'room' ? a.id : M.roomOf(a, a.cx, a.cy).id;
+  /* Local de um trecho do rastro, como um jogador contaria: a sala em que entrou; corredor só se ficou um bom
+     tempo nele (passar pelo corredor da Segurança não é "estava na Segurança"). */
+  const placeOf = (seg, dur) => {
+    const a = M.AREA[seg.area];
+    if (a.kind === 'room') return dur >= 1.5 ? a.id : null;
+    return dur >= 6 ? a.id : null;
+  };
+  /* Distância andando entre duas áreas (em tiles), para saber se dava tempo de ir de uma à outra. */
+  const TRAVEL = {};
+  const travel = (a, b) => {
+    if (!a || !b || a === b) return 0;
+    const k = a < b ? a + '|' + b : b + '|' + a;
+    if (TRAVEL[k] != null) return TRAVEL[k];
+    const A = M.AREA[a], Bb = M.AREA[b];
+    const pa = M.randomPointIn(a), pb = M.randomPointIn(b);
+    const path = AU.Nav.find(pa.x, pa.y, pb.x, pb.y, false);
+    let d = 0, px = pa.x, py = pa.y;
+    if (path && path.length) {
+      for (const pt of path) {
+        d += Math.hypot(pt.x - px, pt.y - py);
+        px = pt.x;
+        py = pt.y;
+      }
+    } else d = U.d2(A.cx, A.cy, Bb.cx, Bb.cy) * 1.4;
+    return (TRAVEL[k] = d);
+  };
+  B.travelTime = function (a, b, who) {
+    const q = who != null ? this.g.players[who] : this.p;
+    return travel(a, b) / Math.max(0.5, this.g.speedOf(q));
   };
   /* Salas por onde o bot passou nos últimos ~35s (o que um jogador conta no álibi). */
   B.recentRooms = function () {
     const from = Math.max(this.rs + 5, this.mt.info.t - 35);
+    const body = this.knowsBody || (this.mt.info.body && this.mt.info.body.area);
     const out = [];
-    for (const s of this.mem.trail) {
-      if (s.t1 < from || s.t1 - Math.max(s.t0, from) < 1.5) continue;
-      const r = toRoom(s.area);
+    const segs = this.mem.trail.filter((s) => s.t1 >= from);
+    segs.forEach((s, k) => {
+      const dur = s.t1 - Math.max(s.t0, from);
+      const a = M.AREA[s.area];
+      /* a sala onde estava na hora da reunião e a passagem pela sala do corpo contam mesmo se foram rápidas */
+      const r = placeOf(s, dur) || (a.kind === 'room' && (k === segs.length - 1 || (s.area === body && dur >= 0.5)) ? a.id : null);
+      if (!r) return;
       const i = out.indexOf(r);
       if (i >= 0) out.splice(i, 1);
       out.push(r);
-    }
+    });
+    if (out.length <= 3) return out;
+    /* conta as 3 últimas, mas não esconde que passou na sala do corpo (tripulante é honesto) */
+    const bi = body ? out.findIndex((r) => r === body || M.isNear(r, body)) : -1;
+    if (bi >= 0 && bi < out.length - 3) return [out[bi]].concat(out.slice(-2));
     return out.slice(-3);
   };
   B.myRooms = function () {
@@ -5450,10 +5653,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const a = M.areaAt(this.p.x, this.p.y);
       rooms = [M.roomOf(a, this.p.x, this.p.y).id];
     }
-    if (U.chance((1 - this.pers.mem) * 0.12 * this.err) && rooms.length) {
-      const r = M.AREA[rooms[rooms.length - 1]];
-      const alt = M.ROOMS.filter((x) => x.id !== r.id && U.d2(x.cx, x.cy, r.cx, r.cy) < 30);
-      if (alt.length) rooms[rooms.length - 1] = U.pick(alt).id;
+    /* erro de memória raro e plausível: troca a sala mais antiga por uma vizinha (nunca a última, onde estava) */
+    if (rooms.length >= 2 && U.chance((1 - this.pers.mem) * 0.04 * this.err)) {
+      const r = rooms[0];
+      const alt = M.ROOMS.filter((x) => x.id !== r && !rooms.includes(x.id) && M.CORRIDORS.some((c) => c.near.includes(r) && c.near.includes(x.id)));
+      if (alt.length) rooms[0] = U.pick(alt).id;
     }
     return rooms;
   };
@@ -5572,7 +5776,15 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         for (const id of Object.keys(this.ev)) for (const e of this.ev[id]) if ((e.reason === 'nearBody' || e.reason === 'lastWith' || e.reason === 'withVictim' || e.reason === 'fromBody') && g.players[+id].alive) list.push(Object.assign({ who: +id }, e));
         list.sort((a, b) => b.w - a.w);
         const top = list[0];
-        if (!top) return U.chance(0.35) ? msg('noOneNear', { area: this.knowsBody }, []) : null;
+        if (!top) {
+          /* "passei lá e não tinha ninguém" só se passou mesmo; "perto" se passou no corredor ao lado */
+          const ba = this.knowsBody;
+          const segs = this.mem.trail.filter((x) => x.t1 >= this.rs + 5 && x.t1 - x.t0 >= 0.8);
+          const inside = segs.some((x) => x.area === ba);
+          const beside = inside || segs.some((x) => M.isNear(x.area, ba));
+          if (!beside || !U.chance(0.35)) return null;
+          return msg(inside ? 'noOneNear' : 'noOneNearBy', { area: ba }, []);
+        }
         let who = top.who;
         if (U.chance((1 - pers.mem) * 0.12 * this.err)) who = this.confuse(who);
         if (top.reason === 'lastWith') return msg('lastWithVictim', { who, victim: top.victim, area: top.area }, [{ type: 'accuse', who, reason: 'lastWith', area: top.area }]);
@@ -5926,13 +6138,21 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     const say = (kind, d, intents, opts) => ({ text: this.say(kind, d, opts), intents: intents || [] });
     const rooms = it.rooms || [];
     const withIds = it.with || [];
+    /* já provou ser tripulante: álibi que não bate é engano, não mentira (pergunta em vez de acusar) */
+    const known = this.hardCleared(S);
     if (withIds.includes(me)) {
       const tog = this.togetherMap()[S] || 0;
-      if (tog >= 5) {
+      const iWasThere = known || rooms.some((r) => this.myStay(r) >= 3);
+      if (tog >= 3) {
         this.bump(S, -10);
         this.reply(0.9, () => say('confirmWith', { who: S }, [{ type: 'vouch', who: S, reason: 'together' }]), true);
+      } else if (tog > 0.5 || iWasThere) {
+        /* estava lá mas mal reparou: dúvida, não acusação */
+        this.bump(S, 5, 'social');
+        this.reply(1, () => say('notSureWith', { who: S }, []), true);
       } else {
         this.bump(S, 30);
+        this.mem.lies[S] = (this.mem.lies[S] || 0) + 1;
         this.reply(0.9, () => say('denyWith', { who: S }, [{ type: 'accuse', who: S, reason: 'lie' }]), true);
       }
       return;
@@ -5942,7 +6162,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     if (!seen.length) {
       /* "eu fiquei lá e não te vi": só com permanência longa na última sala dita, e raramente */
       const r = rooms[rooms.length - 1];
-      if (r && !this.replied.has('stay' + S) && this.myStay(r) >= 22 && U.chance(0.12 + (pers.skeptic ? 0.15 : 0))) {
+      if (r && !known && !this.replied.has('stay' + S) && this.myStay(r) >= 22 && U.chance(0.12 + (pers.skeptic ? 0.15 : 0))) {
         this.replied.add('stay' + S);
         this.bump(S, 8, 'social');
         this.reply(1.2, () => say('contradictStay', { who: S, area: r }, [{ type: 'accuse', who: S, reason: 'sus' }]));
@@ -5951,19 +6171,43 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (pers.skeptic && !withIds.length && U.chance(0.3)) this.reply(1.3, () => say('askConfirm', { who: S }, []));
       return;
     }
-    const recent = this.mt.info.t - 30;
-    const matches = seen.filter((s) => matchR(s.area));
-    const mism = seen.filter((s) => !matchR(s.area) && s.t1 >= recent && s.t1 - s.t0 >= 1.2 && !matches.some((m) => m.t1 > s.t1));
+    const T0 = this.mt.info.t;
+    const last = rooms[rooms.length - 1];
+    /* visto agora há pouco: tem que bater com a ÚLTIMA sala que disse (ou dar tempo de chegar lá) */
+    const recentBad = (s) => {
+      const dt = T0 - s.t1;
+      if (!last || dt > 12 || s.area === last || M.isNear(last, s.area)) return false;
+      return dt + 3 < this.travelTime(s.area, last, S);
+    };
+    const matches = seen.filter((s) => matchR(s.area) && !recentBad(s));
+    const bodyA = this.knowsBody;
+    /* só é contradição se não bate de verdade: visto perto do corpo e escondeu isso, ou visto há tão pouco tempo
+       num lugar tão longe que não daria para chegar na sala que disse */
+    const mism = seen.filter((s) => {
+      if (s.t1 - s.t0 < 1.2 || matches.some((m) => m.t1 > s.t1)) return false;
+      if (recentBad(s)) return true;
+      if (matchR(s.area)) return false;
+      const dt = T0 - s.t1;
+      if (bodyA && (s.area === bodyA || M.isNear(s.area, bodyA)) && dt <= 35) return true;
+      if (!last || dt > 20) return false;
+      return dt + 3 < this.travelTime(s.area, last, S);
+    });
     if (matches.length && U.chance(0.35 + pers.talk * 0.3)) {
       this.bump(S, -7);
       const s = matches[matches.length - 1];
       this.reply(1.1, () => say('confirm', { who: S, area: s.area }, [{ type: 'vouch', who: S, reason: 'claim' }]));
+    } else if (mism.length && known) {
+      if (!this.replied.has('ask' + S) && U.chance(0.4)) {
+        this.replied.add('ask' + S);
+        this.reply(1.2, () => say('askConfirm', { who: S }, []));
+      }
     } else if (mism.length) {
       const s = mism[mism.length - 1];
       const rel = this.knowsBody && (s.area === this.knowsBody || M.isNear(s.area, this.knowsBody));
-      if (rel || U.chance(0.3)) {
-        this.bump(S, rel ? 28 : 10);
-        this.reply(1, () => say('contradictSeen', { who: S, area: s.area, claimed: rooms[rooms.length - 1] }, [{ type: 'accuse', who: S, reason: 'lie', area: s.area }]));
+      if (rel || U.chance(0.75)) {
+        this.bump(S, rel ? 28 : 18);
+        this.mem.lies[S] = (this.mem.lies[S] || 0) + 1;
+        this.reply(1, () => say(rel ? 'hidBodyRoom' : 'contradictSeen', { who: S, area: s.area, claimed: rooms[rooms.length - 1] }, [{ type: 'accuse', who: S, reason: 'lie', area: s.area }]));
       }
     }
     void g;
@@ -6092,6 +6336,15 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       return;
     }
     let belief = w * this.trust(S);
+    /* "vi se transformar / sumir": uma testemunha sozinha pode estar enganada (ou mentindo); duas fecham o caso */
+    if (it.reason === 'shift' || it.reason === 'vanish') {
+      const more = mt.msgs.some((m) => m.from !== S && m.from !== me && m.intents.some((j) => j.type === 'accuse' && j.who === T2 && (j.reason === 'shift' || j.reason === 'vanish')));
+      if (more) belief *= 1.9;
+      else if ((pers.skeptic || pers.defend) && !this.replied.has('proof' + T2)) {
+        this.replied.add('proof' + T2);
+        this.reply(1.1, () => say('askProof', { who: T2 }, [{ type: 'askProof' }]));
+      }
+    }
     const myEv = (this.ev && this.ev[T2]) || [];
     const clearedByMe = myEv.some((e) => e.reason === 'together' || e.reason === 'alibi');
     if (clearedByMe && !STRONG[it.reason]) {
@@ -6229,7 +6482,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     for (const q of g.players) {
       if (q.id === this.p.id) continue;
       this.carry[q.id] = U.clamp((this.susp[q.id] || 0) * 0.55, -45, 110);
+      if (!this.p.isImp && this.hardCleared(q.id)) this.carry[q.id] = Math.min(this.carry[q.id], -30);
     }
+    for (const id of Object.keys(this.aloneWith || {})) this.mem.spared[id] = (this.mem.spared[id] || 0) + this.aloneWith[id];
     if (result.ejected != null && conf && !this.p.isImp) {
       const ej = g.players[result.ejected];
       for (const [voter, target] of Object.entries(result.votes || {})) {
@@ -6393,7 +6648,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       };
       if (roles.length) {
         out.push('Funções especiais que EXISTEM nesta partida (ninguém sabe quem tem; alguém pode dizer que tem, e pode ser mentira):');
-        for (const r of roles) out.push('- ' + C.ROLES[r].name + ' (' + (C.ROLES[r].team === 'crew' ? 'tripulante' : 'impostor') + '): ' + C.ROLES[r].desc + ' — ' + IMPL[r] + '.');
+        for (const r of roles) out.push('- ' + C.ROLES[r].name + ' (' + (C.ROLES[r].team === 'crew' ? 'tripulante' : 'impostor') + '): ' + C.roleDesc(r, g.S) + ' — ' + IMPL[r] + '.');
         const off = Object.keys(C.ROLES).filter((r) => !on(r));
         if (off.length) out.push('Funções que NÃO existem nesta partida: ' + off.map((r) => C.ROLES[r].name).join(', ') + '. Se alguém falar delas, dá para corrigir.');
       } else out.push('Nesta partida não há funções especiais (nada de metamorfo, fantasma, engenheiro, cientista etc.). Se alguém falar disso, dá para corrigir: não tem isso nessa partida.');
@@ -6522,8 +6777,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const strongTxt = { kill: 'matando alguém', vent: 'entrando ou saindo de um duto', shift: 'mudando de aparência', vanish: 'ficando invisível' };
         for (const id of Object.keys(b.ev || {})) {
           for (const e of b.ev[id]) {
-            if (strongTxt[e.reason]) out.push('VIU ' + nm(+id) + ' ' + strongTxt[e.reason] + (e.area ? ' em ' + V.area(e.area) : '') + '. Tem certeza absoluta.');
-            if (e.reason === 'visual') out.push('Viu ' + nm(+id) + ' fazendo ' + (M.VISUAL_NAMES[e.task] || 'uma tarefa visual') + ': inocente com certeza.');
+            if (strongTxt[e.reason]) out.push('VIU ' + nm(+id) + ' ' + strongTxt[e.reason] + (e.area ? ' em ' + V.area(e.area) : '') + (e.past ? ' numa rodada anterior (e ele continua vivo)' : '') + '. Tem certeza absoluta.');
+            if (e.reason === 'visual') out.push('Viu ' + nm(+id) + ' fazendo ' + (M.VISUAL_NAMES[e.task] || 'uma tarefa visual') + (e.past ? ' numa rodada anterior' : '') + ': é tripulante com certeza, lembra disso e NUNCA acusa ' + nm(+id) + ' por coisa fraca (seguir, estar perto, jeito estranho).');
+            if (e.reason === 'lie' && e.past) out.push('Já pegou ' + nm(+id) + ' mentindo sobre onde estava numa reunião anterior.');
+            if (e.reason === 'spared') out.push('Já ficou sozinho com ' + nm(+id) + ' (' + e.secs + 's no total) e não morreu.');
             if (e.reason === 'noscan') out.push('Viu ' + nm(+id) + ' parado ' + ({ scan: 'no scanner da MedBay', asteroids: 'na arma de asteroides', shields: 'no painel dos escudos' }[e.task] || 'numa tarefa visual') + ' sem a animação aparecer (tarefa falsa).');
             if (e.reason === 'ventLink') out.push('Viu ' + nm(+id) + ' aparecer em ' + V.area(e.area) + ', que tem duto ligado a ' + V.area(e.bodyArea) + ' (onde estava o corpo), pouco antes.');
             if (e.reason === 'withVictim' || e.reason === 'lastWith') out.push('Viu ' + nm(+id) + ' junto da vítima pouco antes' + (e.area ? ', em ' + V.area(e.area) : '') + '.');
@@ -7884,6 +8141,221 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
 
 </script>
   <script>
+/* Chat do lobby: antes da partida os bots se cumprimentam, comentam as regras escolhidas, combinam coisas e
+   respondem ao que você escreve (pela IA quando ela está ligada; sem IA, com frases próprias). */
+(function () {
+  'use strict';
+  const AU = window.AU;
+  const U = AU.U, C = AU.C;
+
+  const GREET = ['oi', 'eai', 'salve galera', 'opa', 'olá pessoal', 'fala', 'oi oi', 'boa noite, gente'];
+  const BANTER = [
+    'alguém faz as tasks comigo?', 'se eu for imp já peço desculpa', 'não matem no café pfv', 'sem self report hein',
+    'eu sempre sou o primeiro a morrer', 'ninguém vai pra elétrica sozinho', 'boa sorte a todos', 'bora bora',
+    'vou direto fazer minhas tasks', 'quem morrer primeiro fica de fantasma kkk', 'hoje eu pego o impostor',
+    'se chamar reunião sem motivo eu voto em quem chamou kkk', 'confia em mim', 'vou ficar de olho em todo mundo',
+  ];
+  const REPLY = {
+    hello: ['oi, {h}', 'eai {h}', 'salve', 'opa, bem-vindo', 'oi oi'],
+    go: ['bora', 'vamo', 'só esperando começar kkk', 'bora que eu tô pronto'],
+    imp: ['saberemos kkk', 'não sou eu, confia', 'eu nem sei ainda kkk', 'o impostor é sempre quem pergunta', 'vai descobrir na hora'],
+    named: ['oi?', 'fala, {h}', 'eu?', 'que foi, {h}?', 'tô aqui'],
+    tip: ['faz o scan na frente de alguém que ajuda', 'anda em dupla que é mais seguro', 'olha as câmeras quando terminar as tasks'],
+    generic: ['kkk', 'verdade', 'boa', 'pode crer', 'haha', 'é isso', 'justo', 'tmj'],
+  };
+
+  class LobbyChat {
+    constructor(roster, S) {
+      this.roster = roster;
+      this.S = S;
+      this.msgs = [];
+      this.used = new Set();
+      this.timer = null;
+      this.aiBusy = false;
+      this.aiCalls = 0;
+      this.onMsg = null;
+      this.idle = 0;
+      this.stopped = false;
+    }
+    bots() {
+      return this.roster.filter((r) => !r.isHuman);
+    }
+    human() {
+      return this.roster.find((r) => r.isHuman);
+    }
+    /* frases sobre as regras que foram escolhidas */
+    settingsLines() {
+      const S = this.S, R = S.rules, out = [];
+      out.push(R.visualTasks ? 'visual ligado, bom' : 'sem tarefa visual? vai ser tenso');
+      out.push(S.room.impostors + (S.room.impostors > 1 ? ' impostores' : ' impostor') + ' com ' + S.room.players + '... ' + (S.room.impostors >= 3 ? 'vai ser difícil' : 'justo'));
+      if (!R.confirmEjects) out.push('sem confirmar ejeção, cuidado no voto');
+      if (R.anonymousVotes) out.push('voto anônimo, ninguém vai saber quem votou em quem');
+      if (R.killCooldown <= 20) out.push('cooldown baixo, vai ser rápido');
+      if (R.crewVision < 1) out.push('visão curta... medo');
+      const roles = C.ROLE_IDS.filter((id) => (S.roles[id] || {}).n > 0);
+      if (roles.length) {
+        const r = C.ROLES[U.pick(roles)].name.toLowerCase();
+        out.push('tem ' + r + ' nessa, fiquem espertos');
+        if (roles.includes('engenheiro')) out.push('se me virem no duto é porque sou engenheiro kkk');
+        if (roles.includes('metamorfo')) out.push('cuidado com o metamorfo, não confiem só na cor');
+      }
+      return out;
+    }
+    pick(list, vars) {
+      const fill = (s) => s.replace(/\{h\}/g, (vars && vars.h) || '');
+      const fresh = list.filter((s) => !this.used.has(fill(s)));
+      const s = fill(U.pick(fresh.length ? fresh : list));
+      this.used.add(s);
+      return s;
+    }
+    styled(r, text) {
+      return AU.Talk && AU.Talk.style ? AU.Talk.style(text, { S: this.S }, { pers: C.PERSONALITIES[r.personality] || C.PERSONALITIES.analitico }) : text;
+    }
+    post(r, text) {
+      if (this.stopped || !text) return;
+      const m = { from: r, text };
+      this.msgs.push(m);
+      if (this.msgs.length > 60) this.msgs.shift();
+      if (this.onMsg) this.onMsg(m);
+    }
+    /* começa a conversa: cumprimentos, comentários das regras, combinações; depois vai rareando */
+    start(onMsg) {
+      this.onMsg = onMsg;
+      if (this.started) return;
+      this.started = true;
+      const bots = U.shuffle(this.bots());
+      const plan = [];
+      bots.slice(0, 3).forEach((b, i) => plan.push({ at: 0.8 + i * U.rf(0.9, 1.6), who: b, text: () => this.pick(GREET) }));
+      const sl = U.shuffle(this.settingsLines()).slice(0, 2);
+      sl.forEach((t, i) => plan.push({ at: 4.5 + i * U.rf(2, 3.5), who: U.pick(bots), text: () => t }));
+      plan.sort((a, b) => a.at - b.at);
+      this.queue = plan;
+      this.t0 = performance.now();
+      this.loop();
+    }
+    loop() {
+      clearTimeout(this.timer);
+      if (this.stopped) return;
+      const now = (performance.now() - this.t0) / 1000;
+      while (this.queue.length && this.queue[0].at <= now) {
+        const it = this.queue.shift();
+        this.post(it.who, this.styled(it.who, typeof it.text === 'function' ? it.text() : it.text));
+      }
+      if (!this.queue.length) {
+        /* conversa solta, cada vez mais espaçada (ninguém fica falando sozinho no lobby para sempre) */
+        this.idle++;
+        if (this.idle < 14) {
+          const b = U.pick(this.bots());
+          this.queue.push({ at: now + U.rf(4, 7) * (1 + this.idle * 0.25), who: b, text: () => this.pick(BANTER) });
+        }
+      }
+      /* sem nada na fila e a conversa já rareou: para o relógio até alguém falar */
+      if (!this.queue.length) {
+        this.timer = null;
+        return;
+      }
+      this.timer = setTimeout(() => this.loop(), 400);
+    }
+    kick() {
+      if (!this.timer && !this.stopped && this.started) this.loop();
+    }
+    stop() {
+      this.stopped = true;
+      clearTimeout(this.timer);
+    }
+
+    /* você escreveu no chat do lobby */
+    onHuman(text) {
+      text = String(text || '').trim().slice(0, 160);
+      const h = this.human();
+      if (!text || !h) return;
+      this.post(h, text);
+      this.idle = Math.max(0, this.idle - 4);
+      const n = U.norm(text);
+      const bots = this.bots();
+      const named = bots.filter((b) => n.split(/\W+/).includes(U.norm(b.name)) || n.includes(U.norm(C.COLOR[b.color].name)));
+      const who = named.length ? named.slice(0, 2) : U.shuffle(bots).slice(0, U.chance(0.45) ? 2 : 1);
+      if (this.aiOn()) this.aiReply(text, who);
+      else this.templateReply(n, who, named.length > 0);
+      this.kick();
+    }
+    templateReply(n, who, named) {
+      const h = this.human();
+      const now = (performance.now() - this.t0) / 1000;
+      /* a pergunta vem antes do cumprimento: um responde a pergunta, outro cumprimenta */
+      const kinds = [];
+      if (/\b(imp|impostor|impostores|quem e|sus)\b/.test(n)) kinds.push(REPLY.imp);
+      if (/\b(dica|como joga|ajuda|como faz)\b/.test(n)) kinds.push(REPLY.tip);
+      if (/\b(bora|vamos|vamo|comeca|comecar|start)\b/.test(n)) kinds.push(REPLY.go);
+      if (/^(oi|ola|eai|e ai|salve|opa|fala|hey|hello|boa (noite|tarde|dia))\b/.test(n)) kinds.push(REPLY.hello);
+      if (named && !kinds.length) kinds.push(REPLY.named);
+      if (!kinds.length) kinds.push(REPLY.generic);
+      who.forEach((b, i) => {
+        const list = kinds[i % kinds.length];
+        const b0 = b;
+        this.queue.push({ at: now + U.rf(1.2, 2.6) + i * U.rf(1.2, 2.2), who: b0, text: () => this.pick(list, { h: h.name }) });
+      });
+      this.queue.sort((a, b) => a.at - b.at);
+    }
+    aiOn() {
+      return this.S.ui.aiChat !== 'off' && AU.LLM && AU.LLM.ready() && this.aiCalls < 20 && !this.aiBusy;
+    }
+    async aiReply(text, who) {
+      const h = this.human();
+      const V = AU.Voice;
+      this.aiBusy = true;
+      this.aiCalls++;
+      const persona = (r) => {
+        const pb = (r._voice = r._voice || { g: { S: this.S }, p: r });
+        const pers = C.PERSONALITIES[r.personality] || C.PERSONALITIES.analitico;
+        return '### ' + r.name + ' (' + C.COLOR[r.color].name + ') — ' + pers.name + ': ' + pers.desc + ' Jeito de escrever: ' + (V && V.voiceOf ? V.voiceOf(pb) : 'natural');
+      };
+      const prompt = [
+        'Lobby de uma partida igual a Among Us (nave The Skeld), ANTES de começar: ninguém sabe ainda quem é impostor. Os jogadores se cumprimentam, comentam as regras e brincam.',
+        'Regras escolhidas: ' + this.S.room.players + ' jogadores, ' + this.S.room.impostors + ' impostor(es); ' + this.settingsLines().join('; ') + '.',
+        '',
+        'Chat do lobby até agora:',
+        this.msgs.slice(-12).map((m) => m.from.name + ': ' + m.text).join('\n'),
+        '',
+        h.name + ' (o jogador) acabou de escrever: "' + text + '". Quem responde:',
+        ...who.map(persona),
+        '',
+        'Escreva 1 mensagem curta para cada um, no formato "Nome: mensagem".',
+      ].join('\n');
+      const system = 'Você escreve o chat do lobby de um jogo igual a Among Us, jogado por brasileiros. Mensagens curtas de chat (até 90 caracteres), cada um no seu jeito de escrever, sem narração, sem aspas, sem emojis. Entenda erros de digitação. Nunca diga que é IA ou bot.';
+      let out = null;
+      try {
+        out = await AU.LLM.complete(system, prompt, { maxTokens: 40 + who.length * 40 });
+      } catch (e) {
+        out = null;
+      }
+      this.aiBusy = false;
+      if (this.stopped) return;
+      const lines = [];
+      for (const raw of String(out || '').split(/\n+/)) {
+        const m = raw.replace(/^[\s*\-•>#]+/, '').replace(/\*\*/g, '').match(/^([^:]{1,30}):\s*(.+)$/);
+        if (!m) continue;
+        const nm = U.norm(m[1].replace(/\([^)]*\)/g, '')).trim();
+        const r = who.find((b) => U.norm(b.name) === nm || U.norm(C.COLOR[b.color].name) === nm);
+        const t = m[2].replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').replace(/^["“]|["”]$/g, '').trim().slice(0, 140);
+        if (r && t) lines.push({ r, t });
+      }
+      if (!lines.length) {
+        this.templateReply(U.norm(text), who, false);
+        return this.kick();
+      }
+      const now = (performance.now() - this.t0) / 1000;
+      lines.slice(0, 2).forEach((l, i) => this.queue.push({ at: now + U.rf(0.6, 1.4) + i * U.rf(1, 2), who: l.r, text: l.t }));
+      this.queue.sort((a, b) => a.at - b.at);
+      this.kick();
+    }
+  }
+
+  AU.Lobby = { create: (roster, S) => new LobbyChat(roster, S) };
+})();
+
+</script>
+  <script>
 /* Reuniões: fluxo de discussão/votação, chat em tempo real (com IA quando disponível) e ejeção. */
 (function () {
   'use strict';
@@ -7912,6 +8384,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.accusers = {};
       this.defenders = {};
       this.alive = g.players.filter((p) => p.alive).map((p) => p.id);
+      /* onde o jogador estava quando a reunião começou (só para ele ver no mapinha) */
+      const hp0 = g.human;
+      this.myPos = hp0 ? { x: hp0.x, y: hp0.y, area: M.areaAt(hp0.x, hp0.y).id } : null;
       this.impostorsLeft = g.S.room.impostors - g.players.filter((p) => p.ejected && p.isImp).length;
       this.humanClaimed = false;
       this.humanSpoke = false;
@@ -8410,8 +8885,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         h('div', { class: 'mt-head-r' }, this.pauseBtn, this.timer));
       this.tabs = h('div', { class: 'mt-tabs', role: 'tablist' },
         ['players', 'chat', 'board'].map((k) => h('button', { class: 'mt-tab', type: 'button', role: 'tab', 'data-tab': k, onclick: () => this.setTab(k) },
-          k === 'players' ? 'Jogadores' : k === 'chat' ? 'Chat' : 'Quadro de álibis')));
-      const left = h('div', { class: 'mt-left' }, this.cards, h('div', { class: 'mt-skiprow' }, this.skipBtn, this.skipVotes), this.status);
+          k === 'players' ? 'Jogadores' : k === 'chat' ? 'Chat' : h('span', {}, h('span', { class: 'tab-long' }, 'Quadro de álibis'), h('span', { class: 'tab-short' }, 'Álibis')))));
+      this.myMap = this.buildMyMap();
+      const left = h('div', { class: 'mt-left' }, this.cards, h('div', { class: 'mt-skiprow' }, this.skipBtn, this.skipVotes), this.status, this.myMap);
       const logWrap = h('div', { class: 'mt-logwrap' }, this.log, this.newPill);
       this.voteCta = h('button', { class: 'mt-votecta', type: 'button', onclick: () => this.setTab('players') }, '🗳 Votação aberta — toque aqui para votar');
       const right = h('div', { class: 'mt-right' }, this.voteCta, logWrap, this.board, this.typingEl, h('div', { class: 'mt-chips' }, chips), form);
@@ -8698,6 +9174,39 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }, 45);
       this.iv = iv;
     }
+    /* Mapinha só com o lugar onde VOCÊ estava quando a reunião começou (nada de corpo nem dos outros). */
+    buildMyMap() {
+      const mt = this.mt, g = mt.g, hp = g.human, pos = mt.myPos;
+      if (!hp || !pos || !AU.HUD || !AU.HUD.drawMapBase) return null;
+      const cv = h('canvas', { class: 'mt-map-cv', width: 544, height: 304, 'aria-hidden': 'true' });
+      const A = M.AREA[pos.area];
+      const box = h('div', { class: 'mt-map' },
+        h('div', { class: 'mt-map-h' }, '🗺 Onde você estava', h('span', {}, A ? A.name : '')), cv);
+      try {
+        const { ctx, sx, sy } = AU.HUD.drawMapBase(cv);
+        const x = pos.x * sx, y = pos.y * sy, col = C.COLOR[hp.color].hex;
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        ctx.beginPath();
+        ctx.arc(x, y, 26, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.arc(x, y, 17, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(x, y, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#10151f';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+      } catch (e) {
+        return null;
+      }
+      return box;
+    }
+
     destroy() {
       if (this.iv) clearInterval(this.iv);
       this.root.remove();
@@ -11374,9 +11883,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           this.g.ghosts.onHuman(v);
         },
       }, e.ghostInput, h('button', { class: 'gh-send', type: 'submit' }, 'Enviar'));
+      e.ghostNew = h('button', { class: 'gh-new', type: 'button', hidden: true, onclick: () => { e.ghostLog.scrollTop = e.ghostLog.scrollHeight; e.ghostNew.hidden = true; } }, '↓ novas mensagens');
+      e.ghostLog.addEventListener('scroll', () => {
+        if (e.ghostLog.scrollHeight - e.ghostLog.scrollTop - e.ghostLog.clientHeight < 40) e.ghostNew.hidden = true;
+      });
       e.ghostPanel = h('div', { class: 'hud-ghost', hidden: true },
         h('div', { class: 'gh-head' }, h('span', {}, '👻 Chat dos fantasmas'), h('small', {}, 'os vivos não leem'), h('button', { class: 'gh-close', type: 'button', 'aria-label': 'Fechar', onclick: () => this.toggleGhost(false) }, '✕')),
-        e.ghostLog, ghostForm);
+        h('div', { class: 'gh-logwrap' }, e.ghostLog, e.ghostNew), ghostForm);
       this.ghostShown = 0;
       this.ghostAuto = false;
       this.ghostUnread = 0;
@@ -11601,6 +12114,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
       const msgs = g.ghosts.msgs;
       if (this.ghostShown > msgs.length) this.ghostShown = 0;
+      if (this.ghostShown >= msgs.length) return;
+      /* só desce sozinho se você já estava lendo o fim; rolou para cima, fica onde está */
+      const log = e.ghostLog;
+      const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
       while (this.ghostShown < msgs.length) {
         const m = msgs[this.ghostShown++];
         const p = g.players[m.from];
@@ -11615,8 +12132,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           e.ghostBadge.hidden = false;
         }
       }
-      while (e.ghostLog.childElementCount > 80) e.ghostLog.firstChild.remove();
-      if (!e.ghostPanel.hidden) e.ghostLog.scrollTop = e.ghostLog.scrollHeight;
+      while (log.childElementCount > 120) log.firstChild.remove();
+      if (e.ghostPanel.hidden) return;
+      if (atBottom) log.scrollTop = log.scrollHeight;
+      else e.ghostNew.hidden = false;
     },
 
     /* ---------- ações do jogador ---------- */
@@ -11682,7 +12201,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       } else if (sp === 'cientista') this.openVitals();
       else if (sp === 'anjo') {
         const near = g.players.filter((q) => q.alive && U.dist(q, hp) <= 4);
-        this.openPicker('Proteger quem?', near, (q) => g.protect(hp, q.id) && this.toast(q.name + ' está protegido por ' + (g.S.rules.angelDuration || 10) + 's.'));
+        this.openPicker('Proteger quem?', near, (q) => g.protect(hp, q.id) && this.toast(q.name + ' está protegido por ' + g.ro('anjo', 'dur', 10) + 's.'));
       }
     },
 
@@ -11774,8 +12293,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       return this.overlay;
     },
 
-    drawMiniMap(cv, opts) {
-      const g = this.g, hp = g.human;
+    /* Planta da nave: salas, corredores e nomes (sem ninguém). */
+    drawMapBase(cv) {
       const ctx = cv.getContext('2d');
       const sx = cv.width / M.W, sy = cv.height / M.H;
       ctx.clearRect(0, 0, cv.width, cv.height);
@@ -11792,6 +12311,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       ctx.font = `700 ${Math.max(9, cv.width / 90)}px "Chakra Petch", system-ui, sans-serif`;
       ctx.textAlign = 'center';
       for (const r of M.ROOMS) ctx.fillText(r.name, (r.rect[0] + r.rect[2] / 2) * sx, (r.rect[1] + 1.8) * sy);
+      return { ctx, sx, sy };
+    },
+
+    drawMiniMap(cv, opts) {
+      const g = this.g, hp = g.human;
+      const { ctx, sx, sy } = this.drawMapBase(cv);
       for (const d of M.DOORS) {
         if (!d.closed) continue;
         ctx.fillStyle = '#ff4747';
@@ -12344,7 +12869,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           this.field('Distância de abate', this.select('r-kd', [['curta', 'Curta'], ['media', 'Média'], ['longa', 'Longa']], () => R.killDistance, (v) => { R.killDistance = v; change(); })),
           num('r-common', 'Tarefas comuns', 0, 2, 1, 'commonTasks'),
           num('r-long', 'Tarefas longas', 0, 3, 1, 'longTasks'),
-          num('r-short', 'Tarefas curtas', 0, 5, 1, 'shortTasks')));
+          num('r-short', 'Tarefas curtas', 0, 5, 1, 'shortTasks'),
+          num('r-crit', 'Tempo para consertar reator/O2', 20, 90, 5, 'critTime', sec, 'Se ninguém consertar a tempo, os impostores vencem'),
+          num('r-sabcd', 'Recarga das sabotagens', 10, 60, 5, 'sabCooldown', sec),
+          num('r-door', 'Portas trancadas por', 5, 20, 1, 'doorTime', sec),
+          num('r-doorcd', 'Recarga das portas (depois de abrir)', 5, 60, 1, 'doorCooldown', sec)));
     },
 
     secRoles(change) {
@@ -12353,10 +12882,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       for (const id of C.ROLE_IDS) {
         const r = C.ROLES[id];
         const cfg = RL[id];
+        const desc = h('p', {}, C.roleDesc(id, this.S));
+        const extra = (C.ROLE_OPTS[id] || []).map(([key, label, min, max, step]) =>
+          this.field(label, this.range('role-' + key + '-' + id, min, max, step, () => cfg[key], (v) => { cfg[key] = v; desc.textContent = C.roleDesc(id, this.S); change(); }, (v) => v + 's')));
         list.appendChild(h('div', { class: 'role-row ' + r.team },
-          h('div', { class: 'role-info' }, h('strong', {}, r.name), h('span', { class: 'role-team' }, r.team === 'crew' ? 'Tripulação' : 'Impostor'), h('p', {}, r.desc)),
+          h('div', { class: 'role-info' }, h('strong', {}, r.name), h('span', { class: 'role-team' }, r.team === 'crew' ? 'Tripulação' : 'Impostor'), desc),
           this.field('Quantidade', this.range('role-n-' + id, 0, 3, 1, () => cfg.n, (v) => { cfg.n = v; change(); })),
-          this.field('Chance', this.range('role-c-' + id, 0, 100, 10, () => cfg.chance, (v) => { cfg.chance = v; change(); }, (v) => v + '%'))));
+          this.field('Chance', this.range('role-c-' + id, 0, 100, 10, () => cfg.chance, (v) => { cfg.chance = v; change(); }, (v) => v + '%')),
+          extra.length ? h('div', { class: 'role-opts' }, extra) : null));
       }
       return this.sec('funcoes', 'Funções especiais', 'Cada vaga sorteia a função com a chance definida. Funções de impostor só vão para impostores.', list);
     },
@@ -12642,30 +13175,49 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         }
         grid.appendChild(card);
       });
+      /* chat do lobby: você digita, os bots conversam e respondem (a conversa sobrevive a trocar cor/nome) */
       const chat = h('div', { class: 'lobby-chat', 'aria-live': 'polite' });
-      const lines = ['bora', 'quem é o host?', 'eu sempre sou impostor kkk', 'visual ligado?', 'alguém faz o scan comigo', 'boa sorte a todos', 'se eu morrer primeiro de novo eu saio', 'não matem no admin pfv', 'oi', 'vamo lá', 'eu vou de elétrica', 'confia'];
-      let li = 0;
-      const addLine = () => {
-        if (!chat.isConnected) return;
-        const bots = roster.filter((x) => !x.isHuman);
-        const b = U.pick(bots);
-        const txt = AU.Talk.style(lines[li++ % lines.length], { S }, { pers: C.PERSONALITIES[b.personality] });
-        chat.appendChild(h('div', { class: 'lobby-line' }, h('b', { style: { color: C.COLOR[b.color].hex === '#3F474E' ? '#9aa4b2' : C.COLOR[b.color].hex } }, b.name + ': '), txt));
-        while (chat.children.length > 6) chat.firstChild.remove();
-        this._lobbyT = setTimeout(addLine, U.rf(1400, 3200));
+      if (!this._lobbyChat || this._lobbyChat.roster !== roster) {
+        if (this._lobbyChat) this._lobbyChat.stop();
+        this._lobbyChat = AU.Lobby.create(roster, S);
+      }
+      const lc = this._lobbyChat;
+      const nameCol = (r) => {
+        const hex = C.COLOR[r.color].hex, n = parseInt(hex.slice(1), 16);
+        const lum = 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+        return lum < 90 ? '#aab4c4' : hex;
       };
-      clearTimeout(this._lobbyT);
-      this._lobbyT = setTimeout(addLine, 700);
+      const show = (m) => {
+        if (!chat.isConnected && chat.childElementCount) return;
+        const atBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 40;
+        chat.appendChild(h('div', { class: 'lobby-line' + (m.from.isHuman ? ' mine' : '') }, h('b', { style: { color: nameCol(m.from) } }, m.from.name + ': '), m.text));
+        while (chat.children.length > 60) chat.firstChild.remove();
+        if (atBottom || m.from.isHuman) chat.scrollTop = chat.scrollHeight;
+      };
+      lc.msgs.forEach(show);
+      lc.start(show);
+      lc.onMsg = show;
+      const input = h('input', { class: 'lobby-input', type: 'text', maxlength: '160', placeholder: 'Diga algo no lobby…', autocomplete: 'off', 'aria-label': 'Mensagem no chat do lobby' });
+      const form = h('form', {
+        class: 'lobby-form',
+        onsubmit: (ev) => {
+          ev.preventDefault();
+          const v = input.value.trim();
+          if (!v) return;
+          input.value = '';
+          lc.onHuman(v);
+        },
+      }, input, h('button', { class: 'btn small', type: 'submit' }, 'Enviar'));
       root.append(
         h('header', { class: 'cfg-head' }, h('h2', {}, 'Lobby'), h('p', {}, this.summary())),
-        h('div', { class: 'lobby-body' }, grid, h('aside', { class: 'lobby-side' }, h('h3', {}, 'Chat do lobby'), chat,
+        h('div', { class: 'lobby-body' }, grid, h('aside', { class: 'lobby-side' }, h('h3', {}, 'Chat do lobby'), chat, form,
           h('p', { class: 'fine' }, manual ? 'Atribua a personalidade de cada bot antes de começar.' : 'As personalidades não mudam durante a partida. As funções só são sorteadas ao começar.'),
           h('h3', { class: 'lobby-ai-h' }, 'IA das conversas'), this.aiStatusEl(),
           h('p', { class: 'fine' }, 'Para trocar a fonte da IA, volte às configurações.'))),
         h('div', { class: 'cfg-foot' },
-          h('button', { class: 'btn ghost', onclick: () => { clearTimeout(this._lobbyT); AU.App.show('create'); } }, '← Configurações'),
+          h('button', { class: 'btn ghost', onclick: () => { lc.stop(); this._lobbyChat = null; AU.App.show('create'); } }, '← Configurações'),
           h('button', { class: 'btn', onclick: () => { AU.App.roster = this.buildRoster(S); this.lobby(root, AU.App.roster); } }, 'Sortear bots de novo'),
-          h('button', { class: 'btn primary', onclick: () => { clearTimeout(this._lobbyT); AU.App.startGame(); } }, 'Começar partida →')));
+          h('button', { class: 'btn primary', onclick: () => { lc.stop(); this._lobbyChat = null; AU.App.startGame(); } }, 'Começar partida →')));
     },
 
     /* ---------------- revelação ---------------- */

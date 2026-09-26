@@ -237,7 +237,11 @@
           this.field('Distância de abate', this.select('r-kd', [['curta', 'Curta'], ['media', 'Média'], ['longa', 'Longa']], () => R.killDistance, (v) => { R.killDistance = v; change(); })),
           num('r-common', 'Tarefas comuns', 0, 2, 1, 'commonTasks'),
           num('r-long', 'Tarefas longas', 0, 3, 1, 'longTasks'),
-          num('r-short', 'Tarefas curtas', 0, 5, 1, 'shortTasks')));
+          num('r-short', 'Tarefas curtas', 0, 5, 1, 'shortTasks'),
+          num('r-crit', 'Tempo para consertar reator/O2', 20, 90, 5, 'critTime', sec, 'Se ninguém consertar a tempo, os impostores vencem'),
+          num('r-sabcd', 'Recarga das sabotagens', 10, 60, 5, 'sabCooldown', sec),
+          num('r-door', 'Portas trancadas por', 5, 20, 1, 'doorTime', sec),
+          num('r-doorcd', 'Recarga das portas (depois de abrir)', 5, 60, 1, 'doorCooldown', sec)));
     },
 
     secRoles(change) {
@@ -246,10 +250,14 @@
       for (const id of C.ROLE_IDS) {
         const r = C.ROLES[id];
         const cfg = RL[id];
+        const desc = h('p', {}, C.roleDesc(id, this.S));
+        const extra = (C.ROLE_OPTS[id] || []).map(([key, label, min, max, step]) =>
+          this.field(label, this.range('role-' + key + '-' + id, min, max, step, () => cfg[key], (v) => { cfg[key] = v; desc.textContent = C.roleDesc(id, this.S); change(); }, (v) => v + 's')));
         list.appendChild(h('div', { class: 'role-row ' + r.team },
-          h('div', { class: 'role-info' }, h('strong', {}, r.name), h('span', { class: 'role-team' }, r.team === 'crew' ? 'Tripulação' : 'Impostor'), h('p', {}, r.desc)),
+          h('div', { class: 'role-info' }, h('strong', {}, r.name), h('span', { class: 'role-team' }, r.team === 'crew' ? 'Tripulação' : 'Impostor'), desc),
           this.field('Quantidade', this.range('role-n-' + id, 0, 3, 1, () => cfg.n, (v) => { cfg.n = v; change(); })),
-          this.field('Chance', this.range('role-c-' + id, 0, 100, 10, () => cfg.chance, (v) => { cfg.chance = v; change(); }, (v) => v + '%'))));
+          this.field('Chance', this.range('role-c-' + id, 0, 100, 10, () => cfg.chance, (v) => { cfg.chance = v; change(); }, (v) => v + '%')),
+          extra.length ? h('div', { class: 'role-opts' }, extra) : null));
       }
       return this.sec('funcoes', 'Funções especiais', 'Cada vaga sorteia a função com a chance definida. Funções de impostor só vão para impostores.', list);
     },
@@ -535,30 +543,49 @@
         }
         grid.appendChild(card);
       });
+      /* chat do lobby: você digita, os bots conversam e respondem (a conversa sobrevive a trocar cor/nome) */
       const chat = h('div', { class: 'lobby-chat', 'aria-live': 'polite' });
-      const lines = ['bora', 'quem é o host?', 'eu sempre sou impostor kkk', 'visual ligado?', 'alguém faz o scan comigo', 'boa sorte a todos', 'se eu morrer primeiro de novo eu saio', 'não matem no admin pfv', 'oi', 'vamo lá', 'eu vou de elétrica', 'confia'];
-      let li = 0;
-      const addLine = () => {
-        if (!chat.isConnected) return;
-        const bots = roster.filter((x) => !x.isHuman);
-        const b = U.pick(bots);
-        const txt = AU.Talk.style(lines[li++ % lines.length], { S }, { pers: C.PERSONALITIES[b.personality] });
-        chat.appendChild(h('div', { class: 'lobby-line' }, h('b', { style: { color: C.COLOR[b.color].hex === '#3F474E' ? '#9aa4b2' : C.COLOR[b.color].hex } }, b.name + ': '), txt));
-        while (chat.children.length > 6) chat.firstChild.remove();
-        this._lobbyT = setTimeout(addLine, U.rf(1400, 3200));
+      if (!this._lobbyChat || this._lobbyChat.roster !== roster) {
+        if (this._lobbyChat) this._lobbyChat.stop();
+        this._lobbyChat = AU.Lobby.create(roster, S);
+      }
+      const lc = this._lobbyChat;
+      const nameCol = (r) => {
+        const hex = C.COLOR[r.color].hex, n = parseInt(hex.slice(1), 16);
+        const lum = 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+        return lum < 90 ? '#aab4c4' : hex;
       };
-      clearTimeout(this._lobbyT);
-      this._lobbyT = setTimeout(addLine, 700);
+      const show = (m) => {
+        if (!chat.isConnected && chat.childElementCount) return;
+        const atBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 40;
+        chat.appendChild(h('div', { class: 'lobby-line' + (m.from.isHuman ? ' mine' : '') }, h('b', { style: { color: nameCol(m.from) } }, m.from.name + ': '), m.text));
+        while (chat.children.length > 60) chat.firstChild.remove();
+        if (atBottom || m.from.isHuman) chat.scrollTop = chat.scrollHeight;
+      };
+      lc.msgs.forEach(show);
+      lc.start(show);
+      lc.onMsg = show;
+      const input = h('input', { class: 'lobby-input', type: 'text', maxlength: '160', placeholder: 'Diga algo no lobby…', autocomplete: 'off', 'aria-label': 'Mensagem no chat do lobby' });
+      const form = h('form', {
+        class: 'lobby-form',
+        onsubmit: (ev) => {
+          ev.preventDefault();
+          const v = input.value.trim();
+          if (!v) return;
+          input.value = '';
+          lc.onHuman(v);
+        },
+      }, input, h('button', { class: 'btn small', type: 'submit' }, 'Enviar'));
       root.append(
         h('header', { class: 'cfg-head' }, h('h2', {}, 'Lobby'), h('p', {}, this.summary())),
-        h('div', { class: 'lobby-body' }, grid, h('aside', { class: 'lobby-side' }, h('h3', {}, 'Chat do lobby'), chat,
+        h('div', { class: 'lobby-body' }, grid, h('aside', { class: 'lobby-side' }, h('h3', {}, 'Chat do lobby'), chat, form,
           h('p', { class: 'fine' }, manual ? 'Atribua a personalidade de cada bot antes de começar.' : 'As personalidades não mudam durante a partida. As funções só são sorteadas ao começar.'),
           h('h3', { class: 'lobby-ai-h' }, 'IA das conversas'), this.aiStatusEl(),
           h('p', { class: 'fine' }, 'Para trocar a fonte da IA, volte às configurações.'))),
         h('div', { class: 'cfg-foot' },
-          h('button', { class: 'btn ghost', onclick: () => { clearTimeout(this._lobbyT); AU.App.show('create'); } }, '← Configurações'),
+          h('button', { class: 'btn ghost', onclick: () => { lc.stop(); this._lobbyChat = null; AU.App.show('create'); } }, '← Configurações'),
           h('button', { class: 'btn', onclick: () => { AU.App.roster = this.buildRoster(S); this.lobby(root, AU.App.roster); } }, 'Sortear bots de novo'),
-          h('button', { class: 'btn primary', onclick: () => { clearTimeout(this._lobbyT); AU.App.startGame(); } }, 'Começar partida →')));
+          h('button', { class: 'btn primary', onclick: () => { lc.stop(); this._lobbyChat = null; AU.App.startGame(); } }, 'Começar partida →')));
     },
 
     /* ---------------- revelação ---------------- */

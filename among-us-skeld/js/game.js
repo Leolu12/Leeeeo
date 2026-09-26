@@ -134,6 +134,7 @@
           if (cand) cand.special = rid;
         }
       }
+      for (const p of this.players) if (p.special === 'cientista') p.battery = this.ro('cientista', 'dur', 10);
     }
 
     assignTasks() {
@@ -200,6 +201,11 @@
     sabCritical() { return !!(this.sab && (this.sab.type === 'reactor' || this.sab.type === 'o2')); }
     anyoneOnCams() { return this.players.some((p) => p.alive && p.onCams) && !this.commsDown(); }
     areaOf(p) { return M.areaAt(p.x, p.y); }
+    /* opção de uma função (duração/recarga) com o padrão do jogo original como reserva */
+    ro(id, key, def) {
+      const r = this.S.roles && this.S.roles[id];
+      return r && r[key] != null ? r[key] : def;
+    }
     log(ev) {
       ev.t = this.t;
       this.events.push(ev);
@@ -290,10 +296,10 @@
       for (const p of this.players) {
         p.killCd = Math.max(0, p.killCd - dt);
         p.abilityCd = Math.max(0, p.abilityCd - dt);
-        if (p.special === 'cientista' && p.battery < 10) p.battery = Math.min(10, p.battery + dt * 0.04);
+        if (p.special === 'cientista' && p.battery < this.ro('cientista', 'dur', 10)) p.battery = Math.min(this.ro('cientista', 'dur', 10), p.battery + dt * 0.04);
         if (p.shiftAs != null && t >= p.shiftUntil) this.unshift(p);
         if (p.invisUntil && t >= p.invisUntil) this.reappear(p);
-        if (p.inVent && p.special === 'engenheiro' && t - p.ventT > 15) this.exitVent(p);
+        if (p.inVent && p.special === 'engenheiro' && t - p.ventT > this.ro('engenheiro', 'dur', 15)) this.exitVent(p);
         if (p.visual && p.visual.until < t) p.visual = null;
         if (p.busy && p.busy.until && p.busy.until < t - 0.5 && !p.isHuman) p.busy = null;
         p.moving = false;
@@ -503,7 +509,7 @@
         this.say('narrate', 'Você viu um abate acontecer diante dos seus olhos.', 'event');
       }
       if (v.special === 'barulhento') {
-        this.pings.push({ x: v.x, y: v.y, until: t + 10, pid: v.id });
+        this.pings.push({ x: v.x, y: v.y, until: t + this.ro('barulhento', 'dur', 10), pid: v.id });
         for (const p of this.players) if (p.brain && p.alive) p.brain.onNoise(body);
         if (h && h.alive) this.say('toast', 'Alerta! Um tripulante morreu — siga o sinal.');
       }
@@ -624,11 +630,11 @@
         if (s.switches.every(Boolean)) s.switches[U.rint(0, 4)] = false;
         s.switches[U.rint(0, 4)] = false;
       } else if (type === 'reactor') {
-        s.timer = CRIT_TIME;
+        s.timer = this.S.rules.critTime || CRIT_TIME;
         s.hold = { A: -9, B: -9 };
         s.both = 0;
       } else if (type === 'o2') {
-        s.timer = CRIT_TIME;
+        s.timer = this.S.rules.critTime || CRIT_TIME;
         s.code = String(U.rint(10000, 99999));
         s.done = { A: false, B: false };
       } else if (type === 'comms') {
@@ -651,7 +657,7 @@
       const s = this.sab;
       this.log({ type: 'sabFix', sab: s.type, by: by ? by.id : null, dur: this.t - s.t0 });
       this.sab = null;
-      this.sabCd = 30;
+      this.sabCd = this.S.rules.sabCooldown != null ? this.S.rules.sabCooldown : 30;
       AU.Audio.alarm(false);
       for (const q of this.players) if (q.brain) q.brain.onSabFixed(s);
       this.say('onSabFixed', s);
@@ -711,8 +717,9 @@
     doorReady(room) { return (this.doorCd[room] || 0) <= this.t; }
     closeDoors(room, p) {
       if (!p || !p.isImp || this.phase !== 'play' || !this.doorReady(room) || !M.DOOR_ROOMS.includes(room)) return false;
-      this.doorUntil[room] = this.t + 10;
-      this.doorCd[room] = this.t + 26;
+      const dt0 = this.S.rules.doorTime || 10;
+      this.doorUntil[room] = this.t + dt0;
+      this.doorCd[room] = this.t + dt0 + (this.S.rules.doorCooldown != null ? this.S.rules.doorCooldown : 16);
       M.setDoorsClosed(room, true);
       this.unstickFromDoors();
       this.log({ type: 'doors', room, by: p.id });
@@ -797,7 +804,7 @@
       for (const w of wit) if (w.p.brain) w.p.brain.onWitnessVent(ap, 'out', v, w.via);
       this.addFx({ type: 'vent', x: v.x, y: v.y, dur: 0.5 });
       this.log({ type: 'vent', by: p.id, vent: v.id, dir: 'out', witnesses: wit.map((w) => w.p.id) });
-      if (p.special === 'engenheiro') p.abilityCd = 20;
+      if (p.special === 'engenheiro') p.abilityCd = this.ro('engenheiro', 'cd', 20);
       if (this.human && (p.isHuman || this.canSeePoint(this.human, v.x, v.y))) this.sfx('vent');
       return true;
     }
@@ -811,7 +818,7 @@
       const wit = this.witnesses([p], [p.id]);
       for (const w of wit) if (w.p.brain) w.p.brain.onWitnessShift(p.id, targetId, w.via);
       p.shiftAs = targetId;
-      p.shiftUntil = t + 30;
+      p.shiftUntil = t + this.ro('metamorfo', 'dur', 30);
       this.addFx({ type: 'puff', x: p.x, y: p.y, dur: 0.6 });
       this.log({ type: 'shift', by: p.id, into: targetId, witnesses: wit.map((w) => w.p.id) });
       return true;
@@ -821,21 +828,21 @@
       const wit = this.witnesses([p], [p.id]);
       for (const w of wit) if (w.p.brain) w.p.brain.onWitnessShift(p.id, p.shiftAs, w.via);
       p.shiftAs = null;
-      p.abilityCd = 25;
+      p.abilityCd = this.ro('metamorfo', 'cd', 25);
       this.addFx({ type: 'puff', x: p.x, y: p.y, dur: 0.6 });
     }
     vanish(p) {
       if (p.special !== 'fantasma' || !p.alive || p.abilityCd > 0 || p.inVent || p.invisUntil > this.t || this.phase !== 'play') return false;
       const wit = this.witnesses([p], [p.id]);
       for (const w of wit) if (w.p.brain) w.p.brain.onWitnessVanish(p.id, w.via);
-      p.invisUntil = this.t + 10;
+      p.invisUntil = this.t + this.ro('fantasma', 'dur', 10);
       this.addFx({ type: 'puff', x: p.x, y: p.y, dur: 0.6 });
       this.log({ type: 'vanish', by: p.id, witnesses: wit.map((w) => w.p.id) });
       return true;
     }
     reappear(p) {
       p.invisUntil = 0;
-      p.abilityCd = 25;
+      p.abilityCd = this.ro('fantasma', 'cd', 25);
       const wit = this.witnesses([p], [p.id]);
       for (const w of wit) if (w.p.brain) w.p.brain.onWitnessVanish(p.id, w.via);
       this.addFx({ type: 'puff', x: p.x, y: p.y, dur: 0.6 });
@@ -845,8 +852,8 @@
       const tg = this.players[targetId];
       if (!tg || !tg.alive || tg === p || U.dist(p, tg) > 3.5) return false;
       p.trackTarget = targetId;
-      p.trackUntil = this.t + 30;
-      p.abilityCd = 45;
+      p.trackUntil = this.t + this.ro('rastreador', 'dur', 30);
+      p.abilityCd = this.ro('rastreador', 'cd', 45);
       this.log({ type: 'track', by: p.id, target: targetId });
       return true;
     }
@@ -855,8 +862,8 @@
       const tg = this.players[targetId];
       if (!tg || !tg.alive || U.dist(p, tg) > 4) return false;
       /* padrão do jogo original: escudo de 10s, recarga de 60s */
-      tg.protectedUntil = this.t + (this.S.rules.angelDuration || 10);
-      p.abilityCd = this.S.rules.angelCooldown || 60;
+      tg.protectedUntil = this.t + this.ro('anjo', 'dur', 10);
+      p.abilityCd = this.ro('anjo', 'cd', 60);
       this.log({ type: 'protect', by: p.id, target: targetId });
       if (this.ghosts) this.ghosts.onProtect(p, tg);
       return true;
@@ -879,7 +886,7 @@
       if (task.step >= task.steps.length) {
         task.done = true;
         if (!p.isImp) this.log({ type: 'task', by: p.id, task: task.id });
-        if (p.special === 'cientista') p.battery = Math.min(10, p.battery + 3);
+        if (p.special === 'cientista') p.battery = Math.min(this.ro('cientista', 'dur', 10), p.battery + 3);
       }
       if (task.def.visual === 'shields' && task.done) p.visual = { type: 'shields', until: this.t + 2.5 };
       this.say('onTaskProgress', p, task);

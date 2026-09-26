@@ -6,7 +6,7 @@
   const B = AU.Brain.prototype;
 
   const STRONG = { kill: 1, vent: 0.85, shift: 1, vanish: 0.95 };
-  const CLAIM_W = { kill: 70, vent: 58, shift: 70, vanish: 65, noscan: 32, follow: 8, nearBody: 13, lastWith: 16, lie: 24, tracker: 30, sus: 16, hunch: 9, claim: 16, vote: 7, mention: 4, fromBody: 14 };
+  const CLAIM_W = { kill: 70, vent: 58, shift: 36, vanish: 32, noscan: 32, follow: 8, nearBody: 13, lastWith: 16, lie: 24, tracker: 30, sus: 16, hunch: 9, claim: 16, vote: 7, mention: 4, fromBody: 14 };
 
   B.mStart = function (mt) {
     const g = this.g, p = this.p;
@@ -68,16 +68,30 @@
       (ev[id] = ev[id] || []).push(Object.assign({ w, reason }, extra || {}));
     };
     const engineers = (g.S.roles.engenheiro || {}).n > 0;
+    const visDone = new Set();
     for (const e of this.mem.events) {
-      if (e.t < rs) continue;
+      /* memória da partida inteira: tarefa visual vista em qualquer rodada inocenta; o que viu de grave antes continua valendo */
+      if ((e.type === 'visual' || e.type === 'escortVisual') && g.S.rules.visualTasks && !visDone.has(e.who)) {
+        visDone.add(e.who);
+        add(e.who, g.S.house.noVisualHardClear ? -25 : -70, 'visual', { task: e.task, area: e.area, past: e.t < rs });
+        continue;
+      }
+      if (e.t < rs) {
+        if (e.type === 'kill') add(e.who, 90, 'kill', { area: e.area, victim: e.victim, past: true });
+        else if (e.type === 'vent') add(e.who, engineers ? 40 : 75, 'vent', { area: e.area, past: true });
+        else if (e.type === 'shift' || e.type === 'vanish') add(e.who, 80, e.type, { area: e.area, past: true });
+        continue;
+      }
       if (e.type === 'kill') add(e.who, 100, 'kill', { area: e.area, victim: e.victim });
       else if (e.type === 'vent') add(e.who, engineers ? 50 : 88, 'vent', { area: e.area });
       else if (e.type === 'shift') add(e.who, 100, 'shift', { area: e.area });
       else if (e.type === 'vanish') add(e.who, 95, 'vanish', { area: e.area });
-      else if (e.type === 'visual') add(e.who, g.S.house.noVisualHardClear ? -25 : -70, 'visual', { task: e.task, area: e.area });
       else if (e.type === 'noscan') add(e.who, 32, 'noscan', { area: e.area });
       else if (e.type === 'follow') add(e.who, 6, 'follow', { area: e.area });
     }
+    /* mentiras que ele mesmo pegou em reuniões anteriores; e quem já ficou sozinho com ele sem matar */
+    for (const id of Object.keys(this.mem.lies || {})) if (this.mem.lies[id] > 0) add(+id, Math.min(30, 12 * this.mem.lies[id]), 'lie', { past: true });
+    for (const id of Object.keys(this.mem.spared || {})) if (this.mem.spared[id] >= 10) add(+id, -Math.min(14, this.mem.spared[id] * 0.6), 'spared', { secs: Math.round(this.mem.spared[id]), past: true });
     const tog = this.togetherMap();
     for (const id of Object.keys(tog)) if (tog[id] >= 20) add(+id, -12, 'together', { secs: tog[id] });
     /* comportamento estranho durante a rodada (chamou para seguir e enrolou, ficou na cola) */
@@ -89,7 +103,16 @@
     for (const id of Object.keys(alone)) if (alone[id] >= 6) add(+id, -9, 'spared', { secs: alone[id] });
     this.ev = ev;
     if (this.knowsBody) this.bodyEvidence(this.knowsBody);
+    this.dropWeakOnCleared();
     this.recalc();
+  };
+  /* Quem já provou ser tripulante não leva acusação fraca (seguiu, perto do corpo, estranho...): o bot lembra. */
+  B.dropWeakOnCleared = function () {
+    if (!this.ev) return;
+    for (const id of Object.keys(this.ev)) {
+      if (!this.hardCleared(+id)) continue;
+      this.ev[id] = this.ev[id].filter((e) => e.w <= 0 || STRONG[e.reason]);
+    }
   };
 
   /* Os primeiros segundos de cada rodada acontecem com todos juntos na Cafeteria: não contam como pista. */
@@ -117,6 +140,7 @@
     for (const id of Object.keys(this.ev)) this.ev[id] = this.ev[id].filter((e) => !['nearBody', 'lastWith', 'alibi', 'withVictim', 'fromBody', 'ventLink'].includes(e.reason));
     const add = (id, w, reason, extra) => {
       if (id === me || id === victim) return;
+      if (w > 0 && this.hardCleared(id)) return;
       const list = (this.ev[id] = this.ev[id] || []);
       const ex = list.find((e) => e.reason === reason);
       if (ex) {
@@ -240,9 +264,8 @@
     const roomsOf = (segs) => {
       const out = [];
       for (const s of segs) {
-        const a = M.AREA[s.area];
-        const r = a.kind === 'room' ? a.id : M.roomOf(a, a.cx, a.cy).id;
-        if (out[out.length - 1] !== r) out.push(r);
+        const r = placeOf(s, s.t1 - Math.max(s.t0, from));
+        if (r && out[out.length - 1] !== r) out.push(r);
       }
       return out;
     };
@@ -368,22 +391,56 @@
     return T.line(kind, d, this.g, this, opts);
   };
 
-  /* Local real (ou inventado) para o álibi. */
-  const toRoom = (areaId) => {
-    const a = M.AREA[areaId];
-    return a.kind === 'room' ? a.id : M.roomOf(a, a.cx, a.cy).id;
+  /* Local de um trecho do rastro, como um jogador contaria: a sala em que entrou; corredor só se ficou um bom
+     tempo nele (passar pelo corredor da Segurança não é "estava na Segurança"). */
+  const placeOf = (seg, dur) => {
+    const a = M.AREA[seg.area];
+    if (a.kind === 'room') return dur >= 1.5 ? a.id : null;
+    return dur >= 6 ? a.id : null;
+  };
+  /* Distância andando entre duas áreas (em tiles), para saber se dava tempo de ir de uma à outra. */
+  const TRAVEL = {};
+  const travel = (a, b) => {
+    if (!a || !b || a === b) return 0;
+    const k = a < b ? a + '|' + b : b + '|' + a;
+    if (TRAVEL[k] != null) return TRAVEL[k];
+    const A = M.AREA[a], Bb = M.AREA[b];
+    const pa = M.randomPointIn(a), pb = M.randomPointIn(b);
+    const path = AU.Nav.find(pa.x, pa.y, pb.x, pb.y, false);
+    let d = 0, px = pa.x, py = pa.y;
+    if (path && path.length) {
+      for (const pt of path) {
+        d += Math.hypot(pt.x - px, pt.y - py);
+        px = pt.x;
+        py = pt.y;
+      }
+    } else d = U.d2(A.cx, A.cy, Bb.cx, Bb.cy) * 1.4;
+    return (TRAVEL[k] = d);
+  };
+  B.travelTime = function (a, b, who) {
+    const q = who != null ? this.g.players[who] : this.p;
+    return travel(a, b) / Math.max(0.5, this.g.speedOf(q));
   };
   /* Salas por onde o bot passou nos últimos ~35s (o que um jogador conta no álibi). */
   B.recentRooms = function () {
     const from = Math.max(this.rs + 5, this.mt.info.t - 35);
+    const body = this.knowsBody || (this.mt.info.body && this.mt.info.body.area);
     const out = [];
-    for (const s of this.mem.trail) {
-      if (s.t1 < from || s.t1 - Math.max(s.t0, from) < 1.5) continue;
-      const r = toRoom(s.area);
+    const segs = this.mem.trail.filter((s) => s.t1 >= from);
+    segs.forEach((s, k) => {
+      const dur = s.t1 - Math.max(s.t0, from);
+      const a = M.AREA[s.area];
+      /* a sala onde estava na hora da reunião e a passagem pela sala do corpo contam mesmo se foram rápidas */
+      const r = placeOf(s, dur) || (a.kind === 'room' && (k === segs.length - 1 || (s.area === body && dur >= 0.5)) ? a.id : null);
+      if (!r) return;
       const i = out.indexOf(r);
       if (i >= 0) out.splice(i, 1);
       out.push(r);
-    }
+    });
+    if (out.length <= 3) return out;
+    /* conta as 3 últimas, mas não esconde que passou na sala do corpo (tripulante é honesto) */
+    const bi = body ? out.findIndex((r) => r === body || M.isNear(r, body)) : -1;
+    if (bi >= 0 && bi < out.length - 3) return [out[bi]].concat(out.slice(-2));
     return out.slice(-3);
   };
   B.myRooms = function () {
@@ -393,10 +450,11 @@
       const a = M.areaAt(this.p.x, this.p.y);
       rooms = [M.roomOf(a, this.p.x, this.p.y).id];
     }
-    if (U.chance((1 - this.pers.mem) * 0.12 * this.err) && rooms.length) {
-      const r = M.AREA[rooms[rooms.length - 1]];
-      const alt = M.ROOMS.filter((x) => x.id !== r.id && U.d2(x.cx, x.cy, r.cx, r.cy) < 30);
-      if (alt.length) rooms[rooms.length - 1] = U.pick(alt).id;
+    /* erro de memória raro e plausível: troca a sala mais antiga por uma vizinha (nunca a última, onde estava) */
+    if (rooms.length >= 2 && U.chance((1 - this.pers.mem) * 0.04 * this.err)) {
+      const r = rooms[0];
+      const alt = M.ROOMS.filter((x) => x.id !== r && !rooms.includes(x.id) && M.CORRIDORS.some((c) => c.near.includes(r) && c.near.includes(x.id)));
+      if (alt.length) rooms[0] = U.pick(alt).id;
     }
     return rooms;
   };
@@ -515,7 +573,15 @@
         for (const id of Object.keys(this.ev)) for (const e of this.ev[id]) if ((e.reason === 'nearBody' || e.reason === 'lastWith' || e.reason === 'withVictim' || e.reason === 'fromBody') && g.players[+id].alive) list.push(Object.assign({ who: +id }, e));
         list.sort((a, b) => b.w - a.w);
         const top = list[0];
-        if (!top) return U.chance(0.35) ? msg('noOneNear', { area: this.knowsBody }, []) : null;
+        if (!top) {
+          /* "passei lá e não tinha ninguém" só se passou mesmo; "perto" se passou no corredor ao lado */
+          const ba = this.knowsBody;
+          const segs = this.mem.trail.filter((x) => x.t1 >= this.rs + 5 && x.t1 - x.t0 >= 0.8);
+          const inside = segs.some((x) => x.area === ba);
+          const beside = inside || segs.some((x) => M.isNear(x.area, ba));
+          if (!beside || !U.chance(0.35)) return null;
+          return msg(inside ? 'noOneNear' : 'noOneNearBy', { area: ba }, []);
+        }
         let who = top.who;
         if (U.chance((1 - pers.mem) * 0.12 * this.err)) who = this.confuse(who);
         if (top.reason === 'lastWith') return msg('lastWithVictim', { who, victim: top.victim, area: top.area }, [{ type: 'accuse', who, reason: 'lastWith', area: top.area }]);
@@ -869,13 +935,21 @@
     const say = (kind, d, intents, opts) => ({ text: this.say(kind, d, opts), intents: intents || [] });
     const rooms = it.rooms || [];
     const withIds = it.with || [];
+    /* já provou ser tripulante: álibi que não bate é engano, não mentira (pergunta em vez de acusar) */
+    const known = this.hardCleared(S);
     if (withIds.includes(me)) {
       const tog = this.togetherMap()[S] || 0;
-      if (tog >= 5) {
+      const iWasThere = known || rooms.some((r) => this.myStay(r) >= 3);
+      if (tog >= 3) {
         this.bump(S, -10);
         this.reply(0.9, () => say('confirmWith', { who: S }, [{ type: 'vouch', who: S, reason: 'together' }]), true);
+      } else if (tog > 0.5 || iWasThere) {
+        /* estava lá mas mal reparou: dúvida, não acusação */
+        this.bump(S, 5, 'social');
+        this.reply(1, () => say('notSureWith', { who: S }, []), true);
       } else {
         this.bump(S, 30);
+        this.mem.lies[S] = (this.mem.lies[S] || 0) + 1;
         this.reply(0.9, () => say('denyWith', { who: S }, [{ type: 'accuse', who: S, reason: 'lie' }]), true);
       }
       return;
@@ -885,7 +959,7 @@
     if (!seen.length) {
       /* "eu fiquei lá e não te vi": só com permanência longa na última sala dita, e raramente */
       const r = rooms[rooms.length - 1];
-      if (r && !this.replied.has('stay' + S) && this.myStay(r) >= 22 && U.chance(0.12 + (pers.skeptic ? 0.15 : 0))) {
+      if (r && !known && !this.replied.has('stay' + S) && this.myStay(r) >= 22 && U.chance(0.12 + (pers.skeptic ? 0.15 : 0))) {
         this.replied.add('stay' + S);
         this.bump(S, 8, 'social');
         this.reply(1.2, () => say('contradictStay', { who: S, area: r }, [{ type: 'accuse', who: S, reason: 'sus' }]));
@@ -894,19 +968,43 @@
       if (pers.skeptic && !withIds.length && U.chance(0.3)) this.reply(1.3, () => say('askConfirm', { who: S }, []));
       return;
     }
-    const recent = this.mt.info.t - 30;
-    const matches = seen.filter((s) => matchR(s.area));
-    const mism = seen.filter((s) => !matchR(s.area) && s.t1 >= recent && s.t1 - s.t0 >= 1.2 && !matches.some((m) => m.t1 > s.t1));
+    const T0 = this.mt.info.t;
+    const last = rooms[rooms.length - 1];
+    /* visto agora há pouco: tem que bater com a ÚLTIMA sala que disse (ou dar tempo de chegar lá) */
+    const recentBad = (s) => {
+      const dt = T0 - s.t1;
+      if (!last || dt > 12 || s.area === last || M.isNear(last, s.area)) return false;
+      return dt + 3 < this.travelTime(s.area, last, S);
+    };
+    const matches = seen.filter((s) => matchR(s.area) && !recentBad(s));
+    const bodyA = this.knowsBody;
+    /* só é contradição se não bate de verdade: visto perto do corpo e escondeu isso, ou visto há tão pouco tempo
+       num lugar tão longe que não daria para chegar na sala que disse */
+    const mism = seen.filter((s) => {
+      if (s.t1 - s.t0 < 1.2 || matches.some((m) => m.t1 > s.t1)) return false;
+      if (recentBad(s)) return true;
+      if (matchR(s.area)) return false;
+      const dt = T0 - s.t1;
+      if (bodyA && (s.area === bodyA || M.isNear(s.area, bodyA)) && dt <= 35) return true;
+      if (!last || dt > 20) return false;
+      return dt + 3 < this.travelTime(s.area, last, S);
+    });
     if (matches.length && U.chance(0.35 + pers.talk * 0.3)) {
       this.bump(S, -7);
       const s = matches[matches.length - 1];
       this.reply(1.1, () => say('confirm', { who: S, area: s.area }, [{ type: 'vouch', who: S, reason: 'claim' }]));
+    } else if (mism.length && known) {
+      if (!this.replied.has('ask' + S) && U.chance(0.4)) {
+        this.replied.add('ask' + S);
+        this.reply(1.2, () => say('askConfirm', { who: S }, []));
+      }
     } else if (mism.length) {
       const s = mism[mism.length - 1];
       const rel = this.knowsBody && (s.area === this.knowsBody || M.isNear(s.area, this.knowsBody));
-      if (rel || U.chance(0.3)) {
-        this.bump(S, rel ? 28 : 10);
-        this.reply(1, () => say('contradictSeen', { who: S, area: s.area, claimed: rooms[rooms.length - 1] }, [{ type: 'accuse', who: S, reason: 'lie', area: s.area }]));
+      if (rel || U.chance(0.75)) {
+        this.bump(S, rel ? 28 : 18);
+        this.mem.lies[S] = (this.mem.lies[S] || 0) + 1;
+        this.reply(1, () => say(rel ? 'hidBodyRoom' : 'contradictSeen', { who: S, area: s.area, claimed: rooms[rooms.length - 1] }, [{ type: 'accuse', who: S, reason: 'lie', area: s.area }]));
       }
     }
     void g;
@@ -1035,6 +1133,15 @@
       return;
     }
     let belief = w * this.trust(S);
+    /* "vi se transformar / sumir": uma testemunha sozinha pode estar enganada (ou mentindo); duas fecham o caso */
+    if (it.reason === 'shift' || it.reason === 'vanish') {
+      const more = mt.msgs.some((m) => m.from !== S && m.from !== me && m.intents.some((j) => j.type === 'accuse' && j.who === T2 && (j.reason === 'shift' || j.reason === 'vanish')));
+      if (more) belief *= 1.9;
+      else if ((pers.skeptic || pers.defend) && !this.replied.has('proof' + T2)) {
+        this.replied.add('proof' + T2);
+        this.reply(1.1, () => say('askProof', { who: T2 }, [{ type: 'askProof' }]));
+      }
+    }
     const myEv = (this.ev && this.ev[T2]) || [];
     const clearedByMe = myEv.some((e) => e.reason === 'together' || e.reason === 'alibi');
     if (clearedByMe && !STRONG[it.reason]) {
@@ -1172,7 +1279,9 @@
     for (const q of g.players) {
       if (q.id === this.p.id) continue;
       this.carry[q.id] = U.clamp((this.susp[q.id] || 0) * 0.55, -45, 110);
+      if (!this.p.isImp && this.hardCleared(q.id)) this.carry[q.id] = Math.min(this.carry[q.id], -30);
     }
+    for (const id of Object.keys(this.aloneWith || {})) this.mem.spared[id] = (this.mem.spared[id] || 0) + this.aloneWith[id];
     if (result.ejected != null && conf && !this.p.isImp) {
       const ej = g.players[result.ejected];
       for (const [voter, target] of Object.entries(result.votes || {})) {

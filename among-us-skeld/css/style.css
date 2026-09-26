@@ -602,3 +602,84 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   .hud-feed, body.touch .hud-feed { left: 170px; right: 170px; width: auto; bottom: 8px; }
   .hud-feed > :nth-last-child(n + 3) { display: none; }
 }
+
+/* reunião: mapinha com o lugar onde o jogador estava */
+.mt-map { margin-top: 4px; background: #eef2f8; border: 2px solid #9aa6bd; border-radius: 12px; padding: 6px 8px 8px; }
+.mt-map-h { display: flex; justify-content: space-between; gap: 8px; font-weight: 800; font-size: 13px; color: #2e3a52; margin-bottom: 5px; }
+.mt-map-h span { color: #10151f; }
+.mt-map-cv { display: block; width: auto; height: auto; max-width: 100%; max-height: 190px; margin: 0 auto; border-radius: 8px; }
+@media (max-height: 520px) { .mt-map-cv { max-height: 62vh; } }
+@media (min-width: 861px) {
+  .mt-left { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); grid-template-areas: 'cards cards' 'skip map' 'status map'; align-content: start; column-gap: 12px; }
+  .mt-cards { grid-area: cards; }
+  .mt-left > .mt-skiprow { grid-area: skip; align-self: start; flex-wrap: wrap; }
+  .mt-left > .mt-status { grid-area: status; }
+  .mt-left > .mt-map { grid-area: map; margin-top: 0; align-self: start; }
+}
+.role-row .role-opts { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 4px 16px; padding-top: 4px; border-top: 1px dashed var(--line-2); }
+
+/* chat do lobby */
+.lobby-chat { max-height: 280px; overflow-y: auto; justify-content: flex-start; }
+.lobby-line { line-height: 1.35; word-break: break-word; }
+.lobby-line.mine { opacity: 0.9; }
+.lobby-form { display: flex; gap: 6px; margin-bottom: 8px; }
+.lobby-input { flex: 1; min-width: 0; background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 10px; color: inherit; }
+@media (max-width: 860px) { .lobby-side { order: -1; } .lobby-chat { max-height: 190px; min-height: 120px; } }
+.lobby-form .btn { padding: 8px 12px; min-height: 0; font-size: 13px; }
+
+.gh-logwrap { position: relative; flex: 1; min-height: 60px; display: flex; flex-direction: column; }
+.gh-log { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.gh-new { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); padding: 4px 10px; border-radius: 999px; border: 0; background: #5b6fd8; color: #fff; font-size: 12px; font-weight: 800; min-height: 0; }
+.gh-new[hidden] { display: none; }
+
+/* ===== revisão de layout por tamanho de tela ===== */
+.tab-short { display: none; }
+@media (max-width: 420px) { .tab-long { display: none; } .tab-short { display: inline; } }
+/* celular em pé: botões do topo em coluna à direita; tarefas ocupam o resto da largura */
+@media (max-width: 520px) and (orientation: portrait) {
+  .hud-topright { flex-direction: column; }
+  .hud-tasks { width: calc(100vw - 78px); max-width: 320px; }
+  .hud-sab { top: 84px; left: 12px; right: 66px; transform: none; max-width: none; }
+  .hud-toast { max-width: calc(100vw - 100px); left: calc(50% - 30px); }
+  .hud-ghost { right: 64px; }
+}
+/* celular bem estreito: joystick e botões menores para não encostarem */
+@media (max-width: 360px) {
+  .hud-joy { width: 108px; height: 108px; left: 12px; bottom: 16px; }
+  .hud-joy .knob { width: 46px; height: 46px; margin: -23px 0 0 -23px; }
+  .hud-actions { grid-template-columns: repeat(3, 56px); gap: 6px; right: 10px; bottom: 12px; }
+  .act { width: 56px; height: 56px; }
+  body.touch .hud-feed { bottom: 136px; }
+}
+/* toque: alvos maiores */
+@media (pointer: coarse) {
+  .hud-collapse { min-width: 40px; min-height: 36px; }
+  button.mt-ai { padding: 5px 10px; }
+}
+/* reunião: sugestões quebram linha no computador; no celular rolam de lado com um esfumado mostrando que tem mais */
+@media (min-width: 861px) { .mt-chips { flex-wrap: wrap; overflow: visible; } }
+@media (max-width: 860px) {
+  .mt-chips { scrollbar-width: none; padding-right: 28px; -webkit-mask-image: linear-gradient(90deg, #000 82%, transparent); mask-image: linear-gradient(90deg, #000 82%, transparent); }
+  .mt-chips::-webkit-scrollbar { display: none; }
+}
+/* narração menor em tela baixa */
+@media (max-height: 500px) { .feed-line { font-size: 12.5px; padding: 5px 8px; } }
+/* telas grandes: reunião e HUD maiores (não fica um painel pequeno no meio do monitor) */
+@media (min-width: 1700px) and (min-height: 950px) {
+  .mt-panel { width: min(1480px, 100%); height: min(940px, 100%); }
+  .mt-title { font-size: 26px; }
+  .mt-card { min-height: 66px; }
+  .mt-card-name { font-size: 17px; }
+  .mt-msg-body { font-size: 16px; }
+  .mt-map-cv { max-height: 230px; }
+  .hud-btn { width: 60px; height: 60px; font-size: 23px; }
+  .hud-actions { grid-template-columns: repeat(3, 86px); }
+  .act { width: 86px; height: 86px; }
+  .act .ico { font-size: 30px; }
+  .hud-tasks { width: 360px; }
+  .hud-task-list li { font-size: 14.5px; }
+  .feed-line { font-size: 15px; }
+  .hud-ghost { width: 400px; }
+}
+@media (max-width: 360px) { .act .lbl { font-size: 8.5px; letter-spacing: 0; max-width: 54px; } }
+@media (pointer: coarse) { button.mt-ai { min-height: 32px; } }

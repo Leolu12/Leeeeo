@@ -122,6 +122,8 @@
       `${x.R(d.who, 'o')} e ${x.R(d.victim, 'o')} estavam juntos ${x.inA(d.area)} pouco antes`,
     ]),
     noOneNear: (d, x) => pick([`não vi ninguém perto ${x.deA(d.area)}`, `passei ${x.inA(d.area)} antes e não tinha ninguém`]),
+    noOneNearBy: (d, x) => pick([`passei perto ${x.deA(d.area)} e não vi ninguém`, `passei do lado ${x.deA(d.area)}, não tinha ninguém por ali`]),
+    notSureWith: (d, x) => pick([`comigo? não lembro de você lá, ${x.R(d.who)}`, `hmm, não reparei em você comigo`, `acho que ${x.R(d.who, 'o')} só passou por mim`, `não tenho certeza se tava comigo`]),
     accuse: (d, x) => {
       const w = x.R(d.who, 'o');
       switch (d.reason) {
@@ -154,6 +156,7 @@
     knewBody: (d, x) => pick([`como ${x.R(d.who, 'o')} sabe onde tava o corpo? ninguém falou ainda`, `ué ${x.R(d.who)}, ninguém disse onde era o corpo`, `${x.R(d.who, 'o')} sabia do corpo antes de falarem... sus`]),
     contradictStay: (d, x) => pick([`eu fiquei ${x.inA(d.area)} um tempão e não vi ${x.R(d.who, 'o')}`, `${x.R(d.who)}, eu estava ${x.inA(d.area)} e você não passou lá`]),
     contradictSeen: (d, x) => pick([`mas eu vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`, `${x.R(d.who)}, eu te vi ${x.inA(d.area)}, não ${x.inA(d.claimed)}`, `estranho, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`]),
+    hidBodyRoom: (d, x) => pick([`mas eu te vi ${x.inA(d.area)}, ${x.R(d.who)}, bem onde tava o corpo`, `${x.R(d.who)}, você tava ${x.inA(d.area)} e não falou isso`, `estranho, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}, perto do corpo, e agora diz ${x.inA(d.claimed)}`]),
     notThere: (d, x) => pick([`eu nem passei ${x.inA(d.area)}`, `mentira, eu não estava ${x.inA(d.area)}`, `quê? eu estava ${x.inA(d.mine)}`]),
     wasThere: (d, x) => pick([`sim, eu estava ${x.inA(d.area)}`, `é, passei ${x.inA(d.area)}`]),
     deny: (d, x) => pick([`não fui eu`, d.area ? `o quê? eu estava ${x.inA(d.area)}` : `o quê?`, d.area ? `não, eu estava ${x.inA(d.area)}` : `não sou eu`, `não fui eu, juro`, `por que eu?`]),
@@ -295,14 +298,15 @@
         found.push({ [key]: it[key], i: start });
       }
     }
-    if (key === 'pid') {
-      /* tolera um erro de digitação em nomes e cores com 4+ letras */
+    if (key === 'pid' || key === 'area') {
+      /* tolera um erro de digitação em nomes e cores (4+ letras) e em salas (5+ letras: "eletrca", "reatro") */
+      const min = key === 'area' ? 5 : 4;
       const re = /[a-z0-9]+/g;
       let m;
       while ((m = re.exec(n))) {
         const w = m[0];
-        if (w.length < 4 || COMMON.has(w) || used[m.index]) continue;
-        const hit = table.find((it) => it.a.length >= 4 && !it.a.includes(' ') && it.a[0] === w[0] && lev1(w, it.a));
+        if (w.length < min || COMMON.has(w) || used[m.index]) continue;
+        const hit = table.find((it) => it.a.length >= min && !it.a.includes(' ') && it.a[0] === w[0] && lev1(w, it.a));
         if (hit) {
           for (let i = m.index; i < m.index + w.length; i++) used[i] = true;
           found.push({ [key]: hit[key], i: m.index });
