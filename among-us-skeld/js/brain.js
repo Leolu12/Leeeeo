@@ -161,12 +161,16 @@
           }
           /* caminho bloqueado (porta trancada): anda pela sala esperando, em vez de ficar plantado na porta */
           if (!this.path.length && this.plan) {
-            const c = M.randomPointIn(M.roomOf(M.areaAt(p.x, p.y), p.x, p.y).id);
-            const alt = Nav.find(p.x, p.y, c.x, c.y, !p.alive);
-            if (alt && alt.length) {
-              this.path = alt;
-              this.pi = 0;
-              this.retryT = U.rf(1.5, 2.5);
+            const here = M.areaAt(p.x, p.y);
+            for (const aid of [here.id, M.roomOf(here, p.x, p.y).id]) {
+              const c = M.randomPointIn(aid);
+              const alt = U.d2(c.x, c.y, p.x, p.y) > 1 ? Nav.find(p.x, p.y, c.x, c.y, !p.alive) : null;
+              if (alt && alt.length) {
+                this.path = alt;
+                this.pi = 0;
+                this.retryT = U.rf(1.5, 2.5);
+                break;
+              }
             }
           }
         }
@@ -429,9 +433,32 @@
           } else if (p.emergencyLeft <= 0) {
             this.wantButton = null;
             pl.until = g.t;
+          } else if (g.sabCritical()) {
+            /* botão travado pela sabotagem: vai consertar e volta depois */
+            pl.keep = true;
+            pl.until = g.t;
+          } else if (g.emergencyCdUntil - g.t > 3) {
+            /* botão em recarga: anda em volta da mesa esperando, em vez de ficar plantado */
+            pl.keep = true;
+            pl.pace = true;
+            pl.until = g.t;
           }
         },
-        onDone: () => (this.wantButton = null),
+        onDone: (pl) => {
+          if (!pl.keep) {
+            this.wantButton = null;
+            return;
+          }
+          if (pl.pace && !this.plan) {
+            for (let i = 0; i < 6; i++) {
+              const x = M.EMERGENCY.x + U.rf(-4.5, 4.5), y = M.EMERGENCY.y + U.rf(-3, 4.5);
+              if (M.walkAt(x, y) && U.d2(x, y, p.x, p.y) > 1.5) {
+                this.setPlan({ type: 'wander', buttonWait: true, x, y, onArrive: (q) => (q.until = g.t + U.rf(0.3, 1)) });
+                break;
+              }
+            }
+          }
+        },
       });
     }
     planFix(st) {
@@ -769,7 +796,7 @@
       if (p.isImp) pAcc = q.isImp ? 0.2 : 0.2 + this.lvl.lie * 0.25;
       else {
         /* depende de quanto confia, da personalidade e do clima: escuro, corpo recente, pouca gente por perto */
-        const recentBody = this.mem.bodies.some((b) => g.t - b.t < 40) || g.t - g.roundStart < 25 && g.meetings > 0 && (g.events || []).some((e) => e.type === 'kill' && e.t > g.roundStart - 60);
+        const recentBody = this.mem.bodies.some((b) => g.t - b.t < 40) || (g.t - g.roundStart < 25 && g.meetings > 0 && (g.events || []).some((e) => e.type === 'kill' && e.t > g.roundStart - 60));
         const crowd = this.seenNow.filter((o) => o !== q).length;
         pAcc = s >= 35 ? 0 : 0.45 + this.pers.follow * 0.35 + (this.pers.leader ? 0.1 : 0) - (this.pers.skeptic ? 0.15 : 0) - (this.pers.panic ? 0.1 : 0) + (q.isHuman ? 0.12 : 0)
           - Math.max(0, s) / 45 + Math.max(0, -s) / 200 - (g.sab && g.sab.type === 'lights' ? 0.2 : 0) - (recentBody ? 0.12 : 0) + (crowd >= 1 ? 0.08 : 0);
@@ -879,8 +906,8 @@
       }
       if (this.wantButton) {
         if (p.emergencyLeft <= 0) this.wantButton = null;
-        else {
-          if (!this.plan || this.plan.type !== 'button') this.planButton();
+        else if (!g.sabCritical()) {
+          if (!this.plan || (this.plan.type !== 'button' && !this.plan.buttonWait)) this.planButton();
           return;
         }
       }

@@ -253,6 +253,14 @@
       if (this.closed || !text) return null;
       opts = opts || {};
       const g = this.g;
+      /* bot não repete a mesma frase, nem (sem IA) a mesma defesa/acusação pela mesma razão na reunião */
+      if (p.brain && p.alive) {
+        const mine = this.msgs.filter((m) => m.from === p.id);
+        const nt = U.norm(text);
+        if (mine.some((m) => U.norm(m.text) === nt)) return null;
+        const strong = (intents || []).filter((it) => (it.type === 'vouch' || it.type === 'accuse') && it.who != null && it.reason !== 'vote');
+        if (!opts.ai && strong.length && strong.every((it) => mine.some((m) => m.intents.some((j) => j.type === it.type && j.who === it.who && j.reason === it.reason)))) return null;
+      }
       const msg = { id: ++this.msgId, from: p.id, text, intents: intents || [], t: this.t, fromHuman: p.isHuman, ghost: !p.alive, ai: !!opts.ai, bodyKnown: !!this.facts.bodyArea };
       /* respondeu a um "onde você tava?" (mesmo sem citar sala reconhecível): não perguntam de novo */
       if (!msg.ghost && this.askedAt && this.askedAt[p.id] != null && this.t - this.askedAt[p.id] < 30) this.answered[p.id] = msg.id;

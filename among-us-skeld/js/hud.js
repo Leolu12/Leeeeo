@@ -96,6 +96,8 @@
         e.ghostLog, ghostForm);
       this.ghostShown = 0;
       this.ghostAuto = false;
+      this.ghostUnread = 0;
+      this.ghostOpenAt = 0;
       const act = (id, icon, label, key, fn, cls) => {
         const cd = h('span', { class: 'cd' });
         const b = h('button', { class: 'act ' + (cls || ''), 'data-act': id, onclick: fn, title: label + ' (' + key + ')' },
@@ -115,7 +117,7 @@
       e.ventNav = h('div', { class: 'hud-ventnav', hidden: true });
       e.joy = h('div', { class: 'hud-joy', 'aria-hidden': 'true' }, h('div', { class: 'knob' }));
       root.append(e.tasks, topRight, e.sab, e.toast, e.feedBox, e.ghostPanel, e.actions, e.ventNav, e.joy);
-      if (window.innerWidth < 600) e.tasks.classList.add('collapsed');
+      if (window.innerWidth < 600 || window.innerHeight < 500) e.tasks.classList.add('collapsed');
       this.setupJoystick(e.joy);
       const hp = g.human;
       if (hp) {

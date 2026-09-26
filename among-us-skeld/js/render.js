@@ -4,7 +4,6 @@
   const AU = window.AU;
   const U = AU.U, C = AU.C, M = AU.Map, Nav = AU.Nav;
   const PX = 24;
-  const W = M.W, H = M.H;
 
   function rr(ctx, x, y, w, h, r) {
     if (ctx.roundRect) {

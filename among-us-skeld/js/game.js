@@ -714,11 +714,36 @@
       this.doorUntil[room] = this.t + 10;
       this.doorCd[room] = this.t + 26;
       M.setDoorsClosed(room, true);
+      this.unstickFromDoors();
       this.log({ type: 'doors', room, by: p.id });
       for (const q of this.players) if (q.brain) q.brain.onDoors(room);
       const h = this.human;
       if (h && U.d2(h.x, h.y, M.AREA[room].cx, M.AREA[room].cy) < 16) this.sfx('door');
       return true;
+    }
+
+    /* Quem estava no vão da porta quando ela fechou é empurrado para o lado livre mais perto (como no jogo original). */
+    unstickFromDoors() {
+      for (const q of this.players) {
+        if (!q.alive || q.inVent || this.canStand(q.x, q.y)) continue;
+        let best = null, bd = 1e9;
+        for (let r = 0.25; r <= 3 && !best; r += 0.25) {
+          for (let a = 0; a < 16; a++) {
+            const x = q.x + Math.cos((a / 16) * Math.PI * 2) * r, y = q.y + Math.sin((a / 16) * Math.PI * 2) * r;
+            if (!this.canStand(x, y)) continue;
+            const d = Math.hypot(x - q.x, y - q.y);
+            if (d < bd) {
+              bd = d;
+              best = { x, y };
+            }
+          }
+        }
+        if (best) {
+          q.x = best.x;
+          q.y = best.y;
+          if (q.brain) q.brain.path = null;
+        }
+      }
     }
 
     /* ---------- dutos ---------- */

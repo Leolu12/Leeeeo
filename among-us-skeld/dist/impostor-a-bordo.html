@@ -605,6 +605,15 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
 .meeting.dead-me .mt-chips { display: none; }
 .gh-head { flex-wrap: wrap; row-gap: 0; }
 
+/* telas baixas (celular deitado): minijogo cabe na altura sem rolar, narração embaixo entre joystick e botões */
+@media (max-height: 560px) {
+  .mg-canvas { width: auto; height: auto; max-width: 100%; max-height: calc(100dvh - 150px); margin: 0 auto; }
+}
+@media (max-height: 500px) {
+  .hud-feed, body.touch .hud-feed { left: 170px; right: 170px; width: auto; bottom: 8px; }
+  .hud-feed > :nth-last-child(n + 3) { display: none; }
+}
+
 </style>
 </head>
 <body>
@@ -3126,11 +3135,36 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.doorUntil[room] = this.t + 10;
       this.doorCd[room] = this.t + 26;
       M.setDoorsClosed(room, true);
+      this.unstickFromDoors();
       this.log({ type: 'doors', room, by: p.id });
       for (const q of this.players) if (q.brain) q.brain.onDoors(room);
       const h = this.human;
       if (h && U.d2(h.x, h.y, M.AREA[room].cx, M.AREA[room].cy) < 16) this.sfx('door');
       return true;
+    }
+
+    /* Quem estava no vão da porta quando ela fechou é empurrado para o lado livre mais perto (como no jogo original). */
+    unstickFromDoors() {
+      for (const q of this.players) {
+        if (!q.alive || q.inVent || this.canStand(q.x, q.y)) continue;
+        let best = null, bd = 1e9;
+        for (let r = 0.25; r <= 3 && !best; r += 0.25) {
+          for (let a = 0; a < 16; a++) {
+            const x = q.x + Math.cos((a / 16) * Math.PI * 2) * r, y = q.y + Math.sin((a / 16) * Math.PI * 2) * r;
+            if (!this.canStand(x, y)) continue;
+            const d = Math.hypot(x - q.x, y - q.y);
+            if (d < bd) {
+              bd = d;
+              best = { x, y };
+            }
+          }
+        }
+        if (best) {
+          q.x = best.x;
+          q.y = best.y;
+          if (q.brain) q.brain.path = null;
+        }
+      }
     }
 
     /* ---------- dutos ---------- */
@@ -3506,12 +3540,16 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           }
           /* caminho bloqueado (porta trancada): anda pela sala esperando, em vez de ficar plantado na porta */
           if (!this.path.length && this.plan) {
-            const c = M.randomPointIn(M.roomOf(M.areaAt(p.x, p.y), p.x, p.y).id);
-            const alt = Nav.find(p.x, p.y, c.x, c.y, !p.alive);
-            if (alt && alt.length) {
-              this.path = alt;
-              this.pi = 0;
-              this.retryT = U.rf(1.5, 2.5);
+            const here = M.areaAt(p.x, p.y);
+            for (const aid of [here.id, M.roomOf(here, p.x, p.y).id]) {
+              const c = M.randomPointIn(aid);
+              const alt = U.d2(c.x, c.y, p.x, p.y) > 1 ? Nav.find(p.x, p.y, c.x, c.y, !p.alive) : null;
+              if (alt && alt.length) {
+                this.path = alt;
+                this.pi = 0;
+                this.retryT = U.rf(1.5, 2.5);
+                break;
+              }
             }
           }
         }
@@ -3774,9 +3812,32 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           } else if (p.emergencyLeft <= 0) {
             this.wantButton = null;
             pl.until = g.t;
+          } else if (g.sabCritical()) {
+            /* botão travado pela sabotagem: vai consertar e volta depois */
+            pl.keep = true;
+            pl.until = g.t;
+          } else if (g.emergencyCdUntil - g.t > 3) {
+            /* botão em recarga: anda em volta da mesa esperando, em vez de ficar plantado */
+            pl.keep = true;
+            pl.pace = true;
+            pl.until = g.t;
           }
         },
-        onDone: () => (this.wantButton = null),
+        onDone: (pl) => {
+          if (!pl.keep) {
+            this.wantButton = null;
+            return;
+          }
+          if (pl.pace && !this.plan) {
+            for (let i = 0; i < 6; i++) {
+              const x = M.EMERGENCY.x + U.rf(-4.5, 4.5), y = M.EMERGENCY.y + U.rf(-3, 4.5);
+              if (M.walkAt(x, y) && U.d2(x, y, p.x, p.y) > 1.5) {
+                this.setPlan({ type: 'wander', buttonWait: true, x, y, onArrive: (q) => (q.until = g.t + U.rf(0.3, 1)) });
+                break;
+              }
+            }
+          }
+        },
       });
     }
     planFix(st) {
@@ -4114,7 +4175,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (p.isImp) pAcc = q.isImp ? 0.2 : 0.2 + this.lvl.lie * 0.25;
       else {
         /* depende de quanto confia, da personalidade e do clima: escuro, corpo recente, pouca gente por perto */
-        const recentBody = this.mem.bodies.some((b) => g.t - b.t < 40) || g.t - g.roundStart < 25 && g.meetings > 0 && (g.events || []).some((e) => e.type === 'kill' && e.t > g.roundStart - 60);
+        const recentBody = this.mem.bodies.some((b) => g.t - b.t < 40) || (g.t - g.roundStart < 25 && g.meetings > 0 && (g.events || []).some((e) => e.type === 'kill' && e.t > g.roundStart - 60));
         const crowd = this.seenNow.filter((o) => o !== q).length;
         pAcc = s >= 35 ? 0 : 0.45 + this.pers.follow * 0.35 + (this.pers.leader ? 0.1 : 0) - (this.pers.skeptic ? 0.15 : 0) - (this.pers.panic ? 0.1 : 0) + (q.isHuman ? 0.12 : 0)
           - Math.max(0, s) / 45 + Math.max(0, -s) / 200 - (g.sab && g.sab.type === 'lights' ? 0.2 : 0) - (recentBody ? 0.12 : 0) + (crowd >= 1 ? 0.08 : 0);
@@ -4224,8 +4285,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
       if (this.wantButton) {
         if (p.emergencyLeft <= 0) this.wantButton = null;
-        else {
-          if (!this.plan || this.plan.type !== 'button') this.planButton();
+        else if (!g.sabCritical()) {
+          if (!this.plan || (this.plan.type !== 'button' && !this.plan.buttonWait)) this.planButton();
           return;
         }
       }
@@ -8078,6 +8139,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (this.closed || !text) return null;
       opts = opts || {};
       const g = this.g;
+      /* bot não repete a mesma frase, nem (sem IA) a mesma defesa/acusação pela mesma razão na reunião */
+      if (p.brain && p.alive) {
+        const mine = this.msgs.filter((m) => m.from === p.id);
+        const nt = U.norm(text);
+        if (mine.some((m) => U.norm(m.text) === nt)) return null;
+        const strong = (intents || []).filter((it) => (it.type === 'vouch' || it.type === 'accuse') && it.who != null && it.reason !== 'vote');
+        if (!opts.ai && strong.length && strong.every((it) => mine.some((m) => m.intents.some((j) => j.type === it.type && j.who === it.who && j.reason === it.reason)))) return null;
+      }
       const msg = { id: ++this.msgId, from: p.id, text, intents: intents || [], t: this.t, fromHuman: p.isHuman, ghost: !p.alive, ai: !!opts.ai, bodyKnown: !!this.facts.bodyArea };
       /* respondeu a um "onde você tava?" (mesmo sem citar sala reconhecível): não perguntam de novo */
       if (!msg.ghost && this.askedAt && this.askedAt[p.id] != null && this.t - this.askedAt[p.id] < 30) this.answered[p.id] = msg.id;
@@ -9312,7 +9381,6 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   const AU = window.AU;
   const U = AU.U, C = AU.C, M = AU.Map, Nav = AU.Nav;
   const PX = 24;
-  const W = M.W, H = M.H;
 
   function rr(ctx, x, y, w, h, r) {
     if (ctx.roundRect) {
@@ -11311,6 +11379,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         e.ghostLog, ghostForm);
       this.ghostShown = 0;
       this.ghostAuto = false;
+      this.ghostUnread = 0;
+      this.ghostOpenAt = 0;
       const act = (id, icon, label, key, fn, cls) => {
         const cd = h('span', { class: 'cd' });
         const b = h('button', { class: 'act ' + (cls || ''), 'data-act': id, onclick: fn, title: label + ' (' + key + ')' },
@@ -11330,7 +11400,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       e.ventNav = h('div', { class: 'hud-ventnav', hidden: true });
       e.joy = h('div', { class: 'hud-joy', 'aria-hidden': 'true' }, h('div', { class: 'knob' }));
       root.append(e.tasks, topRight, e.sab, e.toast, e.feedBox, e.ghostPanel, e.actions, e.ventNav, e.joy);
-      if (window.innerWidth < 600) e.tasks.classList.add('collapsed');
+      if (window.innerWidth < 600 || window.innerHeight < 500) e.tasks.classList.add('collapsed');
       this.setupJoystick(e.joy);
       const hp = g.human;
       if (hp) {
@@ -12076,7 +12146,6 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
 
     /* ---------------- criação ---------------- */
     create(root) {
-      const S = this.S;
       root.innerHTML = '';
       const sections = [
         ['preset', 'Presets'], ['perfil', 'Seu perfil'], ['sala', 'Sala'], ['regras', 'Regras de jogo'],

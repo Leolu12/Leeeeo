@@ -39,7 +39,6 @@
 
     /* ---------------- criação ---------------- */
     create(root) {
-      const S = this.S;
       root.innerHTML = '';
       const sections = [
         ['preset', 'Presets'], ['perfil', 'Seu perfil'], ['sala', 'Sala'], ['regras', 'Regras de jogo'],

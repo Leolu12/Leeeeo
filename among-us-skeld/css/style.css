@@ -593,3 +593,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
 @media (max-width: 700px) { .hud-ghost { left: 8px; right: 8px; width: auto; bottom: auto; top: 64px; max-height: 42vh; } }
 .meeting.dead-me .mt-chips { display: none; }
 .gh-head { flex-wrap: wrap; row-gap: 0; }
+
+/* telas baixas (celular deitado): minijogo cabe na altura sem rolar, narração embaixo entre joystick e botões */
+@media (max-height: 560px) {
+  .mg-canvas { width: auto; height: auto; max-width: 100%; max-height: calc(100dvh - 150px); margin: 0 auto; }
+}
+@media (max-height: 500px) {
+  .hud-feed, body.touch .hud-feed { left: 170px; right: 170px; width: auto; bottom: 8px; }
+  .hud-feed > :nth-last-child(n + 3) { display: none; }
+}
