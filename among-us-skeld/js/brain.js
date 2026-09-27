@@ -371,10 +371,12 @@
              parado ao lado, só volta a andar quando a pessoa se afasta de verdade */
           const tgMoving = pl.lastTg && U.d2(pl.lastTg.x, pl.lastTg.y, tg.x, tg.y) > 0.25;
           pl.lastTg = { x: tg.x, y: tg.y };
-          const keep = pl.keep || 0.8;
+          /* seguindo no escuro: tem que ficar perto o bastante para enxergar a pessoa */
+          const keep = this.p.alive && !this.p.isImp ? Math.min(pl.keep || 0.8, g.visionOf(this.p) * 0.8) : pl.keep || 0.8;
           const walking = !!this.dest && !pl.shuffling && pl.stage === 'go';
           this.dynT = tgMoving || walking ? Math.min(this.dynT, 0.3) : this.dynT;
-          if (d > keep + (walking || tgMoving ? 0 : 0.9) || (tgMoving && walking && d > keep * 0.6)) {
+          const slack = walking || tgMoving ? 0 : this.p.alive && !this.p.isImp && g.lightLevel < 0.6 ? 0.2 : 0.9;
+          if (d > keep + slack || (tgMoving && walking && d > keep * 0.6)) {
             this.routeTo(tg.x, tg.y);
             pl.stage = 'go';
             pl.still = 0;
@@ -699,7 +701,9 @@
         type: 'follow', target: q.id, purpose, dyn: () => {
           if (!q.alive && this.p.alive) return null;
           const s = this.lastSeenAt[g.appearId(q)];
-          if (!s || g.t - s.t > 5) return null;
+          /* no escuro, perdeu de vista = perdeu (não "adivinha" por onde a pessoa foi) */
+          const dark = !this.p.isImp && g.lightLevel < 0.6;
+          if (!s || g.t - s.t > (dark ? 2 : 5)) return null;
           if (purpose === 'verify') {
             /* como gente: assiste a tarefa inteira e só sai quando a pessoa termina (a barra/o escudo/o scan acabou),
                não no primeiro segundo da animação */
@@ -1184,6 +1188,23 @@
     thinkCrew() {
       const g = this.g, p = this.p;
       const body = this.bodiesNow.find((b) => !b.reported && !b.gone);
+      /* achou um corpo: leva um instante para perceber (gente não aperta "reportar" no mesmo frame) */
+      if (body && !this.shock && (!this.noticed || this.noticed.id !== body.id)) this.noticed = { id: body.id, at: g.t + U.rf(0.35, 1.0) * (1.2 - this.pers.att * 0.4) };
+      if (body && this.noticed && this.noticed.id === body.id && g.t < this.noticed.at) return;
+      if (this.shock) {
+        const sh = this.shock, k = g.players[sh.killer];
+        const kNear = k && k.alive && !k.inVent && this.seenNow.includes(k) && U.dist(p, k) < 5.5;
+        if (g.t < sh.until) return;
+        /* passou o susto: o assassino ainda está do lado → foge (e vai ao botão); senão reporta */
+        if (kNear && !(this.plan && this.plan.type === 'flee') && !sh.fled) {
+          sh.fled = true;
+          this.fear = { who: sh.killer, t: g.t };
+          this.planFlee(k);
+          return;
+        }
+        if (!kNear || sh.fled) this.shock = null;
+        if (this.plan && this.plan.type === 'flee') return;
+      }
       if (body) {
         if (!this.plan || this.plan.type !== 'report' || this.plan.body !== body) {
           if (!(this.fear && g.t - this.fear.t < 1.5 && this.plan && this.plan.type === 'flee')) this.planReport(body);
@@ -1384,7 +1405,7 @@
       const g = this.g, p = this.p, pers = this.pers;
       const r = Math.random();
       const watcher = pers.leader || pers.times || pers.skeptic;
-      const camsOk = !g.commsDown() && !g.players.some((q) => q !== p && q.alive && q.onCams && !q.isImp);
+      const camsOk = !g.commsDown() && !g.players.some((q) => q !== p && q.alive && q.onCams && !q.isImp && this.lastSeenAt[g.appearId(q)] && g.t - this.lastSeenAt[g.appearId(q)].t < 30);
       this.postN = (this.postN || 0) + 1;
       const sus = this.seenNow.filter((q) => q.alive && this.liveSusp(g.appearId(q)) >= 30);
       if (sus.length && r < (watcher ? 0.55 : 0.3)) return this.planFollow(sus[0], U.rf(12, 22), U.rf(4, 5.5));
@@ -1646,7 +1667,8 @@
     slipAway() {
       const g = this.g, p = this.p;
       if (this.plan && this.plan.type === 'leave' && this.plan.slip && g.t < this.plan.slip) return true;
-      const crew = g.players.filter((q) => q.alive && !q.isImp);
+      /* só sabe onde está quem viu há pouco (não enxerga o mapa inteiro) */
+      const crew = g.players.filter((q) => q.alive && !q.isImp && this.lastSeenAt[g.appearId(q)] && g.t - this.lastSeenAt[g.appearId(q)].t < 10).map((q) => this.lastSeenAt[g.appearId(q)]);
       const cands = M.ROOMS.filter((r) => {
         const d = U.d2(r.cx, r.cy, p.x, p.y);
         return d > 6 && d < 30 && !crew.some((q) => U.d2(q.x, q.y, r.cx, r.cy) < 9);
@@ -1683,7 +1705,11 @@
        turma já desconfia ou quem vi longe e sozinho; evita quem todo mundo sabe que é inocente (fez visual). */
     disguise(tgt, others) {
       const g = this.g, p = this.p;
-      const cands = g.players.filter((q) => q.alive && q !== p && q !== tgt && !q.isImp && !others.includes(q) && U.dist(p, q) > 12);
+      const nearMe = (q) => {
+        const ls = this.lastSeenAt[q.id];
+        return this.seenNow.includes(q) || (ls && g.t - ls.t < 8 && U.d2(ls.x, ls.y, p.x, p.y) < 12);
+      };
+      const cands = g.players.filter((q) => q.alive && q !== p && q !== tgt && !q.isImp && !others.includes(q) && !nearMe(q));
       if (!cands.length) return false;
       const score = (q) => {
         let s = Math.random() * 2;
@@ -1870,9 +1896,13 @@
         if (tight >= 4) add(bestCrit(cx, cy), 0.55 * smart, 'separar o grupo');
       }
       /* 4. gente nas câmeras ou no Admin vendo onde cada um está */
-      const onCams = g.anyoneOnCams(), onAdmin = !g.commsDown() && g.players.some((q) => q.alive && q.onAdmin);
+      /* só sabe que tem gente nas câmeras vendo a luz da câmera piscar perto de si, ou se viu alguém na Segurança;
+         no Admin, se viu alguém lá há pouco */
+      const underCam = M.CAMS.some((c) => U.d2(c.x, c.y, p.x, p.y) < M.CAM_R * M.CAM_R * 2.2);
+      const sawIn = (area) => Object.keys(this.lastSeenAt).some((id) => this.lastSeenAt[id].area === area && g.t - this.lastSeenAt[id].t < 20);
+      const onCams = g.anyoneOnCams() && (underCam || sawIn('security'));
+      const onAdmin = !g.commsDown() && g.players.some((q) => q.alive && q.onAdmin) && sawIn('admin');
       if (onCams || onAdmin) {
-        const underCam = M.CAMS.some((c) => U.d2(c.x, c.y, p.x, p.y) < M.CAM_R * M.CAM_R * 2.2);
         add('comms', ((onCams ? 0.45 : 0.3) + (underCam || p.killCd < 4 ? 0.3 : 0)) * (L.camsAware ? 1.3 : 0.8), onCams ? 'câmeras' : 'admin');
       }
       /* 5. tarefas quase no fim (com a barra visível): trava todo mundo */
@@ -2142,6 +2172,19 @@
       };
       const h = killers.size ? hot() : null;
       if (h && (!this.angelPick || this.angelPick.id !== h.id)) this.angelPick = { id: h.id, until: g.t + 6, since: g.t - 10, risk: 60 };
+      /* pedido no chat dos fantasmas ("protege a rosa"): vai até a pessoa e usa o escudo assim que der */
+      const ao = this.angelOrder;
+      if (ao && (g.t > ao.until || !g.players[ao.id] || !g.players[ao.id].alive)) this.angelOrder = null;
+      if (this.angelOrder && !h) {
+        const tgo = g.players[this.angelOrder.id];
+        if (p.abilityCd <= 0 && U.dist(p, tgo) <= 3.5 && !(tgo.protectedUntil > g.t) && g.protect(p, tgo.id)) {
+          this.angelOrder = null;
+          this.angelWin = null;
+          return true;
+        }
+        if (!this.plan || this.plan.type !== 'guard' || this.plan.target !== tgo.id) this.setPlan({ type: 'guard', target: tgo.id, dyn: () => (tgo.alive ? { x: tgo.x, y: tgo.y } : null), keep: 1.6, endAt: g.t + 25, dynEvery: 0.4 });
+        return true;
+      }
       if (!this.angelPick || g.t > this.angelPick.until || !g.players[this.angelPick.id].alive) {
         const best = alive.slice().sort((a, b) => danger(b) - danger(a))[0];
         this.angelPick = { id: best.id, until: g.t + U.rf(6, 12), since: g.t, risk: danger(best) };
@@ -2227,6 +2270,19 @@
         this.act(dt);
         return;
       }
+      /* pedido do chat dos fantasmas: assistir alguém (até o tempo acabar ou a pessoa morrer) ou ir fazer as tasks */
+      const gf = this.ghostFocus;
+      if (gf && (g.t > gf.until || (gf.kind === 'watch' && !(g.players[gf.who] && g.players[gf.who].alive)))) this.ghostFocus = null;
+      if (this.ghostFocus && this.ghostFocus.kind === 'watch' && this.thinkT <= 0 && (!this.plan || this.plan.type !== 'follow' || this.plan.target !== this.ghostFocus.who)) {
+        this.thinkT = 0.5;
+        this.ghostWatch(g.players[this.ghostFocus.who], this.ghostFocus.until - g.t, true);
+      }
+      if (this.ghostFocus && this.ghostFocus.kind === 'watch') {
+        this.act(dt);
+        return;
+      }
+      /* "vamos fazer as tasks": larga o que estava assistindo e vai */
+      if (this.ghostFocus && this.ghostFocus.kind === 'tasks' && this.plan && this.plan.type === 'follow') this.plan = null;
       if (this.thinkT <= 0) {
         this.thinkT = 0.5;
         if (p.isImp) {
@@ -2242,7 +2298,7 @@
             }
           }
           if (!this.plan && !this.ghostSpectate()) this.planWander(U.pick(M.ROOMS).id, U.rf(1.5, 4));
-        } else if (p.special === 'anjo' && !p.isImp && this.angelThink()) {
+        } else if (p.special === 'anjo' && !p.isImp && (this.angelOrder || !(this.ghostFocus && this.ghostFocus.kind === 'tasks')) && this.angelThink()) {
           /* anjo cuidando de alguém */
         } else if (!this.plan || this.plan.type === 'guard') {
           const avail = p.tasks.filter((tk) => !tk.done && g.taskAvailable(tk));
@@ -2258,16 +2314,31 @@
       this.act(dt);
     }
 
-    /* Fantasma sem tarefa: como gente de verdade, vai assistir alguém vivo (curioso para ver quem é o impostor, ou
-       acompanhando o parceiro, se era impostor) em vez de ficar parado numa sala. */
+    /* Fantasma sem tarefa: como gente de verdade, vai assistir alguém vivo (quem sabe quem é o assassino vai
+       atrás dele, para ver o próximo abate; ex-impostor vai ver o parceiro) em vez de ficar parado numa sala. */
     ghostSpectate() {
       const g = this.g, p = this.p, pers = this.pers;
       const alive = g.players.filter((q) => q.alive && !q.inVent);
       if (!alive.length || !U.chance(0.35 + (pers.skeptic || pers.leader ? 0.2 : 0) + (pers.follow || 0) * 0.2)) return false;
-      /* ex-impostor tende a ir ver o parceiro (aparece duas vezes no sorteio) */
-      const q = U.pick(p.isImp ? alive.filter((x) => x.isImp).concat(alive) : alive);
-      this.setPlan({ type: 'follow', target: q.id, dyn: () => (q.alive && !q.inVent ? { x: q.x, y: q.y } : null), keep: U.rf(2, 3.5), endAt: g.t + U.rf(12, 30), dynEvery: 0.5, noShuffle: true });
+      const know = g.ghosts ? g.ghosts.k(p.id) : { saw: [] };
+      const killers = [this.killedBy].concat((know.saw || []).map((x) => x.killer)).filter((id) => id != null && g.players[id] && g.players[id].alive && !g.players[id].inVent);
+      let q;
+      if (!p.isImp && killers.length && U.chance(0.65)) {
+        q = g.players[U.pick(killers)];
+        if (!this.announced || this.announced !== q.id) {
+          this.announced = q.id;
+          if (g.ghosts && U.chance(0.5)) g.ghosts.announceWatch(p, q);
+        }
+      } else q = U.pick(p.isImp ? alive.filter((x) => x.isImp).concat(alive) : alive);
+      this.ghostWatch(q, U.rf(12, 30), true);
       return true;
+    }
+    /* assistir alguém vivo (pedido no chat dos fantasmas ou por conta própria) */
+    ghostWatch(q, dur, own) {
+      const g = this.g;
+      if (!q || !q.alive) return;
+      if (!own) this.ghostFocus = { kind: 'watch', who: q.id, until: g.t + dur };
+      this.setPlan({ type: 'follow', target: q.id, dyn: () => (q.alive && !q.inVent ? { x: q.x, y: q.y } : null), keep: U.rf(2, 3.5), endAt: g.t + dur, dynEvery: 0.5, noShuffle: true });
     }
 
     /* ---------- percepção e eventos ---------- */
@@ -2404,6 +2475,13 @@
       this.susp[who] = 100;
       if (pers.panic || via === 'cams') this.fear = { who, t: g.t };
       this.wantButton = { reason: 'kill', who, victim: victimId, area };
+      /* ninguém reporta no mesmo instante: primeiro o susto (congela ou recua), e com o assassino ali do lado a
+         reação natural é fugir e ir apertar o botão; o mais frio volta e reporta quando ele se afasta */
+      if (via === 'eyes') {
+        const shock = U.rf(1.0, 2.3) * (pers.panic ? 1.4 : 1) * (pers.leader || pers.times ? 0.8 : 1) * (0.9 + (1 - pers.att) * 0.4);
+        this.shock = { until: g.t + shock, killer: apparent, body: body ? body.id : null };
+        this.setPlan({ type: 'pause', stage: 'do', until: g.t + shock * 0.6 });
+      }
       if (pers.panic) this.planFlee(g.players[apparent]);
     }
     onWitnessVent(apparent, dir, v, via) {
@@ -2521,6 +2599,8 @@
       this.selfReport = false;
       this.invite = null;
       this.call = null;
+      this.shock = null;
+      this.noticed = null;
       if (this.pact && this.pact.scope === 'call') this.pact = null;
       this.dk = null;
       this.dkTarget = null;

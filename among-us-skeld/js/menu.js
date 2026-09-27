@@ -273,11 +273,11 @@
           this.field(label, this.range('role-' + key + '-' + id, min, max, step, () => cfg[key], (v) => { cfg[key] = v; desc.textContent = C.roleDesc(id, this.S); change(); }, (v) => v + 's')));
         list.appendChild(h('div', { class: 'role-row ' + r.team },
           h('div', { class: 'role-info' }, h('strong', {}, r.name), h('span', { class: 'role-team' }, r.team === 'crew' ? 'Tripulação' : 'Impostor'), desc),
-          this.field('Quantidade', this.range('role-n-' + id, 0, 3, 1, () => cfg.n, (v) => { cfg.n = v; change(); })),
-          this.field('Chance', this.range('role-c-' + id, 0, 100, 10, () => cfg.chance, (v) => { cfg.chance = v; change(); }, (v) => v + '%')),
+          this.field(id === 'anjo' ? 'Quantidade máxima' : 'Quantidade', this.range('role-n-' + id, 0, id === 'anjo' ? 5 : 3, 1, () => cfg.n, (v) => { cfg.n = v; change(); })),
+          this.field(id === 'anjo' ? 'Chance (a cada morte)' : 'Chance', this.range('role-c-' + id, 0, 100, 10, () => cfg.chance, (v) => { cfg.chance = v; change(); }, (v) => v + '%')),
           extra.length ? h('div', { class: 'role-opts' }, extra) : null));
       }
-      return this.sec('funcoes', 'Funções especiais', 'Cada vaga sorteia a função com a chance definida. Funções de impostor só vão para impostores.', list);
+      return this.sec('funcoes', 'Funções especiais', 'Cada vaga sorteia a função com a chance definida no começo da partida. Funções de impostor só vão para impostores. O Anjo da Guarda é diferente, como no jogo original: é sorteado quando um tripulante sem função morre.', list);
     },
 
     secBots(change, rerender) {
@@ -690,6 +690,7 @@
             break;
           case 'shift': txt = `${name(e.by)} se transformou em ${name(e.into)}.`; break;
           case 'vanish': txt = `${name(e.by)} ficou invisível.`; break;
+          case 'angel': txt = `${name(e.who)} virou Anjo da Guarda.`; break;
           case 'protect': txt = `${name(e.by)} protegeu ${name(e.target)}.`; break;
           case 'protectBlock': txt = `O escudo de ${name(e.victim)} bloqueou um ataque de ${name(e.killer)}.`; break;
           case 'track': txt = `${name(e.by)} rastreou ${name(e.target)}.`; break;

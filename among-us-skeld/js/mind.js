@@ -6,7 +6,7 @@
   const B = AU.Brain.prototype;
 
   const STRONG = { kill: 1, vent: 0.85, shift: 1, vanish: 0.95 };
-  const CLAIM_W = { kill: 70, vent: 58, shift: 36, vanish: 32, noscan: 32, fakeTask: 30, follow: 8, nearBody: 13, lastWith: 16, lie: 24, tracker: 30, sus: 16, hunch: 3, claim: 16, vote: 7, mention: 4, fromBody: 14, fastReport: 16, voteSkip: 12, votePush: 6, pactVictim: 6 };
+  const CLAIM_W = { kill: 70, vent: 58, shift: 36, vanish: 32, noscan: 32, fakeTask: 30, follow: 8, nearBody: 13, lastWith: 16, lie: 24, tracker: 30, sus: 16, hunch: 3, claim: 16, vote: 7, mention: 4, fromBody: 14, fastReport: 16, voteSkip: 12, votePush: 6, pactVictim: 0 };
 
   B.mStart = function (mt) {
     const g = this.g, p = this.p;
@@ -89,13 +89,16 @@
         add(e.who, g.S.house.noVisualHardClear ? -25 : -70, 'visual', { task: e.task, area: e.area, past: e.t < rs });
         continue;
       }
+      /* com metamorfo na partida, "vi fulano matar" pode ser o disfarce (o metamorfo mata na frente dos outros com a
+         cara de alguém): prova forte, mas não certeza */
+      const kw = roleOn(g, 'metamorfo') ? 0.6 : 1;
       if (e.t < rs) {
-        if (e.type === 'kill') add(e.who, 90, 'kill', { area: e.area, victim: e.victim, past: true });
+        if (e.type === 'kill') add(e.who, 90 * kw, 'kill', { area: e.area, victim: e.victim, past: true });
         else if (e.type === 'vent') add(e.who, engineers ? 40 : 75, 'vent', { area: e.area, past: true });
         else if (e.type === 'shift' || e.type === 'vanish') add(e.who, 80, e.type, { area: e.area, past: true });
         continue;
       }
-      if (e.type === 'kill') add(e.who, 100, 'kill', { area: e.area, victim: e.victim });
+      if (e.type === 'kill') add(e.who, 100 * kw, 'kill', { area: e.area, victim: e.victim });
       else if (e.type === 'vent') add(e.who, engineers ? 50 : 88, 'vent', { area: e.area });
       else if (e.type === 'shift') add(e.who, 100, 'shift', { area: e.area });
       else if (e.type === 'vanish') add(e.who, 95, 'vanish', { area: e.area });
@@ -118,7 +121,7 @@
       for (const [v, x] of [[pc.a, pc.b], [pc.b, pc.a]]) {
         const V = g.players[v], X = g.players[x];
         if (!V || !X || V.alive || V.ejected || !X.alive || V.deathT < rs) continue;
-        add(x, 10, 'pactVictim', { victim: v });
+        add(x, 3, 'pactVictim', { victim: v });
       }
     }
     /* "fiquei sozinho com ele e ele não me matou" */
@@ -404,7 +407,8 @@
       const strong = [];
       for (const id of Object.keys(this.ev)) for (const e of this.ev[id]) if (STRONG[e.reason] && !(info.kind === 'emergency' && info.caller === p.id && this.wantButton && this.wantButton.who === +id)) {
         /* viu no duto alguém que já provou ser tripulante, e tem engenheiro na partida: pergunta em vez de acusar */
-        if (e.reason === 'vent' && roleOn(g, 'engenheiro') && (this.hardCleared(+id) || (this.carry[+id] || 0) <= -20)) strong.push({ k: 'askEng', who: +id, area: e.area });
+        /* com engenheiro na partida, quase todo mundo que se vê no duto é ele: pergunta antes (acusa direto só quem já era suspeito) */
+        if (e.reason === 'vent' && roleOn(g, 'engenheiro') && (this.carry[+id] || 0) < 25) strong.push({ k: 'askEng', who: +id, area: e.area });
         else strong.push({ k: 'accuse', who: +id, reason: e.reason, area: e.area, victim: e.victim });
       }
       /* sou engenheiro e alguém pode ter me visto no duto: já aviso antes de me acusarem */
@@ -425,7 +429,8 @@
         if (e.reason === 'noscan') items.push({ k: 'accuse', who: +id, reason: 'noscan' });
         if (e.reason === 'fakeTask') items.push({ k: 'accuse', who: +id, reason: 'fakeTask', area: e.area });
         if (e.reason === 'fastReport') items.push({ k: 'accuse', who: +id, reason: 'fastReport', ago: e.ago, victim: e.victim, late: true });
-        if (e.reason === 'pactVictim' && U.chance(0.5) && !items.some((x) => x.reason === 'pactVictim' && x.who === +id)) items.push({ k: 'accuse', who: +id, reason: 'pactVictim', victim: e.victim });
+        /* dupla com a vítima: nos testes quase nunca era o assassino (o impostor esperto não mata o parceiro) — vira só pergunta */
+        if (e.reason === 'pactVictim' && U.chance(0.5) && !items.some((x) => x.k === 'askPact' && x.who === +id)) items.push({ k: 'askPact', who: +id, victim: e.victim });
         /* não acusa de "me seguir" quem estava junto comigo fazendo tarefa (é o meu álibi) */
         if (e.reason === 'follow' && (this.togetherMap()[+id] || 0) < 12 && this.getAlibi().with !== +id) items.push({ k: pers.panic ? 'panic' : 'accuse', who: +id, reason: 'follow' });
       }
@@ -870,6 +875,11 @@
         mt.askedHumanAt = mt.t;
         mt.askedHumanBy = p.id;
         return msg('askWhere', { who: h.id }, [{ type: 'askWhere', who: h.id }], { question: true });
+      }
+      case 'askPact': {
+        const q = g.players[it.who];
+        if (!q || !q.alive) return null;
+        return msg('accuse', { who: it.who, reason: 'pactVictim', victim: it.victim }, [{ type: 'askWhere', who: it.who }]);
       }
       case 'askEng': {
         const q = g.players[it.who];

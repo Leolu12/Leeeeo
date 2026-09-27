@@ -60,6 +60,13 @@
     comeOk: ['tô indo', 'bora', 'já vou', 'indo aí', 'colando aí', 'blz, tô indo'],
     comeRoom: ['tô indo {a}', 'bora, te encontro {a}', 'já tô indo {a}'],
     comeWhere: ['onde você tá?', 'tá onde?', 'vou, mas onde?'],
+    watchOk: ['tô indo ver {xn}', 'bora, de olho em {xn}', 'vou atrás de {xn}', 'fechou, vou assistir {xn}'],
+    taskOk: ['bora fazer as tasks', 'blz, vou terminar minhas tasks', 'tô indo nas tasks'],
+    taskNone: ['já fiz todas as minhas', 'não tenho mais task', 'acabei as minhas já'],
+    protectOk: ['vou proteger {xn}', 'deixa comigo, escudo em {xn}', 'tô indo proteger {xn}'],
+    protectWait: ['meu escudo tá recarregando, mas vou ficar perto de {xn}', 'ainda não carregou, fico de olho em {xn}'],
+    protectNo: ['não sou anjo, não consigo proteger', 'só anjo protege, não é meu caso'],
+    watchSay: ['vou ficar de olho em {xn}', 'vou seguir {xn} pra ver', 'tô indo atrás de {xn}', 'vou assistir {xn}, quero ver matando'],
     stopOk: ['beleza', 'falou', 'ok, vou fazer minhas tasks', 'tranquilo'],
     whereTask: ['tô {a} fazendo task de fantasma', '{a}, fazendo task', 'tô {a}'],
     whereIdle: ['tô {a}', '{a}, só assistindo', 'tô {a} olhando os vivos'],
@@ -197,6 +204,38 @@
       const n = U.norm(text);
       const named = bots.filter((q) => n.includes(U.norm(q.name)) || n.includes(U.norm(C.COLOR[q.color].name)));
       /* pedido para vir junto ("me segue", "vem aqui", "vem na elétrica"): os chamados (ou os mais perto) vão de verdade */
+      /* pedidos sobre os vivos: "segue o verde", "fica de olho no verde", "protege a rosa" (para o anjo), "vamos fazer as tasks" */
+      const aliveNamed = g.players.filter((q) => q.alive && (new RegExp('\\b' + U.norm(q.name) + '\\b').test(n) || new RegExp('\\b' + U.norm(C.COLOR[q.color].name) + '\\b').test(n)));
+      const target = aliveNamed[0];
+      const wantsProtect = target && /\b(protege\w*|protegam|protejam|escudo|salva|salvem)\b/.test(n);
+      const wantsWatch = target && !wantsProtect && /\b(segue|sigam|siga|seguir|fica de olho|ficar de olho|fiquem de olho|olha|olhem|vigia|vigiem|vigiar|assiste|assistam|assistir|vamos ver|vai ver|vao ver|acompanha|acompanhem|atras (do|da|de))\b/.test(n);
+      const wantsTasks = !target && /\b(faz\w* (as |suas |umas )?(tasks?|tarefas?)|termin\w* (as |suas )?(tasks?|tarefas?)|bora (de )?tasks?|vamos (fazer )?(as )?(tasks?|tarefas?))\b/.test(n);
+      if (wantsProtect || wantsWatch || wantsTasks) {
+        const all = /\b(todos|todo mundo|galera|gente|voces|vcs|sigam|fiquem|vigiem|assistam|protejam|protegam)\b/.test(n);
+        let pool = bots;
+        if (wantsProtect) pool = bots.filter((q) => q.special === 'anjo' && !q.isImp).concat(bots.filter((q) => !(q.special === 'anjo' && !q.isImp)));
+        const near = pool.slice().sort((a, b) => U.dist(a, hp) - U.dist(b, hp));
+        const go = named.length ? named : all ? near.slice(0, 3) : near.slice(0, 1);
+        go.forEach((q, i) => {
+          let ctx = { kind: 'reply', text, human: true };
+          if (wantsTasks) {
+            const left = q.tasks.some((tk) => !tk.done);
+            if (q.brain) q.brain.ghostFocus = left ? { kind: 'tasks', until: g.t + 90 } : null;
+            if (q.brain && q.brain.ghostEscort) q.brain.ghostRelease(hp);
+            ctx = Object.assign(ctx, left ? { task: true } : { taskNone: true });
+          } else if (wantsProtect && q.special === 'anjo' && !q.isImp) {
+            if (q.brain) q.brain.angelOrder = { id: target.id, until: g.t + 45 };
+            ctx = Object.assign(ctx, q.abilityCd > 0 ? { protectWait: true, x: target.id } : { protect: true, x: target.id });
+          } else if (wantsProtect) {
+            ctx = Object.assign(ctx, { protectNo: true });
+          } else {
+            if (q.brain) q.brain.ghostWatch(target, U.rf(30, 50));
+            ctx = Object.assign(ctx, { watch: true, x: target.id });
+          }
+          this.later(q, U.rf(1, 2.2) + i * U.rf(1, 1.8), ctx);
+        });
+        return;
+      }
       const come = /\b(me (segue|sigam|siga|acompanha)|segue eu|vem (comigo|aqui|ca|pra ca|junto)|venham|vem (na|no|pro|pra|para)|cola (aqui|comigo|ai)|bora comigo|chega (aqui|ai|mais)|vamo (junto|comigo)|me encontra)\b/.test(n);
       const stop = /\b(pode ir|para de me seguir|parem de me seguir|nao precisa mais|valeu|obrigad\w*|pode parar|ja deu|tchau)\b/.test(n);
       if (come && !stop) {
@@ -226,6 +265,16 @@
       }
       let resp = named.length ? named.slice(0, 2) : U.shuffle(bots.slice()).slice(0, bots.length > 1 && U.chance(0.45) ? 2 : 1);
       resp.forEach((q, i) => this.later(q, U.rf(1.4, 3) + i * U.rf(1.5, 2.5), { kind: 'reply', text, human: true }));
+    }
+
+    /* fantasma bot conta no chat o que vai fazer (e os outros podem ir junto) */
+    announceWatch(p, target) {
+      if (!this.open || !p || p.alive || !target || !target.alive) return;
+      this.later(p, U.rf(0.8, 2), { kind: 'watchSay', x: target.id });
+      for (const q of this.ghostBots()) {
+        if (q === p || !q.brain || q.brain.ghostEscort || (q.brain.ghostFocus && q.brain.ghostFocus.kind === 'watch') || !U.chance(0.35)) continue;
+        q.brain.ghostWatch(target, U.rf(20, 40));
+      }
     }
 
     /* ---------- fila de falas ---------- */
@@ -310,11 +359,19 @@
         return s ? { k: s.killer, a: s.area } : null;
       };
       switch (ctx.kind) {
+        case 'watchSay':
+          return this.choose(LINES.watchSay, { x: ctx.x });
         case 'reply': {
           const n = U.norm(ctx.text);
           const hp = g.human, hk = this.k(hp.id);
           const doing = p.brain && p.brain.ghostDoing ? p.brain.ghostDoing() : null;
           if (ctx.come) return ctx.a ? this.choose(LINES.comeRoom, { a: ctx.a }) : this.choose(LINES.comeOk, {});
+          if (ctx.watch) return this.choose(LINES.watchOk, { x: ctx.x });
+          if (ctx.task) return this.choose(LINES.taskOk, {});
+          if (ctx.taskNone) return this.choose(LINES.taskNone, {});
+          if (ctx.protect) return this.choose(LINES.protectOk, { x: ctx.x });
+          if (ctx.protectWait) return this.choose(LINES.protectWait, { x: ctx.x });
+          if (ctx.protectNo) return this.choose(LINES.protectNo, {});
           if (ctx.stop) return this.choose(LINES.stopOk, {});
           /* "onde você tá?" / "o que tá fazendo?": responde com o lugar e o que está fazendo de verdade */
           if (doing && /\b(onde|aonde|cade)\b.*\b(vc|voce|voces|vcs|tu|ta|tao|esta|estao)\b|\bonde (vc|voce|voces|vcs) (ta|tao|esta)/.test(n)) {

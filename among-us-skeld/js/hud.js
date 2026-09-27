@@ -258,7 +258,7 @@
          últimos 3 s); depois, a recarga */
       if (sp === 'metamorfo' && hp.alive) {
         const on = hp.shiftAs != null;
-        abl = on ? 'Desfazer' : 'Transformar';
+        abl = on ? 'Desfazer' : 'Disfarce';
         ablOk = play && !hp.inVent && (on || hp.abilityCd <= 0);
         if (on) ablDur = hp.shiftUntil - g.t;
       } else if (sp === 'fantasma' && hp.alive) {
@@ -277,6 +277,11 @@
       } else if (sp === 'anjo' && !hp.alive && !hp.isImp) {
         abl = 'Proteger';
         ablOk = play && hp.abilityCd <= 0 && g.players.some((q) => q.alive && U.dist(q, hp) <= 4);
+      }
+      /* virou anjo da guarda ao morrer (como no jogo original): avisa uma vez, depois da tela de morte */
+      if (sp === 'anjo' && !hp.alive && !hp.angelToast && play && g.t - (hp.deathT || 0) > 3.2) {
+        hp.angelToast = true;
+        this.toast('Você virou Anjo da Guarda! Perto de um vivo, aperte F (Proteger) para pôr um escudo contra abate.', 6000);
       }
       this.setAct(e.actAbility, !!abl, ablOk, abl, ablDur > 0 ? ablDur : ablCd);
       e.actAbility.classList.toggle('dur', ablDur > 0);
@@ -812,7 +817,7 @@
       setTimeout(() => el.remove(), 3000);
       const hp = this.g.human;
       setTimeout(() => {
-        if (this.g) this.toast(hp.isImp ? 'Você é um fantasma. Ainda pode sabotar.' : hp.special === 'anjo' ? 'Você é um fantasma e Anjo da Guarda: proteja os vivos.' : 'Você é um fantasma. Termine suas tarefas.', 4000);
+        if (this.g && hp.special !== 'anjo') this.toast(hp.isImp ? 'Você é um fantasma. Ainda pode sabotar.' : 'Você é um fantasma. Termine suas tarefas.', 4000);
       }, 3100);
     },
 

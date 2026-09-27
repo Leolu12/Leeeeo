@@ -126,6 +126,8 @@
       const crew = U.shuffle(this.players.filter((p) => !p.isImp));
       const impl = U.shuffle(imps);
       for (const rid of C.ROLE_IDS) {
+        /* anjo da guarda não é sorteado no começo: vem na morte (maybeAngel) */
+        if (rid === 'anjo') continue;
         const cfg = S.roles[rid] || { n: 0, chance: 0 };
         for (let i = 0; i < cfg.n; i++) {
           if (!U.chance((cfg.chance || 0) / 100)) continue;
@@ -484,6 +486,7 @@
       v.onCams = false;
       v.onAdmin = false;
       v.trackTarget = null;
+      this.maybeAngel(v);
       const body = { id: this.bodies.length, pid: v.id, x: v.x, y: v.y, t, area: area.id, reported: false, gone: false, killer: k.id };
       this.bodies.push(body);
       k.x = v.x;
@@ -608,6 +611,7 @@
         ej.ejected = true;
         ej.deathT = this.t;
         ej.busy = null;
+        this.maybeAngel(ej);
         if (this.ghosts) this.ghosts.onEject(ej);
       }
       this.log({ type: 'vote', index: this.meeting ? this.meeting.info.index : this.meetings, ejected: ej ? ej.id : null, tie: !!result.tie, votes: result.votes });
@@ -869,6 +873,18 @@
       p.trackUntil = this.t + this.ro('rastreador', 'dur', 30);
       p.abilityCd = this.ro('rastreador', 'cd', 45);
       this.log({ type: 'track', by: p.id, target: targetId });
+      return true;
+    }
+    /* Anjo da guarda como no Among Us: o tripulante sem função que morre (abatido ou ejetado) tem a chance
+       configurada de virar anjo, na ordem das mortes, até a quantidade máxima. */
+    maybeAngel(p) {
+      const cfg = (this.S.roles && this.S.roles.anjo) || {};
+      if (!p || p.isImp || p.special || !(cfg.n > 0)) return false;
+      if (this.players.filter((q) => q.special === 'anjo').length >= cfg.n) return false;
+      if (!U.chance((cfg.chance == null ? 100 : cfg.chance) / 100)) return false;
+      p.special = 'anjo';
+      p.abilityCd = Math.min(10, this.ro('anjo', 'cd', 60));
+      this.log({ type: 'angel', who: p.id });
       return true;
     }
     protect(p, targetId) {

@@ -198,7 +198,7 @@
         case 'voteSkip': return d.other != null
           ? pick([`${w} votou ${x.R(d.other, 'no')} na hora de tirar ${x.R(d.imp, 'o')}, que era impostor... protegendo?`, `lembram? ${w} não votou ${x.R(d.imp, 'no')}, votou ${x.R(d.other, 'no')}`])
           : pick([`${w} pulou quando todo mundo votou ${x.R(d.imp, 'no')}, que era impostor`, `todo mundo foi ${x.R(d.imp, 'no')} e ${w} pulou... estranho`, `${w} tentou salvar ${x.R(d.imp, 'o')} pulando`]);
-        case 'pactVictim': return pick([`${w} combinou de andar com ${x.R(d.victim, 'o')} e ${x.R(d.victim, 'o')} morreu... cadê a dupla?`, `${w}, você não tava em dupla com ${x.R(d.victim, 'o')}? o que aconteceu?`, `${w} era a dupla ${x.R(d.victim, 'de')}, muito estranho`]);
+        case 'pactVictim': return pick([`${w} tava em dupla com ${x.R(d.victim, 'o')}, né? se separaram onde?`, `${x.R(d.who)}, você não tava em dupla com ${x.R(d.victim, 'o')}? o que aconteceu?`, `${x.R(d.who)}, cadê a sua dupla? quando se separaram?`]);
         case 'votePush': return pick([`${w} votou ${x.R(d.inn, 'no')}, que era inocente`, `${w} ajudou a tirar ${x.R(d.inn, 'o')}`]);
         case 'vote': return pick([`vota ${x.R(d.who, 'no')}`, `bora votar ${x.R(d.who, 'no')}`]);
         case 'hunch': return pick([`${x.Rc(d.who, 'o')} está estranho`, `sei lá, acho que é ${w}`, `${x.Rc(d.who, 'o')} suspeito`, `meu instinto diz ${w}`]);

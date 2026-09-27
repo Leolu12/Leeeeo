@@ -119,7 +119,7 @@
     engenheiro: { name: 'Engenheiro', team: 'crew', desc: 'Pode usar os dutos por tempo limitado.' },
     rastreador: { name: 'Rastreador', team: 'crew', desc: 'Marca um jogador próximo e acompanha a posição dele por 30s.' },
     barulhento: { name: 'Barulhento', team: 'crew', desc: 'Quando morre, dispara um alerta que mostra onde está o corpo.' },
-    anjo: { name: 'Anjo da Guarda', team: 'crew', desc: 'Depois de morrer, pode proteger um vivo de um abate.' },
+    anjo: { name: 'Anjo da Guarda', team: 'crew', desc: 'Não é sorteado no começo (todos veem só "Tripulante"): o tripulante sem função que morre, abatido ou ejetado, pode virar anjo, na ordem das mortes, até a quantidade definida. Como fantasma, põe escudo em um vivo contra um abate.' },
     metamorfo: { name: 'Metamorfo', team: 'impostor', desc: 'Assume a aparência de outro jogador por 30s.' },
     fantasma: { name: 'Fantasma', team: 'impostor', desc: 'Fica invisível por 10s (não pode matar invisível).' },
   };
