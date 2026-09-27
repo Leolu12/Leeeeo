@@ -88,6 +88,7 @@
       out.push('Está em ' + this.room(p) + (p.busy ? ', fazendo algo' : '') + '.');
       const seen = b.seenNow.filter((q) => q.alive).map((q) => g.appearId(q));
       out.push(seen.length ? 'Vê agora: ' + seen.map((id) => this.who(id)).join(', ') + '.' : 'Não vê ninguém agora (está sozinho).');
+      if (b.pact && g.players[b.pact.who] && g.players[b.pact.who].alive) out.push('Combinou dupla com ' + this.who(b.pact.who) + (b.pact.lead === 'me' ? ' (vai na frente; o parceiro segue)' : ' (segue o parceiro)') + (b.pact.scope === 'game' ? ', a partida toda' : '') + '. Só desfaz se o parceiro ficar suspeito.');
       if (!p.isImp) {
         const open = p.tasks.filter((tk) => !tk.done && g.taskAvailable(tk));
         if (open.length) out.push('Tarefas que faltam: ' + open.slice(0, 5).map((tk) => tk.def.name + ' (' + (M.STATIONS[tk.steps[tk.step]].area ? M.AREA[M.STATIONS[tk.steps[tk.step]].area].name : '?') + ')' + (tk.def.visual ? ' [visual]' : '')).join(', ') + '.');

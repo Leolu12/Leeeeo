@@ -179,7 +179,7 @@
       switch (d.reason) {
         case 'kill': return pick([`EU VI ${w.toUpperCase()} MATAR`, `${w} matou, eu vi`, `vi ${w} matando ${d.victim != null ? x.R(d.victim, 'o') : ''}`.trim()]);
         case 'vent': return pick([`vi ${w} ventar ${d.area ? x.inA(d.area) : ''}`.trim(), `${w} saiu do vent ${d.area ? x.inA(d.area) : ''}`.trim(), `${w} é impostor, vi ventando`]);
-        case 'shift': return pick([`${w} é metamorfo, vi ele se transformar`, `${w} mudou de aparência na minha frente`]);
+        case 'shift': return pick([`${w} é metamorfo, vi se transformando`, `${w} mudou de aparência na minha frente`]);
         case 'vanish': return pick([`${w} ficou invisível do nada, é impostor`, `vi ${w} sumir no ar`]);
         case 'noscan': return pick([`${x.Rc(d.who, 'o')} ficou parado no scanner e não escaneou`, `${w} fingiu o scan`]);
         case 'fakeTask': return pick([`vi ${w} terminar a tarefa ${d.area ? x.inA(d.area) : ''} e a barra não subiu`.replace(/\s+/g, ' '), `${w} fingiu tarefa, a barra não mexeu`, `${w} fez tarefa na minha frente e a barra ficou parada`]);
@@ -192,7 +192,14 @@
         case 'nearBody': return pick([`${x.Rc(d.who, 'o')} é suspeito, estava perto ${x.deA(d.area)}`, `acho que foi ${w}, estava lá perto`]);
         case 'lastWith': return pick([`foi ${x.Rc(d.who, 'o')}, estava sozinho ${d.victim != null ? x.R(d.victim, 'com') : 'com a vítima'}`, `${x.Rc(d.who, 'o')} foi o último com ${d.victim != null ? x.R(d.victim, 'o') : 'a vítima'}`]);
         case 'lie': return pick([`${w} está mentindo`, `isso não bate, ${x.R(d.who)}`, `${w} mentiu, eu vi`]);
-        case 'tracker': return pick([`rastreei ${w} e ele estava ${x.inA(d.area)} na hora`]);
+        case 'tracker': return pick([`rastreei ${w}: estava ${x.inA(d.area)}, onde tava o corpo`, `sou rastreador, ${w} estava ${x.inA(d.area)} na hora`, `rastreei ${w} e deu ${x.inA(d.area)} bem na hora do corpo`]);
+        case 'trackerLie': return pick([`mentira, sou rastreador e ${w} estava ${x.inA(d.area)}, não ${x.inA(d.claimed)}`, `${w}, eu tava te rastreando: você estava ${x.inA(d.area)}`, `rastreei ${w}, não passou ${x.inA(d.claimed)}, tava ${x.inA(d.area)}`]);
+        /* voto aberto da reunião anterior */
+        case 'voteSkip': return d.other != null
+          ? pick([`${w} votou ${x.R(d.other, 'no')} na hora de tirar ${x.R(d.imp, 'o')}, que era impostor... protegendo?`, `lembram? ${w} não votou ${x.R(d.imp, 'no')}, votou ${x.R(d.other, 'no')}`])
+          : pick([`${w} pulou quando todo mundo votou ${x.R(d.imp, 'no')}, que era impostor`, `todo mundo foi ${x.R(d.imp, 'no')} e ${w} pulou... estranho`, `${w} tentou salvar ${x.R(d.imp, 'o')} pulando`]);
+        case 'pactVictim': return pick([`${w} combinou de andar com ${x.R(d.victim, 'o')} e ${x.R(d.victim, 'o')} morreu... cadê a dupla?`, `${w}, você não tava em dupla com ${x.R(d.victim, 'o')}? o que aconteceu?`, `${w} era a dupla ${x.R(d.victim, 'de')}, muito estranho`]);
+        case 'votePush': return pick([`${w} votou ${x.R(d.inn, 'no')}, que era inocente`, `${w} ajudou a tirar ${x.R(d.inn, 'o')}`]);
         case 'vote': return pick([`vota ${x.R(d.who, 'no')}`, `bora votar ${x.R(d.who, 'no')}`]);
         case 'hunch': return pick([`${x.Rc(d.who, 'o')} está estranho`, `sei lá, acho que é ${w}`, `${x.Rc(d.who, 'o')} suspeito`, `meu instinto diz ${w}`]);
         default: return pick([`${x.Rc(d.who, 'o')} suspeito`, `acho que é ${w}`]);
@@ -278,6 +285,19 @@
     leaderVote: (d, x) => (d.who == null ? pick([`sem prova, todo mundo skip`, `ninguém tem certeza, skip`]) : pick([`vamos votar ${x.R(d.who, 'no')}, ninguém confirma ele`, `votem ${x.R(d.who, 'no')}`])),
     huh: () => pick([`?`, `quê?`, `hã?`, `não entendi`]),
     offerVisual: (d, x) => pick([`tenho ${d.task ? x.task(d.task) : 'tarefa visual'}, posso fazer na frente de vocês`, `me segue na próxima que eu faço ${d.task ? x.task(d.task) : 'a visual'}`, `quem desconfiar me acompanha, eu provo com ${d.task ? x.task(d.task) : 'a visual'}`]),
+    roleDup: (d, x) => pick([`só tem ${d.n} ${ROLE_TXT[d.role]} e ${x.R(d.who, 'o')} já disse que era`, `${ROLE_TXT[d.role]} de novo? ${x.R(d.who, 'o')} já falou que é`, `dois ${ROLE_TXT[d.role]}? só tem ${d.n} nessa partida, alguém tá mentindo`]),
+    askEng: (d, x) => pick([`vi ${x.R(d.who, 'o')} no duto ${d.area ? x.inA(d.area) : ''}... ${x.R(d.who)}, você é engenheiro?`.replace(/\s+/g, ' '), `${x.R(d.who)}, te vi saindo do duto. é engenheiro?`, `${x.R(d.who, 'o')} ventou ${d.area ? x.inA(d.area) : ''}, mas pode ser engenheiro, é?`.replace(/\s+/g, ' ')]),
+    engClaim: () => pick([`sou engenheiro, se alguém me viu no duto foi isso`, `aviso: sou engenheiro, uso duto`, `se alguém me viu ventando, sou engenheiro`]),
+    /* combinado de andar junto (lead: 'me' = eu vou na frente, 'them' = eu sigo a pessoa) */
+    pactOk: (d, x) => {
+      const all = d.scope === 'game' ? pick([' a partida toda', ' até o fim', '']) : pick([' essa rodada', '']);
+      if (d.lead === 'me') return pick([`fechou, me segue então${all}`, `bora, cola em mim${all}`, `tá, vem comigo que eu vou nas minhas tasks`, `beleza ${x.R(d.who)}, eu vou na frente`]);
+      return pick([`fechou, eu te sigo${all}`, `bora ${x.R(d.who)}, vou com você${all}`, `tá, fico contigo${all}`, `beleza, vou atrás de você`]);
+    },
+    pactNo: (d, x) => pick([`a sós com você não, ${x.R(d.who)}`, `prefiro não, ainda não confio`, `melhor não`, `não, vou fazer as minhas por conta`]),
+    pactAsk: (d, x) => (d.lead === 'me'
+      ? pick([`${x.R(d.who)}, bora junto essa rodada? me segue`, `${x.R(d.who)}, fica comigo essa rodada?`, `${x.R(d.who)}, vem comigo que a gente faz as tasks junto`])
+      : pick([`${x.R(d.who)}, bora junto essa rodada? eu te sigo`, `${x.R(d.who)}, posso ir com você?`, `${x.R(d.who)}, vou colar em você essa rodada, beleza?`])),
     willFollow: (d, x) => pick([`blz, vou te seguir então, ${x.R(d.who)}`, `fechou, eu vou junto com ${x.R(d.who, 'o')}`, `então eu te acompanho, ${x.R(d.who)}`]),
     sawVisualSafe: (d, x) => pick([`${x.R(d.who, 'o')} é inocente, segui e vi ${d.task ? x.task(d.task) : 'a visual'}`, `pode tirar ${x.R(d.who, 'o')}, fui junto e vi fazendo ${d.task ? x.task(d.task) : 'a visual'}`, `eu segui ${x.R(d.who, 'o')}, fez ${d.task ? x.task(d.task) : 'visual'} na minha frente, safe`]),
     roleNotInGame: (d) => pick([`não tem ${ROLE_TXT[d.role]} nessa partida`, `${ROLE_TXT[d.role]}? nem tem isso nesse jogo`, `não tem ${ROLE_TXT[d.role]} aqui, olha a config`]),
@@ -572,6 +592,12 @@
     selfrep: /\b(self ?report\w*|reportou (muito )?rapido|achou (o corpo )?(muito )?rapido)\b/,
     hypo: /\b(pode|podia|talvez|sera|acho|deve|devia|se for|caso|quem sabe|pode ter)\b/,
     offer: /\b(me segue|me sigam|me segue[m]?|me acompanh\w*|posso provar|vou provar|provo|fac\w* (o |a )?(scan|visual|escaneamento|asteroide\w*|escudo\w*|lixo) na frente|na frente de voces|mostro (a )?visual)\b/,
+    /* combinado de andar junto: "vamos ficar juntos", "fica comigo", "eu te sigo", "bora de dupla a partida toda" */
+    pact: /\b(vamos|vamo|bora|vou|quer|topa|podemos) (ficar|andar|fazer (as )?(tasks?|tarefas?)|jogar|ir) (junto|juntos|juntas|em dupla|de dupla)\b|\b(fica|anda|vem|cola) comigo\b|\bcola em mim\b|\b(fico|vou ficar|vou andar|ando|vou) (com|junto com|junto de) (vc|voce|tu|ti)\b|\b(eu )?te sigo\b|\bvou te seguir\b|\bvou atras de (vc|voce|ti)\b|\b(eu )?te acompanho\b|\bde dupla\b|\bem dupla\b/,
+    pactNo: /\b(nao|n) (vou|quero|vamos|fico|ando|topo)\b/,
+    leadMe: /\b(me segue|me sigam|vem comigo|cola (em mim|comigo)|fica comigo|anda comigo|me acompanh\w*)\b/,
+    leadYou: /\b(te sigo|vou te seguir|vou atras de (vc|voce|ti)|te acompanho|vou com (vc|voce|tu|ti)|fico com (vc|voce))\b/,
+    scopeGame: /\b(a |o )?(partida|jogo) (toda|todo|inteira|inteiro)\b|\bate o fim\b|\bsempre juntos\b|\bate acabar\b/,
   };
 
   function parse(text, g, ctx) {
@@ -593,6 +619,11 @@
 
     if (RX.deny.test(n)) intents.push({ type: 'deny' });
     if (RX.offer.test(n)) intents.push({ type: 'offerVisual' });
+    if (/^ (fechou|fechado|bora|beleza|blz|ok|okay|pode ser|sim|claro|vamo|vamos|tranquilo|combinado|firmeza|show|pode|demorou|s)\b/.test(n) && n.trim().split(' ').length <= 5 && !RX.pact.test(n)) intents.push({ type: 'yes', to: ctx.addressed != null ? ctx.addressed : null });
+    if (RX.pact.test(n) && !RX.pactNo.test(n)) {
+      const o = all.players.find((x) => x.pid !== me);
+      intents.push({ type: 'pact', who: o ? o.pid : null, to: o ? o.pid : ctx.addressed != null ? ctx.addressed : null, lead: RX.leadYou.test(n) ? 'addressee' : RX.leadMe.test(n) ? 'speaker' : null, scope: RX.scopeGame.test(n) ? 'game' : 'round' });
+    }
     if (RX.where.test(n) && RX.body.test(n)) intents.push({ type: 'askBody' });
     /* "passei na elétrica uns 20s antes e não tinha corpo": dá a janela do abate para os outros */
     if (all.rooms.length && /\b(passei|tava|estava|fui|olhei)\b/.test(n) && /\b(nao tinha|vazi[oa]|ninguem|nada)\b/.test(n)) {
@@ -649,6 +680,8 @@
         intents.push({ type: 'deny' });
         continue;
       }
+      /* "me segue que eu faço os escudos" / "vou fazer o lixo na frente de vocês": é o que vai fazer, não onde estava */
+      if (rooms.length && /\b(faco|vou (fazer|provar|mostrar|la)|posso (fazer|provar)|provo|mostro|me segue\w*|me sigam|me acompanh\w*|na frente de)\b/.test(c) && !/\b(tava|estava|estive|fiquei|fui|passei|vim|vinha|fiz)\b/.test(c)) continue;
       if (rooms.length) {
         if (ctx.humanReported && !ctx.bodyKnown && !intents.some((i) => i.type === 'bodyArea')) {
           intents.push({ type: 'bodyArea', area });

@@ -268,6 +268,8 @@
       const nm = (id) => V.who(g, id);
       const al = b.getAlibi();
       out.push('Onde esteve: ' + al.rooms.map(V.area).join(' → ') + (al.task ? ', fazendo ' + M.TASKS[al.task].name : '') + (al.with != null ? ', junto com ' + nm(al.with) : '') + '.');
+      if (b.pact && g.players[b.pact.who]) out.push('Estava em dupla combinada com ' + nm(b.pact.who) + (g.players[b.pact.who].alive ? '.' : ' (que morreu).'));
+      if (b.pactReq) out.push('Combinou nesta reunião andar junto com ' + nm(b.pactReq.who) + ' na próxima rodada' + (b.pactReq.lead === 'me' ? ' (vai na frente)' : ' (vai seguir)') + '.');
       if (info.kind === 'report') {
         if (b.knowsBody) out.push('O corpo de ' + nm(info.body.pid) + ' estava em ' + V.area(b.knowsBody) + (b.sawBodyMyself ? ' (viu com os próprios olhos).' : '.'));
         if (b.killWindow && !p.isImp) {
@@ -579,6 +581,7 @@
         lines.push('Agora é a votação. Decida o voto de cada tripulante abaixo usando SÓ o que ele sabe (as anotações dele) e o que foi dito no chat.');
         lines.push('Como um jogador esperto decide: vota em quem tem prova (viu matar, ventar, mudar de forma) ou contradição clara de álibi; pesa se quem acusa é confiável; nunca vota em quem ele viu fazer tarefa visual; desconfia de quem acusa sem prova ou defende demais alguém suspeito; desconfia de quem reportou o corpo segundos depois de a vítima ser vista viva (self report); se não há nada concreto, pula.');
         lines.push('Voto dividido não tira ninguém: se o mais votado também é suspeito para ele e quem puxou trouxe prova, junta ali.');
+        if (g.S.rules.visualTasks) lines.push('Quem se ofereceu para provar com tarefa visual ("me segue que eu faço os escudos/o scan") e não tem prova forte contra ganha o benefício da dúvida, principalmente no começo da partida: o normal é pular e acompanhar a pessoa na próxima rodada. Só não vale para quem já prometeu antes e não provou.');
         if (crisis && (g.S.rules.visualTasks || g.S.rules.confirmEjects)) lines.push('SITUAÇÃO CRÍTICA: NINGUÉM PULA. Se ninguém sair, o próximo abate encerra o jogo. Cada um vota no mais provável (fora quem ele sabe que é inocente) e, se possível, todos no mesmo.');
         else if (crisis) lines.push('SITUAÇÃO CRÍTICA, mas sem tarefa visual e sem confirmação ninguém prova nada: vota quem tem pista concreta (viu algo, relato forte); sem pista, pular dá tempo de terminar as tarefas — voto no chute costuma tirar inocente, porque os impostores votam juntos.');
       } else {

@@ -250,18 +250,26 @@
       const canVent = (isImp || hp.special === 'engenheiro') && hp.alive;
       const vent = canVent && play ? g.nearestVent(hp) : null;
       this.setAct(e.actVent, canVent, !!hp.inVent || (!!vent && !(hp.special === 'engenheiro' && hp.abilityCd > 0)), hp.inVent ? 'Sair' : 'Duto', hp.special === 'engenheiro' && !hp.inVent ? hp.abilityCd : 0);
-      this.setAct(e.actSab, isImp, play && !hp.inVent, 'Sabotar', g.sab ? 0 : g.sabCd);
+      /* como no jogo original, o botão de sabotar abre o mapa sempre; a espera aparece em cada sabotagem do mapa */
+      this.setAct(e.actSab, isImp, play && !hp.inVent, 'Sabotar', 0);
       const sp = hp.special;
-      let abl = null, ablOk = false, ablCd = hp.abilityCd;
+      let abl = null, ablOk = false, ablCd = hp.abilityCd, ablDur = 0;
+      /* como no jogo original: durante o efeito, o botão vira "desfazer" e mostra quanto tempo falta (treme nos
+         últimos 3 s); depois, a recarga */
       if (sp === 'metamorfo' && hp.alive) {
-        abl = hp.shiftAs != null ? 'Metamorfose' : 'Transformar';
-        ablOk = play && hp.shiftAs == null && hp.abilityCd <= 0 && !hp.inVent;
+        const on = hp.shiftAs != null;
+        abl = on ? 'Desfazer' : 'Transformar';
+        ablOk = play && !hp.inVent && (on || hp.abilityCd <= 0);
+        if (on) ablDur = hp.shiftUntil - g.t;
       } else if (sp === 'fantasma' && hp.alive) {
-        abl = 'Sumir';
-        ablOk = play && hp.abilityCd <= 0 && !(hp.invisUntil > g.t) && !hp.inVent;
+        const on = hp.invisUntil > g.t;
+        abl = on ? 'Aparecer' : 'Sumir';
+        ablOk = play && !hp.inVent && (on || hp.abilityCd <= 0);
+        if (on) ablDur = hp.invisUntil - g.t;
       } else if (sp === 'rastreador' && hp.alive) {
-        abl = 'Rastrear';
+        abl = hp.trackUntil > g.t ? 'Rastreando' : 'Rastrear';
         ablOk = play && hp.abilityCd <= 0 && g.players.some((q) => q.alive && q !== hp && U.dist(q, hp) <= 3.5 && Nav.los(hp.x, hp.y, q.x, q.y));
+        if (hp.trackUntil > g.t) ablDur = hp.trackUntil - g.t;
       } else if (sp === 'cientista' && hp.alive) {
         abl = 'Vitais ' + Math.floor(hp.battery) + 's';
         ablOk = play && hp.battery >= 1;
@@ -270,7 +278,9 @@
         abl = 'Proteger';
         ablOk = play && hp.abilityCd <= 0 && g.players.some((q) => q.alive && U.dist(q, hp) <= 4);
       }
-      this.setAct(e.actAbility, !!abl, ablOk, abl, ablCd);
+      this.setAct(e.actAbility, !!abl, ablOk, abl, ablDur > 0 ? ablDur : ablCd);
+      e.actAbility.classList.toggle('dur', ablDur > 0);
+      e.actAbility.classList.toggle('ending', ablDur > 0 && ablDur <= 3);
       if (hp.ghostFollow != null) {
         const q = g.players[hp.ghostFollow];
         if (!q || !q.alive) hp.ghostFollow = null;
@@ -397,9 +407,14 @@
       if (!hp || g.phase !== 'play') return;
       const sp = hp.special;
       if (sp === 'fantasma') {
-        if (g.vanish(hp)) this.toast('Você está invisível por 10s.');
+        if (hp.invisUntil > g.t) g.reappear(hp);
+        else if (g.vanish(hp)) this.toast('Você está invisível por ' + g.ro('fantasma', 'dur', 10) + 's.');
       } else if (sp === 'metamorfo') {
-        if (hp.shiftAs != null || hp.abilityCd > 0) return;
+        if (hp.shiftAs != null) {
+          g.unshift(hp);
+          return;
+        }
+        if (hp.abilityCd > 0) return;
         this.openPicker('Transformar em…', g.players.filter((q) => q !== hp), (q) => g.shapeshift(hp, q.id));
       } else if (sp === 'rastreador') {
         const near = g.players.filter((q) => q.alive && q !== hp && U.dist(q, hp) <= 3.5 && Nav.los(hp.x, hp.y, q.x, q.y));
@@ -704,14 +719,17 @@
             this.closeOverlay();
             return;
           }
-          const key = g.players.map((q) => q.alive).join();
+          const key = g.players.map((q) => q.alive).join() + g.roundStart;
           if (key === this._vkey) return;
           this._vkey = key;
           list.innerHTML = '';
+          /* como no jogo original: vermelho = morreu desde a última reunião; cinza = morto de rodadas anteriores
+             (ou ejetado) */
           for (const q of g.players) {
-            list.appendChild(h('div', { class: 'vital ' + (q.alive ? 'ok' : 'dead') },
+            const fresh = !q.alive && !q.ejected && q.deathT != null && q.deathT >= g.roundStart;
+            list.appendChild(h('div', { class: 'vital ' + (q.alive ? 'ok' : fresh ? 'dead' : 'old'), title: q.alive ? 'vivo' : fresh ? 'morreu nesta rodada' : 'morto em rodada anterior' },
               h('span', { html: AU.Render.beanSVG(q.color, { size: 30, visor: q.visor }) }), h('span', { class: 'nm' }, q.name),
-              h('span', { class: 'st' }, q.alive ? 'OK' : q.ejected ? 'DESC.' : 'MORTO'), h('span', { class: 'wave' })));
+              h('span', { class: 'st' }, q.alive ? 'OK' : 'MORTO'), h('span', { class: 'wave' })));
           }
         },
         onClose: () => (this._vkey = null),

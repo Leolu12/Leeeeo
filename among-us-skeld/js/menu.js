@@ -257,7 +257,7 @@
           num('r-long', 'Tarefas longas', 0, 3, 1, 'longTasks'),
           num('r-short', 'Tarefas curtas', 0, 5, 1, 'shortTasks'),
           num('r-crit', 'Tempo para consertar reator/O2', 20, 90, 5, 'critTime', sec, 'Se ninguém consertar a tempo, os impostores vencem'),
-          num('r-sabcd', 'Recarga das sabotagens', 10, 60, 5, 'sabCooldown', sec),
+          num('r-sabcd', 'Espera entre sabotagens', 10, 60, 5, 'sabCooldown', sec, 'Conta a partir do conserto da anterior (no jogo original são 30 s). Portas têm a própria espera'),
           num('r-door', 'Portas trancadas por', 5, 20, 1, 'doorTime', sec),
           num('r-doorcd', 'Recarga das portas (depois de abrir)', 5, 60, 1, 'doorCooldown', sec)));
     },

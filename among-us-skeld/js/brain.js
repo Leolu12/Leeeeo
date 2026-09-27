@@ -170,6 +170,8 @@
       this.eagerRoll = null;
       this.readyT = null;
       this.skipUntil = 0;
+      this.pact = null;
+      this.call = null;
     }
 
     /* ---------- ciclo ---------- */
@@ -205,7 +207,8 @@
         else this.thinkCrew();
         this.thinkRoles();
       }
-      this.act(dt);
+      /* dentro do duto ninguém anda (o corpo fica escondido no duto até sair) */
+      if (!p.inVent) this.act(dt);
       /* acabou o plano: decide o próximo já (gente não congela meio segundo entre uma coisa e outra) */
       if (this.plan) this.hadPlan = true;
       else if (this.hadPlan) {
@@ -216,6 +219,7 @@
 
     setPlan(pl) {
       const p = this.p;
+      this.engHop = null;
       p.onCams = false;
       p.onAdmin = false;
       p.busy = null;
@@ -414,6 +418,22 @@
         return;
       }
       if (pl.stage === 'go') {
+        /* engenheiro chegando no duto do atalho: entra, passa para o outro e segue dali */
+        const hop = this.engHop;
+        if (hop && !this.p.inVent) {
+          if (U.d2(this.p.x, this.p.y, hop.entry.x, hop.entry.y) <= 1.1) {
+            this.engHop = null;
+            if (g.enterVent(this.p, hop.entry)) {
+              if (this.seenNow.length) this.engSeen = g.t;
+              this.engVent = { exitAt: g.t + U.rf(0.6, 1.2), next: hop.exit.id, dest: hop.dest };
+              return;
+            }
+            this.routeTo(hop.dest.x, hop.dest.y);
+          } else if (g.t - (hop.t0 = hop.t0 || g.t) > 12) {
+            this.engHop = null;
+            this.routeTo(hop.dest.x, hop.dest.y);
+          }
+        }
         if (this.moveAlong(dt)) {
           pl.stage = 'do';
           if (pl.onArrive) pl.onArrive(pl);
@@ -673,16 +693,24 @@
     /* purpose 'verify': segue para ver a pessoa provar inocência; para depois de ver a tarefa visual. */
     planFollow(q, dur, keep, purpose) {
       const g = this.g;
-      let sawAt = 0;
-      this.setPlan({
+      let sawAt = 0, leaveAt = 0;
+      const hardEnd = g.t + dur + 25;
+      const plan = {
         type: 'follow', target: q.id, purpose, dyn: () => {
           if (!q.alive && this.p.alive) return null;
           const s = this.lastSeenAt[g.appearId(q)];
           if (!s || g.t - s.t > 5) return null;
-          if (purpose === 'verify' && this.sawVisualOf(q)) {
-            if (!sawAt) this.mem.event({ type: 'escortVisual', t: g.t, who: g.appearId(q) }, 'escortVisual:' + g.appearId(q) + ':' + g.meetings);
-            sawAt = sawAt || g.t;
-            if (g.t - sawAt > 1.2) return null;
+          if (purpose === 'verify') {
+            /* como gente: assiste a tarefa inteira e só sai quando a pessoa termina (a barra/o escudo/o scan acabou),
+               não no primeiro segundo da animação */
+            if (this.sawVisualOf(q)) {
+              if (!sawAt) this.mem.event({ type: 'escortVisual', t: g.t, who: g.appearId(q) }, 'escortVisual:' + g.appearId(q) + ':' + g.meetings);
+              sawAt = sawAt || g.t;
+              if (!q.busy || g.t - sawAt > 25) leaveAt = leaveAt || g.t + U.rf(0.6, 1.5);
+              if (leaveAt && g.t >= leaveAt) return null;
+            }
+            /* a pessoa está no meio de uma tarefa na minha frente: espera ela terminar antes de desistir */
+            if (q.busy && plan.endAt - g.t < 2 && g.t < hardEnd) plan.endAt = g.t + 2;
           }
           return { x: s.x, y: s.y };
         },
@@ -695,15 +723,34 @@
           pl.chk = 1;
           /* os dois seguindo um ao outro = dois bonecos parados se olhando. Um assume a frente (quem quer ver a
              tarefa visual do outro continua seguindo; senão, decide pelo número) e vai fazer as coisas dele */
-          const qp = q.brain && q.alive ? q.brain.plan : null;
-          if (qp && qp.type === 'follow' && qp.target === this.p.id && qp.stage === 'wait') {
-            const iLead = purpose === 'verify' ? false : qp.purpose === 'verify' ? true : this.p.id < q.id;
-            if (iLead) {
+          /* vale também para uma roda (A segue B, B segue C, C segue A): todo mundo esperando alguém que espera */
+          const ring = [this.p];
+          let cur = q, closes = false;
+          for (let i = 0; i < 12 && cur && cur.alive && cur.brain; i++) {
+            const cp = cur.brain.plan;
+            if (!cp || cp.type !== 'follow' || cp.stage !== 'wait' || cp.escort) break;
+            ring.push(cur);
+            if (cp.target === this.p.id) {
+              closes = true;
+              break;
+            }
+            cur = g.players[cp.target];
+            if (ring.includes(cur)) break;
+          }
+          if (closes) {
+            /* quem só quer ver a tarefa visual do outro continua seguindo; entre os demais, sai na frente o de menor número */
+            const leaders = ring.filter((x) => x.brain.plan && x.brain.plan.purpose !== 'verify');
+            const lead = (leaders.length ? leaders : ring).reduce((a, b) => (a.id < b.id ? a : b));
+            if (lead === this.p) {
               this.plan = null;
               return;
             }
           }
-          if (purpose === 'verify' || !q.busy || !this.p.alive || pl.endAt - g.t < 5) return;
+          /* em dupla: se o parceiro está parado à toa, também aproveito para fazer a minha ali do lado */
+          if (q.moving || q.busy) pl.qIdle = 0;
+          else pl.qIdle = (pl.qIdle || 0) + 1;
+          const partnerFree = q.busy || (purpose === 'pact' && pl.qIdle >= 4);
+          if (purpose === 'verify' || !partnerFree || !this.p.alive || pl.endAt - g.t < 5) return;
           const me = this.p;
           const near = (x, y) => U.d2(x, y, q.x, q.y) < 5.5 && Nav.los(q.x, q.y, x, y);
           const own = me.isImp ? null : me.tasks.find((tk) => !tk.done && g.taskAvailable(tk) && near(g.stationOfTask(tk).x, g.stationOfTask(tk).y));
@@ -726,7 +773,8 @@
             this.mem.event({ type: 'noProof', t: g.t, who: id }, 'noProof:' + id + ':' + g.meetings);
           }
         },
-      });
+      };
+      this.setPlan(plan);
     }
     /* Viu esta pessoa fazendo tarefa visual nesta rodada (agora ou antes)? */
     sawVisualOf(q) {
@@ -736,8 +784,11 @@
       return this.mem.events.some((e) => e.type === 'visual' && e.who === g.appearId(q) && e.t >= g.roundStart);
     }
     /* Zigue-zague no lugar ("vem comigo"); depois segue o plano "then". */
-    planWiggle(text, then) {
+    /* to/purpose: a quem é o chamado e para quê ('prove' mostrar a visual, 'pact' andar junto, 'regroup' "cadê você,
+       vem", 'lure' isca, 'reply' respondendo ao chamado de alguém). Quem chama vai na frente; quem responde segue. */
+    planWiggle(text, then, to, purpose) {
       const g = this.g, p = this.p, t0 = g.t;
+      if (to && purpose !== 'reply') this.call = { who: to.id, purpose: purpose || 'come', t0: g.t, until: g.t + 25, answered: false };
       const axis = g.canStand(p.x + 0.7, p.y) && g.canStand(p.x - 0.7, p.y) ? 'x' : 'y';
       this.setPlan({
         type: 'wiggle', stage: 'do', until: g.t + 1.2,
@@ -750,7 +801,7 @@
           if (then) then();
         },
       });
-      g.gesture(p, 'wiggle');
+      g.gesture(p, 'wiggle', { to: to ? to.id : null, reply: purpose === 'reply' });
       void text;
     }
     /* Sem balões: a comunicação no mapa é só pelo movimento. */
@@ -792,7 +843,7 @@
                 this.shownVisual = true;
                 this.planTask(vis[0]);
               }
-            });
+            }, q, vis.length ? 'prove' : 'come');
           }
           o.done = false;
           return goToward();
@@ -849,7 +900,7 @@
             this.invitedRound = true;
             this.invite = { who: q.id, until: g.t + 25, lure: true };
             const quiet = M.ROOMS.filter((rm) => !['cafeteria', 'admin', 'storage'].includes(rm.id));
-            return this.planWiggle('vem!', () => this.planFakeTask(U.pick(quiet).id));
+            return this.planWiggle('vem!', () => this.planFakeTask(U.pick(quiet).id), q, 'lure');
           }
           this.prey = { id: q.id, until: o.until };
           return fresh ? this.planStalk(q) : goToward();
@@ -874,6 +925,11 @@
 
     /* Suspeita "ao vivo" durante a rodada: o que ficou das reuniões + o que viu agora. */
     /* Viu fazer tarefa visual em QUALQUER rodada: é tripulante, e o bot não esquece. */
+    /* fui eu que chamei essa pessoa (ou vou na frente na dupla): quem vem atrás é ela, não eu */
+    leading(id) {
+      const g = this.g, c = this.call, pa = this.pact;
+      return !!((c && c.who === id && g.t < c.until) || (pa && pa.who === id && pa.lead === 'me'));
+    }
     hardCleared(id) {
       if (this.g.S.house.noVisualHardClear || !this.g.S.rules.visualTasks) return false;
       return this.mem.events.some((e) => (e.type === 'visual' || e.type === 'escortVisual') && e.who === id);
@@ -970,12 +1026,30 @@
       if (this.plan && this.plan.escort) this.plan = null;
     }
     /* Alguém fez sinal perto: atende (segue), recusa ou desconfia. O impostor pode fingir que topa. */
-    onGesture(q, kind) {
+    onGesture(q, kind, opts) {
       const g = this.g, p = this.p, t = g.t;
+      opts = opts || {};
       if (kind !== 'wiggle' || !p.alive || p.inVent || g.phase !== 'play') return;
       if (this.plan && ['report', 'flee', 'fix', 'button', 'hunt', 'wiggle'].includes(this.plan.type)) return;
       if (this.wantButton || this.fix || this.escape) return;
       const aid = g.appearId(q);
+      /* a pessoa que eu chamei respondeu com o zigue-zague: combinado, ela vem atrás de mim. Eu sigo na frente
+         (não vou atrás dela) e fico de olho para ela não se perder */
+      if (this.call && this.call.who === q.id && t < this.call.until) {
+        this.call.answered = true;
+        if (!this.pact || this.pact.who !== q.id) this.pact = { who: q.id, lead: 'me', scope: 'call', since: t, until: t + U.rf(40, 70) };
+        else this.pact.lead = 'me';
+        this.emote('ok');
+        return;
+      }
+      /* meu parceiro de dupla chamou: vou até ele e sigo junto */
+      if (this.pact && this.pact.who === q.id && !opts.reply) {
+        this.pact.lead = 'them';
+        this.emote('ok');
+        this.planFollow(q, U.rf(20, 35), U.rf(2, 2.8), 'pact');
+        return;
+      }
+      if (opts.reply) return;
       if (p.isImp && q.isImp) {
         /* parceiro fez sinal: combinado, fico perto e mato junto quando ele matar */
         this.dk = { with: q.id, until: t + 14 };
@@ -1002,7 +1076,13 @@
       if (p.busy && !U.chance(0.35)) pAcc *= 0.3;
       if (U.chance(pAcc)) {
         this.emote('ok');
-        this.startEscort(q);
+        /* entende para que foi chamado pelo lugar: do lado de uma tarefa visual = "vem ver eu provar"; reator/O2
+           caindo = "me ajuda aqui"; senão, "anda comigo". Às vezes responde com o zigue-zague ("tô indo") e vai
+           atrás (quem chamou vai na frente) */
+        const vst = g.S.rules.visualTasks && VISUAL_ST.concat(['shields', 'garbageStorage']).some((k) => M.STATIONS[k] && U.d2(q.x, q.y, M.STATIONS[k].x, M.STATIONS[k].y) < 2.5);
+        const go = () => (vst ? this.planFollow(q, U.rf(18, 28), 2.4, 'verify') : this.startEscort(q));
+        if (!p.busy && U.chance(0.65)) this.planWiggle('ok', go, q, 'reply');
+        else go();
       } else this.emote(!p.isImp && s >= 20 ? 'não' : '?');
     }
     /* Alguém me segue (a meu pedido ou de confiança): mostro uma tarefa visual para provar que sou tripulante. */
@@ -1132,13 +1212,72 @@
           return;
         }
       }
+      if (this.pactThink()) return;
       if (this.plan) return;
       this.chooseCrewActivity();
     }
+    /* Dupla combinada (na reunião ou por sinal aceito). Quem vai na frente faz as coisas dele e, se o parceiro ficou
+       para trás, espera um pouco e chama de novo; quem segue anda junto (e faz as tarefas que estiverem ali do lado). */
+    pactThink() {
+      const g = this.g, p = this.p;
+      /* chamei alguém e ele veio chegando perto: também é resposta (o jogador nem sempre faz o zigue-zague de volta) */
+      const c = this.call;
+      if (c && !c.answered && g.t < c.until) {
+        const q = g.players[c.who];
+        const s = q && this.lastSeenAt[g.appearId(q)];
+        if (s && g.t - s.t < 1) {
+          const d = U.d2(p.x, p.y, s.x, s.y);
+          if (c.d0 == null) c.d0 = d;
+          if ((d < 2.6 && c.d0 > 3.2) || (d < 2.2 && g.t - c.t0 > 3)) {
+            c.answered = true;
+            if (!this.pact || this.pact.who !== q.id) this.pact = { who: q.id, lead: 'me', scope: 'call', since: g.t, until: g.t + U.rf(40, 70) };
+          }
+        }
+      }
+      const pa = this.pact;
+      if (!pa) return false;
+      const q = g.players[pa.who];
+      if (!q || !q.alive || g.t > pa.until || (!p.isImp && this.liveSusp(pa.who) >= 30)) {
+        this.pact = null;
+        return false;
+      }
+      const s = this.lastSeenAt[g.appearId(q)];
+      const ago = s ? g.t - s.t : 99;
+      if (ago > 45 && g.t - pa.since > 45) {
+        if (pa.scope !== 'game') this.pact = null;
+        return false;
+      }
+      if (pa.lead !== 'me' || p.busy || !s) return false;
+      /* vou na frente: o parceiro ficou para trás (ainda à vista) → espero; se continua longe, chamo de novo */
+      const d = U.d2(p.x, p.y, s.x, s.y);
+      const walking = this.plan && this.plan.stage === 'go' && ['task', 'fake', 'wander', 'patrol'].includes(this.plan.type);
+      if (walking && ago < 1.5 && d > 6.5 && d < 12 && g.t - (pa.waitT || 0) > 9) {
+        pa.waitT = g.t;
+        const wait = () => this.setPlan({ type: 'pause', stage: 'do', until: g.t + U.rf(1.2, 2.2) });
+        if (g.t - (pa.callT || 0) > 16 && U.chance(0.55)) {
+          pa.callT = g.t;
+          this.planWiggle('ei', wait, q, 'regroup');
+        } else wait();
+        return true;
+      }
+      return false;
+    }
     chooseCrewActivity() {
       const g = this.g, p = this.p, pers = this.pers;
+      /* dupla: sigo o parceiro; perdi de vista há pouco, vou até onde vi por último */
+      const pa = this.pact;
+      if (pa && pa.lead === 'them' && g.players[pa.who] && g.players[pa.who].alive) {
+        const q = g.players[pa.who];
+        const s = this.lastSeenAt[g.appearId(q)];
+        if (s && g.t - s.t < 4) return this.planFollow(q, U.rf(20, 35), U.rf(2, 2.8), 'pact');
+        if (s && g.t - s.t < 25 && g.t - (pa.lookT || 0) > 6) {
+          pa.lookT = g.t;
+          const a = M.AREA[s.area];
+          return this.planWander(a ? M.roomOf(a, s.x, s.y).id : 'cafeteria', U.rf(0.8, 1.6));
+        }
+      }
       if (g.sab && g.sab.type === 'lights' && !this.fix) {
-        const pal = this.seenNow.filter((q) => q.alive && U.dist(p, q) < 6 && this.liveSusp(g.appearId(q)) <= 5);
+        const pal = this.seenNow.filter((q) => q.alive && !this.leading(q.id) && U.dist(p, q) < 6 && this.liveSusp(g.appearId(q)) <= 5);
         if (pal.length && U.chance(0.5 + pers.follow * 0.3)) return this.planFollow(pal[0], U.rf(8, 14), 1.8);
       }
       if (this.aiOrder && this.runOrder() !== false && this.plan) return;
@@ -1165,7 +1304,7 @@
             return this.planFollow(q, U.rf(12, 20), U.rf(4, 5.5));
           }
         }
-        if (this.buddy != null) {
+        if (this.buddy != null && !this.leading(this.buddy)) {
           const q = g.players[this.buddy];
           const s = q && q.alive ? this.lastSeenAt[q.id] : null;
           if (s && g.t - s.t < 3) {
@@ -1185,7 +1324,7 @@
             return this.planWiggle('vem!', () => {
               this.shownVisual = true;
               this.planTask(tk2);
-            });
+            }, who, 'prove');
           }
         }
         /* hábitos: visual primeiro (prova cedo), sozinho ou junto de quem está por perto */
@@ -1224,7 +1363,7 @@
       this.postN = (this.postN || 0) + 1;
       const sus = this.seenNow.filter((q) => q.alive && this.liveSusp(g.appearId(q)) >= 30);
       if (sus.length && r < (watcher ? 0.55 : 0.3)) return this.planFollow(sus[0], U.rf(12, 22), U.rf(4, 5.5));
-      const pals = this.seenNow.filter((q) => q.alive && (this.susp[g.appearId(q)] || 0) <= -20);
+      const pals = this.seenNow.filter((q) => q.alive && !this.leading(q.id) && (this.susp[g.appearId(q)] || 0) <= -20);
       if (pals.length && r < 0.2 + pers.follow * 0.3) return this.planFollow(U.pick(pals), U.rf(12, 22), 2.4);
       if (pers.chaos && !this.chaosButton && U.chance(0.12) && p.emergencyLeft > 0) {
         this.chaosButton = true;
@@ -1244,7 +1383,7 @@
       }
       /* acompanha quem ainda tem tarefa (segurança em grupo); quem gosta de ronda vai direto para as salas vazias */
       if (q < 0.4 + pers.follow * 0.25 + (this.hab('escolta') ? 0.25 : 0) - (this.hab('patrulheiro') || this.hab('solitario') ? 0.25 : 0)) {
-        const cand = this.seenNow.filter((x) => x.alive && this.liveSusp(g.appearId(x)) < 20 && U.dist(p, x) < 7);
+        const cand = this.seenNow.filter((x) => x.alive && !this.leading(x.id) && this.liveSusp(g.appearId(x)) < 20 && U.dist(p, x) < 7);
         if (cand.length) return this.planFollow(U.pick(cand), U.rf(10, 20), U.rf(2.2, 3.4));
       }
       if (!pers.panic || U.chance(0.4)) return this.planPatrol(U.rint(2, 4));
@@ -1376,7 +1515,11 @@
         }
       }
       if (p.killCd <= 0 && !(p.invisUntil > t)) {
-        const tgt = others.length === 1 ? others[0] : null;
+        /* a dupla combinada na reunião (todo mundo ouviu): matar o próprio parceiro me entrega na hora; o esperto não mata */
+        const pactWith = (q) => q && (g.publicPacts || []).some((pc) => (pc.from === g.meetings || pc.scope === 'game') && ((pc.a === p.id && pc.b === q.id) || (pc.b === p.id && pc.a === q.id)));
+        let tgt = others.length === 1 ? others[0] : null;
+        const myPact = pactWith(tgt);
+        if (myPact && L.lie >= 0.5) tgt = null;
         /* só age depois de ver a vítima isolada por um tempo, e nem sempre na primeira chance */
         if (tgt && tgt === this.isoTarget && this.noWitness(tgt, others)) this.isoT += 0.3;
         else {
@@ -1393,7 +1536,7 @@
         const pairSeen = tgt && L.lie >= 0.5 && this.seenWithRecently(tgt);
         /* alguém (fora a vítima) me viu por aqui há pouco: o corpo vai aparecer "perto de onde viram o X" */
         const hereSeen = tgt && L.lie >= 0.5 && this.seenHereRecently(tgt);
-        const need = L.need * (busy ? 1.8 : 1) * (lowKey ? 1.8 : 1) * (grudge ? 0.75 : 1) * (nearVent && L.useVents > 0.5 ? 0.92 : 1) * (threat ? 0.92 : 1) * (pairSeen ? 1.6 : 1) * (hereSeen ? 1.45 : 1);
+        const need = L.need * (busy ? 1.8 : 1) * (lowKey ? 1.8 : 1) * (grudge ? 0.75 : 1) * (nearVent && L.useVents > 0.5 ? 0.92 : 1) * (threat ? 0.92 : 1) * (pairSeen ? 1.6 : 1) * (hereSeen ? 1.45 : 1) * (myPact ? 1.8 : 1);
         if (tgt && this.eagerRoll == null && this.isoT >= need) {
           const waited = t - this.readyT;
           this.eagerRoll = U.chance(L.eager * U.clamp(0.7 + waited / 15, 0.7, 1) * (busy ? 0.7 : 1) * (lowKey && !grudge ? 0.55 : 1));
@@ -1744,6 +1887,13 @@
         const res = this.runOrder();
         if (res !== false && (this.plan || this.p.inVent)) return;
       }
+      /* combinou dupla na reunião: cumpre (é álibi) — mas com o abate pronto e os dois a sós, a dupla vira a chance */
+      const pa = this.pact;
+      if (pa && g.players[pa.who] && g.players[pa.who].alive) {
+        const q = g.players[pa.who];
+        const s = this.lastSeenAt[g.appearId(q)];
+        if (pa.lead === 'them' && s && g.t - s.t < 4 && U.chance(0.6 + L.lie * 0.3)) return this.planFollow(q, U.rf(15, 25), U.rf(2, 2.8), 'pact');
+      } else if (pa) this.pact = null;
       /* começo da rodada: anda com alguém para ter álibi, depois se separa para caçar */
       if (!this.groupedRound && g.t - g.roundStart < 25) {
         this.groupedRound = true;
@@ -1766,7 +1916,7 @@
         this.invitedRound = true;
         this.invite = { who: q.id, until: g.t + 25, lure: true };
         const quiet = M.ROOMS.filter((rm) => !['cafeteria', 'admin', 'storage'].includes(rm.id));
-        return this.planWiggle('vem!', () => this.planFakeTask(U.pick(quiet).id));
+        return this.planWiggle('vem!', () => this.planFakeTask(U.pick(quiet).id), q, 'lure');
       }
       if (r < L.stalk * 0.45) {
         const cands = others.length ? others : [];
@@ -1843,17 +1993,64 @@
           this.lastVitals = t;
         }
       }
-      if (p.special === 'rastreador' && p.abilityCd <= 0) {
-        const cand = this.seenNow.filter((q) => U.dist(p, q) < 3.4);
-        if (cand.length) {
-          cand.sort((a, b) => (this.susp[g.appearId(b)] || 0) - (this.susp[g.appearId(a)] || 0));
-          g.track(p, cand[0].id);
+      /* rastreador: guarda o rastreio para quem vale a pena — suspeito, ou alguém que está se separando sozinho;
+         não gasta em quem já provou ser tripulante. Se ninguém vale, depois de um tempo rastreia quem estiver perto
+         (melhor ter alguém rastreado na hora de um abate do que nada) */
+      if (p.special === 'rastreador' && p.abilityCd <= 0 && !p.isImp) {
+        this.trkReady = this.trkReady || t;
+        const cand = this.seenNow.filter((q) => q.alive && U.dist(p, q) < 3.4 && Nav.los(p.x, p.y, q.x, q.y) && !this.hardCleared(g.appearId(q)));
+        const score = (q) => this.liveSusp(g.appearId(q)) + (q.moving && this.seenNow.length <= 2 ? 8 : 0) + (q.isHuman ? 0 : U.rf(0, 4));
+        cand.sort((a, b) => score(b) - score(a));
+        const best = cand[0];
+        if (best && (score(best) >= 10 || t - this.trkReady > 20)) {
+          if (g.track(p, best.id)) this.trkReady = 0;
         }
       }
-      if (p.special === 'engenheiro' && !p.inVent && p.abilityCd <= 0 && this.seenNow.length === 0 && U.chance(0.01)) {
+      /* engenheiro usa o duto como atalho de verdade: indo para uma tarefa (ou conserto) longe, entra no duto ao
+         lado e sai no que fica perto do destino; também foge de perigo por ele. Evita ser visto (se alguém viu,
+         avisa na reunião que é engenheiro) */
+      /* planeja o atalho: um duto a poucos passos que leva para perto de onde vou */
+      if (p.special === 'engenheiro' && !p.inVent && p.abilityCd <= 0 && !p.isImp && !this.engHop && this.plan && !this.plan.dyn && this.plan.stage === 'go' && this.dest && this.seenNow.length <= 1) {
+        const dest = this.dest, walk = U.d2(p.x, p.y, dest.x, dest.y);
+        let best = null, bs = 10;
+        if (walk > 16) for (const V of M.VENTS) {
+          const dv = U.d2(p.x, p.y, V.x, V.y);
+          if (dv > 7) continue;
+          for (const id of V.links) {
+            const L = M.VENT[id];
+            const save = walk - (dv + U.d2(L.x, L.y, dest.x, dest.y));
+            if (save > bs) {
+              bs = save;
+              best = { entry: V, exit: L, dest: { x: dest.x, y: dest.y } };
+            }
+          }
+        }
+        if (best) {
+          this.engHop = best;
+          this.routeTo(best.entry.x, best.entry.y);
+        }
+      }
+      if (p.special === 'engenheiro' && !p.inVent && p.abilityCd <= 0 && !p.isImp && !this.engHop) {
         const v = g.nearestVent(p);
-        if (v && g.enterVent(p, v)) {
-          this.engVent = { exitAt: t + U.rf(1.5, 3), next: U.pick(v.links) };
+        const dest = this.dest;
+        const danger = this.fear && t - this.fear.t < 3;
+        if (v && (dest || danger)) {
+          const walk = dest ? U.d2(p.x, p.y, dest.x, dest.y) : 0;
+          let best = null, bd = 1e9;
+          for (const id of v.links) {
+            const w = M.VENT[id];
+            const d = dest ? U.d2(w.x, w.y, dest.x, dest.y) : -U.d2(w.x, w.y, p.x, p.y);
+            if (d < bd) {
+              bd = d;
+              best = w;
+            }
+          }
+          const worth = danger || (best && walk > 14 && bd < walk - 8);
+          const seen = this.seenNow.length;
+          if (best && worth && (seen === 0 || (danger && U.chance(0.6)) || U.chance(0.15)) && g.enterVent(p, v)) {
+            if (seen) this.engSeen = t;
+            this.engVent = { exitAt: t + U.rf(0.6, 1.4), next: best.id, dest: dest ? { x: dest.x, y: dest.y } : null };
+          }
         }
       }
       if (p.inVent && this.engVent) {
@@ -1861,9 +2058,13 @@
           g.ventTo(p, this.engVent.next);
           this.engVent.next = null;
         } else if (t >= this.engVent.exitAt) {
+          if (this.seenNow.length) this.engSeen = t;
           g.exitVent(p);
+          const d = this.engVent.dest;
           this.engVent = null;
-          this.plan = null;
+          /* segue para onde ia (o plano continua; só recalcula o caminho a partir do duto) */
+          if (d && this.plan) this.routeTo(d.x, d.y);
+          else this.plan = null;
         }
       }
     }
@@ -2294,6 +2495,8 @@
       this.bodiesNow = [];
       this.selfReport = false;
       this.invite = null;
+      this.call = null;
+      if (this.pact && this.pact.scope === 'call') this.pact = null;
       this.dk = null;
       this.dkTarget = null;
       this.aiOrder = null;

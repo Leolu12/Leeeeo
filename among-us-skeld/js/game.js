@@ -247,10 +247,11 @@
       if ((rx >= 3 || ry >= 3) && path > 1.2 && net < 1.6) this.gesture(h, 'wiggle');
     }
     /* O zigue-zague não aparece como texto: quem está olhando talvez perceba (atenção, distância, ocupado, escuro). */
-    gesture(p, kind) {
+    gesture(p, kind, opts) {
       const t = this.t;
+      opts = opts || {};
       p.gestT = t;
-      this.log({ type: 'gesture', by: p.id, kind });
+      this.log({ type: 'gesture', by: p.id, kind, to: opts.to != null ? opts.to : undefined, reply: opts.reply || undefined });
       /* fantasma chamando fantasma: os outros fantasmas por perto veem (só eles se enxergam) e vão junto */
       if (!p.alive) {
         for (const q of this.players) {
@@ -266,8 +267,10 @@
         if (d > 7) continue;
         const notice = (0.45 + (q.brain.pers.att || 0.7) * 0.5) * (d < 3.5 ? 1 : d < 5.5 ? 0.7 : 0.4) * (q.busy ? 0.6 : 1) * (this.sab && this.sab.type === 'lights' ? 0.6 : 1);
         if (!U.chance(notice)) continue;
+        /* resposta a um chamado de outra pessoa ("ok, tô indo" para quem chamou): quem está do lado entende que não é com ele */
+        if (opts.reply && opts.to !== q.id) continue;
         try {
-          q.brain.onGesture(p, kind);
+          q.brain.onGesture(p, kind, opts);
         } catch (e) {
           if (window.console) console.warn('gesto falhou', e);
         }
@@ -608,6 +611,9 @@
         if (this.ghosts) this.ghosts.onEject(ej);
       }
       this.log({ type: 'vote', index: this.meeting ? this.meeting.info.index : this.meetings, ejected: ej ? ej.id : null, tie: !!result.tie, votes: result.votes });
+      /* duplas combinadas no chat são públicas: todo mundo ouviu quem vai andar com quem */
+      this.publicPacts = this.publicPacts || [];
+      if (this.meeting) for (const m of this.meeting.msgs) for (const it of m.intents || []) if (it.type === 'pactOk' && it.who != null) this.publicPacts.push({ a: m.from, b: it.who, from: this.meetings, scope: it.scope || 'round' });
       this.bodies.forEach((b) => (b.gone = true));
       this.placeAtTable();
       for (const p of this.players) {
