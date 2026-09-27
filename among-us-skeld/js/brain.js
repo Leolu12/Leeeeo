@@ -5,6 +5,25 @@
   const U = AU.U, C = AU.C, M = AU.Map, Nav = AU.Nav;
 
   const VISUAL_ST = ['scan', 'asteroids', 'shields'];
+  /* Estações onde a tarefa SEMPRE termina de uma vez (etapa única/última): se alguém "termina" ali na sua frente
+     e a barra de tarefas não sobe, a tarefa era falsa. Calculado a partir das definições das tarefas. */
+  let FINAL_ST = null;
+  function finalStations() {
+    if (FINAL_ST) return FINAL_ST;
+    const info = {};
+    for (const def of Object.values(M.TASKS)) {
+      for (let k = 0; k < 25; k++) {
+        const steps = def.steps();
+        steps.forEach((st, i) => {
+          const o = (info[st] = info[st] || { fin: false, mid: false });
+          if (i === steps.length - 1) o.fin = true;
+          else o.mid = true;
+        });
+      }
+    }
+    FINAL_ST = new Set(Object.keys(info).filter((st) => info[st].fin && !info[st].mid));
+    return FINAL_ST;
+  }
   const HIGH_TRAFFIC = new Set(['cafeteria', 'admin', 'storage', 'hallAdmin', 'hallUpper', 'hallStorage', 'hallRight', 'hallLower', 'hallLeft', 'hallWeapons']);
 
   class Memory {
@@ -93,6 +112,9 @@
       this.vitalsT = U.rf(15, 30);
       this.lastVitals = 0;
       this.speedMul = U.rf(0.93, 1.02);
+      /* jeito próprio de andar: faixa no corredor e preferência de caminho (cada um vai por um lado) */
+      this.lane = U.rf(-0.85, 0.85);
+      this.routeSeed = U.rint(1, 99991);
       this.lostCount = 0;
       this.trackT = 0;
       this.trailT = 0;
@@ -145,8 +167,48 @@
     routeTo(x, y) {
       const p = this.p;
       this.dest = { x, y };
-      this.path = Nav.find(p.x, p.y, x, y, !p.alive) || [];
+      /* varia um pouco a cada rota: nem sempre o mesmo caminho, nem sempre a mesma faixa */
+      const lane = U.clamp(this.lane + U.rf(-0.3, 0.3), -0.95, 0.95);
+      const plain = !p.alive || this.plainUntil > this.g.t;
+      this.path = Nav.find(p.x, p.y, x, y, !p.alive, plain ? null : { seed: this.routeSeed + (U.chance(0.3) ? U.rint(1, 5000) : 0), vary: 0.9, lane }) || [];
       this.pi = 0;
+    }
+    /* Lugar para ficar em volta de um painel: cada um num ponto um pouco diferente (não todos no mesmo pixel). */
+    standNear(x, y, r) {
+      const g = this.g, p = this.p;
+      /* quem chega depois fica do lado livre do painel */
+      const others = g.players.filter((q) => q !== p && q.alive && !q.inVent && U.d2(q.x, q.y, x, y) < 2.5);
+      let best = { x, y }, bs = -1;
+      for (let i = 0; i < 10; i++) {
+        const a = Math.random() * Math.PI * 2, rr = U.rf(0.15, (r || 0.55) + (others.length ? 0.35 : 0));
+        const px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr;
+        if (!g.canStand(px, py) || !Nav.los(x, y, px, py)) continue;
+        const md = others.length ? Math.min(...others.map((q) => U.d2(q.x, q.y, px, py))) : 9;
+        const sc = Math.min(md, 1.2) + Math.random() * 0.05;
+        if (sc > bs) {
+          bs = sc;
+          best = { x: px, y: py };
+        }
+      }
+      return best;
+    }
+    crowded(r) {
+      const p = this.p;
+      return this.g.players.some((q) => q !== p && q.alive && !q.inVent && U.d2(q.x, q.y, p.x, p.y) < r);
+    }
+    /* Espaço pessoal: empurrãozinho para longe de quem está colado (sem virar colisão). */
+    sepVec() {
+      const p = this.p, g = this.g;
+      let sx = 0, sy = 0;
+      for (const q of g.players) {
+        if (q === p || !q.alive || q.inVent) continue;
+        const dx = p.x - q.x, dy = p.y - q.y, d = Math.hypot(dx, dy);
+        if (d > 0.9 || d < 1e-4) continue;
+        const w = (0.9 - d) / 0.9;
+        sx += (dx / d) * w;
+        sy += (dy / d) * w;
+      }
+      return { x: sx, y: sy };
     }
     moveAlong(dt) {
       const p = this.p, g = this.g;
@@ -184,8 +246,9 @@
       const sp = g.speedOf(p) * this.speedMul;
       const step = sp * dt;
       if (Math.abs(dx) > 0.02) p.facing = dx < 0 ? -1 : 1;
-      if (d <= step || d < 0.05) {
-        if (g.canStand(pt.x, pt.y, !p.alive)) {
+      /* com alguém parado em cima do ponto, chegar perto já basta (não fica rodeando) */
+      if (d <= step || d < 0.05 || (d < 0.55 && this.sepOn && this.pi < this.path.length - 1)) {
+        if (d <= step && g.canStand(pt.x, pt.y, !p.alive)) {
           p.x = pt.x;
           p.y = pt.y;
         }
@@ -195,14 +258,32 @@
         return this.pi >= this.path.length && U.d2(p.x, p.y, this.dest.x, this.dest.y) < 0.9;
       }
       const bx = p.x, by = p.y;
-      g.moveEntity(p, (dx / d) * sp, (dy / d) * sp, dt);
+      let vx = dx / d, vy = dy / d;
+      if (p.alive && !(this.plan && this.plan.type === 'hunt') && !(this.plainUntil > g.t)) {
+        const s = this.sepVec();
+        this.sepOn = !!(s.x || s.y);
+        if (s.x || s.y) {
+          vx += s.x * 0.8;
+          vy += s.y * 0.8;
+          const n = Math.hypot(vx, vy) || 1;
+          vx /= n;
+          vy /= n;
+        }
+      }
+      g.moveEntity(p, vx * sp, vy * sp, dt);
       if (Math.hypot(p.x - bx, p.y - by) < step * 0.3) {
         this.stuck += dt;
         if (this.stuck > 0.5) {
           this.stuck = 0;
+          /* travou de novo: anda pelo caminho simples (sem faixa nem desvio) por alguns segundos */
+          this.stuckN = (this.stuckN || 0) + 1;
+          if (this.stuckN >= 2) this.plainUntil = g.t + 4;
           this.routeTo(this.dest.x, this.dest.y);
         }
-      } else this.stuck = 0;
+      } else {
+        this.stuck = 0;
+        if (this.stuckN && Math.hypot(p.x - bx, p.y - by) > step * 0.8) this.stuckN = 0;
+      }
       return false;
     }
     act(dt) {
@@ -230,7 +311,7 @@
             pl.shuffling = false;
             /* esperando do lado de quem segue: muda de posição de vez em quando, sem ficar plantado */
             if (!pl.noShuffle) {
-              pl.still = (pl.still || 0) + (pl.dynEvery || 0.5);
+              pl.still = (pl.still || 0) + (pl.dynEvery || 0.5) + (this.crowded(0.55) ? 3 : 0);
               if (pl.still > (pl.shuffleAt || (pl.shuffleAt = U.rf(1.2, 2.6)))) {
                 pl.still = 0;
                 pl.shuffleAt = U.rf(1.4, 3.2);
@@ -357,8 +438,9 @@
       const stepIdx = tk.step;
       const base = tk.def.dur[stepIdx] || 3;
       const dur = (base / this.pers.taskSpeed) * U.rf(0.9, 1.3) * (1 + (this.err - 1) * 0.15);
+      const spot = this.standNear(st.x, st.y, 0.5);
       this.setPlan({
-        type: 'task', task: tk, x: st.x, y: st.y,
+        type: 'task', task: tk, x: spot.x, y: spot.y,
         onArrive: (pl) => {
           if (tk.done || tk.step !== stepIdx || !g.taskAvailable(tk)) {
             pl.until = g.t;
@@ -395,6 +477,12 @@
         const vis = tk.def.visual && (tk.def.visualStep == null || tk.def.visualStep === tk.step);
         return !vis || U.chance(L.fakeVisual);
       });
+      /* impostor esperto: com a barra de tarefas sempre visível e gente olhando, finge tarefa de várias etapas
+         (onde a barra não subir não entrega nada) */
+      if (this.g.S.rules.taskBar === 'sempre' && this.crewVisible().length && U.chance(L.lie)) {
+        const safe = pool.filter((tk) => !finalStations().has(tk.steps[tk.step]));
+        if (safe.length) pool = safe;
+      }
       if (!pool.length) return this.planWander(U.pick(M.ROOMS).id);
       let tk;
       if (preferArea) tk = pool.find((x) => M.STATIONS[x.steps[x.step]].area === preferArea);
@@ -408,7 +496,7 @@
       const st = M.STATIONS[tk.steps[tk.step]];
       const dur = (tk.def.dur[tk.step] || 3) * U.rf(0.8, 1.4);
       this.setPlan({
-        type: 'fake', task: tk, x: st.x, y: st.y,
+        type: 'fake', task: tk, ...this.standNear(st.x, st.y, 0.5),
         onArrive: (pl) => {
           pl.until = g.t + dur;
           p.busy = { task: tk.id, station: st.id, until: pl.until, fake: true };
@@ -468,8 +556,9 @@
       const g = this.g, p = this.p;
       const pos = M.SAB_STATIONS[st];
       const kind = st.startsWith('reactor') ? 'reactor' : st.startsWith('o2') ? 'o2' : st;
+      const spot = this.standNear(pos.x, pos.y, 0.6);
       this.setPlan({
-        type: 'fix', st, x: pos.x, y: pos.y,
+        type: 'fix', st, x: spot.x, y: spot.y,
         onArrive: (pl) => {
           pl.until = g.t + (kind === 'reactor' ? 60 : kind === 'lights' ? U.rf(2, 4) : kind === 'comms' ? U.rf(3.5, 5.5) : U.rf(2.5, 4));
           p.busy = { fix: st, until: pl.until };
@@ -508,7 +597,7 @@
     planAdmin() {
       const g = this.g, p = this.p;
       this.setPlan({
-        type: 'admin', x: M.ADMIN_TABLE.x, y: M.ADMIN_TABLE.y + 1.2,
+        type: 'admin', ...this.standNear(M.ADMIN_TABLE.x, M.ADMIN_TABLE.y + 1.2, 0.8),
         onArrive: (pl) => {
           pl.until = g.t + U.rf(4, 8);
           p.onAdmin = true;
@@ -715,6 +804,7 @@
           strong = true;
         } else if (e.t < rs) continue;
         else if (e.type === 'noscan') s += 25;
+        else if (e.type === 'fakeTask') s += 30;
         else if (e.type === 'follow') s += 8;
         else if (e.type === 'visual' && g.S.rules.visualTasks) s -= 60;
       }
@@ -1188,6 +1278,17 @@
           }
           if (d <= g.killDist && this.safeToKill(tgt, others)) {
             if (g.tryKill(p, tgt)) return;
+          } else if (d <= g.killDist * 1.4) {
+            /* colado na vítima sem poder matar (tem gente vendo): não fica grudado, se afasta e observa de longe */
+            this.unsafeT = (this.unsafeT || 0) + 0.3;
+            if (this.unsafeT > (this.unsafeLim || (this.unsafeLim = U.rf(1.5, 3)))) {
+              this.unsafeT = 0;
+              this.unsafeLim = 0;
+              this.eagerRoll = null;
+              this.isoT = 0;
+              this.skipUntil = t + U.rf(4, 8);
+              return this.planStalk(tgt);
+            }
           }
           if (!this.plan || this.plan.type !== 'hunt' || this.plan.target !== tgt.id) {
             if (this.noWitness(tgt, others) || U.chance(L.riskTol)) this.planHunt(tgt);
@@ -1528,6 +1629,17 @@
             if (!this.hardCleared(aid) && mem.event({ type: 'follow', t, who: aid, area }, 'follow:' + aid + ':' + g.meetings) && pers.panic) {
               this.fear = { who: aid, t };
               this.planFlee(q);
+            }
+          }
+          /* viu terminar uma tarefa de etapa única e a barra não subiu = tarefa falsa (só com a barra sempre visível) */
+          this.taskWatch = this.taskWatch || {};
+          const tw = this.taskWatch[aid];
+          if (q.busy && q.busy.station && !q.moving) {
+            if (!tw || tw.station !== q.busy.station) this.taskWatch[aid] = { station: q.busy.station, t0: t, done0: g.taskProgress().done };
+          } else if (tw) {
+            delete this.taskWatch[aid];
+            if (t - tw.t0 >= 2.5 && g.S.rules.taskBar === 'sempre' && !g.commsDown() && finalStations().has(tw.station) && g.taskProgress().done === tw.done0 && U.chance(0.4 + pers.att * 0.5)) {
+              mem.event({ type: 'fakeTask', t, who: aid, area, station: tw.station }, 'fakeTask:' + aid + ':' + g.meetings);
             }
           }
           /* parado numa tarefa visual sem a animação aparecer = tarefa falsa */

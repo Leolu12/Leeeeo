@@ -261,7 +261,9 @@
       const [x, y, w, h] = U.pick(a.rects);
       const px = x + 1 + Math.random() * Math.max(0.1, w - 2);
       const py = y + 1 + Math.random() * Math.max(0.1, h - 2);
-      if (M.walkAt(px, py)) return { x: px, y: py };
+      /* com folga para o corpo do personagem (nada de ponto espremido no canto diagonal) */
+      const r = 0.4;
+      if (M.walkAt(px, py) && M.walkAt(px - r, py - r) && M.walkAt(px + r, py - r) && M.walkAt(px - r, py + r) && M.walkAt(px + r, py + r)) return { x: px, y: py };
     }
     return { x: a.cx, y: a.cy };
   };

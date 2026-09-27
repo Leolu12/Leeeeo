@@ -964,9 +964,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
 
   C.IMP_LEVELS = {
     iniciante: { name: 'Iniciante', desc: 'Arrisca abates com gente por perto e mente mal.', need: 0.3, eager: 0.95, miss: 0.35, riskTol: 0.3, useVents: 0.35, sabotage: 0.25, lie: 0.3, selfReport: 0.15, bus: 0, stalk: 0.2, fakeVisual: 0.45, camsAware: false, sabKill: false },
-    competente: { name: 'Competente', desc: 'Só mata sem testemunhas e cria álibis simples.', need: 0.48, eager: 0.92, miss: 0.2, riskTol: 0.1, useVents: 0.6, sabotage: 0.5, lie: 0.6, selfReport: 0.3, bus: 0.1, stalk: 0.4, fakeVisual: 0.1, camsAware: false, sabKill: false },
-    veterano: { name: 'Veterano', desc: 'Checa câmeras, usa dutos com calma e sabe entregar o parceiro.', need: 0.54, eager: 0.82, miss: 0.09, riskTol: 0.04, useVents: 0.75, sabotage: 0.7, lie: 0.8, selfReport: 0.4, bus: 0.35, stalk: 0.6, fakeVisual: 0, camsAware: true, sabKill: false },
-    implacavel: { name: 'Implacável', desc: 'Usa sabotagens para isolar vítimas e mente com detalhes.', need: 0.45, eager: 0.85, miss: 0.02, riskTol: 0.02, useVents: 0.85, sabotage: 0.9, lie: 0.95, selfReport: 0.5, bus: 0.5, stalk: 0.8, fakeVisual: 0, camsAware: true, sabKill: true },
+    competente: { name: 'Competente', desc: 'Só mata sem testemunhas e cria álibis simples.', need: 0.44, eager: 0.92, miss: 0.2, riskTol: 0.1, useVents: 0.6, sabotage: 0.5, lie: 0.6, selfReport: 0.3, bus: 0.1, stalk: 0.4, fakeVisual: 0.1, camsAware: false, sabKill: false },
+    veterano: { name: 'Veterano', desc: 'Checa câmeras, usa dutos com calma e sabe entregar o parceiro.', need: 0.5, eager: 0.82, miss: 0.09, riskTol: 0.04, useVents: 0.75, sabotage: 0.7, lie: 0.8, selfReport: 0.4, bus: 0.35, stalk: 0.6, fakeVisual: 0, camsAware: true, sabKill: false },
+    implacavel: { name: 'Implacável', desc: 'Usa sabotagens para isolar vítimas e mente com detalhes.', need: 0.42, eager: 0.85, miss: 0.02, riskTol: 0.02, useVents: 0.85, sabotage: 0.9, lie: 0.95, selfReport: 0.5, bus: 0.5, stalk: 0.8, fakeVisual: 0, camsAware: true, sabKill: true },
   };
 
   C.HUMAN_ERROR = {
@@ -1343,7 +1343,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const [x, y, w, h] = U.pick(a.rects);
       const px = x + 1 + Math.random() * Math.max(0.1, w - 2);
       const py = y + 1 + Math.random() * Math.max(0.1, h - 2);
-      if (M.walkAt(px, py)) return { x: px, y: py };
+      /* com folga para o corpo do personagem (nada de ponto espremido no canto diagonal) */
+      const r = 0.4;
+      if (M.walkAt(px, py) && M.walkAt(px - r, py - r) && M.walkAt(px + r, py - r) && M.walkAt(px - r, py + r) && M.walkAt(px + r, py + r)) return { x: px, y: py };
     }
     return { x: a.cx, y: a.cy };
   };
@@ -1397,7 +1399,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     wallCost[y * W + x] = near ? 0.35 : 0;
   }
 
-  function find(sx, sy, tx, ty, ghost) {
+  /* Ruído fixo por tile: cada bot soma o ruído com um deslocamento próprio (seed), então prefere caminhos um
+     pouco diferentes (outra porta, outro corredor) em vez de todos pisarem na mesma linha. */
+  const NOISE = new Float32Array(N_);
+  for (let i = 0; i < N_; i++) NOISE[i] = Math.random();
+
+  function find(sx, sy, tx, ty, ghost, opts) {
+    const seed = opts && opts.seed ? opts.seed : 0;
+    const vary = opts && opts.vary ? opts.vary : 0;
     const ok = ghost ? M.isFloor : M.isWalk;
     const s = nearestWalk(Math.floor(sx), Math.floor(sy), ghost);
     const t = nearestWalk(Math.floor(tx), Math.floor(ty), ghost);
@@ -1430,7 +1439,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (dx && dy && (!ok(cx + dx, cy) || !ok(cx, cy + dy))) continue;
         const ni = ny * W + nx;
         if (closed[ni] === gen) continue;
-        const ng = g[cur] + c + wallCost[ni];
+        const ng = g[cur] + c + wallCost[ni] + (vary ? NOISE[(ni + seed) % N_] * vary : 0);
         if (stamp[ni] !== gen || ng < g[ni]) {
           stamp[ni] = gen;
           g[ni] = ng;
@@ -1451,7 +1460,34 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       pts[pts.length - 1] = { x: tx, y: ty };
       if (!ok(Math.floor(tx), Math.floor(ty))) pts[pts.length - 1] = { x: t[0] + 0.5, y: t[1] + 0.5 };
     }
-    return smooth({ x: sx, y: sy }, pts, ghost);
+    const out = smooth({ x: sx, y: sy }, pts, ghost);
+    return opts && opts.lane ? laneShift({ x: sx, y: sy }, out, opts.lane, ghost) : out;
+  }
+
+  /* Faixa própria: desloca as curvas do caminho um pouco para o lado (esquerda/direita), sem atravessar
+     parede. Assim dois bots indo para o mesmo lugar andam lado a lado, não um em cima do outro. */
+  function laneShift(start, pts, lane, ghost) {
+    if (pts.length < 2) return pts;
+    const out = pts.slice();
+    let prev = start;
+    for (let i = 0; i < out.length - 1; i++) {
+      const pt = out[i], nx = out[i + 1];
+      let ax = pt.x - prev.x, ay = pt.y - prev.y, bx = nx.x - pt.x, by = nx.y - pt.y;
+      const la = Math.hypot(ax, ay) || 1, lb = Math.hypot(bx, by) || 1;
+      let dx = ax / la + bx / lb, dy = ay / la + by / lb;
+      const ld = Math.hypot(dx, dy) || 1;
+      dx /= ld;
+      dy /= ld;
+      for (const k of [1, 0.5]) {
+        const cx = pt.x - dy * lane * k, cy = pt.y + dx * lane * k;
+        if (clearLine(prev.x, prev.y, cx, cy, ghost) && clearLine(cx, cy, nx.x, nx.y, ghost)) {
+          out[i] = { x: cx, y: cy };
+          break;
+        }
+      }
+      prev = out[i];
+    }
+    return out;
   }
 
   function clearLine(ax, ay, bx, by, ghost) {
@@ -1703,15 +1739,27 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (form === 'no') return 'no ' + col;
       return col;
     };
+    /* nome da sala conforme o tom: limpo = nome completo ("na Elétrica"); raiz = apelido curto ("na elec") */
+    const tone = g && g.S && g.S.bots ? g.S.bots.chatTone : 'casual';
+    const alias = (a) => {
+      const A = M.AREA[a], ch = (A && A.chat) || [];
+      if (tone === 'limpo' && A) {
+        const hit = ch.find((c) => U.norm(c[0]) === U.norm(A.name));
+        if (hit) return [A.name, hit[1], hit[2]];
+        return A.kind === 'room' ? [A.name, (ch[0] || [])[1] || 'na', (ch[0] || [])[2] || 'da'] : [A.name, 'no', 'do'];
+      }
+      if (tone === 'raiz' && ch.length > 1 && U.chance(0.7)) return ch.slice().sort((p, q) => p[0].length - q[0].length)[0];
+      return M.chatAlias(a);
+    };
     x.inA = (a) => {
-      const al = M.chatAlias(a);
+      const al = alias(a);
       return al[1] + ' ' + al[0];
     };
     x.deA = (a) => {
-      const al = M.chatAlias(a);
+      const al = alias(a);
       return al[2] + ' ' + al[0];
     };
-    x.nA = (a) => M.chatAlias(a)[0];
+    x.nA = (a) => alias(a)[0];
     x.task = (id) => TASK_CHAT[id] || 'task';
     x.vis = (type) => M.VISUAL_NAMES[type] || 'visual';
     x.ago = (s) => {
@@ -1803,6 +1851,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         case 'shift': return pick([`${w} é metamorfo, vi ele se transformar`, `${w} mudou de aparência na minha frente`]);
         case 'vanish': return pick([`${w} ficou invisível do nada, é impostor`, `vi ${w} sumir no ar`]);
         case 'noscan': return pick([`${w} ficou parado no scanner e não escaneou`, `${w} fingiu o scan`]);
+        case 'fakeTask': return pick([`vi ${w} terminar a tarefa ${d.area ? x.inA(d.area) : ''} e a barra não subiu`.replace(/\s+/g, ' '), `${w} fingiu tarefa, a barra não mexeu`, `${w} fez tarefa na minha frente e a barra ficou parada`]);
         case 'follow': return pick([`${w} estava me seguindo, muito suspeito`, `${w} ficou atrás de mim um tempão`]);
         case 'nearBody': return pick([`${w} é suspeito, estava perto ${x.deA(d.area)}`, `acho que foi ${w}, estava lá perto`]);
         case 'lastWith': return pick([`foi ${w}, estava sozinho ${d.victim != null ? x.R(d.victim, 'com') : 'com a vítima'}`, `${w} foi o último com ${d.victim != null ? x.R(d.victim, 'o') : 'ele'}`]);
@@ -1827,6 +1876,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     knewBody: (d, x) => pick([`como ${x.R(d.who, 'o')} sabe onde tava o corpo? ninguém falou ainda`, `ué ${x.R(d.who)}, ninguém disse onde era o corpo`, `${x.R(d.who, 'o')} sabia do corpo antes de falarem... sus`]),
     contradictStay: (d, x) => pick([`eu fiquei ${x.inA(d.area)} um tempão e não vi ${x.R(d.who, 'o')}`, `${x.R(d.who)}, eu estava ${x.inA(d.area)} e você não passou lá`]),
     contradictSeen: (d, x) => pick([`mas eu vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`, `${x.R(d.who)}, eu te vi ${x.inA(d.area)}, não ${x.inA(d.claimed)}`, `estranho, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`]),
+    sawAgo: (d, x) => pick([`vi ${x.R(d.who, 'o')} ${x.inA(d.area)}, mas faz uns ${d.ago}s`, `${x.R(d.who, 'o')} tava ${x.inA(d.area)} uns ${d.ago}s antes, depois não vi mais`]),
+    shiftDoubt: (d, x) => pick([`vi alguém igual a você ${x.inA(d.area)}, ${x.R(d.who)}... ou você mente, ou era o metamorfo com a sua cara`, `${x.R(d.who)}, te vi ${x.inA(d.area)}, não ${x.inA(d.claimed)}. se não era você, era o metamorfo disfarçado`]),
+    shiftTheory: (d, x) => pick([`se ${x.R(d.who, 'o')} tava com ${x.R(d.by, 'o')}, quem eu vi ${x.inA(d.area)} era o metamorfo disfarçado`, `então era o metamorfo com a cara ${x.R(d.who, 'de')}`, `hmm, o metamorfo tava disfarçado ${x.R(d.who, 'de')}, não era ${x.R(d.who)} de verdade`]),
     hidBodyRoom: (d, x) => pick([`mas eu te vi ${x.inA(d.area)}, ${x.R(d.who)}, bem onde tava o corpo`, `${x.R(d.who)}, você tava ${x.inA(d.area)} e não falou isso`, `estranho, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}, perto do corpo, e agora diz ${x.inA(d.claimed)}`]),
     notThere: (d, x) => pick([`eu nem passei ${x.inA(d.area)}`, `mentira, eu não estava ${x.inA(d.area)}`, `quê? eu estava ${x.inA(d.mine)}`]),
     wasThere: (d, x) => pick([`sim, eu estava ${x.inA(d.area)}`, `é, passei ${x.inA(d.area)}`]),
@@ -1879,13 +1931,35 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   };
 
   /* Converte o texto base para o tom do chat e a personalidade. */
+  /* casual: como gente normal escreve num chat (algumas abreviações, não todas) */
   const CASUAL = [
-    [/\bvocês\b/g, 'vcs', 0.8], [/\bvocê\b/g, 'vc', 0.85], [/\btambém\b/g, 'tbm', 0.8], [/\bporque\b/g, 'pq', 0.85],
-    [/\bpor que\b/g, 'pq', 0.8], [/\bpor quê\b/g, 'pq', 0.8], [/\bestava\b/g, 'tava', 0.9], [/\bestou\b/g, 'to', 0.8],
-    [/\bestá\b/g, 'tá', 0.7], [/\bpara\b/g, 'pra', 0.9], [/\bmesmo\b/g, 'msm', 0.3], [/\bagora\b/g, 'agr', 0.3],
-    [/\bbeleza\b/g, 'blz', 0.8], [/\bninguém\b/g, 'ngm', 0.4], [/\bquê\?/g, 'q?', 0.5], [/\bobrigado\b/g, 'vlw', 0.7],
+    [/\bvocês\b/g, 'vcs', 0.45], [/\bvocê\b/g, 'vc', 0.5], [/\btambém\b/g, 'tb', 0.3], [/\bporque\b/g, 'pq', 0.5],
+    [/\bpor que\b/g, 'pq', 0.5], [/\bpor quê\b/g, 'pq', 0.5], [/\bestava\b/g, 'tava', 0.8], [/\bestou\b/g, 'tô', 0.6],
+    [/\bestá\b/g, 'tá', 0.6], [/\bpara\b/g, 'pra', 0.85], [/\bmesmo\b/g, 'msm', 0.1], [/\bagora\b/g, 'agr', 0.1],
+    [/\bbeleza\b/g, 'blz', 0.4], [/\bninguém\b/g, 'ngm', 0.15], [/\bobrigado\b/g, 'vlw', 0.4],
   ];
-  const RAIZ = [[/\bnão\b/g, 'n', 0.55], [/\bque\b/g, 'q', 0.45], [/\bquem\b/g, 'qm', 0.2], [/\btudo\b/g, 'td', 0.4], [/\bsuspeito\b/g, 'sus', 0.8]];
+  /* raiz: siglas e gírias de jogador */
+  const RAIZ = [
+    [/\bnão\b/g, 'n', 0.55], [/\bque\b/g, 'q', 0.5], [/\bquem\b/g, 'qm', 0.35], [/\btudo\b/g, 'td', 0.5], [/\bsuspeito\b/g, 'sus', 0.9],
+    [/\binocente\b/g, 'safe', 0.6], [/\bimpostor\b/g, 'imp', 0.6], [/\bpular\b/g, 'skip', 0.6], [/\bpulei\b/g, 'skipei', 0.6],
+    [/\bninguém\b/g, 'ngm', 0.8], [/\bagora\b/g, 'agr', 0.7], [/\bmesmo\b/g, 'msm', 0.6], [/\bpor favor\b/g, 'pfv', 0.9],
+    [/\bvocê\b/g, 'vc', 1], [/\bvocês\b/g, 'vcs', 1], [/\btambém\b/g, 'tb', 0.8], [/\bcom\b/g, 'c', 0.2], [/\bbeleza\b/g, 'blz', 0.9],
+  ];
+  /* limpo: frases fáceis de entender, sem siglas nem gírias */
+  const CLEAN = [
+    [/\bsus\b/gi, 'suspeito'], [/\bsafe\b/gi, 'inocente'], [/\bskipei\b/gi, 'pulei'], [/\bskipar\b/gi, 'pular'], [/\bskip\b/gi, 'pular'],
+    [/\bself ?report\b/gi, 'reportou o próprio corpo'], [/\bventou\b/gi, 'usou o duto'], [/\bventando\b/gi, 'usando o duto'], [/\bventar\b/gi, 'usar o duto'],
+    [/\bvent\b/gi, 'duto'], [/\bimps\b/gi, 'impostores'], [/\bimp\b/gi, 'impostor'], [/\bvcs\b/gi, 'vocês'], [/\bvc\b/gi, 'você'],
+    [/\btbm\b/gi, 'também'], [/\btb\b/gi, 'também'], [/\bpq\b/gi, 'porque'], [/\bmsm\b/gi, 'mesmo'], [/\bagr\b/gi, 'agora'], [/\bngm\b/gi, 'ninguém'],
+    [/\bblz\b/gi, 'beleza'], [/\bvlw\b/gi, 'valeu'], [/\bpfv\b/gi, 'por favor'], [/\bqm\b/gi, 'quem'], [/\btd\b/gi, 'tudo'], [/\bq\b/gi, 'que'],
+    [/\bsla\b/gi, 'sei lá'], [/\btlgd\b/gi, ''], [/\bslk\b/gi, ''], [/\bmano\b,?/gi, ''], [/\bpô\b,?/gi, ''], [/\boxe\b,?/gi, ''], [/\bvéi\b,?/gi, ''],
+    [/\bkk+\b/gi, ''], [/\brs\b/gi, ''], [/\bcams\b/gi, 'câmeras'], [/\bstack kill\b/gi, 'abate no meio do grupo'], [/\bcrew\b/gi, 'tripulação'],
+  ];
+  function clean(t) {
+    let s = String(t);
+    for (const [re, rep] of CLEAN) s = s.replace(re, rep);
+    return s.replace(/\s{2,}/g, ' ').replace(/\s+([,.?!])/g, '$1').replace(/^[\s,]+/, '').trim();
+  }
 
   function stripAccents(s) {
     return s.normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -1897,7 +1971,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     const pers = brain ? brain.pers : {};
     let s = String(text).trim();
     if (tone === 'limpo') {
-      s = s.replace(/k{3,}/g, '').trim() || 'ok';
+      s = clean(s) || 'ok';
       s = U.cap(s);
       if (!/[?!.]$/.test(s) && U.chance(0.5)) s += '.';
       return s;
@@ -1908,7 +1982,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     s = s.replace(/\bnão\b/g, (m) => (U.chance(0.25) ? 'nao' : m));
     if (tone === 'raiz') {
       for (const [re, rep, pr] of RAIZ) s = s.replace(re, (m) => (U.chance(pr) ? rep : m));
-      if (U.chance(0.15)) s = pick(['mano ', 'pô ', 'slk ', 'véi ', 'pqp ']) + s;
+      if (U.chance(0.25)) s = pick(['mano ', 'pô ', 'slk ', 'véi ', 'pqp ', 'tipo ']) + s;
+      if (U.chance(0.15) && !/k{3,}/i.test(s)) s += ' ' + pick(['kkk', 'kkkk', 'tlgd', 'né']);
       if (U.chance(0.35)) s = stripAccents(s);
     } else if (U.chance(0.25)) s = stripAccents(s);
     s = s.replace(/[.]$/, '');
@@ -2136,7 +2211,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     });
   }
 
-  AU.Talk = { P, line, style, parse, helpers, TASK_CHAT, ROLE_TXT };
+  AU.Talk = { P, line, style, clean, parse, helpers, TASK_CHAT, ROLE_TXT };
 })();
 
 </script>
@@ -3494,6 +3569,25 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   const U = AU.U, C = AU.C, M = AU.Map, Nav = AU.Nav;
 
   const VISUAL_ST = ['scan', 'asteroids', 'shields'];
+  /* Estações onde a tarefa SEMPRE termina de uma vez (etapa única/última): se alguém "termina" ali na sua frente
+     e a barra de tarefas não sobe, a tarefa era falsa. Calculado a partir das definições das tarefas. */
+  let FINAL_ST = null;
+  function finalStations() {
+    if (FINAL_ST) return FINAL_ST;
+    const info = {};
+    for (const def of Object.values(M.TASKS)) {
+      for (let k = 0; k < 25; k++) {
+        const steps = def.steps();
+        steps.forEach((st, i) => {
+          const o = (info[st] = info[st] || { fin: false, mid: false });
+          if (i === steps.length - 1) o.fin = true;
+          else o.mid = true;
+        });
+      }
+    }
+    FINAL_ST = new Set(Object.keys(info).filter((st) => info[st].fin && !info[st].mid));
+    return FINAL_ST;
+  }
   const HIGH_TRAFFIC = new Set(['cafeteria', 'admin', 'storage', 'hallAdmin', 'hallUpper', 'hallStorage', 'hallRight', 'hallLower', 'hallLeft', 'hallWeapons']);
 
   class Memory {
@@ -3582,6 +3676,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.vitalsT = U.rf(15, 30);
       this.lastVitals = 0;
       this.speedMul = U.rf(0.93, 1.02);
+      /* jeito próprio de andar: faixa no corredor e preferência de caminho (cada um vai por um lado) */
+      this.lane = U.rf(-0.85, 0.85);
+      this.routeSeed = U.rint(1, 99991);
       this.lostCount = 0;
       this.trackT = 0;
       this.trailT = 0;
@@ -3634,8 +3731,48 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     routeTo(x, y) {
       const p = this.p;
       this.dest = { x, y };
-      this.path = Nav.find(p.x, p.y, x, y, !p.alive) || [];
+      /* varia um pouco a cada rota: nem sempre o mesmo caminho, nem sempre a mesma faixa */
+      const lane = U.clamp(this.lane + U.rf(-0.3, 0.3), -0.95, 0.95);
+      const plain = !p.alive || this.plainUntil > this.g.t;
+      this.path = Nav.find(p.x, p.y, x, y, !p.alive, plain ? null : { seed: this.routeSeed + (U.chance(0.3) ? U.rint(1, 5000) : 0), vary: 0.9, lane }) || [];
       this.pi = 0;
+    }
+    /* Lugar para ficar em volta de um painel: cada um num ponto um pouco diferente (não todos no mesmo pixel). */
+    standNear(x, y, r) {
+      const g = this.g, p = this.p;
+      /* quem chega depois fica do lado livre do painel */
+      const others = g.players.filter((q) => q !== p && q.alive && !q.inVent && U.d2(q.x, q.y, x, y) < 2.5);
+      let best = { x, y }, bs = -1;
+      for (let i = 0; i < 10; i++) {
+        const a = Math.random() * Math.PI * 2, rr = U.rf(0.15, (r || 0.55) + (others.length ? 0.35 : 0));
+        const px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr;
+        if (!g.canStand(px, py) || !Nav.los(x, y, px, py)) continue;
+        const md = others.length ? Math.min(...others.map((q) => U.d2(q.x, q.y, px, py))) : 9;
+        const sc = Math.min(md, 1.2) + Math.random() * 0.05;
+        if (sc > bs) {
+          bs = sc;
+          best = { x: px, y: py };
+        }
+      }
+      return best;
+    }
+    crowded(r) {
+      const p = this.p;
+      return this.g.players.some((q) => q !== p && q.alive && !q.inVent && U.d2(q.x, q.y, p.x, p.y) < r);
+    }
+    /* Espaço pessoal: empurrãozinho para longe de quem está colado (sem virar colisão). */
+    sepVec() {
+      const p = this.p, g = this.g;
+      let sx = 0, sy = 0;
+      for (const q of g.players) {
+        if (q === p || !q.alive || q.inVent) continue;
+        const dx = p.x - q.x, dy = p.y - q.y, d = Math.hypot(dx, dy);
+        if (d > 0.9 || d < 1e-4) continue;
+        const w = (0.9 - d) / 0.9;
+        sx += (dx / d) * w;
+        sy += (dy / d) * w;
+      }
+      return { x: sx, y: sy };
     }
     moveAlong(dt) {
       const p = this.p, g = this.g;
@@ -3673,8 +3810,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const sp = g.speedOf(p) * this.speedMul;
       const step = sp * dt;
       if (Math.abs(dx) > 0.02) p.facing = dx < 0 ? -1 : 1;
-      if (d <= step || d < 0.05) {
-        if (g.canStand(pt.x, pt.y, !p.alive)) {
+      /* com alguém parado em cima do ponto, chegar perto já basta (não fica rodeando) */
+      if (d <= step || d < 0.05 || (d < 0.55 && this.sepOn && this.pi < this.path.length - 1)) {
+        if (d <= step && g.canStand(pt.x, pt.y, !p.alive)) {
           p.x = pt.x;
           p.y = pt.y;
         }
@@ -3684,14 +3822,32 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         return this.pi >= this.path.length && U.d2(p.x, p.y, this.dest.x, this.dest.y) < 0.9;
       }
       const bx = p.x, by = p.y;
-      g.moveEntity(p, (dx / d) * sp, (dy / d) * sp, dt);
+      let vx = dx / d, vy = dy / d;
+      if (p.alive && !(this.plan && this.plan.type === 'hunt') && !(this.plainUntil > g.t)) {
+        const s = this.sepVec();
+        this.sepOn = !!(s.x || s.y);
+        if (s.x || s.y) {
+          vx += s.x * 0.8;
+          vy += s.y * 0.8;
+          const n = Math.hypot(vx, vy) || 1;
+          vx /= n;
+          vy /= n;
+        }
+      }
+      g.moveEntity(p, vx * sp, vy * sp, dt);
       if (Math.hypot(p.x - bx, p.y - by) < step * 0.3) {
         this.stuck += dt;
         if (this.stuck > 0.5) {
           this.stuck = 0;
+          /* travou de novo: anda pelo caminho simples (sem faixa nem desvio) por alguns segundos */
+          this.stuckN = (this.stuckN || 0) + 1;
+          if (this.stuckN >= 2) this.plainUntil = g.t + 4;
           this.routeTo(this.dest.x, this.dest.y);
         }
-      } else this.stuck = 0;
+      } else {
+        this.stuck = 0;
+        if (this.stuckN && Math.hypot(p.x - bx, p.y - by) > step * 0.8) this.stuckN = 0;
+      }
       return false;
     }
     act(dt) {
@@ -3719,7 +3875,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
             pl.shuffling = false;
             /* esperando do lado de quem segue: muda de posição de vez em quando, sem ficar plantado */
             if (!pl.noShuffle) {
-              pl.still = (pl.still || 0) + (pl.dynEvery || 0.5);
+              pl.still = (pl.still || 0) + (pl.dynEvery || 0.5) + (this.crowded(0.55) ? 3 : 0);
               if (pl.still > (pl.shuffleAt || (pl.shuffleAt = U.rf(1.2, 2.6)))) {
                 pl.still = 0;
                 pl.shuffleAt = U.rf(1.4, 3.2);
@@ -3846,8 +4002,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const stepIdx = tk.step;
       const base = tk.def.dur[stepIdx] || 3;
       const dur = (base / this.pers.taskSpeed) * U.rf(0.9, 1.3) * (1 + (this.err - 1) * 0.15);
+      const spot = this.standNear(st.x, st.y, 0.5);
       this.setPlan({
-        type: 'task', task: tk, x: st.x, y: st.y,
+        type: 'task', task: tk, x: spot.x, y: spot.y,
         onArrive: (pl) => {
           if (tk.done || tk.step !== stepIdx || !g.taskAvailable(tk)) {
             pl.until = g.t;
@@ -3884,6 +4041,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const vis = tk.def.visual && (tk.def.visualStep == null || tk.def.visualStep === tk.step);
         return !vis || U.chance(L.fakeVisual);
       });
+      /* impostor esperto: com a barra de tarefas sempre visível e gente olhando, finge tarefa de várias etapas
+         (onde a barra não subir não entrega nada) */
+      if (this.g.S.rules.taskBar === 'sempre' && this.crewVisible().length && U.chance(L.lie)) {
+        const safe = pool.filter((tk) => !finalStations().has(tk.steps[tk.step]));
+        if (safe.length) pool = safe;
+      }
       if (!pool.length) return this.planWander(U.pick(M.ROOMS).id);
       let tk;
       if (preferArea) tk = pool.find((x) => M.STATIONS[x.steps[x.step]].area === preferArea);
@@ -3897,7 +4060,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const st = M.STATIONS[tk.steps[tk.step]];
       const dur = (tk.def.dur[tk.step] || 3) * U.rf(0.8, 1.4);
       this.setPlan({
-        type: 'fake', task: tk, x: st.x, y: st.y,
+        type: 'fake', task: tk, ...this.standNear(st.x, st.y, 0.5),
         onArrive: (pl) => {
           pl.until = g.t + dur;
           p.busy = { task: tk.id, station: st.id, until: pl.until, fake: true };
@@ -3957,8 +4120,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const g = this.g, p = this.p;
       const pos = M.SAB_STATIONS[st];
       const kind = st.startsWith('reactor') ? 'reactor' : st.startsWith('o2') ? 'o2' : st;
+      const spot = this.standNear(pos.x, pos.y, 0.6);
       this.setPlan({
-        type: 'fix', st, x: pos.x, y: pos.y,
+        type: 'fix', st, x: spot.x, y: spot.y,
         onArrive: (pl) => {
           pl.until = g.t + (kind === 'reactor' ? 60 : kind === 'lights' ? U.rf(2, 4) : kind === 'comms' ? U.rf(3.5, 5.5) : U.rf(2.5, 4));
           p.busy = { fix: st, until: pl.until };
@@ -3997,7 +4161,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     planAdmin() {
       const g = this.g, p = this.p;
       this.setPlan({
-        type: 'admin', x: M.ADMIN_TABLE.x, y: M.ADMIN_TABLE.y + 1.2,
+        type: 'admin', ...this.standNear(M.ADMIN_TABLE.x, M.ADMIN_TABLE.y + 1.2, 0.8),
         onArrive: (pl) => {
           pl.until = g.t + U.rf(4, 8);
           p.onAdmin = true;
@@ -4204,6 +4368,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           strong = true;
         } else if (e.t < rs) continue;
         else if (e.type === 'noscan') s += 25;
+        else if (e.type === 'fakeTask') s += 30;
         else if (e.type === 'follow') s += 8;
         else if (e.type === 'visual' && g.S.rules.visualTasks) s -= 60;
       }
@@ -4677,6 +4842,17 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           }
           if (d <= g.killDist && this.safeToKill(tgt, others)) {
             if (g.tryKill(p, tgt)) return;
+          } else if (d <= g.killDist * 1.4) {
+            /* colado na vítima sem poder matar (tem gente vendo): não fica grudado, se afasta e observa de longe */
+            this.unsafeT = (this.unsafeT || 0) + 0.3;
+            if (this.unsafeT > (this.unsafeLim || (this.unsafeLim = U.rf(1.5, 3)))) {
+              this.unsafeT = 0;
+              this.unsafeLim = 0;
+              this.eagerRoll = null;
+              this.isoT = 0;
+              this.skipUntil = t + U.rf(4, 8);
+              return this.planStalk(tgt);
+            }
           }
           if (!this.plan || this.plan.type !== 'hunt' || this.plan.target !== tgt.id) {
             if (this.noWitness(tgt, others) || U.chance(L.riskTol)) this.planHunt(tgt);
@@ -5019,6 +5195,17 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
               this.planFlee(q);
             }
           }
+          /* viu terminar uma tarefa de etapa única e a barra não subiu = tarefa falsa (só com a barra sempre visível) */
+          this.taskWatch = this.taskWatch || {};
+          const tw = this.taskWatch[aid];
+          if (q.busy && q.busy.station && !q.moving) {
+            if (!tw || tw.station !== q.busy.station) this.taskWatch[aid] = { station: q.busy.station, t0: t, done0: g.taskProgress().done };
+          } else if (tw) {
+            delete this.taskWatch[aid];
+            if (t - tw.t0 >= 2.5 && g.S.rules.taskBar === 'sempre' && !g.commsDown() && finalStations().has(tw.station) && g.taskProgress().done === tw.done0 && U.chance(0.4 + pers.att * 0.5)) {
+              mem.event({ type: 'fakeTask', t, who: aid, area, station: tw.station }, 'fakeTask:' + aid + ':' + g.meetings);
+            }
+          }
           /* parado numa tarefa visual sem a animação aparecer = tarefa falsa */
           const vst = g.S.rules.visualTasks ? VISUAL_ST.find((k) => U.d2(q.x, q.y, M.STATIONS[k].x, M.STATIONS[k].y) < 0.9) : null;
           if (vst && !q.visual && !q.moving) {
@@ -5209,7 +5396,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   const B = AU.Brain.prototype;
 
   const STRONG = { kill: 1, vent: 0.85, shift: 1, vanish: 0.95 };
-  const CLAIM_W = { kill: 70, vent: 58, shift: 36, vanish: 32, noscan: 32, follow: 8, nearBody: 13, lastWith: 16, lie: 24, tracker: 30, sus: 16, hunch: 9, claim: 16, vote: 7, mention: 4, fromBody: 14 };
+  const CLAIM_W = { kill: 70, vent: 58, shift: 36, vanish: 32, noscan: 32, fakeTask: 30, follow: 8, nearBody: 13, lastWith: 16, lie: 24, tracker: 30, sus: 16, hunch: 9, claim: 16, vote: 7, mention: 4, fromBody: 14 };
 
   B.mStart = function (mt) {
     const g = this.g, p = this.p;
@@ -5217,6 +5404,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     this.rs = mt.info.roundStart;
     this.budget = Math.round(1 + this.pers.talk * 3.2 + (this.pers.offtopic ? 1 : 0));
     this.claimed = false;
+    this.heardAcc = {};
     this.denies = 0;
     this.nextSpeak = 0;
     this.chatDelta = {};
@@ -5290,6 +5478,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       else if (e.type === 'shift') add(e.who, 100, 'shift', { area: e.area });
       else if (e.type === 'vanish') add(e.who, 95, 'vanish', { area: e.area });
       else if (e.type === 'noscan') add(e.who, 32, 'noscan', { area: e.area });
+      else if (e.type === 'fakeTask') add(e.who, 34, 'fakeTask', { area: e.area });
       else if (e.type === 'follow') add(e.who, 6, 'follow', { area: e.area });
     }
     /* mentiras que ele mesmo pegou em reuniões anteriores; e quem já ficou sozinho com ele sem matar */
@@ -5433,7 +5622,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     for (const q of g.players) {
       if (q.id === this.p.id) continue;
       const cd = this.chatDelta[q.id] || 0, cs = this.chatSocial[q.id] || 0, cc = this.chatClaim[q.id] || 0;
-      let s = (this.carry[q.id] || 0) * 0.5 + (this.noise[q.id] || 0) + cd + U.clamp(cs, -35, 36) + U.clamp(cc, -40, 70);
+      let s = (this.carry[q.id] || 0) * 0.5 + (this.noise[q.id] || 0) + cd + U.clamp(cs, -35, 28) + U.clamp(cc, -40, 70);
       if (this.ev && this.ev[q.id]) for (const e of this.ev[q.id]) s += e.w;
       if (this.pers.skeptic) s += 4;
       if (this.pers.defend && s > 0) s *= 0.75;
@@ -5443,7 +5632,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
 
   B.trust = function (id) {
     if (id === this.p.id) return 1;
-    return U.clamp(this.pers.trust - (this.susp[id] || 0) / 110, 0.05, 1.2);
+    /* quem já mentiu, ou acusou alguém que eu sei que é inocente, perde credibilidade */
+    const lies = (this.mem && this.mem.lies && this.mem.lies[id]) || 0;
+    const fa = (this.falseAcc && this.falseAcc[id]) || 0;
+    const known = this.hardCleared && this.hardCleared(id) ? 0.25 : 0;
+    return U.clamp(this.pers.trust - (this.susp[id] || 0) / 110 - lies * 0.2 - fa * 0.3 + known, 0.05, 1.3);
   };
 
   /* kind: 'own' (o que o próprio bot viu), 'social' (opinião alheia, limitada), 'claim' (relato forte de outro). */
@@ -5528,6 +5721,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       for (const id of Object.keys(this.ev)) for (const e of this.ev[id]) {
         if (e.reason === 'visual' && g.players[+id].alive) items.push({ k: 'vouch', who: +id, reason: 'visual', task: e.task });
         if (e.reason === 'noscan') items.push({ k: 'accuse', who: +id, reason: 'noscan' });
+        if (e.reason === 'fakeTask') items.push({ k: 'accuse', who: +id, reason: 'fakeTask', area: e.area });
         if (e.reason === 'follow') items.push({ k: pers.panic ? 'panic' : 'accuse', who: +id, reason: 'follow' });
       }
       if (this.mem.track.some((x) => x.t >= this.rs)) items.push({ k: 'tracker' });
@@ -5711,7 +5905,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     if (this.p.isImp) return v === this.scapegoat ? 'desconfia dele desde o começo' : mt.votesOn(v) >= 2 ? 'a maioria está votando nele' : 'o álibi dele não convenceu';
     const ev = ((this.ev && this.ev[v]) || []).filter((e) => e.w > 0).sort((a, b) => b.w - a.w)[0];
     if (ev) {
-      const t = { kill: 'viu matando', vent: 'viu no duto', shift: 'viu mudando de forma', vanish: 'viu sumindo', noscan: 'fingiu o scan', follow: 'estava seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava com a vítima' }[ev.reason];
+      const t = { kill: 'viu matando', vent: 'viu no duto', shift: 'viu mudando de forma', vanish: 'viu sumindo', noscan: 'fingiu o scan', fakeTask: 'fingiu tarefa (a barra não subiu)', follow: 'estava seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava com a vítima' }[ev.reason];
       if (t) return t;
     }
     if ((this.chatDelta[v] || 0) > 8) return 'o álibi não bate com o que viu';
@@ -6192,10 +6386,18 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (!last || dt > 20) return false;
       return dt + 3 < this.travelTime(s.area, last, S);
     });
-    if (matches.length && U.chance(0.35 + pers.talk * 0.3)) {
+    /* confirmar só com o que viu há pouco e que bate com onde ele diz que estava no fim (ver lá no começo da rodada não prova nada) */
+    const fits = (s) => last && (s.area === last || M.isNear(last, s.area)) && !seen.some((o) => o.t1 > s.t1 && !matchR(o.area));
+    const confirmable = matches.filter((s) => T0 - s.t1 <= 15 && fits(s));
+    const oldSight = matches.filter((s) => T0 - s.t1 > 15 && T0 - s.t1 <= 40 && fits(s));
+    if (confirmable.length && !mism.length && U.chance(0.35 + pers.talk * 0.3)) {
       this.bump(S, -7);
-      const s = matches[matches.length - 1];
+      const s = confirmable[confirmable.length - 1];
       this.reply(1.1, () => say('confirm', { who: S, area: s.area }, [{ type: 'vouch', who: S, reason: 'claim' }]));
+    } else if (oldSight.length && !mism.length && U.chance(0.25 + pers.talk * 0.2)) {
+      /* viu lá, mas faz tempo: só informa, não serve de álibi */
+      const s = oldSight[oldSight.length - 1];
+      this.reply(1.1, () => say('sawAgo', { who: S, area: s.area, ago: Math.round((T0 - s.t1) / 5) * 5 }, []));
     } else if (mism.length && known) {
       if (!this.replied.has('ask' + S) && U.chance(0.4)) {
         this.replied.add('ask' + S);
@@ -6205,9 +6407,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const s = mism[mism.length - 1];
       const rel = this.knowsBody && (s.area === this.knowsBody || M.isNear(s.area, this.knowsBody));
       if (rel || U.chance(0.75)) {
-        this.bump(S, rel ? 28 : 18);
-        this.mem.lies[S] = (this.mem.lies[S] || 0) + 1;
-        this.reply(1, () => say(rel ? 'hidBodyRoom' : 'contradictSeen', { who: S, area: s.area, claimed: rooms[rooms.length - 1] }, [{ type: 'accuse', who: S, reason: 'lie', area: s.area }]));
+        /* com metamorfo na partida, "te vi lá" pode ter sido o disfarce: pesa menos e fala isso */
+        const shift = roleOn(this.g, 'metamorfo');
+        this.bump(S, (rel ? 28 : 18) * (shift ? 0.6 : 1));
+        if (!shift) this.mem.lies[S] = (this.mem.lies[S] || 0) + 1;
+        this.reply(1, () => say(shift ? 'shiftDoubt' : rel ? 'hidBodyRoom' : 'contradictSeen', { who: S, area: s.area, claimed: rooms[rooms.length - 1] }, [{ type: 'accuse', who: S, reason: 'lie', area: s.area }]));
       }
     }
     void g;
@@ -6266,7 +6470,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       return;
     }
     if (this.p.isImp) return;
-    const seen = this.sawTimes(T2);
+    const seen = this.sawTimes(T2).filter((s) => this.mt.info.t - s.t1 <= 40);
     if (seen.some((s) => s.area === it.area || M.isNear(s.area, it.area))) {
       this.bump(T2, 6);
       if (U.chance(0.35)) this.reply(1.2, () => say('confirm', { who: T2, area: it.area }, []));
@@ -6336,6 +6540,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       return;
     }
     let belief = w * this.trust(S);
+    /* a mesma pessoa repetindo a mesma acusação não vale como prova nova */
+    this.heardAcc = this.heardAcc || {};
+    const hk = S + ':' + T2;
+    const heard = this.heardAcc[hk] || 0;
+    this.heardAcc[hk] = heard + 1;
+    if (heard && !STRONG[it.reason]) belief *= 0.3;
     /* "vi se transformar / sumir": uma testemunha sozinha pode estar enganada (ou mentindo); duas fecham o caso */
     if (it.reason === 'shift' || it.reason === 'vanish') {
       const more = mt.msgs.some((m) => m.from !== S && m.from !== me && m.intents.some((j) => j.type === 'accuse' && j.who === T2 && (j.reason === 'shift' || j.reason === 'vanish')));
@@ -6350,12 +6560,16 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     if (clearedByMe && !STRONG[it.reason]) {
       belief *= 0.3;
       this.bump(S, 9, 'own');
+      this.falseAcc = this.falseAcc || {};
+      this.falseAcc[S] = (this.falseAcc[S] || 0) + 1;
     }
     const myVisual = myEv.some((e) => e.reason === 'visual');
     const iSawStrong = myEv.some((e) => STRONG[e.reason]);
     if (myVisual && !g.S.house.noVisualHardClear) {
       belief *= 0.12;
       this.bump(S, strong ? 25 : 6);
+      this.falseAcc = this.falseAcc || {};
+      this.falseAcc[S] = (this.falseAcc[S] || 0) + (strong ? 2 : 1);
       if (!this.replied.has('vis' + T2)) {
         this.replied.add('vis' + T2);
         const e = myEv.find((x) => x.reason === 'visual');
@@ -6368,7 +6582,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
     } else {
       const tog = this.togetherMap()[T2] || 0;
-      const sawThere = it.area && this.sawTimes(T2).some((s) => s.area === it.area || M.isNear(s.area, it.area));
+      const sawThere = it.area && this.sawTimes(T2).some((s) => mt.info.t - s.t1 <= 45 && (s.area === it.area || M.isNear(s.area, it.area)));
       if (sawThere) {
         belief *= 1.4;
         if (U.chance(0.45)) this.reply(1.1, () => say('confirm', { who: T2, area: it.area }, [{ type: 'agree', who: T2 }]));
@@ -6393,10 +6607,25 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   };
 
   B.onVouch = function (S, it) {
-    const me = this.p.id, T2 = it.who;
+    const me = this.p.id, T2 = it.who, mt = this.mt;
     if (T2 === me || this.p.isImp) return;
     const say = (kind, d, intents) => ({ text: this.say(kind, d), intents: intents || [] });
     const myEv = (this.ev && this.ev[T2]) || [];
+    /* Metamorfo: eu "vi o X" perto do corpo, mas alguém de confiança estava com ele → era o disfarce.
+       Tira a culpa do X e aperta quem não tem ninguém confirmando onde estava. */
+    const bodyE = myEv.find((e) => ['kill', 'nearBody', 'lastWith', 'withVictim', 'fromBody'].includes(e.reason));
+    if (bodyE && roleOn(this.g, 'metamorfo') && (it.reason === 'together' || it.reason === 'visual') && this.trust(S) >= 0.5 && S !== T2 && !this.replied.has('disg' + T2)) {
+      this.replied.add('disg' + T2);
+      this.ev[T2] = myEv.filter((e) => e !== bodyE);
+      this.bump(T2, -Math.min(45, bodyE.w), 'own');
+      this.reply(1, () => say('shiftTheory', { who: T2, by: S, area: bodyE.area }, [{ type: 'vouch', who: T2, reason: 'claim' }]), true);
+      const vouched = (id) => mt.msgs.some((m) => m.from !== id && m.intents.some((x) => x.type === 'vouch' && x.who === id));
+      const open = mt.alive.filter((id) => id !== me && id !== T2 && !this.hardCleared(id) && !vouched(id));
+      for (const id of open) this.bump(id, 7, 'social');
+      const top = open.sort((a, b) => (this.susp[b] || 0) - (this.susp[a] || 0))[0];
+      if (top != null) this.reply(2.4, () => say('askConfirm', { who: top }, []));
+      return;
+    }
     const strongE = myEv.find((e) => STRONG[e.reason]);
     if (strongE) {
       this.bump(S, 15);
@@ -6408,6 +6637,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     }
     const w = it.reason === 'visual' ? 30 : it.reason === 'together' ? 16 : 9;
     this.bump(T2, -w * this.trust(S), it.reason === 'visual' ? 'claim' : 'social');
+    /* com metamorfo na partida, "estava comigo" contra "vi matando" sugere disfarce: a acusação forte pesa menos */
+    if (roleOn(this.g, 'metamorfo') && (it.reason === 'together' || it.reason === 'visual') && this.trust(S) >= 0.6 &&
+        mt.msgs.some((m) => m.from !== S && m.intents.some((x) => x.type === 'accuse' && x.who === T2 && STRONG[x.reason]))) {
+      this.bump(T2, -30 * this.trust(S), 'claim');
+    }
   };
 
   /* ---------- voto ---------- */
@@ -6450,12 +6684,23 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     }
     /* eliminação: quem já foi inocentado sai da lista; se sobram poucos, os que sobram pesam mais */
     const cleared = (id) => ((this.ev && this.ev[id]) || []).some((e) => e.reason === 'visual') || this.clearedByVisual(id);
+    /* álibi firme: esteve comigo um bom tempo nesta rodada, ou alguém de confiança confirmou que estavam juntos */
+    const solid = (id) => cleared(id) || ((this.ev && this.ev[id]) || []).some((e) => e.reason === 'together' && e.secs >= 20) ||
+      mt.msgs.some((m) => m.from !== id && m.from !== me && this.trust(m.from) >= 0.75 && m.intents.some((x) => x.type === 'vouch' && x.who === id && (x.reason === 'together' || x.reason === 'visual')));
     const impsLeft = g.S.rules.confirmEjects ? mt.impostorsLeft : g.S.room.impostors;
-    const open = alive.filter((id) => !cleared(id));
-    const elim = open.length > 0 && open.length <= impsLeft + 1 ? 22 : open.length <= impsLeft + 2 ? 10 : 0;
+    const open = alive.filter((id) => !solid(id));
+    const elim = open.length > 0 && open.length <= impsLeft + 1 ? 22 : open.length <= impsLeft + 2 ? 12 : open.length <= impsLeft + 3 ? 5 : 0;
+    /* linhas de prova independentes contra alguém: o que eu vi + acusações de gente diferente em quem confio */
+    const lines = (id) => {
+      const own = new Set(((this.ev && this.ev[id]) || []).filter((e) => e.w >= 8).map((e) => e.reason));
+      const acc = Object.keys(mt.accusers[id] || {}).filter((a) => +a !== me && this.trust(+a) >= 0.6).length;
+      return own.size + Math.min(2, acc) + ((this.mem.lies && this.mem.lies[id]) ? 1 : 0);
+    };
     /* quem disse no chat em quem ia votar tende a manter a palavra */
     const said = (id) => (this.committed === id && !cleared(id) ? 16 : 0);
-    const score = (id) => (this.susp[id] || 0) + (elim && open.includes(id) ? elim : 0) + pers.follow * (mt.heat[id] || 0) * 0.3 + mt.votesOn(id) * pers.follow * 7 + said(id);
+    /* ir na onda só se quem puxou a acusação for alguém em quem confio */
+    const leadOk = (id) => Object.keys(mt.accusers[id] || {}).some((a) => +a !== me && this.trust(+a) >= 0.6);
+    const score = (id) => (this.susp[id] || 0) + (elim && open.includes(id) ? elim : 0) + (leadOk(id) ? pers.follow * (mt.heat[id] || 0) * 0.3 + mt.votesOn(id) * pers.follow * 7 : 0) + said(id) - (solid(id) ? 12 : 0);
     const ranked = alive.map((id) => ({ id, s: score(id) })).sort((a, b) => b.s - a.s);
     if (AU.debug && AU.debug.trace) {
       this.why = ranked.slice(0, 3).map((r) => ({ id: r.id, s: Math.round(r.s), susp: Math.round(this.susp[r.id] || 0), chat: Math.round(this.chatDelta[r.id] || 0), carry: Math.round((this.carry[r.id] || 0) * 0.5), heat: mt.heat[r.id] || 0, votes: mt.votesOn(r.id), ev: ((this.ev && this.ev[r.id]) || []).map((e) => e.reason + ':' + Math.round(e.w)) }));
@@ -6465,11 +6710,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     /* conta de cabeça: se o próximo abate pode dar a vitória aos impostores, pular é perigoso */
     const crewLeft = mt.alive.length - impsLeft;
     const crisis = crewLeft <= impsLeft + 1;
-    const thr = pers.thr * (this.skipLean > 2 ? 1.12 : 1) * (crisis ? 0.75 : 1);
+    const ln = lines(top.id);
+    const thr = pers.thr * (this.skipLean > 2 ? 1.12 : 1) * (crisis ? 0.75 : 1) * (ln >= 3 ? 0.65 : ln >= 2 ? 0.8 : 1);
     if (top.s >= thr && top.s - second.s >= (crisis ? 6 : 8)) return top.id;
     if (pers.follow > 0.7) {
       const lead = mt.leading();
-      if (lead && lead.count >= 2 && lead.id !== me && (this.susp[lead.id] || 0) > 12 && !cleared(lead.id)) return lead.id;
+      if (lead && lead.count >= 2 && lead.id !== me && (this.susp[lead.id] || 0) > 12 && !cleared(lead.id) && leadOk(lead.id)) return lead.id;
     }
     if (pers.hunch > 0.3 && top.s >= thr * 0.6 && U.chance(0.45)) return top.id;
     return 'skip';
@@ -6563,9 +6809,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     inexperiente: 'meio perdido, confunde nomes de sala, pergunta o básico, inseguro',
   };
   const TONE = {
-    limpo: 'Clima do lobby: educado. Ninguém usa palavrão nem gíria pesada; mesmo os mais informais só abreviam.',
-    casual: 'Clima do lobby: normal de chat de jogo. Cada um escreve do seu jeito (veja o jeito de cada personagem).',
-    raiz: 'Clima do lobby: mais intenso e zoeiro, com provocação leve; ainda assim cada um no seu jeito e sem ofensas.',
+    limpo: 'TOM LIMPO: todo mundo escreve frases completas, simples e fáceis de entender, em português correto. NADA de siglas, abreviações ou gírias (não use sus, safe, skip, vent, imp, self report, vc, pq, tb, ngm, kkk). Diga "suspeito", "inocente", "pular o voto", "usou o duto", "impostor" e os nomes das salas por extenso (Elétrica, Navegação, Segurança, Motor Inferior, Comunicações).',
+    casual: 'TOM CASUAL: como gente normal conversa num chat de jogo: frases curtas e naturais, uma abreviação comum de vez em quando (vc, pq, tava), poucas gírias; termos do jogo (sus, skip) só às vezes. Cada um no seu jeito.',
+    raiz: 'TOM RAIZ: bem solto, cheio de siglas e gírias de jogador (sus, safe, skip, vent, imp, self, ngm, vc, pq, tlgd), kkkk, frases cortadas e provocação leve; ainda assim cada um no seu jeito e sem ofensas.',
   };
   /* Exemplo com jeitos diferentes de escrever (não é para copiar). */
   const EXAMPLE = [
@@ -6588,6 +6834,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     neutro: 'escreve normal: frases curtas, alguma pontuação, uma abreviação ou outra (vc, pq)',
     informal: 'escreve rápido: tudo minúsculo, quase sem pontuação, abreviações (vc, tb, tava, ngm, sla)',
     giria: 'bem solto: minúsculas, gírias leves (pô, slk, oxe, tlgd), às vezes "kkkk"',
+    claro: 'escreve de forma simples e clara: frases curtas e completas, palavras comuns, sem abreviações, siglas ou gírias',
   };
   const REG_BY_PERS = {
     analitico: { formal: 5, neutro: 3, informal: 1 }, impulsivo: { informal: 3, giria: 3, neutro: 1 }, falador: { informal: 3, giria: 2, neutro: 2 },
@@ -6599,7 +6846,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
 
   const REASON = {
     kill: 'viu matando', vent: 'viu usando o duto', shift: 'viu mudando de aparência', vanish: 'viu ficar invisível',
-    noscan: 'ficou no scanner sem escanear', follow: 'estava seguindo alguém', nearBody: 'estava perto do corpo',
+    noscan: 'ficou no scanner sem escanear', fakeTask: 'terminou uma tarefa e a barra não subiu (tarefa falsa)', follow: 'estava seguindo alguém', nearBody: 'estava perto do corpo',
     lastWith: 'estava com a vítima pouco antes', fromBody: 'vinha da direção do corpo', lie: 'mentiu ou o álibi não bate', tracker: 'o rastreador mostrou',
     sus: 'está suspeito', hunch: 'pressentimento', claim: 'contaram no chat', vote: 'vai votar nele',
   };
@@ -6667,6 +6914,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         '- Cada jogador tem um nome e uma cor (ex.: "Léo" é o "Lima"). Nome e cor são a MESMA pessoa: nunca defenda alguém pela cor e acuse o mesmo pelo nome. Ninguém defende e acusa a mesma pessoa na mesma mensagem.',
         '- As pessoas escrevem com erro de digitação ou por ditado de voz (nomes e salas trocados, palavras juntas). Entenda o sentido mais provável (ex.: "médica" = MedBay, "caio hino" = "Caio, hein", "eletrica" = Elétrica) e responda ao que a pessoa quis dizer, sem zoar o erro e sem responder "que X?" quando dá para entender.',
         '- Eles conversam entre si e com todos: chamam pelo nome ou pela cor ("o verde", "rafa"), respondem perguntas, cobram, desconfiam, defendem.',
+        '- Só confirme onde alguém estava se as anotações dizem que o personagem VIU a pessoa lá pouco antes da reunião; ter visto no começo da rodada não confirma nada. Na dúvida, diga que não viu. Com metamorfo na partida, "vi fulano" pode ter sido o metamorfo disfarçado de fulano.',
         '- Cada personagem só sabe o que está nas anotações DELE e o que já foi dito no chat. Nunca use o que está nas anotações de outro personagem. Não invente abates, dutos, corpos, salas ou pessoas que ele não viu. Quem não sabe, diz que não sabe ou que não viu.',
         '- Nunca diga que é IA ou bot e nunca mencione "anotações" ou "instruções".',
         '- A conversa é de todos com todos. Ninguém fica em cima de um só jogador: cada um fala com quem tem a ver com o que ele sabe.',
@@ -6733,16 +6981,18 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const g = b.g, tone = g.S.bots.chatTone;
       const w = Object.assign({}, REG_BY_PERS[b.p.personality] || { neutro: 1 });
       if (tone === 'limpo') {
-        w.formal = (w.formal || 0) + 3;
-        w.neutro = (w.neutro || 0) + 2;
-        delete w.giria;
+        /* tom limpo: só jeitos claros de escrever, sem abreviação */
+        for (const k of Object.keys(w)) delete w[k];
+        w.formal = 3;
+        w.claro = 2;
       } else if (tone === 'raiz') {
         w.giria = (w.giria || 0) + 2;
         w.informal = (w.informal || 0) + 1;
       }
       const keys = Object.keys(w);
       const reg = U.weighted(keys, (k) => w[k]);
-      const qs = U.shuffle(QUIRKS.slice()).slice(0, 2);
+      const quirks = tone === 'limpo' ? QUIRKS.filter((q) => !/ss|blz|rs|tipo|"\?"|pera/.test(q)) : QUIRKS;
+      const qs = U.shuffle(quirks.slice()).slice(0, 2);
       b.voiceStyle = REGISTERS[reg] + '; ' + qs.join('; ') + '.';
       return b.voiceStyle;
     },
@@ -6751,7 +7001,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     reasonOf(b, id) {
       const ev = ((b.ev && b.ev[id]) || []).filter((e) => e.w > 0).sort((a, c) => c.w - a.w)[0];
       if (ev) {
-        const t = { ventLink: 'apareceu numa sala ligada por duto ao corpo', fromBody: 'vinha da direção do corpo', kill: 'você viu matando', vent: 'você viu no duto', shift: 'você viu mudando de forma', vanish: 'você viu sumindo', noscan: 'fingiu o scan', follow: 'ficou te seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava colado na vítima', odd: 'agiu estranho na rodada (te chamou e ficou enrolando / ficou na sua cola)' }[ev.reason];
+        const t = { ventLink: 'apareceu numa sala ligada por duto ao corpo', fromBody: 'vinha da direção do corpo', kill: 'você viu matando', vent: 'você viu no duto', shift: 'você viu mudando de forma', vanish: 'você viu sumindo', noscan: 'fingiu o scan', fakeTask: 'terminou tarefa e a barra não subiu', follow: 'ficou te seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava colado na vítima', odd: 'agiu estranho na rodada (te chamou e ficou enrolando / ficou na sua cola)' }[ev.reason];
         if (t) return t + (ev.area ? ' (' + V.area(ev.area) + ')' : '');
       }
       if ((b.chatClaim[id] || 0) > 12) return 'outros disseram que viram algo';
@@ -6781,6 +7031,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
             if (e.reason === 'visual') out.push('Viu ' + nm(+id) + ' fazendo ' + (M.VISUAL_NAMES[e.task] || 'uma tarefa visual') + (e.past ? ' numa rodada anterior' : '') + ': é tripulante com certeza, lembra disso e NUNCA acusa ' + nm(+id) + ' por coisa fraca (seguir, estar perto, jeito estranho).');
             if (e.reason === 'lie' && e.past) out.push('Já pegou ' + nm(+id) + ' mentindo sobre onde estava numa reunião anterior.');
             if (e.reason === 'spared') out.push('Já ficou sozinho com ' + nm(+id) + ' (' + e.secs + 's no total) e não morreu.');
+            if (e.reason === 'fakeTask') out.push('Viu ' + nm(+id) + ' terminar uma tarefa' + (e.area ? ' em ' + V.area(e.area) : '') + ' e a barra de tarefas NÃO subiu: a tarefa era falsa.');
             if (e.reason === 'noscan') out.push('Viu ' + nm(+id) + ' parado ' + ({ scan: 'no scanner da MedBay', asteroids: 'na arma de asteroides', shields: 'no painel dos escudos' }[e.task] || 'numa tarefa visual') + ' sem a animação aparecer (tarefa falsa).');
             if (e.reason === 'ventLink') out.push('Viu ' + nm(+id) + ' aparecer em ' + V.area(e.area) + ', que tem duto ligado a ' + V.area(e.bodyArea) + ' (onde estava o corpo), pouco antes.');
             if (e.reason === 'withVictim' || e.reason === 'lastWith') out.push('Viu ' + nm(+id) + ' junto da vítima pouco antes' + (e.area ? ', em ' + V.area(e.area) : '') + '.');
@@ -7468,7 +7719,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         mt.schedule(delay, b, () => {
           if (!p.alive || mt.closed) return;
           this.aiLines++;
-          mt.post(p, ln.text, intents, { ai: true });
+          mt.post(p, g.S.bots.chatTone === 'limpo' ? U.cap(T.clean(ln.text)) : ln.text, intents, { ai: true });
         }, { ttl: 30, force: toHuman, dir: true });
         delay += 0.5 + Math.min(2.2, ln.text.length / 40) * U.rf(0.7, 1.2);
       }
@@ -8131,6 +8382,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     say(p, text) {
       if (!p || p.alive || !text) return;
       const g = this.g;
+      if (g.S.bots.chatTone === 'limpo' && AU.Talk && AU.Talk.clean) text = U.cap(AU.Talk.clean(text)) || text;
       if (g.phase === 'meeting' && g.meeting && !g.meeting.closed) g.meeting.post(p, text, []);
       else this.record({ from: p.id, text });
     }
@@ -8337,7 +8589,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (!m) continue;
         const nm = U.norm(m[1].replace(/\([^)]*\)/g, '')).trim();
         const r = who.find((b) => U.norm(b.name) === nm || U.norm(C.COLOR[b.color].name) === nm);
-        const t = m[2].replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').replace(/^["“]|["”]$/g, '').trim().slice(0, 140);
+        let t = m[2].replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').replace(/^["“]|["”]$/g, '').trim().slice(0, 140);
+        if (this.S.bots.chatTone === 'limpo' && AU.Talk.clean) t = U.cap(AU.Talk.clean(t)) || t;
         if (r && t) lines.push({ r, t });
       }
       if (!lines.length) {

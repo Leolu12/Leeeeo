@@ -22,9 +22,9 @@
     inexperiente: 'meio perdido, confunde nomes de sala, pergunta o básico, inseguro',
   };
   const TONE = {
-    limpo: 'Clima do lobby: educado. Ninguém usa palavrão nem gíria pesada; mesmo os mais informais só abreviam.',
-    casual: 'Clima do lobby: normal de chat de jogo. Cada um escreve do seu jeito (veja o jeito de cada personagem).',
-    raiz: 'Clima do lobby: mais intenso e zoeiro, com provocação leve; ainda assim cada um no seu jeito e sem ofensas.',
+    limpo: 'TOM LIMPO: todo mundo escreve frases completas, simples e fáceis de entender, em português correto. NADA de siglas, abreviações ou gírias (não use sus, safe, skip, vent, imp, self report, vc, pq, tb, ngm, kkk). Diga "suspeito", "inocente", "pular o voto", "usou o duto", "impostor" e os nomes das salas por extenso (Elétrica, Navegação, Segurança, Motor Inferior, Comunicações).',
+    casual: 'TOM CASUAL: como gente normal conversa num chat de jogo: frases curtas e naturais, uma abreviação comum de vez em quando (vc, pq, tava), poucas gírias; termos do jogo (sus, skip) só às vezes. Cada um no seu jeito.',
+    raiz: 'TOM RAIZ: bem solto, cheio de siglas e gírias de jogador (sus, safe, skip, vent, imp, self, ngm, vc, pq, tlgd), kkkk, frases cortadas e provocação leve; ainda assim cada um no seu jeito e sem ofensas.',
   };
   /* Exemplo com jeitos diferentes de escrever (não é para copiar). */
   const EXAMPLE = [
@@ -47,6 +47,7 @@
     neutro: 'escreve normal: frases curtas, alguma pontuação, uma abreviação ou outra (vc, pq)',
     informal: 'escreve rápido: tudo minúsculo, quase sem pontuação, abreviações (vc, tb, tava, ngm, sla)',
     giria: 'bem solto: minúsculas, gírias leves (pô, slk, oxe, tlgd), às vezes "kkkk"',
+    claro: 'escreve de forma simples e clara: frases curtas e completas, palavras comuns, sem abreviações, siglas ou gírias',
   };
   const REG_BY_PERS = {
     analitico: { formal: 5, neutro: 3, informal: 1 }, impulsivo: { informal: 3, giria: 3, neutro: 1 }, falador: { informal: 3, giria: 2, neutro: 2 },
@@ -58,7 +59,7 @@
 
   const REASON = {
     kill: 'viu matando', vent: 'viu usando o duto', shift: 'viu mudando de aparência', vanish: 'viu ficar invisível',
-    noscan: 'ficou no scanner sem escanear', follow: 'estava seguindo alguém', nearBody: 'estava perto do corpo',
+    noscan: 'ficou no scanner sem escanear', fakeTask: 'terminou uma tarefa e a barra não subiu (tarefa falsa)', follow: 'estava seguindo alguém', nearBody: 'estava perto do corpo',
     lastWith: 'estava com a vítima pouco antes', fromBody: 'vinha da direção do corpo', lie: 'mentiu ou o álibi não bate', tracker: 'o rastreador mostrou',
     sus: 'está suspeito', hunch: 'pressentimento', claim: 'contaram no chat', vote: 'vai votar nele',
   };
@@ -126,6 +127,7 @@
         '- Cada jogador tem um nome e uma cor (ex.: "Léo" é o "Lima"). Nome e cor são a MESMA pessoa: nunca defenda alguém pela cor e acuse o mesmo pelo nome. Ninguém defende e acusa a mesma pessoa na mesma mensagem.',
         '- As pessoas escrevem com erro de digitação ou por ditado de voz (nomes e salas trocados, palavras juntas). Entenda o sentido mais provável (ex.: "médica" = MedBay, "caio hino" = "Caio, hein", "eletrica" = Elétrica) e responda ao que a pessoa quis dizer, sem zoar o erro e sem responder "que X?" quando dá para entender.',
         '- Eles conversam entre si e com todos: chamam pelo nome ou pela cor ("o verde", "rafa"), respondem perguntas, cobram, desconfiam, defendem.',
+        '- Só confirme onde alguém estava se as anotações dizem que o personagem VIU a pessoa lá pouco antes da reunião; ter visto no começo da rodada não confirma nada. Na dúvida, diga que não viu. Com metamorfo na partida, "vi fulano" pode ter sido o metamorfo disfarçado de fulano.',
         '- Cada personagem só sabe o que está nas anotações DELE e o que já foi dito no chat. Nunca use o que está nas anotações de outro personagem. Não invente abates, dutos, corpos, salas ou pessoas que ele não viu. Quem não sabe, diz que não sabe ou que não viu.',
         '- Nunca diga que é IA ou bot e nunca mencione "anotações" ou "instruções".',
         '- A conversa é de todos com todos. Ninguém fica em cima de um só jogador: cada um fala com quem tem a ver com o que ele sabe.',
@@ -192,16 +194,18 @@
       const g = b.g, tone = g.S.bots.chatTone;
       const w = Object.assign({}, REG_BY_PERS[b.p.personality] || { neutro: 1 });
       if (tone === 'limpo') {
-        w.formal = (w.formal || 0) + 3;
-        w.neutro = (w.neutro || 0) + 2;
-        delete w.giria;
+        /* tom limpo: só jeitos claros de escrever, sem abreviação */
+        for (const k of Object.keys(w)) delete w[k];
+        w.formal = 3;
+        w.claro = 2;
       } else if (tone === 'raiz') {
         w.giria = (w.giria || 0) + 2;
         w.informal = (w.informal || 0) + 1;
       }
       const keys = Object.keys(w);
       const reg = U.weighted(keys, (k) => w[k]);
-      const qs = U.shuffle(QUIRKS.slice()).slice(0, 2);
+      const quirks = tone === 'limpo' ? QUIRKS.filter((q) => !/ss|blz|rs|tipo|"\?"|pera/.test(q)) : QUIRKS;
+      const qs = U.shuffle(quirks.slice()).slice(0, 2);
       b.voiceStyle = REGISTERS[reg] + '; ' + qs.join('; ') + '.';
       return b.voiceStyle;
     },
@@ -210,7 +214,7 @@
     reasonOf(b, id) {
       const ev = ((b.ev && b.ev[id]) || []).filter((e) => e.w > 0).sort((a, c) => c.w - a.w)[0];
       if (ev) {
-        const t = { ventLink: 'apareceu numa sala ligada por duto ao corpo', fromBody: 'vinha da direção do corpo', kill: 'você viu matando', vent: 'você viu no duto', shift: 'você viu mudando de forma', vanish: 'você viu sumindo', noscan: 'fingiu o scan', follow: 'ficou te seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava colado na vítima', odd: 'agiu estranho na rodada (te chamou e ficou enrolando / ficou na sua cola)' }[ev.reason];
+        const t = { ventLink: 'apareceu numa sala ligada por duto ao corpo', fromBody: 'vinha da direção do corpo', kill: 'você viu matando', vent: 'você viu no duto', shift: 'você viu mudando de forma', vanish: 'você viu sumindo', noscan: 'fingiu o scan', fakeTask: 'terminou tarefa e a barra não subiu', follow: 'ficou te seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava colado na vítima', odd: 'agiu estranho na rodada (te chamou e ficou enrolando / ficou na sua cola)' }[ev.reason];
         if (t) return t + (ev.area ? ' (' + V.area(ev.area) + ')' : '');
       }
       if ((b.chatClaim[id] || 0) > 12) return 'outros disseram que viram algo';
@@ -240,6 +244,7 @@
             if (e.reason === 'visual') out.push('Viu ' + nm(+id) + ' fazendo ' + (M.VISUAL_NAMES[e.task] || 'uma tarefa visual') + (e.past ? ' numa rodada anterior' : '') + ': é tripulante com certeza, lembra disso e NUNCA acusa ' + nm(+id) + ' por coisa fraca (seguir, estar perto, jeito estranho).');
             if (e.reason === 'lie' && e.past) out.push('Já pegou ' + nm(+id) + ' mentindo sobre onde estava numa reunião anterior.');
             if (e.reason === 'spared') out.push('Já ficou sozinho com ' + nm(+id) + ' (' + e.secs + 's no total) e não morreu.');
+            if (e.reason === 'fakeTask') out.push('Viu ' + nm(+id) + ' terminar uma tarefa' + (e.area ? ' em ' + V.area(e.area) : '') + ' e a barra de tarefas NÃO subiu: a tarefa era falsa.');
             if (e.reason === 'noscan') out.push('Viu ' + nm(+id) + ' parado ' + ({ scan: 'no scanner da MedBay', asteroids: 'na arma de asteroides', shields: 'no painel dos escudos' }[e.task] || 'numa tarefa visual') + ' sem a animação aparecer (tarefa falsa).');
             if (e.reason === 'ventLink') out.push('Viu ' + nm(+id) + ' aparecer em ' + V.area(e.area) + ', que tem duto ligado a ' + V.area(e.bodyArea) + ' (onde estava o corpo), pouco antes.');
             if (e.reason === 'withVictim' || e.reason === 'lastWith') out.push('Viu ' + nm(+id) + ' junto da vítima pouco antes' + (e.area ? ', em ' + V.area(e.area) : '') + '.');
@@ -927,7 +932,7 @@
         mt.schedule(delay, b, () => {
           if (!p.alive || mt.closed) return;
           this.aiLines++;
-          mt.post(p, ln.text, intents, { ai: true });
+          mt.post(p, g.S.bots.chatTone === 'limpo' ? U.cap(T.clean(ln.text)) : ln.text, intents, { ai: true });
         }, { ttl: 30, force: toHuman, dir: true });
         delay += 0.5 + Math.min(2.2, ln.text.length / 40) * U.rf(0.7, 1.2);
       }

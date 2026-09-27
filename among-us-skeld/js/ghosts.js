@@ -367,6 +367,7 @@
     say(p, text) {
       if (!p || p.alive || !text) return;
       const g = this.g;
+      if (g.S.bots.chatTone === 'limpo' && AU.Talk && AU.Talk.clean) text = U.cap(AU.Talk.clean(text)) || text;
       if (g.phase === 'meeting' && g.meeting && !g.meeting.closed) g.meeting.post(p, text, []);
       else this.record({ from: p.id, text });
     }

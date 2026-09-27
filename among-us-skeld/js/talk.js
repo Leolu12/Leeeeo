@@ -32,15 +32,27 @@
       if (form === 'no') return 'no ' + col;
       return col;
     };
+    /* nome da sala conforme o tom: limpo = nome completo ("na Elétrica"); raiz = apelido curto ("na elec") */
+    const tone = g && g.S && g.S.bots ? g.S.bots.chatTone : 'casual';
+    const alias = (a) => {
+      const A = M.AREA[a], ch = (A && A.chat) || [];
+      if (tone === 'limpo' && A) {
+        const hit = ch.find((c) => U.norm(c[0]) === U.norm(A.name));
+        if (hit) return [A.name, hit[1], hit[2]];
+        return A.kind === 'room' ? [A.name, (ch[0] || [])[1] || 'na', (ch[0] || [])[2] || 'da'] : [A.name, 'no', 'do'];
+      }
+      if (tone === 'raiz' && ch.length > 1 && U.chance(0.7)) return ch.slice().sort((p, q) => p[0].length - q[0].length)[0];
+      return M.chatAlias(a);
+    };
     x.inA = (a) => {
-      const al = M.chatAlias(a);
+      const al = alias(a);
       return al[1] + ' ' + al[0];
     };
     x.deA = (a) => {
-      const al = M.chatAlias(a);
+      const al = alias(a);
       return al[2] + ' ' + al[0];
     };
-    x.nA = (a) => M.chatAlias(a)[0];
+    x.nA = (a) => alias(a)[0];
     x.task = (id) => TASK_CHAT[id] || 'task';
     x.vis = (type) => M.VISUAL_NAMES[type] || 'visual';
     x.ago = (s) => {
@@ -132,6 +144,7 @@
         case 'shift': return pick([`${w} é metamorfo, vi ele se transformar`, `${w} mudou de aparência na minha frente`]);
         case 'vanish': return pick([`${w} ficou invisível do nada, é impostor`, `vi ${w} sumir no ar`]);
         case 'noscan': return pick([`${w} ficou parado no scanner e não escaneou`, `${w} fingiu o scan`]);
+        case 'fakeTask': return pick([`vi ${w} terminar a tarefa ${d.area ? x.inA(d.area) : ''} e a barra não subiu`.replace(/\s+/g, ' '), `${w} fingiu tarefa, a barra não mexeu`, `${w} fez tarefa na minha frente e a barra ficou parada`]);
         case 'follow': return pick([`${w} estava me seguindo, muito suspeito`, `${w} ficou atrás de mim um tempão`]);
         case 'nearBody': return pick([`${w} é suspeito, estava perto ${x.deA(d.area)}`, `acho que foi ${w}, estava lá perto`]);
         case 'lastWith': return pick([`foi ${w}, estava sozinho ${d.victim != null ? x.R(d.victim, 'com') : 'com a vítima'}`, `${w} foi o último com ${d.victim != null ? x.R(d.victim, 'o') : 'ele'}`]);
@@ -156,6 +169,9 @@
     knewBody: (d, x) => pick([`como ${x.R(d.who, 'o')} sabe onde tava o corpo? ninguém falou ainda`, `ué ${x.R(d.who)}, ninguém disse onde era o corpo`, `${x.R(d.who, 'o')} sabia do corpo antes de falarem... sus`]),
     contradictStay: (d, x) => pick([`eu fiquei ${x.inA(d.area)} um tempão e não vi ${x.R(d.who, 'o')}`, `${x.R(d.who)}, eu estava ${x.inA(d.area)} e você não passou lá`]),
     contradictSeen: (d, x) => pick([`mas eu vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`, `${x.R(d.who)}, eu te vi ${x.inA(d.area)}, não ${x.inA(d.claimed)}`, `estranho, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`]),
+    sawAgo: (d, x) => pick([`vi ${x.R(d.who, 'o')} ${x.inA(d.area)}, mas faz uns ${d.ago}s`, `${x.R(d.who, 'o')} tava ${x.inA(d.area)} uns ${d.ago}s antes, depois não vi mais`]),
+    shiftDoubt: (d, x) => pick([`vi alguém igual a você ${x.inA(d.area)}, ${x.R(d.who)}... ou você mente, ou era o metamorfo com a sua cara`, `${x.R(d.who)}, te vi ${x.inA(d.area)}, não ${x.inA(d.claimed)}. se não era você, era o metamorfo disfarçado`]),
+    shiftTheory: (d, x) => pick([`se ${x.R(d.who, 'o')} tava com ${x.R(d.by, 'o')}, quem eu vi ${x.inA(d.area)} era o metamorfo disfarçado`, `então era o metamorfo com a cara ${x.R(d.who, 'de')}`, `hmm, o metamorfo tava disfarçado ${x.R(d.who, 'de')}, não era ${x.R(d.who)} de verdade`]),
     hidBodyRoom: (d, x) => pick([`mas eu te vi ${x.inA(d.area)}, ${x.R(d.who)}, bem onde tava o corpo`, `${x.R(d.who)}, você tava ${x.inA(d.area)} e não falou isso`, `estranho, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}, perto do corpo, e agora diz ${x.inA(d.claimed)}`]),
     notThere: (d, x) => pick([`eu nem passei ${x.inA(d.area)}`, `mentira, eu não estava ${x.inA(d.area)}`, `quê? eu estava ${x.inA(d.mine)}`]),
     wasThere: (d, x) => pick([`sim, eu estava ${x.inA(d.area)}`, `é, passei ${x.inA(d.area)}`]),
@@ -208,13 +224,35 @@
   };
 
   /* Converte o texto base para o tom do chat e a personalidade. */
+  /* casual: como gente normal escreve num chat (algumas abreviações, não todas) */
   const CASUAL = [
-    [/\bvocês\b/g, 'vcs', 0.8], [/\bvocê\b/g, 'vc', 0.85], [/\btambém\b/g, 'tbm', 0.8], [/\bporque\b/g, 'pq', 0.85],
-    [/\bpor que\b/g, 'pq', 0.8], [/\bpor quê\b/g, 'pq', 0.8], [/\bestava\b/g, 'tava', 0.9], [/\bestou\b/g, 'to', 0.8],
-    [/\bestá\b/g, 'tá', 0.7], [/\bpara\b/g, 'pra', 0.9], [/\bmesmo\b/g, 'msm', 0.3], [/\bagora\b/g, 'agr', 0.3],
-    [/\bbeleza\b/g, 'blz', 0.8], [/\bninguém\b/g, 'ngm', 0.4], [/\bquê\?/g, 'q?', 0.5], [/\bobrigado\b/g, 'vlw', 0.7],
+    [/\bvocês\b/g, 'vcs', 0.45], [/\bvocê\b/g, 'vc', 0.5], [/\btambém\b/g, 'tb', 0.3], [/\bporque\b/g, 'pq', 0.5],
+    [/\bpor que\b/g, 'pq', 0.5], [/\bpor quê\b/g, 'pq', 0.5], [/\bestava\b/g, 'tava', 0.8], [/\bestou\b/g, 'tô', 0.6],
+    [/\bestá\b/g, 'tá', 0.6], [/\bpara\b/g, 'pra', 0.85], [/\bmesmo\b/g, 'msm', 0.1], [/\bagora\b/g, 'agr', 0.1],
+    [/\bbeleza\b/g, 'blz', 0.4], [/\bninguém\b/g, 'ngm', 0.15], [/\bobrigado\b/g, 'vlw', 0.4],
   ];
-  const RAIZ = [[/\bnão\b/g, 'n', 0.55], [/\bque\b/g, 'q', 0.45], [/\bquem\b/g, 'qm', 0.2], [/\btudo\b/g, 'td', 0.4], [/\bsuspeito\b/g, 'sus', 0.8]];
+  /* raiz: siglas e gírias de jogador */
+  const RAIZ = [
+    [/\bnão\b/g, 'n', 0.55], [/\bque\b/g, 'q', 0.5], [/\bquem\b/g, 'qm', 0.35], [/\btudo\b/g, 'td', 0.5], [/\bsuspeito\b/g, 'sus', 0.9],
+    [/\binocente\b/g, 'safe', 0.6], [/\bimpostor\b/g, 'imp', 0.6], [/\bpular\b/g, 'skip', 0.6], [/\bpulei\b/g, 'skipei', 0.6],
+    [/\bninguém\b/g, 'ngm', 0.8], [/\bagora\b/g, 'agr', 0.7], [/\bmesmo\b/g, 'msm', 0.6], [/\bpor favor\b/g, 'pfv', 0.9],
+    [/\bvocê\b/g, 'vc', 1], [/\bvocês\b/g, 'vcs', 1], [/\btambém\b/g, 'tb', 0.8], [/\bcom\b/g, 'c', 0.2], [/\bbeleza\b/g, 'blz', 0.9],
+  ];
+  /* limpo: frases fáceis de entender, sem siglas nem gírias */
+  const CLEAN = [
+    [/\bsus\b/gi, 'suspeito'], [/\bsafe\b/gi, 'inocente'], [/\bskipei\b/gi, 'pulei'], [/\bskipar\b/gi, 'pular'], [/\bskip\b/gi, 'pular'],
+    [/\bself ?report\b/gi, 'reportou o próprio corpo'], [/\bventou\b/gi, 'usou o duto'], [/\bventando\b/gi, 'usando o duto'], [/\bventar\b/gi, 'usar o duto'],
+    [/\bvent\b/gi, 'duto'], [/\bimps\b/gi, 'impostores'], [/\bimp\b/gi, 'impostor'], [/\bvcs\b/gi, 'vocês'], [/\bvc\b/gi, 'você'],
+    [/\btbm\b/gi, 'também'], [/\btb\b/gi, 'também'], [/\bpq\b/gi, 'porque'], [/\bmsm\b/gi, 'mesmo'], [/\bagr\b/gi, 'agora'], [/\bngm\b/gi, 'ninguém'],
+    [/\bblz\b/gi, 'beleza'], [/\bvlw\b/gi, 'valeu'], [/\bpfv\b/gi, 'por favor'], [/\bqm\b/gi, 'quem'], [/\btd\b/gi, 'tudo'], [/\bq\b/gi, 'que'],
+    [/\bsla\b/gi, 'sei lá'], [/\btlgd\b/gi, ''], [/\bslk\b/gi, ''], [/\bmano\b,?/gi, ''], [/\bpô\b,?/gi, ''], [/\boxe\b,?/gi, ''], [/\bvéi\b,?/gi, ''],
+    [/\bkk+\b/gi, ''], [/\brs\b/gi, ''], [/\bcams\b/gi, 'câmeras'], [/\bstack kill\b/gi, 'abate no meio do grupo'], [/\bcrew\b/gi, 'tripulação'],
+  ];
+  function clean(t) {
+    let s = String(t);
+    for (const [re, rep] of CLEAN) s = s.replace(re, rep);
+    return s.replace(/\s{2,}/g, ' ').replace(/\s+([,.?!])/g, '$1').replace(/^[\s,]+/, '').trim();
+  }
 
   function stripAccents(s) {
     return s.normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -226,7 +264,7 @@
     const pers = brain ? brain.pers : {};
     let s = String(text).trim();
     if (tone === 'limpo') {
-      s = s.replace(/k{3,}/g, '').trim() || 'ok';
+      s = clean(s) || 'ok';
       s = U.cap(s);
       if (!/[?!.]$/.test(s) && U.chance(0.5)) s += '.';
       return s;
@@ -237,7 +275,8 @@
     s = s.replace(/\bnão\b/g, (m) => (U.chance(0.25) ? 'nao' : m));
     if (tone === 'raiz') {
       for (const [re, rep, pr] of RAIZ) s = s.replace(re, (m) => (U.chance(pr) ? rep : m));
-      if (U.chance(0.15)) s = pick(['mano ', 'pô ', 'slk ', 'véi ', 'pqp ']) + s;
+      if (U.chance(0.25)) s = pick(['mano ', 'pô ', 'slk ', 'véi ', 'pqp ', 'tipo ']) + s;
+      if (U.chance(0.15) && !/k{3,}/i.test(s)) s += ' ' + pick(['kkk', 'kkkk', 'tlgd', 'né']);
       if (U.chance(0.35)) s = stripAccents(s);
     } else if (U.chance(0.25)) s = stripAccents(s);
     s = s.replace(/[.]$/, '');
@@ -465,5 +504,5 @@
     });
   }
 
-  AU.Talk = { P, line, style, parse, helpers, TASK_CHAT, ROLE_TXT };
+  AU.Talk = { P, line, style, clean, parse, helpers, TASK_CHAT, ROLE_TXT };
 })();

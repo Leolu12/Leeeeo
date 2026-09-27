@@ -34,7 +34,14 @@
     wallCost[y * W + x] = near ? 0.35 : 0;
   }
 
-  function find(sx, sy, tx, ty, ghost) {
+  /* Ruído fixo por tile: cada bot soma o ruído com um deslocamento próprio (seed), então prefere caminhos um
+     pouco diferentes (outra porta, outro corredor) em vez de todos pisarem na mesma linha. */
+  const NOISE = new Float32Array(N_);
+  for (let i = 0; i < N_; i++) NOISE[i] = Math.random();
+
+  function find(sx, sy, tx, ty, ghost, opts) {
+    const seed = opts && opts.seed ? opts.seed : 0;
+    const vary = opts && opts.vary ? opts.vary : 0;
     const ok = ghost ? M.isFloor : M.isWalk;
     const s = nearestWalk(Math.floor(sx), Math.floor(sy), ghost);
     const t = nearestWalk(Math.floor(tx), Math.floor(ty), ghost);
@@ -67,7 +74,7 @@
         if (dx && dy && (!ok(cx + dx, cy) || !ok(cx, cy + dy))) continue;
         const ni = ny * W + nx;
         if (closed[ni] === gen) continue;
-        const ng = g[cur] + c + wallCost[ni];
+        const ng = g[cur] + c + wallCost[ni] + (vary ? NOISE[(ni + seed) % N_] * vary : 0);
         if (stamp[ni] !== gen || ng < g[ni]) {
           stamp[ni] = gen;
           g[ni] = ng;
@@ -88,7 +95,34 @@
       pts[pts.length - 1] = { x: tx, y: ty };
       if (!ok(Math.floor(tx), Math.floor(ty))) pts[pts.length - 1] = { x: t[0] + 0.5, y: t[1] + 0.5 };
     }
-    return smooth({ x: sx, y: sy }, pts, ghost);
+    const out = smooth({ x: sx, y: sy }, pts, ghost);
+    return opts && opts.lane ? laneShift({ x: sx, y: sy }, out, opts.lane, ghost) : out;
+  }
+
+  /* Faixa própria: desloca as curvas do caminho um pouco para o lado (esquerda/direita), sem atravessar
+     parede. Assim dois bots indo para o mesmo lugar andam lado a lado, não um em cima do outro. */
+  function laneShift(start, pts, lane, ghost) {
+    if (pts.length < 2) return pts;
+    const out = pts.slice();
+    let prev = start;
+    for (let i = 0; i < out.length - 1; i++) {
+      const pt = out[i], nx = out[i + 1];
+      let ax = pt.x - prev.x, ay = pt.y - prev.y, bx = nx.x - pt.x, by = nx.y - pt.y;
+      const la = Math.hypot(ax, ay) || 1, lb = Math.hypot(bx, by) || 1;
+      let dx = ax / la + bx / lb, dy = ay / la + by / lb;
+      const ld = Math.hypot(dx, dy) || 1;
+      dx /= ld;
+      dy /= ld;
+      for (const k of [1, 0.5]) {
+        const cx = pt.x - dy * lane * k, cy = pt.y + dx * lane * k;
+        if (clearLine(prev.x, prev.y, cx, cy, ghost) && clearLine(cx, cy, nx.x, nx.y, ghost)) {
+          out[i] = { x: cx, y: cy };
+          break;
+        }
+      }
+      prev = out[i];
+    }
+    return out;
   }
 
   function clearLine(ax, ay, bx, by, ghost) {
