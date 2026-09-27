@@ -32,7 +32,15 @@
       if (form === 'no') return 'no ' + col;
       return col;
     };
-    /* nome da sala conforme o tom: limpo = nome completo ("na Elétrica"); raiz = apelido curto ("na elec") */
+    /* com adjetivo que muda com o gênero (morto, sozinho, suspeito, quieto) usa a cor: "o roxo", nunca "Mari morto" */
+    x.Rc = (pid, form) => {
+      const q = g.players[pid];
+      if (!q) return 'alguém';
+      const col = C.COLOR[q.color].name.toLowerCase();
+      return ({ o: 'o ', com: 'com o ', de: 'do ', no: 'no ' }[form] || '') + col;
+    };
+    /* nome da sala conforme o tom: limpo = nome oficial ("na Elétrica"); casual = nome comum em português
+       ("na elétrica", "na cafeteria", "no depósito"); raiz = apelido de jogador ("na elec", "no café", "no storage") */
     const tone = g && g.S && g.S.bots ? g.S.bots.chatTone : 'casual';
     const alias = (a) => {
       const A = M.AREA[a], ch = (A && A.chat) || [];
@@ -41,8 +49,10 @@
         if (hit) return [A.name, hit[1], hit[2]];
         return A.kind === 'room' ? [A.name, (ch[0] || [])[1] || 'na', (ch[0] || [])[2] || 'da'] : [A.name, 'no', 'do'];
       }
-      if (tone === 'raiz' && ch.length > 1 && U.chance(0.7)) return ch.slice().sort((p, q) => p[0].length - q[0].length)[0];
-      return M.chatAlias(a);
+      const slang = ch.filter((c) => SLANG_ROOM.has(c[0]));
+      const plain = ch.filter((c) => !SLANG_ROOM.has(c[0]));
+      if (tone === 'raiz') return slang.length && U.chance(0.85) ? U.pick(slang) : U.pick(ch);
+      return plain.length ? U.pick(plain) : A ? [A.name.toLowerCase(), (ch[0] || [])[1] || 'no', (ch[0] || [])[2] || 'do'] : U.pick(ch);
     };
     x.inA = (a) => {
       const al = alias(a);
@@ -52,7 +62,15 @@
       const al = alias(a);
       return al[2] + ' ' + al[0];
     };
+    /* "para a Elétrica" (limpo) / "pra elétrica", "pro depósito", "pros escudos" */
+    x.toA = (a) => {
+      const al = alias(a);
+      const k = { no: 0, na: 1, nos: 2, nas: 3, em: 4 }[al[1]];
+      if (tone === 'limpo') return 'para ' + ['o ', 'a ', 'os ', 'as ', ''][k == null ? 4 : k] + al[0];
+      return ['pro ', 'pra ', 'pros ', 'pras ', 'pra '][k == null ? 4 : k] + al[0];
+    };
     x.nA = (a) => alias(a)[0];
+    x.tone = tone;
     x.task = (id) => TASK_CHAT[id] || 'task';
     x.vis = (type) => M.VISUAL_NAMES[type] || 'visual';
     x.ago = (s) => {
@@ -65,11 +83,14 @@
     return x;
   }
 
+  /* apelidos de sala que só o tom raiz usa */
+  const SLANG_ROOM = new Set(['café', 'upper', 'lower', 'sec', 'cams', 'med', 'weapons', 'nav', 'shields', 'comms', 'storage', 'elec', 'corredor da med', 'corredor do comms', 'corredor da nav']);
+
   const P = {
     reportInfo: (d, x) => pick([
       `corpo ${x.inA(d.area)}`,
-      `achei ${x.R(d.victim, 'o')} morto ${x.inA(d.area)}`,
-      `${x.R(d.victim, 'o')} está morto ${x.inA(d.area)}`,
+      `achei o corpo ${x.R(d.victim, 'de')} ${x.inA(d.area)}`,
+      `${x.R(d.victim, 'o')} morreu, corpo ${x.inA(d.area)}`,
       `corpo ${x.inA(d.area)}, era ${x.R(d.victim, 'o')}`,
       `${x.inA(d.area)}! ${x.R(d.victim, 'o')} morreu`,
     ]),
@@ -100,14 +121,26 @@
       const rs = d.rooms.filter((r, i, a) => i === 0 || x.nA(r) !== x.nA(a[i - 1]));
       const w = d.with != null ? ' ' + x.R(d.with, 'com') : '';
       const tk = d.task ? ' fazendo ' + x.task(d.task) : '';
+      const pers = (x.sp && x.sp.pers) || {};
+      const last = rs[rs.length - 1];
+      /* muita gente responde curto, só onde estava no fim (no raiz e entre os caladões, mais ainda) */
+      const short = x.tone === 'raiz' ? 0.5 : pers.talk != null && pers.talk < 0.35 ? 0.45 : x.tone === 'limpo' ? 0.1 : 0.2;
+      if (rs.length && !(d.times && d.leftAgo) && U.chance(short)) {
+        return pick([`${x.inA(last)}${tk}${w}`, `tava ${x.inA(last)}${tk}${w}`, `${x.nA(last)}${tk}${w}`]);
+      }
       if (rs.length >= 3) {
         const [a, b, c] = rs.slice(-3);
-        return pick([`passei ${x.inA(a)}, ${x.inA(b)} e agora ${x.inA(c)}${tk}${w}`, `fui ${x.deA(a)} pra ${x.nA(b)} e depois ${x.inA(c)}${tk}`]);
+        return pick([
+          `passei ${x.inA(a)}, ${x.inA(b)} e agora ${x.inA(c)}${tk}${w}`,
+          `fui ${x.deA(a)} ${x.toA(b)} e depois ${x.toA(c)}${tk}`,
+          `${x.nA(a)}, ${x.nA(b)} e ${x.nA(c)}${tk}${w}`,
+          `tava ${x.inA(c)}${tk}${w}, antes passei ${x.inA(b)}`,
+        ]);
       }
       if (rs.length === 2) {
         const a = rs[0], b = rs[1];
-        if (d.times && d.leftAgo) return `estava ${x.inA(a)} até uns ${d.leftAgo}s antes, depois fui ${x.inA(b)}${tk}${w}`;
-        return pick([`estava ${x.inA(a)}, depois ${x.inA(b)}${tk}${w}`, `fui ${x.deA(a)} pra ${x.nA(b)}${tk}`, `eu estava ${x.inA(b)}${tk}${w}, antes ${x.inA(a)}`]);
+        if (d.times && d.leftAgo) return `estava ${x.inA(a)} até uns ${d.leftAgo}s antes, depois fui ${x.toA(b)}${tk}${w}`;
+        return pick([`estava ${x.inA(a)}, depois ${x.inA(b)}${tk}${w}`, `fui ${x.deA(a)} ${x.toA(b)}${tk}`, `eu estava ${x.inA(b)}${tk}${w}, antes ${x.inA(a)}`, `${x.nA(a)} e depois ${x.nA(b)}${tk}${w}`]);
       }
       const r = rs[0];
       return pick([`eu estava ${x.inA(r)}${tk}${w}`, `estava ${x.inA(r)}${tk}${w}`, `${x.inA(r)}${tk}${w}`]);
@@ -122,10 +155,10 @@
       `vi ${x.R(d.who, 'o')} ${x.inA(d.area)}, bem perto ${x.deA(d.bodyArea)}`,
       `${x.R(d.who, 'o')} estava saindo ${x.deA(d.bodyArea)}`,
       `${x.R(d.who, 'o')} estava perto ${x.deA(d.bodyArea)}`,
-    ])) + (d.ago != null && d.times ? ` ${x.ago(d.ago)} do report` : ''),
+    ])) + (d.ago != null && d.times ? (d.ago < 12 ? ' pouco antes do report' : ` uns ${Math.round(d.ago / 5) * 5}s antes do report`) : ''),
     lastWithVictim: (d, x) => pick([
-      `${x.R(d.who, 'o')} estava sozinho ${x.R(d.victim, 'com')} ${x.inA(d.area)}`,
-      `a última vez que vi ${x.R(d.victim, 'o')} ele estava ${x.R(d.who, 'com')}`,
+      `${x.Rc(d.who, 'o')} estava sozinho ${x.R(d.victim, 'com')} ${x.inA(d.area)}`,
+      `a última vez que vi ${x.R(d.victim, 'o')}, estava ${x.R(d.who, 'com')}`,
       `${x.R(d.victim, 'o')} estava ${x.inA(d.area)} ${x.R(d.who, 'com')}`,
     ]),
     withVictim: (d, x) => pick([
@@ -133,7 +166,7 @@
       `vi ${x.R(d.who, 'o')} andando colado ${x.R(d.victim, 'com')} ${x.inA(d.area)}`,
       `${x.R(d.who, 'o')} e ${x.R(d.victim, 'o')} estavam juntos ${x.inA(d.area)} pouco antes`,
     ]),
-    sawVictimAlive: (d, x) => pick([`vi ${x.R(d.victim, 'o')} vivo ${x.inA(d.area)} uns ${d.ago}s antes`, `uns ${d.ago}s antes ${x.R(d.victim, 'o')} tava vivo ${x.inA(d.area)}, eu vi`, `${x.R(d.victim, 'o')} tava vivo uns ${d.ago}s antes, eu vi ${x.inA(d.area)}`]),
+    sawVictimAlive: (d, x) => pick([`vi ${x.Rc(d.victim, 'o')} vivo ${x.inA(d.area)} uns ${d.ago}s antes`, `uns ${d.ago}s antes eu vi ${x.R(d.victim, 'o')} ${x.inA(d.area)}`, `${x.R(d.victim, 'o')} tava ${x.inA(d.area)} uns ${d.ago}s antes, eu vi`]),
     passedNoBody: (d, x) => pick([`passei ${x.inA(d.area)} uns ${d.ago}s antes e não tinha corpo`, `uns ${d.ago}s antes eu tava ${x.inA(d.area)} e não tinha nada lá`, `${x.inA(d.area)} tava vazio uns ${d.ago}s antes, eu passei lá`]),
     noOneNear: (d, x) => pick([`não vi ninguém perto ${x.deA(d.area)}`, `passei ${x.inA(d.area)} antes e não tinha ninguém`]),
     noOneNearBy: (d, x) => pick([`passei perto ${x.deA(d.area)} e não vi ninguém`, `passei do lado ${x.deA(d.area)}, não tinha ninguém por ali`]),
@@ -148,22 +181,23 @@
         case 'noscan': return pick([`${w} ficou parado no scanner e não escaneou`, `${w} fingiu o scan`]);
         case 'fakeTask': return pick([`vi ${w} terminar a tarefa ${d.area ? x.inA(d.area) : ''} e a barra não subiu`.replace(/\s+/g, ' '), `${w} fingiu tarefa, a barra não mexeu`, `${w} fez tarefa na minha frente e a barra ficou parada`]);
         case 'follow': return pick([`${w} estava me seguindo, muito suspeito`, `${w} ficou atrás de mim um tempão`]);
-        case 'nearBody': return pick([`${w} é suspeito, estava perto ${x.deA(d.area)}`, `acho que foi ${w}, estava lá perto`]);
-        case 'lastWith': return pick([`foi ${w}, estava sozinho ${d.victim != null ? x.R(d.victim, 'com') : 'com a vítima'}`, `${w} foi o último com ${d.victim != null ? x.R(d.victim, 'o') : 'ele'}`]);
+        case 'nearBody': return pick([`${x.Rc(d.who, 'o')} é suspeito, estava perto ${x.deA(d.area)}`, `acho que foi ${w}, estava lá perto`]);
+        case 'lastWith': return pick([`foi ${x.Rc(d.who, 'o')}, estava sozinho ${d.victim != null ? x.R(d.victim, 'com') : 'com a vítima'}`, `${w} foi o último com ${d.victim != null ? x.R(d.victim, 'o') : 'ele'}`]);
         case 'lie': return pick([`${w} está mentindo`, `isso não bate, ${x.R(d.who)}`, `${w} mentiu, eu vi`]);
         case 'tracker': return pick([`rastreei ${w} e ele estava ${x.inA(d.area)} na hora`]);
         case 'vote': return pick([`vota ${x.R(d.who, 'no')}`, `bora votar ${x.R(d.who, 'no')}`]);
-        case 'hunch': return pick([`${w} está estranho`, `sei lá, acho que é ${w}`, `${w} suspeito`, `meu instinto diz ${w}`]);
-        default: return pick([`${w} suspeito`, `acho que é ${w}`]);
+        case 'hunch': return pick([`${x.Rc(d.who, 'o')} está estranho`, `sei lá, acho que é ${w}`, `${x.Rc(d.who, 'o')} suspeito`, `meu instinto diz ${w}`]);
+        default: return pick([`${x.Rc(d.who, 'o')} suspeito`, `acho que é ${w}`]);
       }
     },
     vouch: (d, x) => {
       const w = x.R(d.who, 'o');
-      if (d.reason === 'visual') return pick([`${w} é safe, vi fazendo ${x.vis(d.task)}`, `${w} limpo, fez ${x.vis(d.task)}`, `confio ${x.R(d.who, 'no')}, vi a visual`]);
+      if (d.reason === 'visual') return pick([`${w} é safe, vi fazendo ${x.vis(d.task)}`, `vi ${w} fazendo ${x.vis(d.task)}, é inocente`, `confio ${x.R(d.who, 'no')}, vi a visual`]);
       if (d.reason === 'together') return pick([`${w} estava comigo`, `${w} estava comigo ${d.area ? x.inA(d.area) : ''}`.trim(), `pode tirar ${w}, estava comigo`]);
-      return pick([`vi ${w} fazendo task ${d.area ? x.inA(d.area) : ''}`.trim(), `${w} está limpo pra mim`]);
+      return pick([`vi ${w} fazendo task ${d.area ? x.inA(d.area) : ''}`.trim(), `pra mim ${w} é inocente`]);
     },
-    confirm: (d, x) => pick([`confirmo, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`, `verdade, ${x.R(d.who, 'o')} estava ${x.inA(d.area)}`, `é, vi ele ${x.inA(d.area)}`]),
+    alsoVouch: (d, x) => pick([`também vi, ${x.R(d.who, 'o')} é safe`, `confirmo, vi ${x.R(d.who, 'o')} fazendo ${x.vis(d.task)} também`, `+1, eu também vi a visual ${x.R(d.who, 'de')}`, `verdade, vi também`]),
+    confirm: (d, x) => pick([`confirmo, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`, `verdade, ${x.R(d.who, 'o')} estava ${x.inA(d.area)}`, `é, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`]),
     confirmWith: (d, x) => pick([`sim, ${x.R(d.who, 'o')} estava comigo`, `confirmo, estava comigo`, `verdade, estava comigo`]),
     denyWith: (d, x) => pick([`comigo? não`, `${x.R(d.who, 'o')} não estava comigo não`, `mentira, não estava comigo`]),
     fromBody: (d, x) => pick([`vi ${x.R(d.who, 'o')} vindo lá do lado ${x.deA(d.bodyArea)}`, `${x.R(d.who, 'o')} tava vindo da direção ${x.deA(d.bodyArea)}`, `quando eu passei ${x.inA(d.area)}, ${x.R(d.who, 'o')} vinha lá ${x.deA(d.bodyArea)}`]),
@@ -190,8 +224,9 @@
     topicSawAt: (d, x) => pick([`e o que ${x.R(d.who, 'o')} tava fazendo ${x.inA(d.area)}?`, `${x.R(d.who)}, é verdade? tava ${x.inA(d.area)}?`, `${x.inA(d.area)}? e depois?`]),
     crisis: (d, x) => pick([`gente, atenção: somos ${d.n} e ${d.imps > 1 ? 'tem ' + d.imps + ' impostores vivos' : 'ainda tem impostor vivo'}. se pular e matarem mais um, acabou`, `cuidado com o skip: mais uma morte e a gente perde`, `não dá pra errar agora, se pular e morrer mais um é vitória deles`]),
     summary: (d, x) => {
-      const c = (d.cleared || []).map((id) => x.R(id, 'o')).join(', ');
-      const lim = c ? (d.cleared.length > 1 ? `${c} estão limpos` : `${c} está limpo`) : '';
+      const names = (d.cleared || []).map((id) => x.R(id, 'o'));
+      const c = names.length > 1 ? names.slice(0, -1).join(', ') + ' e ' + names[names.length - 1] : names[0] || '';
+      const lim = c ? (names.length > 1 ? `${c} são inocentes` : `${c} é inocente`) : '';
       if (d.who == null) return pick([`resumindo: ${lim}. do resto ninguém tem prova, eu pulo`, `então: ${lim}. sem prova contra mais ninguém, skip`]);
       return pick([`resumindo: ${lim ? lim + '. ' : ''}quem pesa é ${x.R(d.who, 'o')} (${d.why}). voto ${x.R(d.who, 'no')}`, `então: ${lim ? lim + '; ' : ''}contra ${x.R(d.who, 'o')}: ${d.why}. eu vou ${x.R(d.who, 'no')}`]);
     },
@@ -207,7 +242,7 @@
     counter: (d, x) => pick([`está me acusando por quê? você que é suspeito, ${x.R(d.who)}`, `${x.R(d.who, 'o')} está tentando se livrar`, `quem acusa sem prova é impostor, vota ${x.R(d.who, 'no')}`]),
     askProof: (d, x) => pick([`prova?`, `você viu?`, `quem viu?`, `tem prova disso?`, `calma, sem prova não dá pra votar`, d.who != null ? `por que ${x.R(d.who, 'o')}?` : `por quê?`]),
     askConfirm: (d, x) => pick([`alguém confirma ${x.R(d.who, 'o')}?`, `quem estava ${x.R(d.who, 'com')}?`, `alguém viu ${x.R(d.who, 'o')} lá?`]),
-    quiet: (d, x) => pick([`${x.R(d.who, 'o')} está quieto hein`, `${x.R(d.who)}, fala alguma coisa`, `${x.R(d.who, 'o')} não falou nada`]),
+    quiet: (d, x) => pick([`${x.Rc(d.who, 'o')} está quieto hein`, `${x.R(d.who)}, fala alguma coisa`, `${x.R(d.who, 'o')} não falou nada`]),
     skip: () => pick([`sem info, skip`, `skip`, `vamos de skip`, `sem certeza, vou pular`, `sem prova, skip`]),
     agree: (d, x) => pick([`+1`, `concordo`, `vota ${x.R(d.who, 'no')}`, `bora ${x.R(d.who, 'o')}`, `faz sentido`, `eu também acho`]),
     alsoSaw: (d, x) => pick([`é verdade, eu também vi`, `confirmo, vi também`, `eu vi a mesma coisa`]),
@@ -230,7 +265,7 @@
     leaderVote: (d, x) => (d.who == null ? pick([`sem prova, todo mundo skip`, `ninguém tem certeza, skip`]) : pick([`vamos votar ${x.R(d.who, 'no')}, ninguém confirma ele`, `votem ${x.R(d.who, 'no')}`])),
     huh: () => pick([`?`, `quê?`, `hã?`, `não entendi`]),
     offerVisual: (d, x) => pick([`tenho ${d.task ? x.task(d.task) : 'tarefa visual'}, posso fazer na frente de vocês`, `me segue na próxima que eu faço ${d.task ? x.task(d.task) : 'a visual'}`, `quem desconfiar me acompanha, eu provo com ${d.task ? x.task(d.task) : 'a visual'}`]),
-    willFollow: (d, x) => pick([`blz, vou te seguir então ${x.R(d.who)}`, `fechou, eu vou junto com ${x.R(d.who, 'o')}`, `então eu te acompanho, ${x.R(d.who)}`]),
+    willFollow: (d, x) => pick([`blz, vou te seguir então, ${x.R(d.who)}`, `fechou, eu vou junto com ${x.R(d.who, 'o')}`, `então eu te acompanho, ${x.R(d.who)}`]),
     sawVisualSafe: (d, x) => pick([`${x.R(d.who, 'o')} é inocente, segui e vi ${d.task ? x.task(d.task) : 'a visual'}`, `pode tirar ${x.R(d.who, 'o')}, fui junto e vi fazendo ${d.task ? x.task(d.task) : 'a visual'}`, `eu segui ${x.R(d.who, 'o')}, fez ${d.task ? x.task(d.task) : 'visual'} na minha frente, safe`]),
     roleNotInGame: (d) => pick([`não tem ${ROLE_TXT[d.role]} nessa partida`, `${ROLE_TXT[d.role]}? nem tem isso nesse jogo`, `não tem ${ROLE_TXT[d.role]} aqui, olha a config`]),
     roleMaybe: (d, x) => {
@@ -250,40 +285,125 @@
     thanks: () => pick([`valeu`, `obrigado`, `viu?`]),
   };
 
-  /* Converte o texto base para o tom do chat e a personalidade. */
-  /* casual: como gente normal escreve num chat (algumas abreviações, não todas) */
+  /* Converte o texto base para o tom do chat e a personalidade.
+     limpo  = o mais fácil de entender: português completo, nomes oficiais das salas, nada de sigla ou jargão.
+     casual = como a maioria das pessoas digita num chat: minúsculas, vc/pq/tava/pra, kkk às vezes, skip e sus
+              de vez em quando, salas com o nome comum (cafeteria, elétrica, depósito), SEM gíria pesada.
+     raiz   = o mais caótico: apelidos das salas (café, elec, nav, med, storage, weapons, upper), siglas (n, q,
+              cmg, dps, mt, ss), gírias (mano, tlgd, tá ligado, slk, pqp, mds), CAPS quando se exalta, frases cortadas. */
   const CASUAL = [
     [/\bvocês\b/g, 'vcs', 0.45], [/\bvocê\b/g, 'vc', 0.5], [/\btambém\b/g, 'tb', 0.3], [/\bporque\b/g, 'pq', 0.5],
     [/\bpor que\b/g, 'pq', 0.5], [/\bpor quê\b/g, 'pq', 0.5], [/\bestava\b/g, 'tava', 0.8], [/\bestou\b/g, 'tô', 0.6],
     [/\bestá\b/g, 'tá', 0.6], [/\bpara\b/g, 'pra', 0.85], [/\bmesmo\b/g, 'msm', 0.1], [/\bagora\b/g, 'agr', 0.1],
     [/\bbeleza\b/g, 'blz', 0.4], [/\bninguém\b/g, 'ngm', 0.15], [/\bobrigado\b/g, 'vlw', 0.4],
+    [/\bimpostor\b/g, 'impostor', 1], [/\bimps\b/g, 'impostores', 1], [/\bimp\b/g, 'impostor', 1], [/\bsafe\b/g, 'inocente', 0.5],
   ];
-  /* raiz: siglas e gírias de jogador */
   const RAIZ = [
-    [/\bnão\b/g, 'n', 0.55], [/\bque\b/g, 'q', 0.5], [/\bquem\b/g, 'qm', 0.35], [/\btudo\b/g, 'td', 0.5], [/\bsuspeito\b/g, 'sus', 0.9],
-    [/\binocente\b/g, 'safe', 0.6], [/\bimpostor\b/g, 'imp', 0.6], [/\bpular\b/g, 'skip', 0.6], [/\bpulei\b/g, 'skipei', 0.6],
-    [/\bninguém\b/g, 'ngm', 0.8], [/\bagora\b/g, 'agr', 0.7], [/\bmesmo\b/g, 'msm', 0.6], [/\bpor favor\b/g, 'pfv', 0.9],
-    [/\bvocê\b/g, 'vc', 1], [/\bvocês\b/g, 'vcs', 1], [/\btambém\b/g, 'tb', 0.8], [/\bcom\b/g, 'c', 0.2], [/\bbeleza\b/g, 'blz', 0.9],
+    [/\bnão\b/g, 'n', 0.6], [/\bque\b/g, 'q', 0.6], [/\bquem\b/g, 'qm', 0.45], [/\btudo\b/g, 'td', 0.6], [/\bsuspeito\b/g, 'sus', 0.95],
+    [/\binocente\b/g, 'safe', 0.75], [/\bimpostores\b/g, 'imps', 0.7], [/\bimpostor\b/g, 'imp', 0.7], [/\bpular\b/g, 'skipar', 0.7], [/\bpulei\b/g, 'skipei', 0.8],
+    [/\bpula\b/g, 'skipa', 0.7], [/\bninguém\b/g, 'ngm', 0.85], [/\bagora\b/g, 'agr', 0.75], [/\bmesmo\b/g, 'msm', 0.7], [/\bpor favor\b/g, 'pfv', 0.9],
+    [/\bvocê\b/g, 'vc', 1], [/\bvocês\b/g, 'vcs', 1], [/\btambém\b/g, 'tb', 0.85], [/\bcom\b/g, 'c', 0.25], [/\bbeleza\b/g, 'blz', 0.9],
+    [/\bcomigo\b/g, 'cmg', 0.55], [/\bdepois\b/g, 'dps', 0.6], [/\bmuito\b/g, 'mt', 0.6], [/\bsim\b/g, 'ss', 0.5], [/\bporque\b/g, 'pq', 1],
+    [/\bpor que\b/g, 'pq', 1], [/\bestava\b/g, 'tava', 1], [/\bestá\b/g, 'ta', 0.9], [/\btá\b/g, 'ta', 0.6], [/\btarefas\b/g, 'tasks', 0.8], [/\btarefa\b/g, 'task', 0.8],
+    [/\bduto\b/g, 'vent', 0.75], [/\bsei lá\b/g, 'sla', 0.8], [/\bmeu deus\b/g, 'mds', 0.9], [/\bhoje\b/g, 'hj', 0.8], [/\bnada\b/g, 'nd', 0.3],
   ];
   /* limpo: frases fáceis de entender, sem siglas nem gírias */
   const CLEAN = [
-    [/\bsus\b/gi, 'suspeito'], [/\bsafe\b/gi, 'inocente'], [/\bskipei\b/gi, 'pulei'], [/\bskipar\b/gi, 'pular'], [/\bskip\b/gi, 'pular'],
+    [/^é, /i, 'Sim, '], [/^((?:o|a) [a-zà-ú]+) suspeito$/i, '$1 está suspeito'], [/^((?:o|a) [a-zà-ú]+) suspeito([,.])/i, '$1 está suspeito$2'],
+    [/\bsem self ?report\b/gi, 'nada de reportar o próprio abate'], [/^salve,? galera\b/gi, 'Olá, pessoal'], [/^salve\b/gi, 'Olá'], [/^eai\b/gi, 'Oi'], [/^opa\b/gi, 'Oi'],
+    [/\bvotei skip\b/gi, 'votei para pular'], [/\bvamos de skip\b/gi, 'vamos pular'], [/,\s*skip\b/gi, ', vamos pular'], [/^skip$/gi, 'Vou pular'],
+    [/\bsem info\b/gi, 'sem informação'], [/\binfo\b/gi, 'informação'], [/\bo scan\b/gi, 'o escaneamento'], [/\bscan\b/gi, 'escaneamento'], [/\bme segue\b/gi, 'me siga'],
+    [/\bsus\b/gi, 'suspeito'], [/\bsafe\b/gi, 'inocente'], [/\bskipei\b/gi, 'pulei'], [/\bskipar\b/gi, 'pular'], [/\bskipa\b/gi, 'pula'], [/\bskip\b/gi, 'pular'],
     [/\bself ?report\b/gi, 'reportou o próprio corpo'], [/\bventou\b/gi, 'usou o duto'], [/\bventando\b/gi, 'usando o duto'], [/\bventar\b/gi, 'usar o duto'],
     [/\bvent\b/gi, 'duto'], [/\bimps\b/gi, 'impostores'], [/\bimp\b/gi, 'impostor'], [/\bvcs\b/gi, 'vocês'], [/\bvc\b/gi, 'você'],
-    [/\btbm\b/gi, 'também'], [/\btb\b/gi, 'também'], [/\bpq\b/gi, 'porque'], [/\bmsm\b/gi, 'mesmo'], [/\bagr\b/gi, 'agora'], [/\bngm\b/gi, 'ninguém'],
-    [/\bblz\b/gi, 'beleza'], [/\bvlw\b/gi, 'valeu'], [/\bpfv\b/gi, 'por favor'], [/\bqm\b/gi, 'quem'], [/\btd\b/gi, 'tudo'], [/\bq\b/gi, 'que'],
-    [/\bsla\b/gi, 'sei lá'], [/\btlgd\b/gi, ''], [/\bslk\b/gi, ''], [/\bmano\b,?/gi, ''], [/\bpô\b,?/gi, ''], [/\boxe\b,?/gi, ''], [/\bvéi\b,?/gi, ''],
+    [/\btbm\b/gi, 'também'], [/\btb\b/gi, 'também'], [/\bpq\b/gi, 'por que'], [/\bmsm\b/gi, 'mesmo'], [/\bagr\b/gi, 'agora'], [/\bngm\b/gi, 'ninguém'],
+    [/\bblz\b/gi, 'certo'], [/\bvlw\b/gi, 'obrigado'], [/\bpfv\b/gi, 'por favor'], [/\bqm\b/gi, 'quem'], [/\btd\b/gi, 'tudo'], [/\bq\b/gi, 'que'],
+    [/\bcmg\b/gi, 'comigo'], [/\bdps\b/gi, 'depois'], [/\bmt\b/gi, 'muito'], [/\bss\b/gi, 'sim'], [/\bmds\b/gi, 'meu Deus'],
+    [/\bsla\b/gi, 'sei lá'], [/\btlgd\b/gi, ''], [/\bt[aá] ligado\b/gi, ''], [/\bslk\b/gi, ''], [/\bpqp\b,?/gi, ''], [/\bmano\b,?/gi, ''], [/\bpô\b,?/gi, ''], [/\boxe\b,?/gi, ''], [/\bvéi\b,?/gi, ''], [/\bué\b,?/gi, ''],
     [/\bkk+\b/gi, ''], [/\brs\b/gi, ''], [/\bcams\b/gi, 'câmeras'], [/\bstack kill\b/gi, 'abate no meio do grupo'], [/\bcrew\b/gi, 'tripulação'],
+    [/\btavam\b/gi, 'estavam'], [/\btava\b/gi, 'estava'], [/\btá\b/gi, 'está'], [/\btô\b/gi, 'estou'], [/\bpros\b/gi, 'para os'], [/\bpras\b/gi, 'para as'],
+    [/\bpro\b/gi, 'para o'], [/\bpra\b/gi, 'para'], [/\bfechou\b/gi, 'certo'], [/\bbora\b/gi, 'vamos'], [/\bpera\b/gi, 'espera'], [/\bné\b/gi, ''],
+    [/\bagora pouco\b/gi, 'agora há pouco'], [/\b(\d+) ?s\b/g, '$1 segundos'], [/\btasks\b/gi, 'tarefas'], [/\btask\b/gi, 'tarefa'], [/\bcard\b/gi, 'cartão'],
+    [/\bdo report\b/gi, 'de acharem o corpo'], [/\ba visual\b/gi, 'a tarefa visual'], [/\bvitals\b/gi, 'sinais vitais'], [/^\+1$/, 'concordo'],
   ];
+  /* \b do JavaScript não entende acento ("está", "você", "tá"): troca por uma fronteira de palavra que entende */
+  const UB = '(?:(?<![\\p{L}\\d])(?=[\\p{L}\\d])|(?<=[\\p{L}\\d])(?![\\p{L}\\d]))';
+  const ub = (re) => new RegExp(re.source.replace(/\\b/g, UB), re.flags.includes('u') ? re.flags : re.flags + 'u');
+  for (const list of [CASUAL, RAIZ, CLEAN]) for (const r of list) r[0] = ub(r[0]);
   function clean(t) {
-    let s = String(t);
+    let s = unslang(String(t), true);
     for (const [re, rep] of CLEAN) s = s.replace(re, rep);
     return s.replace(/\s{2,}/g, ' ').replace(/\s+([,.?!])/g, '$1').replace(/^[\s,]+/, '').trim();
+  }
+
+  /* Troca o nome de uma sala mantendo a preposição certa ("no café" ↔ "na cafeteria", "na weapons" ↔ "em armas"). */
+  const ROOM_SWAP = [
+    // apelido, nome comum, gênero do apelido, gênero do nome comum
+    ['caf[eé]', 'cafeteria', 'cafeteria', 'm', 'f', 'Cafeteria'], ['elec', 'el[eé]trica', 'elétrica', 'f', 'f', 'Elétrica'], ['nav', 'navega[cç][aã]o', 'navegação', 'f', 'f', 'Navegação'],
+    ['med', 'medbay', 'medbay', 'f', 'f', 'MedBay'], ['sec', 'seguran[cç]a', 'segurança', 'f', 'f', 'Segurança'], ['storage', 'dep[oó]sito', 'depósito', 'm', 'm', 'Depósito'],
+    ['weapons', 'armas', 'armas', 'f', 'n', 'Armas'], ['upper', 'motor de cima', 'motor de cima', 'm', 'm', 'Motor Superior'], ['lower', 'motor de baixo', 'motor de baixo', 'm', 'm', 'Motor Inferior'],
+    ['shields', 'escudos', 'escudos', 'm', 'mp', 'Escudos'], ['comms', 'comunica[cç][oõ]es', 'comunicações', 'm', 'fp', 'Comunicações'], ['cams', 'c[aâ]meras', 'câmeras', 'fp', 'fp', 'câmeras'],
+    /* nomes comuns sem apelido: no limpo viram o nome oficial */
+    ['(?!x)x', 'refeit[oó]rio', 'refeitório', 'm', 'm', 'Cafeteria', 'f'], ['(?!x)x', 'enfermaria', 'enfermaria', 'f', 'f', 'MedBay'],
+    ['(?!x)x', 'oxig[eê]nio', 'oxigênio', 'm', 'm', 'O2'], ['(?!x)x', 'motor superior', 'motor superior', 'm', 'm', 'Motor Superior'], ['(?!x)x', 'motor inferior', 'motor inferior', 'm', 'm', 'Motor Inferior'],
+    ['(?!x)x', 'reator', 'reator', 'm', 'm', 'Reator'],
+  ];
+  const SLANG_WORD = { 'caf[eé]': 'café', elec: 'elec', nav: 'nav', med: 'med', sec: 'sec', storage: 'storage', weapons: 'weapons', upper: 'upper', lower: 'lower', shields: 'shields', comms: 'comms', cams: 'cams' };
+  const PREP = { in: { m: 'no', f: 'na', mp: 'nos', fp: 'nas', n: 'em' }, of: { m: 'do', f: 'da', mp: 'dos', fp: 'das', n: 'de' }, to: { m: 'pro', f: 'pra', mp: 'pros', fp: 'pras', n: 'pra' }, art: { m: 'o', f: 'a', mp: 'os', fp: 'as', n: '' } };
+  const PREP_KIND = {};
+  for (const k of Object.keys(PREP)) for (const v of Object.values(PREP[k])) if (v && !PREP_KIND[v]) PREP_KIND[v] = k;
+  /* no tom limpo, "pra" de sala vira "para a/para o" */
+  const PREP_LIMPO = Object.assign({}, PREP, { to: { m: 'para o', f: 'para a', mp: 'para os', fp: 'para as', n: 'para' } });
+  function swapRoom(s, fromRe, to, toCls, prob, table) {
+    const re = new RegExp('(^|[^\\p{L}])(?:(no|na|nos|nas|em|do|da|dos|das|de|pro|pra|pros|pras|para|o|a|os|as) )?(' + fromRe + ')(?![\\p{L}])', 'giu');
+    return s.replace(re, (m, lead, pre) => {
+      if (prob != null && !U.chance(prob)) return m;
+      if (!pre) return lead + to;
+      const kind = pre.toLowerCase() === 'para' ? 'to' : PREP_KIND[pre.toLowerCase()];
+      const np = (table || PREP)[kind][toCls];
+      return lead + (np ? np + ' ' : '') + to;
+    });
+  }
+  /* casual: nomes comuns em vez de apelido, e nada de gíria pesada */
+  function unslang(t, official) {
+    let s = String(t);
+    for (const [slang, fullRe, full, , fullCls, off, offCls] of ROOM_SWAP) {
+      s = swapRoom(s, slang, official ? off : full, official ? offCls || fullCls : fullCls, null, official ? PREP_LIMPO : null);
+      /* limpo: também o nome comum vira o oficial, com a preposição certa ("para a Elétrica") */
+      if (official) s = swapRoom(s, fullRe, off, offCls || fullCls, null, PREP_LIMPO);
+    }
+    s = s.replace(/(^|[^\p{L}])(tlgd|t[aá] ligado|slk|pqp|v[eé]i|mano|p[oô]|mds|oxe)(?![\p{L}]),?/giu, '$1');
+    return s.replace(/\s{2,}/g, ' ').replace(/^[\s,]+/, '').trim();
+  }
+  /* raiz: apelido de jogador para as salas */
+  function slangify(t, prob) {
+    let s = String(t);
+    for (const [slang, fullRe, , slangCls] of ROOM_SWAP) if (SLANG_WORD[slang]) s = swapRoom(s, fullRe, SLANG_WORD[slang], slangCls, prob);
+    return s;
+  }
+  /* filtro final para texto que veio da IA (ou de frase fixa) conforme o tom */
+  function toneFilter(t, tone) {
+    if (tone === 'limpo') return U.cap(clean(t)).replace(/([.!?]\s+)(\p{Ll})/gu, (m, a, b) => a + b.toUpperCase()) || t;
+    if (tone === 'casual') return unslang(t) || t;
+    return t;
   }
 
   function stripAccents(s) {
     return s.normalize('NFD').replace(/[̀-ͯ]/g, '');
   }
+
+  /* interjeição no raiz: só quando combina com o momento (susto, bronca, negação, dúvida), não em qualquer frase */
+  const RAIZ_PRE = {
+    hot: ['mano ', 'pqp ', 'mds ', 'slk ', 'véi ', 'caraca '],
+    deny: ['oxe ', 'ué ', 'slk ', 'mano ', 'q isso ', 'tá loco? '],
+    ask: ['ué ', 'pera ', 'mano ', 'oxe '],
+  };
+  const KIND_MOOD = {
+    accuse: 'hot', panic: 'hot', knewBody: 'hot', claimClash: 'hot', contradictSeen: 'hot', hidBodyRoom: 'hot', atBody: 'hot', callReason: 'hot', reportInfo: 'hot', crisis: 'hot',
+    deny: 'deny', denyStrong: 'deny', notThere: 'deny', counter: 'deny', denyWith: 'deny',
+    topicAsk: 'ask', askProof: 'ask', topicDoubt: 'ask', huh: 'ask', askWhere: 'ask', askCaller: 'ask', topicWhat: 'ask', askConfirm: 'ask',
+  };
+  const RAIZ_LAUGH = new Set(['offtopic', 'deny', 'huh', 'agree', 'askProof', 'lost', 'ghost', 'topicDoubt', 'counter', 'callReason']);
 
   function style(text, g, brain, opts) {
     opts = opts || {};
@@ -292,33 +412,44 @@
     let s = String(text).trim();
     if (tone === 'limpo') {
       s = clean(s) || 'ok';
-      s = U.cap(s);
+      s = U.cap(s).replace(/([.!?]\s+)(\p{Ll})/gu, (m, a, b) => a + b.toUpperCase());
       if (!/[?!.]$/.test(s) && U.chance(0.5)) s += '.';
       return s;
     }
     const lowerKeep = /[A-Z]{4,}/.test(s) && U.chance(0.7);
     if (!lowerKeep) s = s.toLowerCase();
-    for (const [re, rep, pr] of CASUAL) s = s.replace(re, (m) => (U.chance(pr) ? rep : m));
-    s = s.replace(/\bnão\b/g, (m) => (U.chance(0.25) ? 'nao' : m));
     if (tone === 'raiz') {
+      s = slangify(s, 0.85);
+      for (const [re, rep, pr] of CASUAL) if (!/impostor|safe/.test(rep)) s = s.replace(re, (m) => (U.chance(Math.min(1, pr + 0.3)) ? rep : m));
       for (const [re, rep, pr] of RAIZ) s = s.replace(re, (m) => (U.chance(pr) ? rep : m));
-      if (U.chance(0.25)) s = pick(['mano ', 'pô ', 'slk ', 'véi ', 'pqp ', 'tipo ']) + s;
-      if (U.chance(0.15) && !/k{3,}/i.test(s)) s += ' ' + pick(['kkk', 'kkkk', 'tlgd', 'né']);
-      if (U.chance(0.35)) s = stripAccents(s);
-    } else if (U.chance(0.25)) s = stripAccents(s);
-    s = s.replace(/[.]$/, '');
-    if ((pers.chaos || pers.offtopic) && U.chance(0.2)) s += ' ' + pick(['kkk', 'kkkkk', 'KKKK']);
+      const mood = KIND_MOOD[opts.kind];
+      if (mood && U.chance(mood === 'hot' ? 0.45 : 0.35)) s = pick(RAIZ_PRE[mood]) + s;
+      const words = s.split(/\s+/).length, greet = /^(oi|eai|e ai|salve|opa|fala|ol[aá]|boa (noite|tarde|dia))\b/.test(s);
+      if (!mood && !greet && words >= 4 && opts.kind !== 'claimLoc' && U.chance(0.1)) s = pick(['tipo ', 'mano ']) + s;
+      else if (!/\?$/.test(s) && !mood && !greet && words >= 4 && U.chance(0.14)) s += pick([' tlgd', ', tá ligado', ' tlgd']);
+      if (RAIZ_LAUGH.has(opts.kind) && !/k{3,}/i.test(s) && U.chance(0.3)) s += ' ' + pick(['kkkk', 'kkkkkk', 'KKKKK']);
+      if (opts.strong && U.chance(0.4)) s = s.toUpperCase();
+      if (U.chance(0.55)) s = stripAccents(s);
+      s = s.replace(/[.,]$/, '');
+    } else {
+      s = unslang(s);
+      for (const [re, rep, pr] of CASUAL) s = s.replace(re, (m) => (U.chance(pr) ? rep : m));
+      s = s.replace(/\bnão\b/g, (m) => (U.chance(0.2) ? 'nao' : m));
+      if (U.chance(0.25)) s = stripAccents(s);
+      s = s.replace(/[.]$/, '');
+    }
+    if ((pers.chaos || pers.offtopic) && U.chance(tone === 'raiz' ? 0.25 : 0.15) && !/k{3,}/i.test(s)) s += ' ' + pick(['kkk', 'kkkkk', 'KKKK']);
     if (pers.caps && opts.strong && U.chance(0.6)) s = s.toUpperCase() + '!!';
     if (opts.question && !/\?$/.test(s)) s += '?';
     if (pers.offtopic && U.chance(0.2)) s = s.replace(/\?$/, '??');
-    return s;
+    return s.replace(/\s{2,}/g, ' ').trim();
   }
 
   function line(kind, d, g, brain, opts) {
     const f = P[kind];
     if (!f) return '';
     const base = f(d || {}, helpers(g, brain));
-    return style(base, g, brain, opts);
+    return style(base, g, brain, Object.assign({ kind }, opts || {}));
   }
 
   /* ---------- leitura das mensagens do jogador ---------- */
@@ -549,5 +680,5 @@
     });
   }
 
-  AU.Talk = { P, line, style, clean, parse, helpers, TASK_CHAT, ROLE_TXT };
+  AU.Talk = { P, line, style, clean, unslang, slangify, toneFilter, parse, helpers, TASK_CHAT, ROLE_TXT };
 })();

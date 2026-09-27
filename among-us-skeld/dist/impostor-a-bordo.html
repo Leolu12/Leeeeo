@@ -975,6 +975,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     alto: { name: 'Alto', mult: 1.7 },
   };
   C.CHAT_TONES = { limpo: 'Limpo', casual: 'Casual', raiz: 'Raiz' };
+  C.CHAT_TONE_HINT = {
+    limpo: 'O mais fácil de entender: frases completas, nomes oficiais das salas, sem siglas nem gírias.',
+    casual: 'Como a maioria escreve: vc, pq, tava, skip e sus às vezes, salas com o nome comum (cafeteria, elétrica).',
+    raiz: 'O mais caótico: café, elec, nav, storage, n, q, cmg, mano, tlgd, pqp, kkkk e CAPS quando se exaltam.',
+  };
   C.CHAT_PACE = { calmo: { name: 'Calmo', mult: 1.6 }, normal: { name: 'Normal', mult: 1 }, frenetico: { name: 'Frenético', mult: 0.6 } };
   C.AI_ACTIONS = { on: 'IA decide votos e ações no mapa', off: 'Só a conversa (votos e ações pelo motor)' };
   C.AI_CHAT = { full: 'Respostas e conversa entre bots', replies: 'Só respostas ao que você escreve', off: 'Desligada (só regras)' };
@@ -1739,7 +1744,15 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (form === 'no') return 'no ' + col;
       return col;
     };
-    /* nome da sala conforme o tom: limpo = nome completo ("na Elétrica"); raiz = apelido curto ("na elec") */
+    /* com adjetivo que muda com o gênero (morto, sozinho, suspeito, quieto) usa a cor: "o roxo", nunca "Mari morto" */
+    x.Rc = (pid, form) => {
+      const q = g.players[pid];
+      if (!q) return 'alguém';
+      const col = C.COLOR[q.color].name.toLowerCase();
+      return ({ o: 'o ', com: 'com o ', de: 'do ', no: 'no ' }[form] || '') + col;
+    };
+    /* nome da sala conforme o tom: limpo = nome oficial ("na Elétrica"); casual = nome comum em português
+       ("na elétrica", "na cafeteria", "no depósito"); raiz = apelido de jogador ("na elec", "no café", "no storage") */
     const tone = g && g.S && g.S.bots ? g.S.bots.chatTone : 'casual';
     const alias = (a) => {
       const A = M.AREA[a], ch = (A && A.chat) || [];
@@ -1748,8 +1761,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (hit) return [A.name, hit[1], hit[2]];
         return A.kind === 'room' ? [A.name, (ch[0] || [])[1] || 'na', (ch[0] || [])[2] || 'da'] : [A.name, 'no', 'do'];
       }
-      if (tone === 'raiz' && ch.length > 1 && U.chance(0.7)) return ch.slice().sort((p, q) => p[0].length - q[0].length)[0];
-      return M.chatAlias(a);
+      const slang = ch.filter((c) => SLANG_ROOM.has(c[0]));
+      const plain = ch.filter((c) => !SLANG_ROOM.has(c[0]));
+      if (tone === 'raiz') return slang.length && U.chance(0.85) ? U.pick(slang) : U.pick(ch);
+      return plain.length ? U.pick(plain) : A ? [A.name.toLowerCase(), (ch[0] || [])[1] || 'no', (ch[0] || [])[2] || 'do'] : U.pick(ch);
     };
     x.inA = (a) => {
       const al = alias(a);
@@ -1759,7 +1774,15 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const al = alias(a);
       return al[2] + ' ' + al[0];
     };
+    /* "para a Elétrica" (limpo) / "pra elétrica", "pro depósito", "pros escudos" */
+    x.toA = (a) => {
+      const al = alias(a);
+      const k = { no: 0, na: 1, nos: 2, nas: 3, em: 4 }[al[1]];
+      if (tone === 'limpo') return 'para ' + ['o ', 'a ', 'os ', 'as ', ''][k == null ? 4 : k] + al[0];
+      return ['pro ', 'pra ', 'pros ', 'pras ', 'pra '][k == null ? 4 : k] + al[0];
+    };
     x.nA = (a) => alias(a)[0];
+    x.tone = tone;
     x.task = (id) => TASK_CHAT[id] || 'task';
     x.vis = (type) => M.VISUAL_NAMES[type] || 'visual';
     x.ago = (s) => {
@@ -1772,11 +1795,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     return x;
   }
 
+  /* apelidos de sala que só o tom raiz usa */
+  const SLANG_ROOM = new Set(['café', 'upper', 'lower', 'sec', 'cams', 'med', 'weapons', 'nav', 'shields', 'comms', 'storage', 'elec', 'corredor da med', 'corredor do comms', 'corredor da nav']);
+
   const P = {
     reportInfo: (d, x) => pick([
       `corpo ${x.inA(d.area)}`,
-      `achei ${x.R(d.victim, 'o')} morto ${x.inA(d.area)}`,
-      `${x.R(d.victim, 'o')} está morto ${x.inA(d.area)}`,
+      `achei o corpo ${x.R(d.victim, 'de')} ${x.inA(d.area)}`,
+      `${x.R(d.victim, 'o')} morreu, corpo ${x.inA(d.area)}`,
       `corpo ${x.inA(d.area)}, era ${x.R(d.victim, 'o')}`,
       `${x.inA(d.area)}! ${x.R(d.victim, 'o')} morreu`,
     ]),
@@ -1807,14 +1833,26 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const rs = d.rooms.filter((r, i, a) => i === 0 || x.nA(r) !== x.nA(a[i - 1]));
       const w = d.with != null ? ' ' + x.R(d.with, 'com') : '';
       const tk = d.task ? ' fazendo ' + x.task(d.task) : '';
+      const pers = (x.sp && x.sp.pers) || {};
+      const last = rs[rs.length - 1];
+      /* muita gente responde curto, só onde estava no fim (no raiz e entre os caladões, mais ainda) */
+      const short = x.tone === 'raiz' ? 0.5 : pers.talk != null && pers.talk < 0.35 ? 0.45 : x.tone === 'limpo' ? 0.1 : 0.2;
+      if (rs.length && !(d.times && d.leftAgo) && U.chance(short)) {
+        return pick([`${x.inA(last)}${tk}${w}`, `tava ${x.inA(last)}${tk}${w}`, `${x.nA(last)}${tk}${w}`]);
+      }
       if (rs.length >= 3) {
         const [a, b, c] = rs.slice(-3);
-        return pick([`passei ${x.inA(a)}, ${x.inA(b)} e agora ${x.inA(c)}${tk}${w}`, `fui ${x.deA(a)} pra ${x.nA(b)} e depois ${x.inA(c)}${tk}`]);
+        return pick([
+          `passei ${x.inA(a)}, ${x.inA(b)} e agora ${x.inA(c)}${tk}${w}`,
+          `fui ${x.deA(a)} ${x.toA(b)} e depois ${x.toA(c)}${tk}`,
+          `${x.nA(a)}, ${x.nA(b)} e ${x.nA(c)}${tk}${w}`,
+          `tava ${x.inA(c)}${tk}${w}, antes passei ${x.inA(b)}`,
+        ]);
       }
       if (rs.length === 2) {
         const a = rs[0], b = rs[1];
-        if (d.times && d.leftAgo) return `estava ${x.inA(a)} até uns ${d.leftAgo}s antes, depois fui ${x.inA(b)}${tk}${w}`;
-        return pick([`estava ${x.inA(a)}, depois ${x.inA(b)}${tk}${w}`, `fui ${x.deA(a)} pra ${x.nA(b)}${tk}`, `eu estava ${x.inA(b)}${tk}${w}, antes ${x.inA(a)}`]);
+        if (d.times && d.leftAgo) return `estava ${x.inA(a)} até uns ${d.leftAgo}s antes, depois fui ${x.toA(b)}${tk}${w}`;
+        return pick([`estava ${x.inA(a)}, depois ${x.inA(b)}${tk}${w}`, `fui ${x.deA(a)} ${x.toA(b)}${tk}`, `eu estava ${x.inA(b)}${tk}${w}, antes ${x.inA(a)}`, `${x.nA(a)} e depois ${x.nA(b)}${tk}${w}`]);
       }
       const r = rs[0];
       return pick([`eu estava ${x.inA(r)}${tk}${w}`, `estava ${x.inA(r)}${tk}${w}`, `${x.inA(r)}${tk}${w}`]);
@@ -1829,10 +1867,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       `vi ${x.R(d.who, 'o')} ${x.inA(d.area)}, bem perto ${x.deA(d.bodyArea)}`,
       `${x.R(d.who, 'o')} estava saindo ${x.deA(d.bodyArea)}`,
       `${x.R(d.who, 'o')} estava perto ${x.deA(d.bodyArea)}`,
-    ])) + (d.ago != null && d.times ? ` ${x.ago(d.ago)} do report` : ''),
+    ])) + (d.ago != null && d.times ? (d.ago < 12 ? ' pouco antes do report' : ` uns ${Math.round(d.ago / 5) * 5}s antes do report`) : ''),
     lastWithVictim: (d, x) => pick([
-      `${x.R(d.who, 'o')} estava sozinho ${x.R(d.victim, 'com')} ${x.inA(d.area)}`,
-      `a última vez que vi ${x.R(d.victim, 'o')} ele estava ${x.R(d.who, 'com')}`,
+      `${x.Rc(d.who, 'o')} estava sozinho ${x.R(d.victim, 'com')} ${x.inA(d.area)}`,
+      `a última vez que vi ${x.R(d.victim, 'o')}, estava ${x.R(d.who, 'com')}`,
       `${x.R(d.victim, 'o')} estava ${x.inA(d.area)} ${x.R(d.who, 'com')}`,
     ]),
     withVictim: (d, x) => pick([
@@ -1840,7 +1878,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       `vi ${x.R(d.who, 'o')} andando colado ${x.R(d.victim, 'com')} ${x.inA(d.area)}`,
       `${x.R(d.who, 'o')} e ${x.R(d.victim, 'o')} estavam juntos ${x.inA(d.area)} pouco antes`,
     ]),
-    sawVictimAlive: (d, x) => pick([`vi ${x.R(d.victim, 'o')} vivo ${x.inA(d.area)} uns ${d.ago}s antes`, `uns ${d.ago}s antes ${x.R(d.victim, 'o')} tava vivo ${x.inA(d.area)}, eu vi`, `${x.R(d.victim, 'o')} tava vivo uns ${d.ago}s antes, eu vi ${x.inA(d.area)}`]),
+    sawVictimAlive: (d, x) => pick([`vi ${x.Rc(d.victim, 'o')} vivo ${x.inA(d.area)} uns ${d.ago}s antes`, `uns ${d.ago}s antes eu vi ${x.R(d.victim, 'o')} ${x.inA(d.area)}`, `${x.R(d.victim, 'o')} tava ${x.inA(d.area)} uns ${d.ago}s antes, eu vi`]),
     passedNoBody: (d, x) => pick([`passei ${x.inA(d.area)} uns ${d.ago}s antes e não tinha corpo`, `uns ${d.ago}s antes eu tava ${x.inA(d.area)} e não tinha nada lá`, `${x.inA(d.area)} tava vazio uns ${d.ago}s antes, eu passei lá`]),
     noOneNear: (d, x) => pick([`não vi ninguém perto ${x.deA(d.area)}`, `passei ${x.inA(d.area)} antes e não tinha ninguém`]),
     noOneNearBy: (d, x) => pick([`passei perto ${x.deA(d.area)} e não vi ninguém`, `passei do lado ${x.deA(d.area)}, não tinha ninguém por ali`]),
@@ -1855,22 +1893,23 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         case 'noscan': return pick([`${w} ficou parado no scanner e não escaneou`, `${w} fingiu o scan`]);
         case 'fakeTask': return pick([`vi ${w} terminar a tarefa ${d.area ? x.inA(d.area) : ''} e a barra não subiu`.replace(/\s+/g, ' '), `${w} fingiu tarefa, a barra não mexeu`, `${w} fez tarefa na minha frente e a barra ficou parada`]);
         case 'follow': return pick([`${w} estava me seguindo, muito suspeito`, `${w} ficou atrás de mim um tempão`]);
-        case 'nearBody': return pick([`${w} é suspeito, estava perto ${x.deA(d.area)}`, `acho que foi ${w}, estava lá perto`]);
-        case 'lastWith': return pick([`foi ${w}, estava sozinho ${d.victim != null ? x.R(d.victim, 'com') : 'com a vítima'}`, `${w} foi o último com ${d.victim != null ? x.R(d.victim, 'o') : 'ele'}`]);
+        case 'nearBody': return pick([`${x.Rc(d.who, 'o')} é suspeito, estava perto ${x.deA(d.area)}`, `acho que foi ${w}, estava lá perto`]);
+        case 'lastWith': return pick([`foi ${x.Rc(d.who, 'o')}, estava sozinho ${d.victim != null ? x.R(d.victim, 'com') : 'com a vítima'}`, `${w} foi o último com ${d.victim != null ? x.R(d.victim, 'o') : 'ele'}`]);
         case 'lie': return pick([`${w} está mentindo`, `isso não bate, ${x.R(d.who)}`, `${w} mentiu, eu vi`]);
         case 'tracker': return pick([`rastreei ${w} e ele estava ${x.inA(d.area)} na hora`]);
         case 'vote': return pick([`vota ${x.R(d.who, 'no')}`, `bora votar ${x.R(d.who, 'no')}`]);
-        case 'hunch': return pick([`${w} está estranho`, `sei lá, acho que é ${w}`, `${w} suspeito`, `meu instinto diz ${w}`]);
-        default: return pick([`${w} suspeito`, `acho que é ${w}`]);
+        case 'hunch': return pick([`${x.Rc(d.who, 'o')} está estranho`, `sei lá, acho que é ${w}`, `${x.Rc(d.who, 'o')} suspeito`, `meu instinto diz ${w}`]);
+        default: return pick([`${x.Rc(d.who, 'o')} suspeito`, `acho que é ${w}`]);
       }
     },
     vouch: (d, x) => {
       const w = x.R(d.who, 'o');
-      if (d.reason === 'visual') return pick([`${w} é safe, vi fazendo ${x.vis(d.task)}`, `${w} limpo, fez ${x.vis(d.task)}`, `confio ${x.R(d.who, 'no')}, vi a visual`]);
+      if (d.reason === 'visual') return pick([`${w} é safe, vi fazendo ${x.vis(d.task)}`, `vi ${w} fazendo ${x.vis(d.task)}, é inocente`, `confio ${x.R(d.who, 'no')}, vi a visual`]);
       if (d.reason === 'together') return pick([`${w} estava comigo`, `${w} estava comigo ${d.area ? x.inA(d.area) : ''}`.trim(), `pode tirar ${w}, estava comigo`]);
-      return pick([`vi ${w} fazendo task ${d.area ? x.inA(d.area) : ''}`.trim(), `${w} está limpo pra mim`]);
+      return pick([`vi ${w} fazendo task ${d.area ? x.inA(d.area) : ''}`.trim(), `pra mim ${w} é inocente`]);
     },
-    confirm: (d, x) => pick([`confirmo, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`, `verdade, ${x.R(d.who, 'o')} estava ${x.inA(d.area)}`, `é, vi ele ${x.inA(d.area)}`]),
+    alsoVouch: (d, x) => pick([`também vi, ${x.R(d.who, 'o')} é safe`, `confirmo, vi ${x.R(d.who, 'o')} fazendo ${x.vis(d.task)} também`, `+1, eu também vi a visual ${x.R(d.who, 'de')}`, `verdade, vi também`]),
+    confirm: (d, x) => pick([`confirmo, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`, `verdade, ${x.R(d.who, 'o')} estava ${x.inA(d.area)}`, `é, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`]),
     confirmWith: (d, x) => pick([`sim, ${x.R(d.who, 'o')} estava comigo`, `confirmo, estava comigo`, `verdade, estava comigo`]),
     denyWith: (d, x) => pick([`comigo? não`, `${x.R(d.who, 'o')} não estava comigo não`, `mentira, não estava comigo`]),
     fromBody: (d, x) => pick([`vi ${x.R(d.who, 'o')} vindo lá do lado ${x.deA(d.bodyArea)}`, `${x.R(d.who, 'o')} tava vindo da direção ${x.deA(d.bodyArea)}`, `quando eu passei ${x.inA(d.area)}, ${x.R(d.who, 'o')} vinha lá ${x.deA(d.bodyArea)}`]),
@@ -1897,8 +1936,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     topicSawAt: (d, x) => pick([`e o que ${x.R(d.who, 'o')} tava fazendo ${x.inA(d.area)}?`, `${x.R(d.who)}, é verdade? tava ${x.inA(d.area)}?`, `${x.inA(d.area)}? e depois?`]),
     crisis: (d, x) => pick([`gente, atenção: somos ${d.n} e ${d.imps > 1 ? 'tem ' + d.imps + ' impostores vivos' : 'ainda tem impostor vivo'}. se pular e matarem mais um, acabou`, `cuidado com o skip: mais uma morte e a gente perde`, `não dá pra errar agora, se pular e morrer mais um é vitória deles`]),
     summary: (d, x) => {
-      const c = (d.cleared || []).map((id) => x.R(id, 'o')).join(', ');
-      const lim = c ? (d.cleared.length > 1 ? `${c} estão limpos` : `${c} está limpo`) : '';
+      const names = (d.cleared || []).map((id) => x.R(id, 'o'));
+      const c = names.length > 1 ? names.slice(0, -1).join(', ') + ' e ' + names[names.length - 1] : names[0] || '';
+      const lim = c ? (names.length > 1 ? `${c} são inocentes` : `${c} é inocente`) : '';
       if (d.who == null) return pick([`resumindo: ${lim}. do resto ninguém tem prova, eu pulo`, `então: ${lim}. sem prova contra mais ninguém, skip`]);
       return pick([`resumindo: ${lim ? lim + '. ' : ''}quem pesa é ${x.R(d.who, 'o')} (${d.why}). voto ${x.R(d.who, 'no')}`, `então: ${lim ? lim + '; ' : ''}contra ${x.R(d.who, 'o')}: ${d.why}. eu vou ${x.R(d.who, 'no')}`]);
     },
@@ -1914,7 +1954,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     counter: (d, x) => pick([`está me acusando por quê? você que é suspeito, ${x.R(d.who)}`, `${x.R(d.who, 'o')} está tentando se livrar`, `quem acusa sem prova é impostor, vota ${x.R(d.who, 'no')}`]),
     askProof: (d, x) => pick([`prova?`, `você viu?`, `quem viu?`, `tem prova disso?`, `calma, sem prova não dá pra votar`, d.who != null ? `por que ${x.R(d.who, 'o')}?` : `por quê?`]),
     askConfirm: (d, x) => pick([`alguém confirma ${x.R(d.who, 'o')}?`, `quem estava ${x.R(d.who, 'com')}?`, `alguém viu ${x.R(d.who, 'o')} lá?`]),
-    quiet: (d, x) => pick([`${x.R(d.who, 'o')} está quieto hein`, `${x.R(d.who)}, fala alguma coisa`, `${x.R(d.who, 'o')} não falou nada`]),
+    quiet: (d, x) => pick([`${x.Rc(d.who, 'o')} está quieto hein`, `${x.R(d.who)}, fala alguma coisa`, `${x.R(d.who, 'o')} não falou nada`]),
     skip: () => pick([`sem info, skip`, `skip`, `vamos de skip`, `sem certeza, vou pular`, `sem prova, skip`]),
     agree: (d, x) => pick([`+1`, `concordo`, `vota ${x.R(d.who, 'no')}`, `bora ${x.R(d.who, 'o')}`, `faz sentido`, `eu também acho`]),
     alsoSaw: (d, x) => pick([`é verdade, eu também vi`, `confirmo, vi também`, `eu vi a mesma coisa`]),
@@ -1937,7 +1977,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     leaderVote: (d, x) => (d.who == null ? pick([`sem prova, todo mundo skip`, `ninguém tem certeza, skip`]) : pick([`vamos votar ${x.R(d.who, 'no')}, ninguém confirma ele`, `votem ${x.R(d.who, 'no')}`])),
     huh: () => pick([`?`, `quê?`, `hã?`, `não entendi`]),
     offerVisual: (d, x) => pick([`tenho ${d.task ? x.task(d.task) : 'tarefa visual'}, posso fazer na frente de vocês`, `me segue na próxima que eu faço ${d.task ? x.task(d.task) : 'a visual'}`, `quem desconfiar me acompanha, eu provo com ${d.task ? x.task(d.task) : 'a visual'}`]),
-    willFollow: (d, x) => pick([`blz, vou te seguir então ${x.R(d.who)}`, `fechou, eu vou junto com ${x.R(d.who, 'o')}`, `então eu te acompanho, ${x.R(d.who)}`]),
+    willFollow: (d, x) => pick([`blz, vou te seguir então, ${x.R(d.who)}`, `fechou, eu vou junto com ${x.R(d.who, 'o')}`, `então eu te acompanho, ${x.R(d.who)}`]),
     sawVisualSafe: (d, x) => pick([`${x.R(d.who, 'o')} é inocente, segui e vi ${d.task ? x.task(d.task) : 'a visual'}`, `pode tirar ${x.R(d.who, 'o')}, fui junto e vi fazendo ${d.task ? x.task(d.task) : 'a visual'}`, `eu segui ${x.R(d.who, 'o')}, fez ${d.task ? x.task(d.task) : 'visual'} na minha frente, safe`]),
     roleNotInGame: (d) => pick([`não tem ${ROLE_TXT[d.role]} nessa partida`, `${ROLE_TXT[d.role]}? nem tem isso nesse jogo`, `não tem ${ROLE_TXT[d.role]} aqui, olha a config`]),
     roleMaybe: (d, x) => {
@@ -1957,40 +1997,125 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     thanks: () => pick([`valeu`, `obrigado`, `viu?`]),
   };
 
-  /* Converte o texto base para o tom do chat e a personalidade. */
-  /* casual: como gente normal escreve num chat (algumas abreviações, não todas) */
+  /* Converte o texto base para o tom do chat e a personalidade.
+     limpo  = o mais fácil de entender: português completo, nomes oficiais das salas, nada de sigla ou jargão.
+     casual = como a maioria das pessoas digita num chat: minúsculas, vc/pq/tava/pra, kkk às vezes, skip e sus
+              de vez em quando, salas com o nome comum (cafeteria, elétrica, depósito), SEM gíria pesada.
+     raiz   = o mais caótico: apelidos das salas (café, elec, nav, med, storage, weapons, upper), siglas (n, q,
+              cmg, dps, mt, ss), gírias (mano, tlgd, tá ligado, slk, pqp, mds), CAPS quando se exalta, frases cortadas. */
   const CASUAL = [
     [/\bvocês\b/g, 'vcs', 0.45], [/\bvocê\b/g, 'vc', 0.5], [/\btambém\b/g, 'tb', 0.3], [/\bporque\b/g, 'pq', 0.5],
     [/\bpor que\b/g, 'pq', 0.5], [/\bpor quê\b/g, 'pq', 0.5], [/\bestava\b/g, 'tava', 0.8], [/\bestou\b/g, 'tô', 0.6],
     [/\bestá\b/g, 'tá', 0.6], [/\bpara\b/g, 'pra', 0.85], [/\bmesmo\b/g, 'msm', 0.1], [/\bagora\b/g, 'agr', 0.1],
     [/\bbeleza\b/g, 'blz', 0.4], [/\bninguém\b/g, 'ngm', 0.15], [/\bobrigado\b/g, 'vlw', 0.4],
+    [/\bimpostor\b/g, 'impostor', 1], [/\bimps\b/g, 'impostores', 1], [/\bimp\b/g, 'impostor', 1], [/\bsafe\b/g, 'inocente', 0.5],
   ];
-  /* raiz: siglas e gírias de jogador */
   const RAIZ = [
-    [/\bnão\b/g, 'n', 0.55], [/\bque\b/g, 'q', 0.5], [/\bquem\b/g, 'qm', 0.35], [/\btudo\b/g, 'td', 0.5], [/\bsuspeito\b/g, 'sus', 0.9],
-    [/\binocente\b/g, 'safe', 0.6], [/\bimpostor\b/g, 'imp', 0.6], [/\bpular\b/g, 'skip', 0.6], [/\bpulei\b/g, 'skipei', 0.6],
-    [/\bninguém\b/g, 'ngm', 0.8], [/\bagora\b/g, 'agr', 0.7], [/\bmesmo\b/g, 'msm', 0.6], [/\bpor favor\b/g, 'pfv', 0.9],
-    [/\bvocê\b/g, 'vc', 1], [/\bvocês\b/g, 'vcs', 1], [/\btambém\b/g, 'tb', 0.8], [/\bcom\b/g, 'c', 0.2], [/\bbeleza\b/g, 'blz', 0.9],
+    [/\bnão\b/g, 'n', 0.6], [/\bque\b/g, 'q', 0.6], [/\bquem\b/g, 'qm', 0.45], [/\btudo\b/g, 'td', 0.6], [/\bsuspeito\b/g, 'sus', 0.95],
+    [/\binocente\b/g, 'safe', 0.75], [/\bimpostores\b/g, 'imps', 0.7], [/\bimpostor\b/g, 'imp', 0.7], [/\bpular\b/g, 'skipar', 0.7], [/\bpulei\b/g, 'skipei', 0.8],
+    [/\bpula\b/g, 'skipa', 0.7], [/\bninguém\b/g, 'ngm', 0.85], [/\bagora\b/g, 'agr', 0.75], [/\bmesmo\b/g, 'msm', 0.7], [/\bpor favor\b/g, 'pfv', 0.9],
+    [/\bvocê\b/g, 'vc', 1], [/\bvocês\b/g, 'vcs', 1], [/\btambém\b/g, 'tb', 0.85], [/\bcom\b/g, 'c', 0.25], [/\bbeleza\b/g, 'blz', 0.9],
+    [/\bcomigo\b/g, 'cmg', 0.55], [/\bdepois\b/g, 'dps', 0.6], [/\bmuito\b/g, 'mt', 0.6], [/\bsim\b/g, 'ss', 0.5], [/\bporque\b/g, 'pq', 1],
+    [/\bpor que\b/g, 'pq', 1], [/\bestava\b/g, 'tava', 1], [/\bestá\b/g, 'ta', 0.9], [/\btá\b/g, 'ta', 0.6], [/\btarefas\b/g, 'tasks', 0.8], [/\btarefa\b/g, 'task', 0.8],
+    [/\bduto\b/g, 'vent', 0.75], [/\bsei lá\b/g, 'sla', 0.8], [/\bmeu deus\b/g, 'mds', 0.9], [/\bhoje\b/g, 'hj', 0.8], [/\bnada\b/g, 'nd', 0.3],
   ];
   /* limpo: frases fáceis de entender, sem siglas nem gírias */
   const CLEAN = [
-    [/\bsus\b/gi, 'suspeito'], [/\bsafe\b/gi, 'inocente'], [/\bskipei\b/gi, 'pulei'], [/\bskipar\b/gi, 'pular'], [/\bskip\b/gi, 'pular'],
+    [/^é, /i, 'Sim, '], [/^((?:o|a) [a-zà-ú]+) suspeito$/i, '$1 está suspeito'], [/^((?:o|a) [a-zà-ú]+) suspeito([,.])/i, '$1 está suspeito$2'],
+    [/\bsem self ?report\b/gi, 'nada de reportar o próprio abate'], [/^salve,? galera\b/gi, 'Olá, pessoal'], [/^salve\b/gi, 'Olá'], [/^eai\b/gi, 'Oi'], [/^opa\b/gi, 'Oi'],
+    [/\bvotei skip\b/gi, 'votei para pular'], [/\bvamos de skip\b/gi, 'vamos pular'], [/,\s*skip\b/gi, ', vamos pular'], [/^skip$/gi, 'Vou pular'],
+    [/\bsem info\b/gi, 'sem informação'], [/\binfo\b/gi, 'informação'], [/\bo scan\b/gi, 'o escaneamento'], [/\bscan\b/gi, 'escaneamento'], [/\bme segue\b/gi, 'me siga'],
+    [/\bsus\b/gi, 'suspeito'], [/\bsafe\b/gi, 'inocente'], [/\bskipei\b/gi, 'pulei'], [/\bskipar\b/gi, 'pular'], [/\bskipa\b/gi, 'pula'], [/\bskip\b/gi, 'pular'],
     [/\bself ?report\b/gi, 'reportou o próprio corpo'], [/\bventou\b/gi, 'usou o duto'], [/\bventando\b/gi, 'usando o duto'], [/\bventar\b/gi, 'usar o duto'],
     [/\bvent\b/gi, 'duto'], [/\bimps\b/gi, 'impostores'], [/\bimp\b/gi, 'impostor'], [/\bvcs\b/gi, 'vocês'], [/\bvc\b/gi, 'você'],
-    [/\btbm\b/gi, 'também'], [/\btb\b/gi, 'também'], [/\bpq\b/gi, 'porque'], [/\bmsm\b/gi, 'mesmo'], [/\bagr\b/gi, 'agora'], [/\bngm\b/gi, 'ninguém'],
-    [/\bblz\b/gi, 'beleza'], [/\bvlw\b/gi, 'valeu'], [/\bpfv\b/gi, 'por favor'], [/\bqm\b/gi, 'quem'], [/\btd\b/gi, 'tudo'], [/\bq\b/gi, 'que'],
-    [/\bsla\b/gi, 'sei lá'], [/\btlgd\b/gi, ''], [/\bslk\b/gi, ''], [/\bmano\b,?/gi, ''], [/\bpô\b,?/gi, ''], [/\boxe\b,?/gi, ''], [/\bvéi\b,?/gi, ''],
+    [/\btbm\b/gi, 'também'], [/\btb\b/gi, 'também'], [/\bpq\b/gi, 'por que'], [/\bmsm\b/gi, 'mesmo'], [/\bagr\b/gi, 'agora'], [/\bngm\b/gi, 'ninguém'],
+    [/\bblz\b/gi, 'certo'], [/\bvlw\b/gi, 'obrigado'], [/\bpfv\b/gi, 'por favor'], [/\bqm\b/gi, 'quem'], [/\btd\b/gi, 'tudo'], [/\bq\b/gi, 'que'],
+    [/\bcmg\b/gi, 'comigo'], [/\bdps\b/gi, 'depois'], [/\bmt\b/gi, 'muito'], [/\bss\b/gi, 'sim'], [/\bmds\b/gi, 'meu Deus'],
+    [/\bsla\b/gi, 'sei lá'], [/\btlgd\b/gi, ''], [/\bt[aá] ligado\b/gi, ''], [/\bslk\b/gi, ''], [/\bpqp\b,?/gi, ''], [/\bmano\b,?/gi, ''], [/\bpô\b,?/gi, ''], [/\boxe\b,?/gi, ''], [/\bvéi\b,?/gi, ''], [/\bué\b,?/gi, ''],
     [/\bkk+\b/gi, ''], [/\brs\b/gi, ''], [/\bcams\b/gi, 'câmeras'], [/\bstack kill\b/gi, 'abate no meio do grupo'], [/\bcrew\b/gi, 'tripulação'],
+    [/\btavam\b/gi, 'estavam'], [/\btava\b/gi, 'estava'], [/\btá\b/gi, 'está'], [/\btô\b/gi, 'estou'], [/\bpros\b/gi, 'para os'], [/\bpras\b/gi, 'para as'],
+    [/\bpro\b/gi, 'para o'], [/\bpra\b/gi, 'para'], [/\bfechou\b/gi, 'certo'], [/\bbora\b/gi, 'vamos'], [/\bpera\b/gi, 'espera'], [/\bné\b/gi, ''],
+    [/\bagora pouco\b/gi, 'agora há pouco'], [/\b(\d+) ?s\b/g, '$1 segundos'], [/\btasks\b/gi, 'tarefas'], [/\btask\b/gi, 'tarefa'], [/\bcard\b/gi, 'cartão'],
+    [/\bdo report\b/gi, 'de acharem o corpo'], [/\ba visual\b/gi, 'a tarefa visual'], [/\bvitals\b/gi, 'sinais vitais'], [/^\+1$/, 'concordo'],
   ];
+  /* \b do JavaScript não entende acento ("está", "você", "tá"): troca por uma fronteira de palavra que entende */
+  const UB = '(?:(?<![\\p{L}\\d])(?=[\\p{L}\\d])|(?<=[\\p{L}\\d])(?![\\p{L}\\d]))';
+  const ub = (re) => new RegExp(re.source.replace(/\\b/g, UB), re.flags.includes('u') ? re.flags : re.flags + 'u');
+  for (const list of [CASUAL, RAIZ, CLEAN]) for (const r of list) r[0] = ub(r[0]);
   function clean(t) {
-    let s = String(t);
+    let s = unslang(String(t), true);
     for (const [re, rep] of CLEAN) s = s.replace(re, rep);
     return s.replace(/\s{2,}/g, ' ').replace(/\s+([,.?!])/g, '$1').replace(/^[\s,]+/, '').trim();
+  }
+
+  /* Troca o nome de uma sala mantendo a preposição certa ("no café" ↔ "na cafeteria", "na weapons" ↔ "em armas"). */
+  const ROOM_SWAP = [
+    // apelido, nome comum, gênero do apelido, gênero do nome comum
+    ['caf[eé]', 'cafeteria', 'cafeteria', 'm', 'f', 'Cafeteria'], ['elec', 'el[eé]trica', 'elétrica', 'f', 'f', 'Elétrica'], ['nav', 'navega[cç][aã]o', 'navegação', 'f', 'f', 'Navegação'],
+    ['med', 'medbay', 'medbay', 'f', 'f', 'MedBay'], ['sec', 'seguran[cç]a', 'segurança', 'f', 'f', 'Segurança'], ['storage', 'dep[oó]sito', 'depósito', 'm', 'm', 'Depósito'],
+    ['weapons', 'armas', 'armas', 'f', 'n', 'Armas'], ['upper', 'motor de cima', 'motor de cima', 'm', 'm', 'Motor Superior'], ['lower', 'motor de baixo', 'motor de baixo', 'm', 'm', 'Motor Inferior'],
+    ['shields', 'escudos', 'escudos', 'm', 'mp', 'Escudos'], ['comms', 'comunica[cç][oõ]es', 'comunicações', 'm', 'fp', 'Comunicações'], ['cams', 'c[aâ]meras', 'câmeras', 'fp', 'fp', 'câmeras'],
+    /* nomes comuns sem apelido: no limpo viram o nome oficial */
+    ['(?!x)x', 'refeit[oó]rio', 'refeitório', 'm', 'm', 'Cafeteria', 'f'], ['(?!x)x', 'enfermaria', 'enfermaria', 'f', 'f', 'MedBay'],
+    ['(?!x)x', 'oxig[eê]nio', 'oxigênio', 'm', 'm', 'O2'], ['(?!x)x', 'motor superior', 'motor superior', 'm', 'm', 'Motor Superior'], ['(?!x)x', 'motor inferior', 'motor inferior', 'm', 'm', 'Motor Inferior'],
+    ['(?!x)x', 'reator', 'reator', 'm', 'm', 'Reator'],
+  ];
+  const SLANG_WORD = { 'caf[eé]': 'café', elec: 'elec', nav: 'nav', med: 'med', sec: 'sec', storage: 'storage', weapons: 'weapons', upper: 'upper', lower: 'lower', shields: 'shields', comms: 'comms', cams: 'cams' };
+  const PREP = { in: { m: 'no', f: 'na', mp: 'nos', fp: 'nas', n: 'em' }, of: { m: 'do', f: 'da', mp: 'dos', fp: 'das', n: 'de' }, to: { m: 'pro', f: 'pra', mp: 'pros', fp: 'pras', n: 'pra' }, art: { m: 'o', f: 'a', mp: 'os', fp: 'as', n: '' } };
+  const PREP_KIND = {};
+  for (const k of Object.keys(PREP)) for (const v of Object.values(PREP[k])) if (v && !PREP_KIND[v]) PREP_KIND[v] = k;
+  /* no tom limpo, "pra" de sala vira "para a/para o" */
+  const PREP_LIMPO = Object.assign({}, PREP, { to: { m: 'para o', f: 'para a', mp: 'para os', fp: 'para as', n: 'para' } });
+  function swapRoom(s, fromRe, to, toCls, prob, table) {
+    const re = new RegExp('(^|[^\\p{L}])(?:(no|na|nos|nas|em|do|da|dos|das|de|pro|pra|pros|pras|para|o|a|os|as) )?(' + fromRe + ')(?![\\p{L}])', 'giu');
+    return s.replace(re, (m, lead, pre) => {
+      if (prob != null && !U.chance(prob)) return m;
+      if (!pre) return lead + to;
+      const kind = pre.toLowerCase() === 'para' ? 'to' : PREP_KIND[pre.toLowerCase()];
+      const np = (table || PREP)[kind][toCls];
+      return lead + (np ? np + ' ' : '') + to;
+    });
+  }
+  /* casual: nomes comuns em vez de apelido, e nada de gíria pesada */
+  function unslang(t, official) {
+    let s = String(t);
+    for (const [slang, fullRe, full, , fullCls, off, offCls] of ROOM_SWAP) {
+      s = swapRoom(s, slang, official ? off : full, official ? offCls || fullCls : fullCls, null, official ? PREP_LIMPO : null);
+      /* limpo: também o nome comum vira o oficial, com a preposição certa ("para a Elétrica") */
+      if (official) s = swapRoom(s, fullRe, off, offCls || fullCls, null, PREP_LIMPO);
+    }
+    s = s.replace(/(^|[^\p{L}])(tlgd|t[aá] ligado|slk|pqp|v[eé]i|mano|p[oô]|mds|oxe)(?![\p{L}]),?/giu, '$1');
+    return s.replace(/\s{2,}/g, ' ').replace(/^[\s,]+/, '').trim();
+  }
+  /* raiz: apelido de jogador para as salas */
+  function slangify(t, prob) {
+    let s = String(t);
+    for (const [slang, fullRe, , slangCls] of ROOM_SWAP) if (SLANG_WORD[slang]) s = swapRoom(s, fullRe, SLANG_WORD[slang], slangCls, prob);
+    return s;
+  }
+  /* filtro final para texto que veio da IA (ou de frase fixa) conforme o tom */
+  function toneFilter(t, tone) {
+    if (tone === 'limpo') return U.cap(clean(t)).replace(/([.!?]\s+)(\p{Ll})/gu, (m, a, b) => a + b.toUpperCase()) || t;
+    if (tone === 'casual') return unslang(t) || t;
+    return t;
   }
 
   function stripAccents(s) {
     return s.normalize('NFD').replace(/[̀-ͯ]/g, '');
   }
+
+  /* interjeição no raiz: só quando combina com o momento (susto, bronca, negação, dúvida), não em qualquer frase */
+  const RAIZ_PRE = {
+    hot: ['mano ', 'pqp ', 'mds ', 'slk ', 'véi ', 'caraca '],
+    deny: ['oxe ', 'ué ', 'slk ', 'mano ', 'q isso ', 'tá loco? '],
+    ask: ['ué ', 'pera ', 'mano ', 'oxe '],
+  };
+  const KIND_MOOD = {
+    accuse: 'hot', panic: 'hot', knewBody: 'hot', claimClash: 'hot', contradictSeen: 'hot', hidBodyRoom: 'hot', atBody: 'hot', callReason: 'hot', reportInfo: 'hot', crisis: 'hot',
+    deny: 'deny', denyStrong: 'deny', notThere: 'deny', counter: 'deny', denyWith: 'deny',
+    topicAsk: 'ask', askProof: 'ask', topicDoubt: 'ask', huh: 'ask', askWhere: 'ask', askCaller: 'ask', topicWhat: 'ask', askConfirm: 'ask',
+  };
+  const RAIZ_LAUGH = new Set(['offtopic', 'deny', 'huh', 'agree', 'askProof', 'lost', 'ghost', 'topicDoubt', 'counter', 'callReason']);
 
   function style(text, g, brain, opts) {
     opts = opts || {};
@@ -1999,33 +2124,44 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     let s = String(text).trim();
     if (tone === 'limpo') {
       s = clean(s) || 'ok';
-      s = U.cap(s);
+      s = U.cap(s).replace(/([.!?]\s+)(\p{Ll})/gu, (m, a, b) => a + b.toUpperCase());
       if (!/[?!.]$/.test(s) && U.chance(0.5)) s += '.';
       return s;
     }
     const lowerKeep = /[A-Z]{4,}/.test(s) && U.chance(0.7);
     if (!lowerKeep) s = s.toLowerCase();
-    for (const [re, rep, pr] of CASUAL) s = s.replace(re, (m) => (U.chance(pr) ? rep : m));
-    s = s.replace(/\bnão\b/g, (m) => (U.chance(0.25) ? 'nao' : m));
     if (tone === 'raiz') {
+      s = slangify(s, 0.85);
+      for (const [re, rep, pr] of CASUAL) if (!/impostor|safe/.test(rep)) s = s.replace(re, (m) => (U.chance(Math.min(1, pr + 0.3)) ? rep : m));
       for (const [re, rep, pr] of RAIZ) s = s.replace(re, (m) => (U.chance(pr) ? rep : m));
-      if (U.chance(0.25)) s = pick(['mano ', 'pô ', 'slk ', 'véi ', 'pqp ', 'tipo ']) + s;
-      if (U.chance(0.15) && !/k{3,}/i.test(s)) s += ' ' + pick(['kkk', 'kkkk', 'tlgd', 'né']);
-      if (U.chance(0.35)) s = stripAccents(s);
-    } else if (U.chance(0.25)) s = stripAccents(s);
-    s = s.replace(/[.]$/, '');
-    if ((pers.chaos || pers.offtopic) && U.chance(0.2)) s += ' ' + pick(['kkk', 'kkkkk', 'KKKK']);
+      const mood = KIND_MOOD[opts.kind];
+      if (mood && U.chance(mood === 'hot' ? 0.45 : 0.35)) s = pick(RAIZ_PRE[mood]) + s;
+      const words = s.split(/\s+/).length, greet = /^(oi|eai|e ai|salve|opa|fala|ol[aá]|boa (noite|tarde|dia))\b/.test(s);
+      if (!mood && !greet && words >= 4 && opts.kind !== 'claimLoc' && U.chance(0.1)) s = pick(['tipo ', 'mano ']) + s;
+      else if (!/\?$/.test(s) && !mood && !greet && words >= 4 && U.chance(0.14)) s += pick([' tlgd', ', tá ligado', ' tlgd']);
+      if (RAIZ_LAUGH.has(opts.kind) && !/k{3,}/i.test(s) && U.chance(0.3)) s += ' ' + pick(['kkkk', 'kkkkkk', 'KKKKK']);
+      if (opts.strong && U.chance(0.4)) s = s.toUpperCase();
+      if (U.chance(0.55)) s = stripAccents(s);
+      s = s.replace(/[.,]$/, '');
+    } else {
+      s = unslang(s);
+      for (const [re, rep, pr] of CASUAL) s = s.replace(re, (m) => (U.chance(pr) ? rep : m));
+      s = s.replace(/\bnão\b/g, (m) => (U.chance(0.2) ? 'nao' : m));
+      if (U.chance(0.25)) s = stripAccents(s);
+      s = s.replace(/[.]$/, '');
+    }
+    if ((pers.chaos || pers.offtopic) && U.chance(tone === 'raiz' ? 0.25 : 0.15) && !/k{3,}/i.test(s)) s += ' ' + pick(['kkk', 'kkkkk', 'KKKK']);
     if (pers.caps && opts.strong && U.chance(0.6)) s = s.toUpperCase() + '!!';
     if (opts.question && !/\?$/.test(s)) s += '?';
     if (pers.offtopic && U.chance(0.2)) s = s.replace(/\?$/, '??');
-    return s;
+    return s.replace(/\s{2,}/g, ' ').trim();
   }
 
   function line(kind, d, g, brain, opts) {
     const f = P[kind];
     if (!f) return '';
     const base = f(d || {}, helpers(g, brain));
-    return style(base, g, brain, opts);
+    return style(base, g, brain, Object.assign({ kind }, opts || {}));
   }
 
   /* ---------- leitura das mensagens do jogador ---------- */
@@ -2256,7 +2392,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     });
   }
 
-  AU.Talk = { P, line, style, clean, parse, helpers, TASK_CHAT, ROLE_TXT };
+  AU.Talk = { P, line, style, clean, unslang, slangify, toneFilter, parse, helpers, TASK_CHAT, ROLE_TXT };
 })();
 
 </script>
@@ -5368,7 +5504,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         }
         if (via === 'eyes' && !p.isImp) {
           const d = U.dist(p, q);
-          if (d < 3.8 && q.moving && p.moving) this.followWatch[aid] = (this.followWatch[aid] || 0) + 0.2;
+          /* "me seguindo" = vem atrás de mim enquanto eu ando; quem eu estou seguindo (ou acompanhando) não conta */
+          const pt = this.path && this.pi < this.path.length ? this.path[this.pi] : null;
+          const behind = pt ? (q.x - p.x) * (pt.x - p.x) + (q.y - p.y) * (pt.y - p.y) < 0 : false;
+          const iFollow = this.plan && this.plan.type === 'follow' && (this.plan.target === q.id || this.plan.target === aid);
+          if (d < 3.8 && q.moving && p.moving && behind && !iFollow) this.followWatch[aid] = (this.followWatch[aid] || 0) + 0.2;
           else this.followWatch[aid] = Math.max(0, (this.followWatch[aid] || 0) - 0.08);
           const invited = this.invite && this.invite.who === aid && t < this.invite.until;
           const friendly = invited || (this.susp[aid] || 0) < 8;
@@ -5588,7 +5728,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
 (function () {
   'use strict';
   const AU = window.AU;
-  const U = AU.U, M = AU.Map, T = AU.Talk;
+  const U = AU.U, M = AU.Map, T = AU.Talk, C = AU.C;
   const B = AU.Brain.prototype;
 
   const STRONG = { kill: 1, vent: 0.85, shift: 1, vanish: 0.95 };
@@ -5600,6 +5740,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     this.rs = mt.info.roundStart;
     this.budget = Math.round(1 + this.pers.talk * 3.2 + (this.pers.offtopic ? 1 : 0));
     this.claimed = false;
+    this.claimPosted = false;
     this.heardAcc = {};
     this.sharedWindow = null;
     this.killWindow = null;
@@ -5968,7 +6109,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (e.reason === 'visual' && g.players[+id].alive) items.push({ k: 'vouch', who: +id, reason: 'visual', task: e.task });
         if (e.reason === 'noscan') items.push({ k: 'accuse', who: +id, reason: 'noscan' });
         if (e.reason === 'fakeTask') items.push({ k: 'accuse', who: +id, reason: 'fakeTask', area: e.area });
-        if (e.reason === 'follow') items.push({ k: pers.panic ? 'panic' : 'accuse', who: +id, reason: 'follow' });
+        /* não acusa de "me seguir" quem estava junto comigo fazendo tarefa (é o meu álibi) */
+        if (e.reason === 'follow' && (this.togetherMap()[+id] || 0) < 12 && this.getAlibi().with !== +id) items.push({ k: pers.panic ? 'panic' : 'accuse', who: +id, reason: 'follow' });
       }
       if (this.mem.track.some((x) => x.t >= this.rs)) items.push({ k: 'tracker' });
       /* combinou de andar junto (sinal) e ficou junto: vira álibi para os dois */
@@ -6035,8 +6177,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     return (U.rf(2, 4.5) + L / U.rf(8, 13)) * pace * (this.pers.talk < 0.3 ? 1.6 : 1);
   };
 
+  /* frase igualzinha à de outra pessoa na reunião ("no admin fazendo os fios" três vezes) soa robô: reformula */
   B.say = function (kind, d, opts) {
-    return T.line(kind, d, this.g, this, opts);
+    let t = T.line(kind, d, this.g, this, opts);
+    const mt = this.mt, me = this.p.id;
+    const dup = (x) => mt && mt.msgs.some((m) => m.from !== me && U.norm(m.text) === U.norm(x));
+    for (let i = 0; i < 4 && dup(t); i++) t = T.line(kind, d, this.g, this, opts);
+    return t;
   };
 
   /* Local de um trecho do rastro, como um jogador contaria: a sala em que entrou; corredor só se ficou um bom
@@ -6246,6 +6393,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const w = this.killWindow;
         if (!w) return null;
         const ago = Math.max(5, Math.round((mt.info.t - w.t0) / 5) * 5);
+        /* só vale contar se ajuda: visto há pouco, e mais recente do que o que já disseram */
+        if (ago > 35) return null;
+        const said = mt.msgs.flatMap((m) => m.intents.filter((j) => j.type === 'window' && j.ago != null).map((j) => j.ago));
+        if (said.length && Math.min(...said) <= ago) return null;
         if (w.mine) return msg('passedNoBody', { area: w.area, ago }, [{ type: 'window', area: w.area, ago }]);
         const victim = mt.info.body ? mt.info.body.pid : null;
         const vs = victim != null ? this.mem.seen.filter((x) => x.who === victim).pop() : null;
@@ -6282,6 +6433,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (!q || !q.alive) return null;
         const escorted = it.reason === 'visual' && this.mem.events.some((e) => (e.type === 'escortVisual' || e.type === 'escort') && e.who === it.who && e.t >= this.rs);
         if (escorted) return msg('sawVisualSafe', { who: it.who, task: it.task }, [{ type: 'vouch', who: it.who, reason: 'visual', task: it.task }]);
+        /* alguém já garantiu essa pessoa: confirma em vez de repetir a mesma frase */
+        const before = mt.msgs.find((m) => m.from !== p.id && m.intents.some((j) => j.type === 'vouch' && j.who === it.who && j.reason === it.reason));
+        if (before && it.reason === 'visual') return msg('alsoVouch', { who: it.who, by: before.from, task: it.task }, [{ type: 'vouch', who: it.who, reason: 'visual', task: it.task }]);
         return msg('vouch', it, [{ type: 'vouch', who: it.who, reason: it.reason, task: it.task }]);
       }
       case 'vitals': {
@@ -6348,8 +6502,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           this.queue.push(it);
           return null;
         }
-        if (mt.flags['sum' + p.id]) return null;
-        mt.flags['sum' + p.id] = true;
+        if (mt.flags.summaryDone) return null;
+        mt.flags.summaryDone = true;
         const cleared = mt.alive.filter((id) => id !== p.id && (this.hardCleared(id) || this.clearedByVisual(id))).slice(0, 3);
         const top = this.topSuspect();
         const strongTop = top && top.s >= this.pers.thr * 0.8;
@@ -6424,8 +6578,25 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     mt.schedule(wait, this, () => {
       if (!this.p.alive || mt.closed) return;
       const m = fn();
-      if (m && m.text) mt.say(this, m, meta);
+      if (!m || !m.text) return;
+      /* a conversa andou desde a mensagem respondida: diz com quem está falando ("verde, pq eu?") */
+      if (src != null && so && so.from !== this.p.id) {
+        const after = mt.msgs.filter((x) => x.id > src && x.from !== this.p.id);
+        if (after.length >= 2 || (after.length && mt.t - so.t > 6)) m.text = this.addressTo(so.from, m.text);
+      }
+      mt.say(this, m, meta);
     }, { ttl: direct ? 20 : 9, raw: viaAI });
+  };
+  B.addressTo = function (id, text) {
+    const g = this.g, q = g.players[id];
+    if (!q || !text) return text;
+    const col = C.COLOR[q.color].name.toLowerCase();
+    const n = U.norm(text);
+    if (n.includes(U.norm(q.name)) || new RegExp('\\b' + U.norm(col) + '\\b').test(n)) return text;
+    const tone = g.S.bots.chatTone;
+    const who = q.isHuman || U.chance(0.3) ? q.name : col;
+    if (tone === 'limpo') return (who === col ? U.cap(col) : who) + ', ' + text.charAt(0).toLowerCase() + text.slice(1);
+    return (tone === 'raiz' ? who.toLowerCase() + ' ' : who.toLowerCase() + ', ') + text;
   };
 
   B.mOnMessage = function (msg) {
@@ -6478,11 +6649,17 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       case 'askWhere':
         if (it.who === me) {
           if (!this.claimed) this.reply(pers.talk < 0.3 ? 2.5 : 1, () => this.compose({ k: 'claimLoc' }), true);
-          else if (!this.replied.has('reclaim')) {
+          else if (this.claimPosted && !this.replied.has('reclaim')) {
+            /* já tinha falado e perguntaram de novo: "já falei, tava na elétrica" (se ainda não saiu, é só esperar) */
             this.replied.add('reclaim');
             this.reply(1, () => {
               this.claimed = false;
-              return this.compose({ k: 'claimLoc' });
+              const m = this.compose({ k: 'claimLoc' });
+              if (!m) return null;
+              const tone = g.S.bots.chatTone;
+              const pre = tone === 'limpo' ? 'Já falei: ' : U.pick(tone === 'raiz' ? ['ja falei ', 'ja disse mano ', 'de novo: '] : ['já falei, ', 'já disse, ', 'de novo: ']);
+              m.text = pre + m.text.charAt(0).toLowerCase() + m.text.slice(1);
+              return m;
             }, true);
           }
         }
@@ -7307,31 +7484,56 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     inexperiente: 'meio perdido, confunde nomes de sala, pergunta o básico, inseguro',
   };
   const TONE = {
-    limpo: 'TOM LIMPO: todo mundo escreve frases completas, simples e fáceis de entender, em português correto. NADA de siglas, abreviações ou gírias (não use sus, safe, skip, vent, imp, self report, vc, pq, tb, ngm, kkk). Diga "suspeito", "inocente", "pular o voto", "usou o duto", "impostor" e os nomes das salas por extenso (Elétrica, Navegação, Segurança, Motor Inferior, Comunicações).',
-    casual: 'TOM CASUAL: como gente normal conversa num chat de jogo: frases curtas e naturais, uma abreviação comum de vez em quando (vc, pq, tava), poucas gírias; termos do jogo (sus, skip) só às vezes. Cada um no seu jeito.',
-    raiz: 'TOM RAIZ: bem solto, cheio de siglas e gírias de jogador (sus, safe, skip, vent, imp, self, ngm, vc, pq, tlgd), kkkk, frases cortadas e provocação leve; ainda assim cada um no seu jeito e sem ofensas.',
+    limpo: 'TOM LIMPO (o mais fácil de entender): todo mundo escreve frases completas, simples e claras, em português correto, com acentos. NADA de siglas, abreviações, gírias ou termos em inglês (não use sus, safe, skip, vent, imp, self report, task, vc, pq, tb, ngm, tava, pra, tá, kkk). Diga "suspeito", "inocente", "pular o voto", "usou o duto", "impostor", "tarefa", "estava", "para", e os nomes das salas por extenso (Cafeteria, Elétrica, Navegação, Segurança, Depósito, Armas, Escudos, Comunicações, Motor Superior, Motor Inferior, MedBay, Reator, Admin, O2).',
+    casual: 'TOM CASUAL (como a maioria das pessoas escreve num chat de jogo): frases curtas e naturais, quase tudo minúsculo, abreviações comuns (vc, pq, tava, pra, tá), "kkk" de vez em quando; dos termos do jogo, só os que todo mundo usa (skip, sus, task) e não o tempo todo. SEM gíria pesada (nada de tlgd, tá ligado, slk, pqp, véi, mano, mds) e as salas com o nome comum em português (cafeteria, elétrica, navegação, segurança, depósito, armas, escudos, comunicações, medbay, motor de cima, motor de baixo, reator, admin, o2) — nada de apelido como café, elec, nav, med, sec, storage, weapons, upper, lower.',
+    raiz: 'TOM RAIZ (o mais caótico): chat de jogador raiz. Gírias pesadas (mano, tlgd, tá ligado, slk, pqp, véi, mds, sla, caraca), siglas (n, q, vc, tb, td, cmg, dps, mt, msm, agr, ngm, pfv, ss), termos de jogador (sus, safe, skip, vent, imp, self, task, stack), apelidos das salas (café, elec, nav, med, sec, storage, weapons, upper, lower, comms, shields), "kkkk", CAPS quando se exalta, frases cortadas, quase sem acento e sem pontuação, provocação leve (sem ofensa pesada). Mesmo assim cada um no seu jeito.',
   };
   /* Exemplo com jeitos diferentes de escrever (não é para copiar). */
-  const EXAMPLE = [
-    'Lipe: onde?',
-    'Bia: Elétrica, perto dos fios.',
-    'Rafa: Quem estava pra aquele lado? Vamos um por um.',
-    'Zé: eu tava no deposito c o azul',
-    'Nina: confirmo',
-    'Bia: Vi o vermelho saindo de lá uns 10s antes.',
-    'Beto: EU?? tava na med fazendo scan',
-    'Rafa: Alguém viu o scan do Beto?',
-    'Nina: eu vi. safe',
-    'Caio: pera, e o laranja? não falou nada',
-    'Rafa: Sem prova, melhor pular.',
-  ].join('\n');
-
+  const EXAMPLES = {
+    limpo: [
+      'Lipe: Onde foi?',
+      'Bia: Na Elétrica, perto dos fios.',
+      'Rafa: Quem estava para aquele lado? Vamos um por vez.',
+      'Zé: Eu estava no Depósito com o azul.',
+      'Nina: Confirmo.',
+      'Bia: Vi o vermelho saindo de lá uns 10 segundos antes.',
+      'Beto: Eu? Estava na MedBay fazendo o escaneamento.',
+      'Nina: Eu vi o escaneamento dele. Ele é inocente.',
+      'Rafa: Sem prova, é melhor pular.',
+    ],
+    casual: [
+      'Lipe: onde?',
+      'Bia: elétrica, perto dos fios',
+      'Rafa: quem tava pra aquele lado? um de cada vez',
+      'Zé: eu tava no depósito com o azul',
+      'Nina: confirmo',
+      'Bia: vi o vermelho saindo de lá uns 10s antes',
+      'Beto: eu?? tava na medbay fazendo scan',
+      'Nina: eu vi o scan dele, é inocente',
+      'Caio: pera, e o laranja? não falou nada',
+      'Rafa: sem prova melhor skip',
+    ],
+    raiz: [
+      'Lipe: ond',
+      'Bia: elec perto dos fio',
+      'Rafa: qm tava p aquele lado mano',
+      'Zé: storage c o azul tlgd',
+      'Nina: ss',
+      'Bia: VI O VERMELHO SAINDO DE LA',
+      'Beto: EU?? tava na med de scan pqp',
+      'Nina: vi o scan dele, safe',
+      'Caio: e o laranja q n falou nd kkkk',
+      'Rafa: sem prova skipa',
+    ],
+  };
   /* Jeito de escrever de cada bot: sorteado uma vez por partida, puxado pela personalidade e pelo clima do lobby. */
   const REGISTERS = {
     formal: 'escreve direitinho: frases completas, maiúscula no começo, pontuação e acentos; nada de gíria',
     neutro: 'escreve normal: frases curtas, alguma pontuação, uma abreviação ou outra (vc, pq)',
     informal: 'escreve rápido: tudo minúsculo, quase sem pontuação, abreviações (vc, tb, tava, ngm, sla)',
-    giria: 'bem solto: minúsculas, gírias leves (pô, slk, oxe, tlgd), às vezes "kkkk"',
+    giria: 'bem solto: minúsculas, gírias (mano, pô, slk, oxe, tlgd, tá ligado), "kkkk", apelido das salas (elec, café, nav, med)',
+    solto: 'escreve rápido e solto: tudo minúsculo, quase sem pontuação, "kkk" às vezes, abreviações comuns (vc, pq, tava), sem gíria pesada',
+    caotico: 'caótico: siglas pra tudo (n, q, cmg, dps, mt, td), gíria pesada (mano, pqp, slk, mds, tlgd), CAPS quando se exalta, "kkkkk", frase cortada',
     claro: 'escreve de forma simples e clara: frases curtas e completas, palavras comuns, sem abreviações, siglas ou gírias',
   };
   const REG_BY_PERS = {
@@ -7406,7 +7608,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         'Você escreve as mensagens de chat de vários jogadores numa partida de um jogo de dedução social igual a Among Us, na nave The Skeld. Eles estão numa reunião: conversam para descobrir o impostor e depois votam para ejetar alguém ou pular (skip).',
         'Como escrever:',
         '- Chat de jogo online de verdade, de jogadores brasileiros: mensagens curtas (até 120 caracteres), diretas, às vezes incompletas, reagindo ao que acabou de ser dito. Nada de narração, aspas, emojis, asteriscos ou descrição de ações.',
-        '- Cada personagem tem personalidade e JEITO DE ESCREVER próprios (estão descritos): siga exatamente. Uns escrevem certinho, outros abreviam, poucos usam gíria. Não coloque a mesma gíria em todo mundo; "mano" quase nunca.',
+        '- Cada personagem tem personalidade e JEITO DE ESCREVER próprios (estão descritos): siga exatamente. ' + ({ limpo: 'Todos escrevem de forma clara, mas cada um com suas palavras.', casual: 'Uns escrevem certinho, outros abreviam; gíria pesada ninguém usa.', raiz: 'Todo mundo escreve solto e com gíria, mas cada um com as suas (não repita a mesma gíria em todo mundo).' }[g.S.bots.chatTone] || ''),
         '- Nada de repetição: ninguém repete o que já disse nem o que outro já disse com as mesmas palavras. Cada mensagem acrescenta algo (um fato, uma pergunta, uma dúvida, uma opinião, uma reação curta). Quem já contou onde estava não conta de novo, a não ser que perguntem.',
         '- Perguntar algo não é motivo para acusar ninguém. Só acuse quem as anotações do personagem dão motivo.',
         '- Cada jogador tem um nome e uma cor (ex.: "Léo" é o "Lima"). Nome e cor são a MESMA pessoa: nunca defenda alguém pela cor e acuse o mesmo pelo nome. Ninguém defende e acusa a mesma pessoa na mesma mensagem.',
@@ -7420,8 +7622,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         '',
         V.rules(g),
         '',
-        'Exemplo do jeito de conversar (outra partida; não copie o conteúdo):',
-        EXAMPLE,
+        'Exemplo do jeito de conversar neste tom (outra partida; não copie o conteúdo):',
+        (EXAMPLES[g.S.bots.chatTone] || EXAMPLES.casual).join('\n'),
       ].join('\n');
     },
 
@@ -7487,12 +7689,19 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         w.formal = 3;
         w.claro = 2;
       } else if (tone === 'raiz') {
-        w.giria = (w.giria || 0) + 2;
+        /* raiz: todo mundo solto; ninguém escreve certinho */
+        delete w.formal;
+        w.giria = (w.giria || 0) + 3;
+        w.caotico = (w.caotico || 0) + 2;
         w.informal = (w.informal || 0) + 1;
+      } else {
+        /* casual: como gente normal; gíria pesada fica para o raiz */
+        if (w.giria) w.solto = (w.solto || 0) + w.giria;
+        delete w.giria;
       }
       const keys = Object.keys(w);
       const reg = U.weighted(keys, (k) => w[k]);
-      const quirks = tone === 'limpo' ? QUIRKS.filter((q) => !/ss|blz|rs|tipo|"\?"|pera/.test(q)) : QUIRKS;
+      const quirks = tone === 'limpo' ? QUIRKS.filter((q) => !/ss|blz|rs|tipo|"\?"|pera/.test(q)) : tone === 'casual' ? QUIRKS.filter((q) => !/"ss"/.test(q)) : QUIRKS;
       const qs = U.shuffle(quirks.slice()).slice(0, 2);
       b.voiceStyle = REGISTERS[reg] + '; ' + qs.join('; ') + '.';
       return b.voiceStyle;
@@ -8246,7 +8455,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         mt.schedule(delay, b, () => {
           if (!p.alive || mt.closed) return;
           this.aiLines++;
-          mt.post(p, g.S.bots.chatTone === 'limpo' ? U.cap(T.clean(ln.text)) : ln.text, intents, { ai: true });
+          mt.post(p, T.toneFilter(ln.text, g.S.bots.chatTone), intents, { ai: true });
         }, { ttl: 30, force: toHuman, dir: true });
         delay += 0.5 + Math.min(2.2, ln.text.length / 40) * U.rf(0.7, 1.2);
       }
@@ -8561,7 +8770,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     ejCrew: ['eu era inocente!!', 'votaram errado, que raiva', 'não era eu gente', 'sério que me ejetaram?', 'tô bravo, eu fazendo task'],
     reactEjImp: ['boa, acertaram', 'finalmente', 'aee', 'mandaram bem'],
     reactEjCrew: ['votaram errado...', 'coitado', 'sabia que ia dar ruim', 'não acredito'],
-    tellHuman: ['{k} que me pegou, fica de olho', 'quem me pegou foi {k}, {a}', '{k} me matou, espero que votem certo'],
+    tellHuman: ['foi {k} que me pegou', 'quem me pegou foi {k}, {a}', '{k} me matou, tomara que votem nele'],
     whoKnown: ['foi {k}', '{k}, certeza', '{k} me pegou {a}', '{k}, {a}'],
     whoAgain: ['já falei, foi {k}', '{k}, já disse', '{k}, eu falei ali em cima', 'foi {k} mesmo'],
     whoSaw: ['vi {k} matando {v}', '{k}, vi pegar {v}'],
@@ -8570,9 +8779,34 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     hello: ['oi', 'eai', 'salve', 'opa', 'fala'],
     agree: ['verdade', 'pois é', 'é isso', 'kkk', 'total', 'também acho', 'faz sentido'],
     nameReact: ['sabia', 'vish, {x}?', '{x}? não esperava', 'faz sentido, tava estranho', 'hmm, {x}'],
-    idleKnown: ['{k} tá solto ainda', 'votem em {kn} pfv', 'ninguém desconfia de {kn}...', 'fica de olho em {kn}, tripulação'],
-    idle: ['vamo tripulação', 'termina as tasks aí gente', 'que partida', 'tô torcendo aqui', 'esse jogo tá tenso', 'alguém faz as tasks'],
+    idleKnown: ['{k} tá solto ainda', 'tomara que votem em {kn}', 'ninguém desconfia de {kn}...', 'se alguém pegasse {kn}...'],
+    idle: ['vamo tripulação', 'tomara que terminem as tasks', 'que partida', 'tô torcendo aqui', 'esse jogo tá tenso', 'bora fazer as tasks de fantasma'],
     impIdle: ['vai parceiro', 'ainda dá pra ganhar', 'kkk tão perdidos', 'tá indo bem'],
+    greetHumanEj: ['ih, te ejetaram, {vn}?', 'bem-vindo, {vn}. te tiraram na votação né', 'votaram em você, {vn}? que isso', 'f {vn}, ejetado', 'chegou mais um ejetado'],
+    greetHumanEjCrew: ['votaram errado em você, {vn}... era inocente', 'te ejetaram e você era inocente, que raiva', 'f {vn}, votaram no inocente de novo'],
+    greetHumanEjImp: ['kkk era você, {vn}', 'te pegaram, impostor', 'eu sabia que era você, {vn}'],
+    greetHumanEjMate: ['f parceiro', 'nos pegaram kkk', 'fomos descobertos, {vn}'],
+    greetHumanKilledMe: ['foi você que me matou, {vn}!', 'olha quem chegou, quem me matou kkk'],
+    youWereEjected: ['você foi ejetado, ninguém te matou kkk', 'te votaram, lembra? ninguém te matou', 'você saiu na votação'],
+    youKilledBy: ['{k} te matou, eu vi', 'foi {k}, vi daqui', '{k} te pegou {a}'],
+    youUnknown: ['não vi quem te pegou', 'não vi, você não viu quem foi?', 'sei não, não tava perto'],
+    ejectedAgree: ['votaram errado mesmo', 'é, te tiraram injustamente', 'foi mal da galera'],
+    ejectedImp: ['kkk era você mesmo', 'mas você era o impostor né kkk'],
+    ejectedPlain: ['é, votaram em você', 'acontece, votação é loteria'],
+    aliveCount: ['ainda tem {n} vivos', 'sobraram {n} vivos'],
+    impsLeft: ['falta {n} impostor', 'ainda tem {n} impostor vivo'],
+    impsLeftPl: ['faltam {n} impostores', 'ainda tem {n} impostores vivos'],
+    knowImp: ['{x} é impostor, eu vi', '{x} matou, eu vi daqui', 'é {x} sim, vi matando'],
+    knowSafe: ['{x} é inocente, vi fazer a visual quando eu tava vivo', '{x} é safe, vi a visual', 'não é {xn}, vi fazer tarefa visual'],
+    knowSus: ['eu desconfiava {xde} mesmo', '{x} tava estranho quando eu tava vivo', 'hmm, eu já tava de olho {xem}'],
+    knowNothing: ['{x}? sei não', 'não sei nada {xde}', '{x}? não vi nada'],
+    iWasCrew: ['não, eu era tripulante', 'eu era inocente', 'não era eu não'],
+    iWasImp: ['era eu sim kkk', 'é, era eu', 'fui eu kkk'],
+    wrongVote: ['não!! foi {k}', 'tão votando errado, foi {k}', 'não é esse, foi {k} que me matou', 'aaa vota em {kn}'],
+    rightVote: ['isso, vota em {kn}', 'isso!! é {k}', 'vai, tira {kn}'],
+    notEjected: ['ejetado? você foi morto, não ejetado', 'não, te mataram... ninguém votou em você', 'você morreu, não foi votação'],
+    mate: ['{x} é meu parceiro kkk', 'é {x}, o outro impostor', 'shh, {x} é dos meus kkk'],
+    killerGone: ['foi {k}, mas já ejetaram', '{k} me matou, e já saiu na votação'],
     protect: ['protegi {x}', 'escudo em {xn}', 'tô cuidando de {xn}', 'coloquei escudo em {xn}'],
     shieldHit: ['o escudo salvou {x}!!', 'kkk o escudo funcionou em {xn}', 'salvei {x}'],
   };
@@ -8603,7 +8837,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       return !!h && !h.alive;
     }
     ghostBots() {
-      return this.g.players.filter((p) => !p.alive && p.brain);
+      return this.g.players.filter((p) => !p.alive && p.brain && !p.isHuman);
     }
     name(id) {
       const p = this.g.players[id];
@@ -8631,7 +8865,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       kv.killer = apparent;
       kv.area = area;
       for (const p of this.g.players) {
-        if (p.alive || p === victim || !p.brain) continue;
+        if (p.alive || p === victim || !p.brain || p.isHuman) continue;
         if (U.d2(p.x, p.y, victim.x, victim.y) > 11) continue;
         this.k(p.id).saw.push({ killer: apparent, victim: victim.id, area });
         if (this.open && U.chance(0.6)) this.later(p, U.rf(1, 3), { kind: 'sawKill', k: apparent, v: victim.id, a: area });
@@ -8654,11 +8888,19 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     joined(v, ejected) {
       const g = this.g;
       if (v.isHuman) {
-        /* o jogador acabou de morrer: os outros fantasmas recebem ele (uma fala por fantasma; quem viu o abate já falou) */
+        /* o jogador chegou (morto ou ejetado): os outros fantasmas recebem do jeito certo — ninguém pergunta
+           "quem te matou" para quem saiu na votação */
+        if (ejected) this.k(v.id).ejected = true;
         const others = this.ghostBots();
         const spoke = new Set(this.queue.map((q) => q.who));
         const fresh = U.shuffle(others.filter((q) => !spoke.has(q.id)));
-        fresh.slice(0, 2).forEach((q, i) => this.later(q, 3.5 + i * 2.2 + U.rf(0, 1.5), { kind: 'greetHuman', v: v.id }));
+        const conf = g.S.rules.confirmEjects;
+        fresh.slice(0, 2).forEach((q, i) => {
+          let kind = 'greetHuman';
+          if (this.k(q.id).killer === v.id) kind = 'greetHumanKilledMe';
+          else if (ejected) kind = conf ? (v.isImp ? (q.isImp ? 'greetHumanEjMate' : 'greetHumanEjImp') : 'greetHumanEjCrew') : q.isImp && v.isImp ? 'greetHumanEjMate' : 'greetHumanEj';
+          this.later(q, 3.5 + i * 2.2 + U.rf(0, 1.5), { kind, v: v.id });
+        });
         const teller = U.shuffle(others.slice()).find((q) => !fresh.slice(0, 2).includes(q) && this.k(q.id).killer != null && g.players[this.k(q.id).killer] && g.players[this.k(q.id).killer].alive)
           || (others.length === 1 && this.k(others[0].id).killer != null ? others[0] : null);
         if (teller && U.chance(0.7)) this.later(teller, U.rf(9, 13), { kind: 'tellHuman' });
@@ -8667,7 +8909,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (!this.open) return;
       const kv = this.k(v.id);
       if (ejected) {
-        if (U.chance(0.75)) this.later(v, U.rf(2, 5), { kind: v.isImp && g.S.rules.confirmEjects ? 'ejImp' : v.isImp ? (U.chance(0.5) ? 'ejImp' : 'ejCrew') : 'ejCrew' });
+        /* morto não precisa mais mentir: impostor ejetado quase sempre admite para os outros fantasmas */
+        if (U.chance(0.75)) this.later(v, U.rf(2, 5), { kind: v.isImp ? (U.chance(0.85) ? 'ejImp' : 'ejCrew') : 'ejCrew' });
         const r = this.ghostBots().filter((q) => q !== v);
         if (r.length && U.chance(0.6)) this.later(U.pick(r), U.rf(4, 7), { kind: g.S.rules.confirmEjects ? (v.isImp ? 'reactEjImp' : 'reactEjCrew') : 'agree', v: v.id });
         return;
@@ -8712,6 +8955,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         });
         if (alive.length) this.deliver(alive);
       }
+      const mt = this.g.meeting;
+      if (this.g.phase === 'meeting' && mt && !mt.closed && mt.phase === 'voting' && this.clock >= (this.voteCheckAt || 0)) {
+        this.voteCheckAt = this.clock + 3;
+        this.voteTalk(mt);
+      }
       if (this.clock >= this.idleAt) {
         this.idleAt = this.clock + U.rf(45, 85);
         const bots = this.ghostBots();
@@ -8751,7 +8999,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         .replace(/\{k\}/g, () => R('k'))
         .replace(/\{v\}/g, () => R('v'))
         .replace(/\{x\}/g, () => R('x'))
-        .replace(/\{a\}/g, () => this.room(ctx.a));
+        .replace(/\{a\}/g, () => this.room(ctx.a))
+        .replace(/\{n\}/g, () => String(ctx.n))
+        .replace(/\{xde\}/g, () => (ctx.x != null && this.g.players[ctx.x] ? (U.chance(0.5) ? 'de ' + this.name(ctx.x) : 'do ' + C.COLOR[this.g.players[ctx.x].color].name.toLowerCase()) : 'dele'))
+        .replace(/\{xem\}/g, () => (ctx.x != null && this.g.players[ctx.x] ? (U.chance(0.5) ? 'em ' + this.name(ctx.x) : 'no ' + C.COLOR[this.g.players[ctx.x].color].name.toLowerCase()) : 'nele'));
     }
     choose(list, ctx) {
       const fresh = list.map((s) => this.fill(s, ctx)).filter((s) => !this.used.has(s));
@@ -8769,14 +9020,59 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       switch (ctx.kind) {
         case 'reply': {
           const n = U.norm(ctx.text);
+          const hp = g.human, hk = this.k(hp.id);
+          const alive = g.players.filter((q) => q.alive);
+          const x = g.players.find((q) => q !== hp && q !== p && (n.split(/\W+/).includes(U.norm(q.name)) || new RegExp('\\b' + U.norm(C.COLOR[q.color].name) + '\\b').test(n)));
+          /* "quem me matou?", "como eu morri?": quem foi ejetado não foi morto por ninguém */
+          if (/\b(quem|qm)\b.*\bme\b.*\b(mat|peg)|\bcomo (eu )?morri\b/.test(n)) {
+            if (hk.ejected) return this.choose(LINES.youWereEjected, {});
+            const s2 = kp.saw.find((sx) => sx.victim === hp.id);
+            if (s2) return this.choose(LINES.youKilledBy, { k: s2.killer, a: s2.area });
+            return this.choose(LINES.youUnknown, {});
+          }
+          /* "me tiraram", "fui ejetado" (e quem foi morto e acha que foi votação) */
+          if (!hk.ejected && /\b(me (tiraram|votaram|expulsaram|ejetaram)|fui (ejetado|expulso|votado))\b/.test(n)) return this.choose(LINES.notEjected, {});
+          if (hk.ejected && /\b(me (tiraram|votaram|expulsaram|ejetaram)|fui (ejetado|expulso|votado))\b/.test(n)) {
+            if (g.S.rules.confirmEjects) return this.choose(hp.isImp ? LINES.ejectedImp : LINES.ejectedAgree, {});
+            return this.choose(LINES.ejectedPlain, {});
+          }
+          /* perguntaram do próprio fantasma: "você era o impostor?" (morto não precisa mentir) */
+          if (/\b(vc|voce|tu)\b.*\b(era|e|eh|foi)\b.*\b(imp|impostor)\b|\bera (vc|voce)\b|\bfoi (vc|voce)\b/.test(n) && !x) return this.choose(p.isImp ? LINES.iWasImp : LINES.iWasCrew, {});
+          /* quantos vivos / quantos impostores (com ejeção confirmada todo mundo sabe contar) */
+          if (/\b(quantos|quem (ta|esta) vivo|sobrou|falta quantos|faltam quantos)\b/.test(n)) {
+            /* outro fantasma acabou de responder a mesma conta: não repete */
+            if (this.msgs.slice(-3).some((m) => m.from !== hp.id && /\bvivos\b/.test(U.norm(m.text)))) return null;
+            let t = this.choose(LINES.aliveCount, { n: alive.length });
+            if (g.S.rules.confirmEjects) {
+              const imps = alive.filter((q) => q.isImp).length;
+              t += ', ' + this.choose(imps === 1 ? LINES.impsLeft : LINES.impsLeftPl, { n: imps });
+            }
+            return t;
+          }
+          /* sobre alguém vivo: o que este fantasma sabe dele (viu matar, viu visual, desconfiava) */
+          if (x && x.alive) {
+            if (p.isImp && x.isImp) return this.choose(LINES.mate, { x: x.id });
+            if (kp.killer === x.id || kp.saw.some((sx) => sx.killer === x.id)) return this.choose(LINES.knowImp, { x: x.id });
+            const b = p.brain;
+            if (!p.isImp && b && b.mem.events.some((e) => e.type === 'visual' && e.who === x.id)) return this.choose(LINES.knowSafe, { x: x.id });
+            if (!p.isImp && b && (b.susp[x.id] || 0) >= 25) return this.choose(LINES.knowSus, { x: x.id });
+            if (/\?/.test(ctx.text) || /\b(imp|impostor|sus|foi)\b/.test(n)) return this.choose(LINES.knowNothing, { x: x.id });
+            return this.choose(LINES.nameReact, { x: x.id });
+          }
           if (/\b(quem|qm)\b.*\b(mat|pegou|foi|imp)|\bimpostor|\bimp\b|\bsus\b/.test(n)) {
-            if (kp.killer != null) return this.choose(this.saidName(p, kp.killer) ? LINES.whoAgain : LINES.whoKnown, { k: kp.killer, a: kp.area });
-            if (kp.saw.length) return this.choose(LINES.whoSaw, { k: kp.saw[0].killer, v: kp.saw[0].victim });
+            if (p.isImp) {
+              const mate = alive.find((q) => q.isImp && q !== p);
+              return mate ? this.choose(LINES.mate, { x: mate.id }) : this.choose(LINES.iWasImp, {});
+            }
+            if (kp.killer != null) {
+              if (!(g.players[kp.killer] && g.players[kp.killer].alive)) return this.choose(LINES.killerGone, { k: kp.killer });
+              return this.choose(this.saidName(p, kp.killer) ? LINES.whoAgain : LINES.whoKnown, { k: kp.killer, a: kp.area });
+            }
+            const s3 = kp.saw.find((sx) => g.players[sx.killer] && g.players[sx.killer].alive);
+            if (s3) return this.choose(LINES.whoSaw, { k: s3.killer, v: s3.victim });
             return this.choose(kp.ejected ? LINES.whoUnknownEj : LINES.whoUnknown, {});
           }
           if (/^(oi|ola|eai|e ai|salve|opa|fala|hey|hello)\b/.test(n)) return this.choose(LINES.hello, {});
-          const x = g.players.find((q) => q !== g.human && (n.split(/\W+/).includes(U.norm(q.name)) || n.includes(U.norm(C.COLOR[q.color].name))));
-          if (x && x !== p) return this.choose(LINES.nameReact, { x: x.id });
           return this.choose(LINES.agree, {});
         }
         case 'idle': {
@@ -8796,6 +9092,24 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
     }
 
+    /* Os fantasmas assistem a votação: quem sabe quem é o impostor reage ("não!! foi o verde") — os vivos não leem. */
+    voteTalk(mt) {
+      const g = this.g, lead = mt.leading();
+      if (!lead || lead.count < 2) return;
+      this.voteSaid = this.voteSaid || {};
+      const key = mt.info.index + ':' + lead.id;
+      if (this.voteSaid[key]) return;
+      for (const q of U.shuffle(this.ghostBots())) {
+        if (q.isImp) continue;
+        const kq = this.k(q.id);
+        const live = (id) => id != null && g.players[id] && g.players[id].alive;
+        const killer = live(kq.killer) ? kq.killer : (kq.saw.find((sx) => live(sx.killer)) || {}).killer;
+        if (killer == null) continue;
+        this.voteSaid[key] = true;
+        this.later(q, U.rf(0.4, 1.8), { kind: lead.id === killer ? 'rightVote' : 'wrongVote', k: killer });
+        return;
+      }
+    }
     /* esse fantasma já citou essa pessoa há pouco? (não repete a mesma informação) */
     saidName(p, id) {
       const q = this.g.players[id];
@@ -8814,6 +9128,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         out.push('Era IMPOSTOR' + (mates.length ? ' (parceiro: ' + mates.join(', ') + ')' : '') + '. Morto, pode admitir ou zoar; não precisa mais mentir.');
       }
       kp.saw.forEach((s) => out.push('Depois de morto viu ' + AU.Voice.who(g, s.killer) + ' matar ' + this.name(s.victim) + ' ' + this.room(s.area) + '.'));
+      if (!p.isImp && p.brain) {
+        const b = p.brain;
+        const vis = [...new Set(b.mem.events.filter((e) => e.type === 'visual' && g.players[e.who] && g.players[e.who].alive).map((e) => e.who))];
+        if (vis.length) out.push('Quando estava vivo viu fazer tarefa visual (inocentes): ' + vis.map((id) => this.name(id)).join(', ') + '.');
+        const sus = g.players.filter((q) => q.alive && (b.susp[q.id] || 0) >= 25).map((q) => this.name(q.id));
+        if (sus.length) out.push('Desconfiava de: ' + sus.slice(0, 2).join(', ') + '.');
+      }
       if (p.special === 'anjo' && !p.isImp) out.push('É Anjo da Guarda: pode pôr escudo em um vivo' + (kp.protect.length ? '; já protegeu ' + kp.protect.map((id) => this.name(id)).join(', ') : '') + '.');
       return out.join(' ');
     }
@@ -8823,7 +9144,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       switch (c.kind) {
         case 'reply': return AU.Voice.who(g, hp.id) + ' escreveu: "' + c.text + '". ' + p.name + ' responde a isso.';
         case 'greet': return this.name(c.v) + ' acabou de morrer e chegou no chat dos fantasmas. ' + p.name + ' recebe.';
-        case 'greetHuman': return this.name(c.v) + ' (o jogador) acabou de morrer. ' + p.name + ' recebe e talvez pergunte quem matou.';
+        case 'greetHuman': return this.name(c.v) + ' (o jogador) acabou de ser morto e chegou aqui. ' + p.name + ' recebe e talvez pergunte quem matou.';
+        case 'greetHumanKilledMe': return this.name(c.v) + ' (o jogador, que era impostor e matou ' + p.name + ') acabou de chegar aqui. ' + p.name + ' comenta isso.';
+        case 'greetHumanEj': case 'greetHumanEjCrew': case 'greetHumanEjImp': case 'greetHumanEjMate':
+          return this.name(c.v) + ' (o jogador) foi EJETADO na votação (ninguém o matou)' + (g.S.rules.confirmEjects ? ' e ' + (hp.isImp ? 'era impostor' : 'era inocente') : '') + '. ' + p.name + ' recebe comentando a votação — não pergunte quem matou.';
+        case 'wrongVote': return 'Os vivos estão votando em ' + this.name(g.meeting && g.meeting.leading() ? g.meeting.leading().id : null) + ', mas ' + p.name + ' sabe que foi ' + this.name(c.k) + '. Reage (os vivos não leem).';
+        case 'rightVote': return 'Os vivos estão votando em ' + this.name(c.k) + ', que ' + p.name + ' sabe que é impostor. Torce.';
         case 'selfKiller': return p.name + ' acabou de morrer e conta quem o matou.';
         case 'selfUnknown': return p.name + ' acabou de morrer sem ver quem foi.';
         case 'sawKill': return p.name + ' (fantasma) acabou de ver ' + this.name(c.k) + ' matar ' + this.name(c.v) + ' ' + this.room(c.a) + '.';
@@ -8850,6 +9176,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         'Fase: ' + (g.phase === 'meeting' ? 'reunião em andamento (os vivos estão discutindo)' : 'rodada em andamento') + '. Barra de tarefas: ' + (tp.total ? Math.round((tp.done / tp.total) * 100) : 0) + '%.',
         'Vivos: ' + g.players.filter((q) => q.alive).map((q) => V.who(g, q.id)).join(', ') + '.',
         'Mortos (fantasmas): ' + dead.join(', ') + '.',
+        (() => {
+          const hp = g.human;
+          if (!hp || hp.alive) return '';
+          const hk = this.k(hp.id);
+          if (hk.ejected) return 'O jogador ' + hp.name + ' foi EJETADO na votação (ninguém o matou)' + (g.S.rules.confirmEjects ? '; ' + (hp.isImp ? 'era impostor' : 'era inocente') : '') + '.';
+          return 'O jogador ' + hp.name + ' foi morto' + (hk.killer != null ? ' (ele mesmo viu quem foi)' : '') + '.';
+        })(),
         '',
         'Chat dos fantasmas até agora:',
         this.msgs.slice(-14).map((m) => this.name(m.from) + ': ' + m.text).join('\n') || '(vazio)',
@@ -8867,6 +9200,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         '- Chat de jogo de verdade: mensagens curtas (até 100 caracteres), sem narração, sem aspas, sem emojis, sem asteriscos.',
         '- Cada um tem o próprio jeito de escrever (descrito): siga. Ninguém repete o que já foi dito.',
         '- Fantasmas lamentam, zoam, torcem, comentam a partida e respondem quem falou. Contam quem os matou se sabem. Não inventam o que não viram.',
+        '- Morto não volta: ninguém diz que vai voltar, reviver, jogar de novo nesta partida, votar ou avisar os vivos. Fantasma só assiste, faz as tarefas de fantasma e conversa aqui.',
+        '- Quem foi EJETADO saiu na votação, não foi morto por ninguém: nunca pergunte "quem te matou" para quem foi ejetado e nunca diga que ele morreu assassinado.',
+        '- Use o que cada um sabe (está no bloco dele): quem o matou, o que viu depois de morto, o que viu quando estava vivo (tarefa visual, de quem desconfiava), quem ainda está vivo.',
+        '- Morto não precisa mais mentir: impostor morto pode admitir e até falar do parceiro.',
         '- Entenda erros de digitação e ditado de voz pelo sentido mais provável.',
         '- Nunca diga que é IA ou bot.',
       ].join('\n');
@@ -8893,7 +9230,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const t = ln.text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').trim();
         if (!t || this.msgs.slice(-10).some((m) => U.norm(m.text) === U.norm(t))) continue;
         setTimeout(() => {
-          if (this.g.phase !== 'ended' && !p.alive) this.say(p, t);
+          if (this.g.phase !== 'ended' && !p.alive) this.say(p, t, true);
         }, delay);
         delay += U.rf(900, 2200);
       }
@@ -8906,10 +9243,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (this.msgs.length > 120) this.msgs.shift();
       return msg;
     }
-    say(p, text) {
+    /* frase pronta passa pelo tom do chat (limpo/casual/raiz) como as dos vivos; a da IA só pelo filtro do tom */
+    say(p, text, fromAI) {
       if (!p || p.alive || !text) return;
-      const g = this.g;
-      if (g.S.bots.chatTone === 'limpo' && AU.Talk && AU.Talk.clean) text = U.cap(AU.Talk.clean(text)) || text;
+      const g = this.g, T = AU.Talk;
+      if (T && fromAI && T.toneFilter) text = T.toneFilter(text, g.S.bots.chatTone) || text;
+      else if (T && T.style) text = T.style(text, g, p.brain, { kind: 'ghost' }) || text;
       if (g.phase === 'meeting' && g.meeting && !g.meeting.closed) g.meeting.post(p, text, []);
       else this.record({ from: p.id, text });
     }
@@ -9117,7 +9456,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const nm = U.norm(m[1].replace(/\([^)]*\)/g, '')).trim();
         const r = who.find((b) => U.norm(b.name) === nm || U.norm(C.COLOR[b.color].name) === nm);
         let t = m[2].replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').replace(/^["“]|["”]$/g, '').trim().slice(0, 140);
-        if (this.S.bots.chatTone === 'limpo' && AU.Talk.clean) t = U.cap(AU.Talk.clean(t)) || t;
+        if (AU.Talk.toneFilter) t = AU.Talk.toneFilter(t, this.S.bots.chatTone) || t;
         if (r && t) lines.push({ r, t });
       }
       if (!lines.length) {
@@ -9446,6 +9785,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const mine = this.msgs.filter((m) => m.from === p.id);
         const nt = U.norm(text);
         if (mine.some((m) => U.norm(m.text) === nt)) return null;
+        /* frase idêntica à de outra pessoa há pouco ("ngm tem certeza, skip" duas vezes): só voto/concordância, então nem manda */
+        const same = this.msgs.some((m) => m.from !== p.id && this.t - m.t < 25 && U.norm(m.text) === nt);
+        if (!opts.ai && same && (intents || []).every((it) => ['skip', 'agree'].includes(it.type) || (it.type === 'accuse' && it.reason === 'vote'))) return null;
         const strong = (intents || []).filter((it) => (it.type === 'vouch' || it.type === 'accuse') && it.who != null && it.reason !== 'vote');
         if (!opts.ai && strong.length && strong.every((it) => mine.some((m) => m.intents.some((j) => j.type === it.type && j.who === it.who && j.reason === it.reason)))) return null;
       }
@@ -9472,6 +9814,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const hp = g.human;
       /* quem diz "voto no X" ou "skip" no chat fica comprometido com isso */
       if (p.brain) {
+        if (msg.intents.some((it) => it.type === 'claimLoc')) p.brain.claimPosted = true;
         for (const it of msg.intents) {
           if (it.type === 'accuse' && it.reason === 'vote' && it.who !== p.id) p.brain.committed = it.who;
           if (it.type === 'skip') p.brain.skipLean = (p.brain.skipLean || 0) + 1;
@@ -13763,7 +14106,16 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         this.field('Nível dos impostores controlados por IA', levels),
         h('div', { class: 'grid3' },
           this.field('Erro humano', this.seg('berr', Object.keys(C.HUMAN_ERROR).map((k) => [k, C.HUMAN_ERROR[k].name]), () => B.humanError, (v) => { B.humanError = v; change(); }), 'Atenção, memória e confusão de cores'),
-          this.field('Tom do chat', this.seg('btone', Object.keys(C.CHAT_TONES).map((k) => [k, C.CHAT_TONES[k]]), () => B.chatTone, (v) => { B.chatTone = v; change(); })),
+          (() => {
+            /* a explicação do tom acompanha a escolha */
+            const hint = h('span', { class: 'field-hint' }, C.CHAT_TONE_HINT[B.chatTone] || '');
+            const seg = this.seg('btone', Object.keys(C.CHAT_TONES).map((k) => [k, C.CHAT_TONES[k]]), () => B.chatTone, (v) => {
+              B.chatTone = v;
+              hint.textContent = C.CHAT_TONE_HINT[v] || '';
+              change();
+            });
+            return h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Tom do chat'), seg, hint);
+          })(),
           this.field('Ritmo do chat', this.seg('bpace', Object.keys(C.CHAT_PACE).map((k) => [k, C.CHAT_PACE[k].name]), () => B.chatPace, (v) => { B.chatPace = v; change(); }))));
     },
 

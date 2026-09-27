@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const AU = window.AU;
-  const U = AU.U, M = AU.Map, T = AU.Talk;
+  const U = AU.U, M = AU.Map, T = AU.Talk, C = AU.C;
   const B = AU.Brain.prototype;
 
   const STRONG = { kill: 1, vent: 0.85, shift: 1, vanish: 0.95 };
@@ -14,6 +14,7 @@
     this.rs = mt.info.roundStart;
     this.budget = Math.round(1 + this.pers.talk * 3.2 + (this.pers.offtopic ? 1 : 0));
     this.claimed = false;
+    this.claimPosted = false;
     this.heardAcc = {};
     this.sharedWindow = null;
     this.killWindow = null;
@@ -382,7 +383,8 @@
         if (e.reason === 'visual' && g.players[+id].alive) items.push({ k: 'vouch', who: +id, reason: 'visual', task: e.task });
         if (e.reason === 'noscan') items.push({ k: 'accuse', who: +id, reason: 'noscan' });
         if (e.reason === 'fakeTask') items.push({ k: 'accuse', who: +id, reason: 'fakeTask', area: e.area });
-        if (e.reason === 'follow') items.push({ k: pers.panic ? 'panic' : 'accuse', who: +id, reason: 'follow' });
+        /* não acusa de "me seguir" quem estava junto comigo fazendo tarefa (é o meu álibi) */
+        if (e.reason === 'follow' && (this.togetherMap()[+id] || 0) < 12 && this.getAlibi().with !== +id) items.push({ k: pers.panic ? 'panic' : 'accuse', who: +id, reason: 'follow' });
       }
       if (this.mem.track.some((x) => x.t >= this.rs)) items.push({ k: 'tracker' });
       /* combinou de andar junto (sinal) e ficou junto: vira álibi para os dois */
@@ -449,8 +451,13 @@
     return (U.rf(2, 4.5) + L / U.rf(8, 13)) * pace * (this.pers.talk < 0.3 ? 1.6 : 1);
   };
 
+  /* frase igualzinha à de outra pessoa na reunião ("no admin fazendo os fios" três vezes) soa robô: reformula */
   B.say = function (kind, d, opts) {
-    return T.line(kind, d, this.g, this, opts);
+    let t = T.line(kind, d, this.g, this, opts);
+    const mt = this.mt, me = this.p.id;
+    const dup = (x) => mt && mt.msgs.some((m) => m.from !== me && U.norm(m.text) === U.norm(x));
+    for (let i = 0; i < 4 && dup(t); i++) t = T.line(kind, d, this.g, this, opts);
+    return t;
   };
 
   /* Local de um trecho do rastro, como um jogador contaria: a sala em que entrou; corredor só se ficou um bom
@@ -660,6 +667,10 @@
         const w = this.killWindow;
         if (!w) return null;
         const ago = Math.max(5, Math.round((mt.info.t - w.t0) / 5) * 5);
+        /* só vale contar se ajuda: visto há pouco, e mais recente do que o que já disseram */
+        if (ago > 35) return null;
+        const said = mt.msgs.flatMap((m) => m.intents.filter((j) => j.type === 'window' && j.ago != null).map((j) => j.ago));
+        if (said.length && Math.min(...said) <= ago) return null;
         if (w.mine) return msg('passedNoBody', { area: w.area, ago }, [{ type: 'window', area: w.area, ago }]);
         const victim = mt.info.body ? mt.info.body.pid : null;
         const vs = victim != null ? this.mem.seen.filter((x) => x.who === victim).pop() : null;
@@ -696,6 +707,9 @@
         if (!q || !q.alive) return null;
         const escorted = it.reason === 'visual' && this.mem.events.some((e) => (e.type === 'escortVisual' || e.type === 'escort') && e.who === it.who && e.t >= this.rs);
         if (escorted) return msg('sawVisualSafe', { who: it.who, task: it.task }, [{ type: 'vouch', who: it.who, reason: 'visual', task: it.task }]);
+        /* alguém já garantiu essa pessoa: confirma em vez de repetir a mesma frase */
+        const before = mt.msgs.find((m) => m.from !== p.id && m.intents.some((j) => j.type === 'vouch' && j.who === it.who && j.reason === it.reason));
+        if (before && it.reason === 'visual') return msg('alsoVouch', { who: it.who, by: before.from, task: it.task }, [{ type: 'vouch', who: it.who, reason: 'visual', task: it.task }]);
         return msg('vouch', it, [{ type: 'vouch', who: it.who, reason: it.reason, task: it.task }]);
       }
       case 'vitals': {
@@ -762,8 +776,8 @@
           this.queue.push(it);
           return null;
         }
-        if (mt.flags['sum' + p.id]) return null;
-        mt.flags['sum' + p.id] = true;
+        if (mt.flags.summaryDone) return null;
+        mt.flags.summaryDone = true;
         const cleared = mt.alive.filter((id) => id !== p.id && (this.hardCleared(id) || this.clearedByVisual(id))).slice(0, 3);
         const top = this.topSuspect();
         const strongTop = top && top.s >= this.pers.thr * 0.8;
@@ -838,8 +852,25 @@
     mt.schedule(wait, this, () => {
       if (!this.p.alive || mt.closed) return;
       const m = fn();
-      if (m && m.text) mt.say(this, m, meta);
+      if (!m || !m.text) return;
+      /* a conversa andou desde a mensagem respondida: diz com quem está falando ("verde, pq eu?") */
+      if (src != null && so && so.from !== this.p.id) {
+        const after = mt.msgs.filter((x) => x.id > src && x.from !== this.p.id);
+        if (after.length >= 2 || (after.length && mt.t - so.t > 6)) m.text = this.addressTo(so.from, m.text);
+      }
+      mt.say(this, m, meta);
     }, { ttl: direct ? 20 : 9, raw: viaAI });
+  };
+  B.addressTo = function (id, text) {
+    const g = this.g, q = g.players[id];
+    if (!q || !text) return text;
+    const col = C.COLOR[q.color].name.toLowerCase();
+    const n = U.norm(text);
+    if (n.includes(U.norm(q.name)) || new RegExp('\\b' + U.norm(col) + '\\b').test(n)) return text;
+    const tone = g.S.bots.chatTone;
+    const who = q.isHuman || U.chance(0.3) ? q.name : col;
+    if (tone === 'limpo') return (who === col ? U.cap(col) : who) + ', ' + text.charAt(0).toLowerCase() + text.slice(1);
+    return (tone === 'raiz' ? who.toLowerCase() + ' ' : who.toLowerCase() + ', ') + text;
   };
 
   B.mOnMessage = function (msg) {
@@ -892,11 +923,17 @@
       case 'askWhere':
         if (it.who === me) {
           if (!this.claimed) this.reply(pers.talk < 0.3 ? 2.5 : 1, () => this.compose({ k: 'claimLoc' }), true);
-          else if (!this.replied.has('reclaim')) {
+          else if (this.claimPosted && !this.replied.has('reclaim')) {
+            /* já tinha falado e perguntaram de novo: "já falei, tava na elétrica" (se ainda não saiu, é só esperar) */
             this.replied.add('reclaim');
             this.reply(1, () => {
               this.claimed = false;
-              return this.compose({ k: 'claimLoc' });
+              const m = this.compose({ k: 'claimLoc' });
+              if (!m) return null;
+              const tone = g.S.bots.chatTone;
+              const pre = tone === 'limpo' ? 'Já falei: ' : U.pick(tone === 'raiz' ? ['ja falei ', 'ja disse mano ', 'de novo: '] : ['já falei, ', 'já disse, ', 'de novo: ']);
+              m.text = pre + m.text.charAt(0).toLowerCase() + m.text.slice(1);
+              return m;
             }, true);
           }
         }

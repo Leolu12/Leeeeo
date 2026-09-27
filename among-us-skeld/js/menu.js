@@ -304,7 +304,16 @@
         this.field('Nível dos impostores controlados por IA', levels),
         h('div', { class: 'grid3' },
           this.field('Erro humano', this.seg('berr', Object.keys(C.HUMAN_ERROR).map((k) => [k, C.HUMAN_ERROR[k].name]), () => B.humanError, (v) => { B.humanError = v; change(); }), 'Atenção, memória e confusão de cores'),
-          this.field('Tom do chat', this.seg('btone', Object.keys(C.CHAT_TONES).map((k) => [k, C.CHAT_TONES[k]]), () => B.chatTone, (v) => { B.chatTone = v; change(); })),
+          (() => {
+            /* a explicação do tom acompanha a escolha */
+            const hint = h('span', { class: 'field-hint' }, C.CHAT_TONE_HINT[B.chatTone] || '');
+            const seg = this.seg('btone', Object.keys(C.CHAT_TONES).map((k) => [k, C.CHAT_TONES[k]]), () => B.chatTone, (v) => {
+              B.chatTone = v;
+              hint.textContent = C.CHAT_TONE_HINT[v] || '';
+              change();
+            });
+            return h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Tom do chat'), seg, hint);
+          })(),
           this.field('Ritmo do chat', this.seg('bpace', Object.keys(C.CHAT_PACE).map((k) => [k, C.CHAT_PACE[k].name]), () => B.chatPace, (v) => { B.chatPace = v; change(); }))));
     },
 

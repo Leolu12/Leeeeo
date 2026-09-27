@@ -1759,7 +1759,11 @@
         }
         if (via === 'eyes' && !p.isImp) {
           const d = U.dist(p, q);
-          if (d < 3.8 && q.moving && p.moving) this.followWatch[aid] = (this.followWatch[aid] || 0) + 0.2;
+          /* "me seguindo" = vem atrás de mim enquanto eu ando; quem eu estou seguindo (ou acompanhando) não conta */
+          const pt = this.path && this.pi < this.path.length ? this.path[this.pi] : null;
+          const behind = pt ? (q.x - p.x) * (pt.x - p.x) + (q.y - p.y) * (pt.y - p.y) < 0 : false;
+          const iFollow = this.plan && this.plan.type === 'follow' && (this.plan.target === q.id || this.plan.target === aid);
+          if (d < 3.8 && q.moving && p.moving && behind && !iFollow) this.followWatch[aid] = (this.followWatch[aid] || 0) + 0.2;
           else this.followWatch[aid] = Math.max(0, (this.followWatch[aid] || 0) - 0.08);
           const invited = this.invite && this.invite.who === aid && t < this.invite.until;
           const friendly = invited || (this.susp[aid] || 0) < 8;

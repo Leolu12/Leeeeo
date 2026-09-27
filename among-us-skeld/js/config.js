@@ -89,6 +89,11 @@
     alto: { name: 'Alto', mult: 1.7 },
   };
   C.CHAT_TONES = { limpo: 'Limpo', casual: 'Casual', raiz: 'Raiz' };
+  C.CHAT_TONE_HINT = {
+    limpo: 'O mais fácil de entender: frases completas, nomes oficiais das salas, sem siglas nem gírias.',
+    casual: 'Como a maioria escreve: vc, pq, tava, skip e sus às vezes, salas com o nome comum (cafeteria, elétrica).',
+    raiz: 'O mais caótico: café, elec, nav, storage, n, q, cmg, mano, tlgd, pqp, kkkk e CAPS quando se exaltam.',
+  };
   C.CHAT_PACE = { calmo: { name: 'Calmo', mult: 1.6 }, normal: { name: 'Normal', mult: 1 }, frenetico: { name: 'Frenético', mult: 0.6 } };
   C.AI_ACTIONS = { on: 'IA decide votos e ações no mapa', off: 'Só a conversa (votos e ações pelo motor)' };
   C.AI_CHAT = { full: 'Respostas e conversa entre bots', replies: 'Só respostas ao que você escreve', off: 'Desligada (só regras)' };

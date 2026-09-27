@@ -22,31 +22,56 @@
     inexperiente: 'meio perdido, confunde nomes de sala, pergunta o básico, inseguro',
   };
   const TONE = {
-    limpo: 'TOM LIMPO: todo mundo escreve frases completas, simples e fáceis de entender, em português correto. NADA de siglas, abreviações ou gírias (não use sus, safe, skip, vent, imp, self report, vc, pq, tb, ngm, kkk). Diga "suspeito", "inocente", "pular o voto", "usou o duto", "impostor" e os nomes das salas por extenso (Elétrica, Navegação, Segurança, Motor Inferior, Comunicações).',
-    casual: 'TOM CASUAL: como gente normal conversa num chat de jogo: frases curtas e naturais, uma abreviação comum de vez em quando (vc, pq, tava), poucas gírias; termos do jogo (sus, skip) só às vezes. Cada um no seu jeito.',
-    raiz: 'TOM RAIZ: bem solto, cheio de siglas e gírias de jogador (sus, safe, skip, vent, imp, self, ngm, vc, pq, tlgd), kkkk, frases cortadas e provocação leve; ainda assim cada um no seu jeito e sem ofensas.',
+    limpo: 'TOM LIMPO (o mais fácil de entender): todo mundo escreve frases completas, simples e claras, em português correto, com acentos. NADA de siglas, abreviações, gírias ou termos em inglês (não use sus, safe, skip, vent, imp, self report, task, vc, pq, tb, ngm, tava, pra, tá, kkk). Diga "suspeito", "inocente", "pular o voto", "usou o duto", "impostor", "tarefa", "estava", "para", e os nomes das salas por extenso (Cafeteria, Elétrica, Navegação, Segurança, Depósito, Armas, Escudos, Comunicações, Motor Superior, Motor Inferior, MedBay, Reator, Admin, O2).',
+    casual: 'TOM CASUAL (como a maioria das pessoas escreve num chat de jogo): frases curtas e naturais, quase tudo minúsculo, abreviações comuns (vc, pq, tava, pra, tá), "kkk" de vez em quando; dos termos do jogo, só os que todo mundo usa (skip, sus, task) e não o tempo todo. SEM gíria pesada (nada de tlgd, tá ligado, slk, pqp, véi, mano, mds) e as salas com o nome comum em português (cafeteria, elétrica, navegação, segurança, depósito, armas, escudos, comunicações, medbay, motor de cima, motor de baixo, reator, admin, o2) — nada de apelido como café, elec, nav, med, sec, storage, weapons, upper, lower.',
+    raiz: 'TOM RAIZ (o mais caótico): chat de jogador raiz. Gírias pesadas (mano, tlgd, tá ligado, slk, pqp, véi, mds, sla, caraca), siglas (n, q, vc, tb, td, cmg, dps, mt, msm, agr, ngm, pfv, ss), termos de jogador (sus, safe, skip, vent, imp, self, task, stack), apelidos das salas (café, elec, nav, med, sec, storage, weapons, upper, lower, comms, shields), "kkkk", CAPS quando se exalta, frases cortadas, quase sem acento e sem pontuação, provocação leve (sem ofensa pesada). Mesmo assim cada um no seu jeito.',
   };
   /* Exemplo com jeitos diferentes de escrever (não é para copiar). */
-  const EXAMPLE = [
-    'Lipe: onde?',
-    'Bia: Elétrica, perto dos fios.',
-    'Rafa: Quem estava pra aquele lado? Vamos um por um.',
-    'Zé: eu tava no deposito c o azul',
-    'Nina: confirmo',
-    'Bia: Vi o vermelho saindo de lá uns 10s antes.',
-    'Beto: EU?? tava na med fazendo scan',
-    'Rafa: Alguém viu o scan do Beto?',
-    'Nina: eu vi. safe',
-    'Caio: pera, e o laranja? não falou nada',
-    'Rafa: Sem prova, melhor pular.',
-  ].join('\n');
-
+  const EXAMPLES = {
+    limpo: [
+      'Lipe: Onde foi?',
+      'Bia: Na Elétrica, perto dos fios.',
+      'Rafa: Quem estava para aquele lado? Vamos um por vez.',
+      'Zé: Eu estava no Depósito com o azul.',
+      'Nina: Confirmo.',
+      'Bia: Vi o vermelho saindo de lá uns 10 segundos antes.',
+      'Beto: Eu? Estava na MedBay fazendo o escaneamento.',
+      'Nina: Eu vi o escaneamento dele. Ele é inocente.',
+      'Rafa: Sem prova, é melhor pular.',
+    ],
+    casual: [
+      'Lipe: onde?',
+      'Bia: elétrica, perto dos fios',
+      'Rafa: quem tava pra aquele lado? um de cada vez',
+      'Zé: eu tava no depósito com o azul',
+      'Nina: confirmo',
+      'Bia: vi o vermelho saindo de lá uns 10s antes',
+      'Beto: eu?? tava na medbay fazendo scan',
+      'Nina: eu vi o scan dele, é inocente',
+      'Caio: pera, e o laranja? não falou nada',
+      'Rafa: sem prova melhor skip',
+    ],
+    raiz: [
+      'Lipe: ond',
+      'Bia: elec perto dos fio',
+      'Rafa: qm tava p aquele lado mano',
+      'Zé: storage c o azul tlgd',
+      'Nina: ss',
+      'Bia: VI O VERMELHO SAINDO DE LA',
+      'Beto: EU?? tava na med de scan pqp',
+      'Nina: vi o scan dele, safe',
+      'Caio: e o laranja q n falou nd kkkk',
+      'Rafa: sem prova skipa',
+    ],
+  };
   /* Jeito de escrever de cada bot: sorteado uma vez por partida, puxado pela personalidade e pelo clima do lobby. */
   const REGISTERS = {
     formal: 'escreve direitinho: frases completas, maiúscula no começo, pontuação e acentos; nada de gíria',
     neutro: 'escreve normal: frases curtas, alguma pontuação, uma abreviação ou outra (vc, pq)',
     informal: 'escreve rápido: tudo minúsculo, quase sem pontuação, abreviações (vc, tb, tava, ngm, sla)',
-    giria: 'bem solto: minúsculas, gírias leves (pô, slk, oxe, tlgd), às vezes "kkkk"',
+    giria: 'bem solto: minúsculas, gírias (mano, pô, slk, oxe, tlgd, tá ligado), "kkkk", apelido das salas (elec, café, nav, med)',
+    solto: 'escreve rápido e solto: tudo minúsculo, quase sem pontuação, "kkk" às vezes, abreviações comuns (vc, pq, tava), sem gíria pesada',
+    caotico: 'caótico: siglas pra tudo (n, q, cmg, dps, mt, td), gíria pesada (mano, pqp, slk, mds, tlgd), CAPS quando se exalta, "kkkkk", frase cortada',
     claro: 'escreve de forma simples e clara: frases curtas e completas, palavras comuns, sem abreviações, siglas ou gírias',
   };
   const REG_BY_PERS = {
@@ -121,7 +146,7 @@
         'Você escreve as mensagens de chat de vários jogadores numa partida de um jogo de dedução social igual a Among Us, na nave The Skeld. Eles estão numa reunião: conversam para descobrir o impostor e depois votam para ejetar alguém ou pular (skip).',
         'Como escrever:',
         '- Chat de jogo online de verdade, de jogadores brasileiros: mensagens curtas (até 120 caracteres), diretas, às vezes incompletas, reagindo ao que acabou de ser dito. Nada de narração, aspas, emojis, asteriscos ou descrição de ações.',
-        '- Cada personagem tem personalidade e JEITO DE ESCREVER próprios (estão descritos): siga exatamente. Uns escrevem certinho, outros abreviam, poucos usam gíria. Não coloque a mesma gíria em todo mundo; "mano" quase nunca.',
+        '- Cada personagem tem personalidade e JEITO DE ESCREVER próprios (estão descritos): siga exatamente. ' + ({ limpo: 'Todos escrevem de forma clara, mas cada um com suas palavras.', casual: 'Uns escrevem certinho, outros abreviam; gíria pesada ninguém usa.', raiz: 'Todo mundo escreve solto e com gíria, mas cada um com as suas (não repita a mesma gíria em todo mundo).' }[g.S.bots.chatTone] || ''),
         '- Nada de repetição: ninguém repete o que já disse nem o que outro já disse com as mesmas palavras. Cada mensagem acrescenta algo (um fato, uma pergunta, uma dúvida, uma opinião, uma reação curta). Quem já contou onde estava não conta de novo, a não ser que perguntem.',
         '- Perguntar algo não é motivo para acusar ninguém. Só acuse quem as anotações do personagem dão motivo.',
         '- Cada jogador tem um nome e uma cor (ex.: "Léo" é o "Lima"). Nome e cor são a MESMA pessoa: nunca defenda alguém pela cor e acuse o mesmo pelo nome. Ninguém defende e acusa a mesma pessoa na mesma mensagem.',
@@ -135,8 +160,8 @@
         '',
         V.rules(g),
         '',
-        'Exemplo do jeito de conversar (outra partida; não copie o conteúdo):',
-        EXAMPLE,
+        'Exemplo do jeito de conversar neste tom (outra partida; não copie o conteúdo):',
+        (EXAMPLES[g.S.bots.chatTone] || EXAMPLES.casual).join('\n'),
       ].join('\n');
     },
 
@@ -202,12 +227,19 @@
         w.formal = 3;
         w.claro = 2;
       } else if (tone === 'raiz') {
-        w.giria = (w.giria || 0) + 2;
+        /* raiz: todo mundo solto; ninguém escreve certinho */
+        delete w.formal;
+        w.giria = (w.giria || 0) + 3;
+        w.caotico = (w.caotico || 0) + 2;
         w.informal = (w.informal || 0) + 1;
+      } else {
+        /* casual: como gente normal; gíria pesada fica para o raiz */
+        if (w.giria) w.solto = (w.solto || 0) + w.giria;
+        delete w.giria;
       }
       const keys = Object.keys(w);
       const reg = U.weighted(keys, (k) => w[k]);
-      const quirks = tone === 'limpo' ? QUIRKS.filter((q) => !/ss|blz|rs|tipo|"\?"|pera/.test(q)) : QUIRKS;
+      const quirks = tone === 'limpo' ? QUIRKS.filter((q) => !/ss|blz|rs|tipo|"\?"|pera/.test(q)) : tone === 'casual' ? QUIRKS.filter((q) => !/"ss"/.test(q)) : QUIRKS;
       const qs = U.shuffle(quirks.slice()).slice(0, 2);
       b.voiceStyle = REGISTERS[reg] + '; ' + qs.join('; ') + '.';
       return b.voiceStyle;
@@ -961,7 +993,7 @@
         mt.schedule(delay, b, () => {
           if (!p.alive || mt.closed) return;
           this.aiLines++;
-          mt.post(p, g.S.bots.chatTone === 'limpo' ? U.cap(T.clean(ln.text)) : ln.text, intents, { ai: true });
+          mt.post(p, T.toneFilter(ln.text, g.S.bots.chatTone), intents, { ai: true });
         }, { ttl: 30, force: toHuman, dir: true });
         delay += 0.5 + Math.min(2.2, ln.text.length / 40) * U.rf(0.7, 1.2);
       }

@@ -19,7 +19,7 @@
     ejCrew: ['eu era inocente!!', 'votaram errado, que raiva', 'não era eu gente', 'sério que me ejetaram?', 'tô bravo, eu fazendo task'],
     reactEjImp: ['boa, acertaram', 'finalmente', 'aee', 'mandaram bem'],
     reactEjCrew: ['votaram errado...', 'coitado', 'sabia que ia dar ruim', 'não acredito'],
-    tellHuman: ['{k} que me pegou, fica de olho', 'quem me pegou foi {k}, {a}', '{k} me matou, espero que votem certo'],
+    tellHuman: ['foi {k} que me pegou', 'quem me pegou foi {k}, {a}', '{k} me matou, tomara que votem nele'],
     whoKnown: ['foi {k}', '{k}, certeza', '{k} me pegou {a}', '{k}, {a}'],
     whoAgain: ['já falei, foi {k}', '{k}, já disse', '{k}, eu falei ali em cima', 'foi {k} mesmo'],
     whoSaw: ['vi {k} matando {v}', '{k}, vi pegar {v}'],
@@ -28,9 +28,34 @@
     hello: ['oi', 'eai', 'salve', 'opa', 'fala'],
     agree: ['verdade', 'pois é', 'é isso', 'kkk', 'total', 'também acho', 'faz sentido'],
     nameReact: ['sabia', 'vish, {x}?', '{x}? não esperava', 'faz sentido, tava estranho', 'hmm, {x}'],
-    idleKnown: ['{k} tá solto ainda', 'votem em {kn} pfv', 'ninguém desconfia de {kn}...', 'fica de olho em {kn}, tripulação'],
-    idle: ['vamo tripulação', 'termina as tasks aí gente', 'que partida', 'tô torcendo aqui', 'esse jogo tá tenso', 'alguém faz as tasks'],
+    idleKnown: ['{k} tá solto ainda', 'tomara que votem em {kn}', 'ninguém desconfia de {kn}...', 'se alguém pegasse {kn}...'],
+    idle: ['vamo tripulação', 'tomara que terminem as tasks', 'que partida', 'tô torcendo aqui', 'esse jogo tá tenso', 'bora fazer as tasks de fantasma'],
     impIdle: ['vai parceiro', 'ainda dá pra ganhar', 'kkk tão perdidos', 'tá indo bem'],
+    greetHumanEj: ['ih, te ejetaram, {vn}?', 'bem-vindo, {vn}. te tiraram na votação né', 'votaram em você, {vn}? que isso', 'f {vn}, ejetado', 'chegou mais um ejetado'],
+    greetHumanEjCrew: ['votaram errado em você, {vn}... era inocente', 'te ejetaram e você era inocente, que raiva', 'f {vn}, votaram no inocente de novo'],
+    greetHumanEjImp: ['kkk era você, {vn}', 'te pegaram, impostor', 'eu sabia que era você, {vn}'],
+    greetHumanEjMate: ['f parceiro', 'nos pegaram kkk', 'fomos descobertos, {vn}'],
+    greetHumanKilledMe: ['foi você que me matou, {vn}!', 'olha quem chegou, quem me matou kkk'],
+    youWereEjected: ['você foi ejetado, ninguém te matou kkk', 'te votaram, lembra? ninguém te matou', 'você saiu na votação'],
+    youKilledBy: ['{k} te matou, eu vi', 'foi {k}, vi daqui', '{k} te pegou {a}'],
+    youUnknown: ['não vi quem te pegou', 'não vi, você não viu quem foi?', 'sei não, não tava perto'],
+    ejectedAgree: ['votaram errado mesmo', 'é, te tiraram injustamente', 'foi mal da galera'],
+    ejectedImp: ['kkk era você mesmo', 'mas você era o impostor né kkk'],
+    ejectedPlain: ['é, votaram em você', 'acontece, votação é loteria'],
+    aliveCount: ['ainda tem {n} vivos', 'sobraram {n} vivos'],
+    impsLeft: ['falta {n} impostor', 'ainda tem {n} impostor vivo'],
+    impsLeftPl: ['faltam {n} impostores', 'ainda tem {n} impostores vivos'],
+    knowImp: ['{x} é impostor, eu vi', '{x} matou, eu vi daqui', 'é {x} sim, vi matando'],
+    knowSafe: ['{x} é inocente, vi fazer a visual quando eu tava vivo', '{x} é safe, vi a visual', 'não é {xn}, vi fazer tarefa visual'],
+    knowSus: ['eu desconfiava {xde} mesmo', '{x} tava estranho quando eu tava vivo', 'hmm, eu já tava de olho {xem}'],
+    knowNothing: ['{x}? sei não', 'não sei nada {xde}', '{x}? não vi nada'],
+    iWasCrew: ['não, eu era tripulante', 'eu era inocente', 'não era eu não'],
+    iWasImp: ['era eu sim kkk', 'é, era eu', 'fui eu kkk'],
+    wrongVote: ['não!! foi {k}', 'tão votando errado, foi {k}', 'não é esse, foi {k} que me matou', 'aaa vota em {kn}'],
+    rightVote: ['isso, vota em {kn}', 'isso!! é {k}', 'vai, tira {kn}'],
+    notEjected: ['ejetado? você foi morto, não ejetado', 'não, te mataram... ninguém votou em você', 'você morreu, não foi votação'],
+    mate: ['{x} é meu parceiro kkk', 'é {x}, o outro impostor', 'shh, {x} é dos meus kkk'],
+    killerGone: ['foi {k}, mas já ejetaram', '{k} me matou, e já saiu na votação'],
     protect: ['protegi {x}', 'escudo em {xn}', 'tô cuidando de {xn}', 'coloquei escudo em {xn}'],
     shieldHit: ['o escudo salvou {x}!!', 'kkk o escudo funcionou em {xn}', 'salvei {x}'],
   };
@@ -61,7 +86,7 @@
       return !!h && !h.alive;
     }
     ghostBots() {
-      return this.g.players.filter((p) => !p.alive && p.brain);
+      return this.g.players.filter((p) => !p.alive && p.brain && !p.isHuman);
     }
     name(id) {
       const p = this.g.players[id];
@@ -89,7 +114,7 @@
       kv.killer = apparent;
       kv.area = area;
       for (const p of this.g.players) {
-        if (p.alive || p === victim || !p.brain) continue;
+        if (p.alive || p === victim || !p.brain || p.isHuman) continue;
         if (U.d2(p.x, p.y, victim.x, victim.y) > 11) continue;
         this.k(p.id).saw.push({ killer: apparent, victim: victim.id, area });
         if (this.open && U.chance(0.6)) this.later(p, U.rf(1, 3), { kind: 'sawKill', k: apparent, v: victim.id, a: area });
@@ -112,11 +137,19 @@
     joined(v, ejected) {
       const g = this.g;
       if (v.isHuman) {
-        /* o jogador acabou de morrer: os outros fantasmas recebem ele (uma fala por fantasma; quem viu o abate já falou) */
+        /* o jogador chegou (morto ou ejetado): os outros fantasmas recebem do jeito certo — ninguém pergunta
+           "quem te matou" para quem saiu na votação */
+        if (ejected) this.k(v.id).ejected = true;
         const others = this.ghostBots();
         const spoke = new Set(this.queue.map((q) => q.who));
         const fresh = U.shuffle(others.filter((q) => !spoke.has(q.id)));
-        fresh.slice(0, 2).forEach((q, i) => this.later(q, 3.5 + i * 2.2 + U.rf(0, 1.5), { kind: 'greetHuman', v: v.id }));
+        const conf = g.S.rules.confirmEjects;
+        fresh.slice(0, 2).forEach((q, i) => {
+          let kind = 'greetHuman';
+          if (this.k(q.id).killer === v.id) kind = 'greetHumanKilledMe';
+          else if (ejected) kind = conf ? (v.isImp ? (q.isImp ? 'greetHumanEjMate' : 'greetHumanEjImp') : 'greetHumanEjCrew') : q.isImp && v.isImp ? 'greetHumanEjMate' : 'greetHumanEj';
+          this.later(q, 3.5 + i * 2.2 + U.rf(0, 1.5), { kind, v: v.id });
+        });
         const teller = U.shuffle(others.slice()).find((q) => !fresh.slice(0, 2).includes(q) && this.k(q.id).killer != null && g.players[this.k(q.id).killer] && g.players[this.k(q.id).killer].alive)
           || (others.length === 1 && this.k(others[0].id).killer != null ? others[0] : null);
         if (teller && U.chance(0.7)) this.later(teller, U.rf(9, 13), { kind: 'tellHuman' });
@@ -125,7 +158,8 @@
       if (!this.open) return;
       const kv = this.k(v.id);
       if (ejected) {
-        if (U.chance(0.75)) this.later(v, U.rf(2, 5), { kind: v.isImp && g.S.rules.confirmEjects ? 'ejImp' : v.isImp ? (U.chance(0.5) ? 'ejImp' : 'ejCrew') : 'ejCrew' });
+        /* morto não precisa mais mentir: impostor ejetado quase sempre admite para os outros fantasmas */
+        if (U.chance(0.75)) this.later(v, U.rf(2, 5), { kind: v.isImp ? (U.chance(0.85) ? 'ejImp' : 'ejCrew') : 'ejCrew' });
         const r = this.ghostBots().filter((q) => q !== v);
         if (r.length && U.chance(0.6)) this.later(U.pick(r), U.rf(4, 7), { kind: g.S.rules.confirmEjects ? (v.isImp ? 'reactEjImp' : 'reactEjCrew') : 'agree', v: v.id });
         return;
@@ -170,6 +204,11 @@
         });
         if (alive.length) this.deliver(alive);
       }
+      const mt = this.g.meeting;
+      if (this.g.phase === 'meeting' && mt && !mt.closed && mt.phase === 'voting' && this.clock >= (this.voteCheckAt || 0)) {
+        this.voteCheckAt = this.clock + 3;
+        this.voteTalk(mt);
+      }
       if (this.clock >= this.idleAt) {
         this.idleAt = this.clock + U.rf(45, 85);
         const bots = this.ghostBots();
@@ -209,7 +248,10 @@
         .replace(/\{k\}/g, () => R('k'))
         .replace(/\{v\}/g, () => R('v'))
         .replace(/\{x\}/g, () => R('x'))
-        .replace(/\{a\}/g, () => this.room(ctx.a));
+        .replace(/\{a\}/g, () => this.room(ctx.a))
+        .replace(/\{n\}/g, () => String(ctx.n))
+        .replace(/\{xde\}/g, () => (ctx.x != null && this.g.players[ctx.x] ? (U.chance(0.5) ? 'de ' + this.name(ctx.x) : 'do ' + C.COLOR[this.g.players[ctx.x].color].name.toLowerCase()) : 'dele'))
+        .replace(/\{xem\}/g, () => (ctx.x != null && this.g.players[ctx.x] ? (U.chance(0.5) ? 'em ' + this.name(ctx.x) : 'no ' + C.COLOR[this.g.players[ctx.x].color].name.toLowerCase()) : 'nele'));
     }
     choose(list, ctx) {
       const fresh = list.map((s) => this.fill(s, ctx)).filter((s) => !this.used.has(s));
@@ -227,14 +269,59 @@
       switch (ctx.kind) {
         case 'reply': {
           const n = U.norm(ctx.text);
+          const hp = g.human, hk = this.k(hp.id);
+          const alive = g.players.filter((q) => q.alive);
+          const x = g.players.find((q) => q !== hp && q !== p && (n.split(/\W+/).includes(U.norm(q.name)) || new RegExp('\\b' + U.norm(C.COLOR[q.color].name) + '\\b').test(n)));
+          /* "quem me matou?", "como eu morri?": quem foi ejetado não foi morto por ninguém */
+          if (/\b(quem|qm)\b.*\bme\b.*\b(mat|peg)|\bcomo (eu )?morri\b/.test(n)) {
+            if (hk.ejected) return this.choose(LINES.youWereEjected, {});
+            const s2 = kp.saw.find((sx) => sx.victim === hp.id);
+            if (s2) return this.choose(LINES.youKilledBy, { k: s2.killer, a: s2.area });
+            return this.choose(LINES.youUnknown, {});
+          }
+          /* "me tiraram", "fui ejetado" (e quem foi morto e acha que foi votação) */
+          if (!hk.ejected && /\b(me (tiraram|votaram|expulsaram|ejetaram)|fui (ejetado|expulso|votado))\b/.test(n)) return this.choose(LINES.notEjected, {});
+          if (hk.ejected && /\b(me (tiraram|votaram|expulsaram|ejetaram)|fui (ejetado|expulso|votado))\b/.test(n)) {
+            if (g.S.rules.confirmEjects) return this.choose(hp.isImp ? LINES.ejectedImp : LINES.ejectedAgree, {});
+            return this.choose(LINES.ejectedPlain, {});
+          }
+          /* perguntaram do próprio fantasma: "você era o impostor?" (morto não precisa mentir) */
+          if (/\b(vc|voce|tu)\b.*\b(era|e|eh|foi)\b.*\b(imp|impostor)\b|\bera (vc|voce)\b|\bfoi (vc|voce)\b/.test(n) && !x) return this.choose(p.isImp ? LINES.iWasImp : LINES.iWasCrew, {});
+          /* quantos vivos / quantos impostores (com ejeção confirmada todo mundo sabe contar) */
+          if (/\b(quantos|quem (ta|esta) vivo|sobrou|falta quantos|faltam quantos)\b/.test(n)) {
+            /* outro fantasma acabou de responder a mesma conta: não repete */
+            if (this.msgs.slice(-3).some((m) => m.from !== hp.id && /\bvivos\b/.test(U.norm(m.text)))) return null;
+            let t = this.choose(LINES.aliveCount, { n: alive.length });
+            if (g.S.rules.confirmEjects) {
+              const imps = alive.filter((q) => q.isImp).length;
+              t += ', ' + this.choose(imps === 1 ? LINES.impsLeft : LINES.impsLeftPl, { n: imps });
+            }
+            return t;
+          }
+          /* sobre alguém vivo: o que este fantasma sabe dele (viu matar, viu visual, desconfiava) */
+          if (x && x.alive) {
+            if (p.isImp && x.isImp) return this.choose(LINES.mate, { x: x.id });
+            if (kp.killer === x.id || kp.saw.some((sx) => sx.killer === x.id)) return this.choose(LINES.knowImp, { x: x.id });
+            const b = p.brain;
+            if (!p.isImp && b && b.mem.events.some((e) => e.type === 'visual' && e.who === x.id)) return this.choose(LINES.knowSafe, { x: x.id });
+            if (!p.isImp && b && (b.susp[x.id] || 0) >= 25) return this.choose(LINES.knowSus, { x: x.id });
+            if (/\?/.test(ctx.text) || /\b(imp|impostor|sus|foi)\b/.test(n)) return this.choose(LINES.knowNothing, { x: x.id });
+            return this.choose(LINES.nameReact, { x: x.id });
+          }
           if (/\b(quem|qm)\b.*\b(mat|pegou|foi|imp)|\bimpostor|\bimp\b|\bsus\b/.test(n)) {
-            if (kp.killer != null) return this.choose(this.saidName(p, kp.killer) ? LINES.whoAgain : LINES.whoKnown, { k: kp.killer, a: kp.area });
-            if (kp.saw.length) return this.choose(LINES.whoSaw, { k: kp.saw[0].killer, v: kp.saw[0].victim });
+            if (p.isImp) {
+              const mate = alive.find((q) => q.isImp && q !== p);
+              return mate ? this.choose(LINES.mate, { x: mate.id }) : this.choose(LINES.iWasImp, {});
+            }
+            if (kp.killer != null) {
+              if (!(g.players[kp.killer] && g.players[kp.killer].alive)) return this.choose(LINES.killerGone, { k: kp.killer });
+              return this.choose(this.saidName(p, kp.killer) ? LINES.whoAgain : LINES.whoKnown, { k: kp.killer, a: kp.area });
+            }
+            const s3 = kp.saw.find((sx) => g.players[sx.killer] && g.players[sx.killer].alive);
+            if (s3) return this.choose(LINES.whoSaw, { k: s3.killer, v: s3.victim });
             return this.choose(kp.ejected ? LINES.whoUnknownEj : LINES.whoUnknown, {});
           }
           if (/^(oi|ola|eai|e ai|salve|opa|fala|hey|hello)\b/.test(n)) return this.choose(LINES.hello, {});
-          const x = g.players.find((q) => q !== g.human && (n.split(/\W+/).includes(U.norm(q.name)) || n.includes(U.norm(C.COLOR[q.color].name))));
-          if (x && x !== p) return this.choose(LINES.nameReact, { x: x.id });
           return this.choose(LINES.agree, {});
         }
         case 'idle': {
@@ -254,6 +341,24 @@
       }
     }
 
+    /* Os fantasmas assistem a votação: quem sabe quem é o impostor reage ("não!! foi o verde") — os vivos não leem. */
+    voteTalk(mt) {
+      const g = this.g, lead = mt.leading();
+      if (!lead || lead.count < 2) return;
+      this.voteSaid = this.voteSaid || {};
+      const key = mt.info.index + ':' + lead.id;
+      if (this.voteSaid[key]) return;
+      for (const q of U.shuffle(this.ghostBots())) {
+        if (q.isImp) continue;
+        const kq = this.k(q.id);
+        const live = (id) => id != null && g.players[id] && g.players[id].alive;
+        const killer = live(kq.killer) ? kq.killer : (kq.saw.find((sx) => live(sx.killer)) || {}).killer;
+        if (killer == null) continue;
+        this.voteSaid[key] = true;
+        this.later(q, U.rf(0.4, 1.8), { kind: lead.id === killer ? 'rightVote' : 'wrongVote', k: killer });
+        return;
+      }
+    }
     /* esse fantasma já citou essa pessoa há pouco? (não repete a mesma informação) */
     saidName(p, id) {
       const q = this.g.players[id];
@@ -272,6 +377,13 @@
         out.push('Era IMPOSTOR' + (mates.length ? ' (parceiro: ' + mates.join(', ') + ')' : '') + '. Morto, pode admitir ou zoar; não precisa mais mentir.');
       }
       kp.saw.forEach((s) => out.push('Depois de morto viu ' + AU.Voice.who(g, s.killer) + ' matar ' + this.name(s.victim) + ' ' + this.room(s.area) + '.'));
+      if (!p.isImp && p.brain) {
+        const b = p.brain;
+        const vis = [...new Set(b.mem.events.filter((e) => e.type === 'visual' && g.players[e.who] && g.players[e.who].alive).map((e) => e.who))];
+        if (vis.length) out.push('Quando estava vivo viu fazer tarefa visual (inocentes): ' + vis.map((id) => this.name(id)).join(', ') + '.');
+        const sus = g.players.filter((q) => q.alive && (b.susp[q.id] || 0) >= 25).map((q) => this.name(q.id));
+        if (sus.length) out.push('Desconfiava de: ' + sus.slice(0, 2).join(', ') + '.');
+      }
       if (p.special === 'anjo' && !p.isImp) out.push('É Anjo da Guarda: pode pôr escudo em um vivo' + (kp.protect.length ? '; já protegeu ' + kp.protect.map((id) => this.name(id)).join(', ') : '') + '.');
       return out.join(' ');
     }
@@ -281,7 +393,12 @@
       switch (c.kind) {
         case 'reply': return AU.Voice.who(g, hp.id) + ' escreveu: "' + c.text + '". ' + p.name + ' responde a isso.';
         case 'greet': return this.name(c.v) + ' acabou de morrer e chegou no chat dos fantasmas. ' + p.name + ' recebe.';
-        case 'greetHuman': return this.name(c.v) + ' (o jogador) acabou de morrer. ' + p.name + ' recebe e talvez pergunte quem matou.';
+        case 'greetHuman': return this.name(c.v) + ' (o jogador) acabou de ser morto e chegou aqui. ' + p.name + ' recebe e talvez pergunte quem matou.';
+        case 'greetHumanKilledMe': return this.name(c.v) + ' (o jogador, que era impostor e matou ' + p.name + ') acabou de chegar aqui. ' + p.name + ' comenta isso.';
+        case 'greetHumanEj': case 'greetHumanEjCrew': case 'greetHumanEjImp': case 'greetHumanEjMate':
+          return this.name(c.v) + ' (o jogador) foi EJETADO na votação (ninguém o matou)' + (g.S.rules.confirmEjects ? ' e ' + (hp.isImp ? 'era impostor' : 'era inocente') : '') + '. ' + p.name + ' recebe comentando a votação — não pergunte quem matou.';
+        case 'wrongVote': return 'Os vivos estão votando em ' + this.name(g.meeting && g.meeting.leading() ? g.meeting.leading().id : null) + ', mas ' + p.name + ' sabe que foi ' + this.name(c.k) + '. Reage (os vivos não leem).';
+        case 'rightVote': return 'Os vivos estão votando em ' + this.name(c.k) + ', que ' + p.name + ' sabe que é impostor. Torce.';
         case 'selfKiller': return p.name + ' acabou de morrer e conta quem o matou.';
         case 'selfUnknown': return p.name + ' acabou de morrer sem ver quem foi.';
         case 'sawKill': return p.name + ' (fantasma) acabou de ver ' + this.name(c.k) + ' matar ' + this.name(c.v) + ' ' + this.room(c.a) + '.';
@@ -308,6 +425,13 @@
         'Fase: ' + (g.phase === 'meeting' ? 'reunião em andamento (os vivos estão discutindo)' : 'rodada em andamento') + '. Barra de tarefas: ' + (tp.total ? Math.round((tp.done / tp.total) * 100) : 0) + '%.',
         'Vivos: ' + g.players.filter((q) => q.alive).map((q) => V.who(g, q.id)).join(', ') + '.',
         'Mortos (fantasmas): ' + dead.join(', ') + '.',
+        (() => {
+          const hp = g.human;
+          if (!hp || hp.alive) return '';
+          const hk = this.k(hp.id);
+          if (hk.ejected) return 'O jogador ' + hp.name + ' foi EJETADO na votação (ninguém o matou)' + (g.S.rules.confirmEjects ? '; ' + (hp.isImp ? 'era impostor' : 'era inocente') : '') + '.';
+          return 'O jogador ' + hp.name + ' foi morto' + (hk.killer != null ? ' (ele mesmo viu quem foi)' : '') + '.';
+        })(),
         '',
         'Chat dos fantasmas até agora:',
         this.msgs.slice(-14).map((m) => this.name(m.from) + ': ' + m.text).join('\n') || '(vazio)',
@@ -325,6 +449,10 @@
         '- Chat de jogo de verdade: mensagens curtas (até 100 caracteres), sem narração, sem aspas, sem emojis, sem asteriscos.',
         '- Cada um tem o próprio jeito de escrever (descrito): siga. Ninguém repete o que já foi dito.',
         '- Fantasmas lamentam, zoam, torcem, comentam a partida e respondem quem falou. Contam quem os matou se sabem. Não inventam o que não viram.',
+        '- Morto não volta: ninguém diz que vai voltar, reviver, jogar de novo nesta partida, votar ou avisar os vivos. Fantasma só assiste, faz as tarefas de fantasma e conversa aqui.',
+        '- Quem foi EJETADO saiu na votação, não foi morto por ninguém: nunca pergunte "quem te matou" para quem foi ejetado e nunca diga que ele morreu assassinado.',
+        '- Use o que cada um sabe (está no bloco dele): quem o matou, o que viu depois de morto, o que viu quando estava vivo (tarefa visual, de quem desconfiava), quem ainda está vivo.',
+        '- Morto não precisa mais mentir: impostor morto pode admitir e até falar do parceiro.',
         '- Entenda erros de digitação e ditado de voz pelo sentido mais provável.',
         '- Nunca diga que é IA ou bot.',
       ].join('\n');
@@ -351,7 +479,7 @@
         const t = ln.text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').trim();
         if (!t || this.msgs.slice(-10).some((m) => U.norm(m.text) === U.norm(t))) continue;
         setTimeout(() => {
-          if (this.g.phase !== 'ended' && !p.alive) this.say(p, t);
+          if (this.g.phase !== 'ended' && !p.alive) this.say(p, t, true);
         }, delay);
         delay += U.rf(900, 2200);
       }
@@ -364,10 +492,12 @@
       if (this.msgs.length > 120) this.msgs.shift();
       return msg;
     }
-    say(p, text) {
+    /* frase pronta passa pelo tom do chat (limpo/casual/raiz) como as dos vivos; a da IA só pelo filtro do tom */
+    say(p, text, fromAI) {
       if (!p || p.alive || !text) return;
-      const g = this.g;
-      if (g.S.bots.chatTone === 'limpo' && AU.Talk && AU.Talk.clean) text = U.cap(AU.Talk.clean(text)) || text;
+      const g = this.g, T = AU.Talk;
+      if (T && fromAI && T.toneFilter) text = T.toneFilter(text, g.S.bots.chatTone) || text;
+      else if (T && T.style) text = T.style(text, g, p.brain, { kind: 'ghost' }) || text;
       if (g.phase === 'meeting' && g.meeting && !g.meeting.closed) g.meeting.post(p, text, []);
       else this.record({ from: p.id, text });
     }

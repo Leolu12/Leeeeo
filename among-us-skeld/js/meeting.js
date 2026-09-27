@@ -308,6 +308,9 @@
         const mine = this.msgs.filter((m) => m.from === p.id);
         const nt = U.norm(text);
         if (mine.some((m) => U.norm(m.text) === nt)) return null;
+        /* frase idêntica à de outra pessoa há pouco ("ngm tem certeza, skip" duas vezes): só voto/concordância, então nem manda */
+        const same = this.msgs.some((m) => m.from !== p.id && this.t - m.t < 25 && U.norm(m.text) === nt);
+        if (!opts.ai && same && (intents || []).every((it) => ['skip', 'agree'].includes(it.type) || (it.type === 'accuse' && it.reason === 'vote'))) return null;
         const strong = (intents || []).filter((it) => (it.type === 'vouch' || it.type === 'accuse') && it.who != null && it.reason !== 'vote');
         if (!opts.ai && strong.length && strong.every((it) => mine.some((m) => m.intents.some((j) => j.type === it.type && j.who === it.who && j.reason === it.reason)))) return null;
       }
@@ -334,6 +337,7 @@
       const hp = g.human;
       /* quem diz "voto no X" ou "skip" no chat fica comprometido com isso */
       if (p.brain) {
+        if (msg.intents.some((it) => it.type === 'claimLoc')) p.brain.claimPosted = true;
         for (const it of msg.intents) {
           if (it.type === 'accuse' && it.reason === 'vote' && it.who !== p.id) p.brain.committed = it.who;
           if (it.type === 'skip') p.brain.skipLean = (p.brain.skipLean || 0) + 1;
