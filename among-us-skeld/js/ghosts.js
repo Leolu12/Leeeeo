@@ -343,7 +343,7 @@
 
     /* Os fantasmas assistem a votação: quem sabe quem é o impostor reage ("não!! foi o verde") — os vivos não leem. */
     voteTalk(mt) {
-      const g = this.g, lead = mt.leading();
+      const g = this.g, lead = mt.saidLeading();
       if (!lead || lead.count < 2) return;
       this.voteSaid = this.voteSaid || {};
       const key = mt.info.index + ':' + lead.id;
@@ -397,7 +397,7 @@
         case 'greetHumanKilledMe': return this.name(c.v) + ' (o jogador, que era impostor e matou ' + p.name + ') acabou de chegar aqui. ' + p.name + ' comenta isso.';
         case 'greetHumanEj': case 'greetHumanEjCrew': case 'greetHumanEjImp': case 'greetHumanEjMate':
           return this.name(c.v) + ' (o jogador) foi EJETADO na votação (ninguém o matou)' + (g.S.rules.confirmEjects ? ' e ' + (hp.isImp ? 'era impostor' : 'era inocente') : '') + '. ' + p.name + ' recebe comentando a votação — não pergunte quem matou.';
-        case 'wrongVote': return 'Os vivos estão votando em ' + this.name(g.meeting && g.meeting.leading() ? g.meeting.leading().id : null) + ', mas ' + p.name + ' sabe que foi ' + this.name(c.k) + '. Reage (os vivos não leem).';
+        case 'wrongVote': return 'Os vivos estão votando em ' + this.name(g.meeting && g.meeting.saidLeading() ? g.meeting.saidLeading().id : null) + ', mas ' + p.name + ' sabe que foi ' + this.name(c.k) + '. Reage (os vivos não leem).';
         case 'rightVote': return 'Os vivos estão votando em ' + this.name(c.k) + ', que ' + p.name + ' sabe que é impostor. Torce.';
         case 'selfKiller': return p.name + ' acabou de morrer e conta quem o matou.';
         case 'selfUnknown': return p.name + ' acabou de morrer sem ver quem foi.';

@@ -108,9 +108,9 @@
         case 'shift': return pick([`${w} se transformou em outra pessoa na minha frente`, `vi ${w} mudando de cor, é metamorfo`]);
         case 'vanish': return pick([`${w} sumiu do nada ${x.inA(d.area)}`, `${w} ficou invisível, é impostor`]);
         case 'fakeTask': return pick([`chamei porque ${w} fingiu tarefa ${d.area ? x.inA(d.area) : ''}: terminou e a barra não subiu`.replace(/\s+:/, ':'), `${w} tá fingindo task, vi ${d.area ? x.inA(d.area) : 'agora'} e a barra não mexeu`]);
-        case 'noscan': return pick([`chamei porque ${w} ficou parado no scanner e não escaneou`, `${w} fingiu o scan, eu vi`]);
+        case 'noscan': return pick([`chamei porque ${x.Rc(d.who, 'o')} ficou parado no scanner e não escaneou`, `${w} fingiu o scan, eu vi`]);
         case 'vitals': return pick([`sou cientista: ${d.victim != null ? x.R(d.victim, 'o') : 'alguém'} morreu e ninguém achou o corpo`, `o vitals mostra ${d.victim != null ? x.Rc(d.victim, 'o') : 'alguém'} morto, chamei pra avisar`]);
-        case 'sus': return pick([`${w} tá muito estranho, chamei por isso`, `precisava falar: ${w} tá sus demais`, `apertei porque ${w} tá estranho`]);
+        case 'sus': return pick([`${x.Rc(d.who, 'o')} tá muito estranho, chamei por isso`, `precisava falar: ${x.Rc(d.who, 'o')} tá sus demais`, `apertei porque ${x.Rc(d.who, 'o')} tá estranho`]);
         case 'chaos': return pick([`foi mal, apertei sem querer kkk`, `só queria ver quem está vivo`, `reunião surpresa kkkk`, `alguém tem info?`]);
         default: return pick([`alguém tem info?`, `chamei pra gente conversar`]);
       }
@@ -181,16 +181,16 @@
         case 'vent': return pick([`vi ${w} ventar ${d.area ? x.inA(d.area) : ''}`.trim(), `${w} saiu do vent ${d.area ? x.inA(d.area) : ''}`.trim(), `${w} é impostor, vi ventando`]);
         case 'shift': return pick([`${w} é metamorfo, vi ele se transformar`, `${w} mudou de aparência na minha frente`]);
         case 'vanish': return pick([`${w} ficou invisível do nada, é impostor`, `vi ${w} sumir no ar`]);
-        case 'noscan': return pick([`${w} ficou parado no scanner e não escaneou`, `${w} fingiu o scan`]);
+        case 'noscan': return pick([`${x.Rc(d.who, 'o')} ficou parado no scanner e não escaneou`, `${w} fingiu o scan`]);
         case 'fakeTask': return pick([`vi ${w} terminar a tarefa ${d.area ? x.inA(d.area) : ''} e a barra não subiu`.replace(/\s+/g, ' '), `${w} fingiu tarefa, a barra não mexeu`, `${w} fez tarefa na minha frente e a barra ficou parada`]);
         case 'fastReport': return pick([
           `${w} reportou rápido demais, ${d.victim != null ? x.Rc(d.victim, 'o') + ' tava vivo' : 'a vítima tava viva'} uns ${d.ago || 10}s antes`,
-          `self report? ${w} achou o corpo logo depois de ${d.victim != null ? x.R(d.victim, 'o') : 'ele'} ser visto`,
+          `self report? ${w} achou o corpo logo depois de ${d.victim != null ? x.Rc(d.victim, 'o') : 'a vítima'} ser ${d.victim != null ? 'visto' : 'vista'}`,
           `estranho ${w} achar o corpo tão rápido`,
         ]);
         case 'follow': return pick([`${w} estava me seguindo, muito suspeito`, `${w} ficou atrás de mim um tempão`]);
         case 'nearBody': return pick([`${x.Rc(d.who, 'o')} é suspeito, estava perto ${x.deA(d.area)}`, `acho que foi ${w}, estava lá perto`]);
-        case 'lastWith': return pick([`foi ${x.Rc(d.who, 'o')}, estava sozinho ${d.victim != null ? x.R(d.victim, 'com') : 'com a vítima'}`, `${w} foi o último com ${d.victim != null ? x.R(d.victim, 'o') : 'ele'}`]);
+        case 'lastWith': return pick([`foi ${x.Rc(d.who, 'o')}, estava sozinho ${d.victim != null ? x.R(d.victim, 'com') : 'com a vítima'}`, `${x.Rc(d.who, 'o')} foi o último com ${d.victim != null ? x.R(d.victim, 'o') : 'a vítima'}`]);
         case 'lie': return pick([`${w} está mentindo`, `isso não bate, ${x.R(d.who)}`, `${w} mentiu, eu vi`]);
         case 'tracker': return pick([`rastreei ${w} e ele estava ${x.inA(d.area)} na hora`]);
         case 'vote': return pick([`vota ${x.R(d.who, 'no')}`, `bora votar ${x.R(d.who, 'no')}`]);
@@ -230,7 +230,7 @@
     topicDoubt: (d, x) => pick([`só você viu? aí fica difícil`, `é a sua palavra contra a ${x.R(d.who, 'de')}`, `hmm, sem mais ninguém ter visto eu não sei`, `não sei não... e se for você querendo se livrar?`, `alguém mais viu isso?`]),
     topicAskAccused: (d, x) => pick([`${x.R(d.who)}, e aí? fala aí`, `${x.R(d.who)}, onde você tava?`, `${x.R(d.who)}, se defende`, `e aí ${x.R(d.who)}, o que tem a dizer?`]),
     topicSawAt: (d, x) => pick([`e o que ${x.R(d.who, 'o')} tava fazendo ${x.inA(d.area)}?`, `${x.R(d.who)}, é verdade? tava ${x.inA(d.area)}?`, `${x.inA(d.area)}? e depois?`]),
-    crisis: (d, x) => pick([`gente, atenção: somos ${d.n} e ${d.imps > 1 ? 'tem ' + d.imps + ' impostores vivos' : 'ainda tem impostor vivo'}. se pular e matarem mais um, acabou`, `cuidado com o skip: mais uma morte e a gente perde`, `não dá pra errar agora, se pular e morrer mais um é vitória deles`]),
+    crisis: (d, x) => pick([`gente, atenção: somos ${d.n} e ${d.imps > 1 ? (d.maybe ? 'pode ter ' : 'tem ') + d.imps + ' impostores vivos' : 'ainda tem impostor vivo'}. se pular e matarem mais um, acabou`, `cuidado com o skip: mais uma morte e a gente perde`, `não dá pra errar agora, se pular e morrer mais um é vitória deles`]),
     summary: (d, x) => {
       const names = (d.cleared || []).map((id) => x.R(id, 'o'));
       const c = names.length > 1 ? names.slice(0, -1).join(', ') + ' e ' + names[names.length - 1] : names[0] || '';
@@ -256,7 +256,7 @@
     alsoSaw: (d, x) => pick([`é verdade, eu também vi`, `confirmo, vi também`, `eu vi a mesma coisa`]),
     disagree: (d, x) => pick([`não acho que é ${x.R(d.who, 'o')}`, `${x.R(d.who, 'o')}? sei não`, `calma, ${x.R(d.who, 'o')} pode ser inocente`]),
     voteSay: (d, x) => (d.who == null ? pick([`skipei`, `votei skip`, `pulei`]) : pick([`votei ${x.R(d.who, 'no')}`, `meu voto é ${x.R(d.who, 'o')}`])),
-    vitals: (d, x) => pick([`pelo vitals, ${x.R(d.victim, 'o')} morreu uns ${d.ago}s antes do report`, `sou cientista: ${x.R(d.victim, 'o')} morreu tipo ${d.ago}s antes`]),
+    vitals: (d, x) => pick([`pelo vitals, ${x.R(d.victim, 'o')} morreu uns ${d.ago}s antes ${d.btn ? 'da reunião' : 'do report'}`, `sou cientista: ${x.R(d.victim, 'o')} morreu tipo ${d.ago}s antes`]),
     tracker: (d, x) => `rastreei ${x.R(d.who, 'o')}: ${d.areas.map((a) => x.nA(a)).join(' → ')}`,
     camsInfo: (d, x) => pick([`estava nas cams e vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`, `pelas câmeras vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`]),
     adminInfo: (d, x) => pick([`no admin tinha ${d.n} ${x.inA(d.area)}`, `olhei o admin: ${d.n} ${x.inA(d.area)}`]),

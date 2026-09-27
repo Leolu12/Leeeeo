@@ -1673,7 +1673,7 @@
             if (!q.alive && !q.ejected && !this.mem.vitals[q.id]) {
               this.mem.vitals[q.id] = { from: this.lastVitals, to: t };
               /* cientista viu alguém morrer nos sinais vitais e ninguém reportou: chama reunião para avisar */
-              if (!p.isImp && !g.bodies.some((b) => b.pid === q.id && b.reported) && p.emergencyLeft > 0 && !this.wantButton && U.chance(0.55)) this.wantButton = { reason: 'vitals', victim: q.id };
+              if (!p.isImp && g.bodies.some((b) => b.pid === q.id && !b.reported && !b.gone) && p.emergencyLeft > 0 && !this.wantButton && U.chance(0.55)) this.wantButton = { reason: 'vitals', victim: q.id };
             }
           }
           this.lastVitals = t;

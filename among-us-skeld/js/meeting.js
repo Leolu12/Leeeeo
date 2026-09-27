@@ -161,7 +161,7 @@
           }
           this.castVote(+id, v);
           const aiTalk = this.dir && this.dir.on();
-          if (U.chance(aiTalk ? 0.3 + p.brain.pers.talk * 0.35 : 0.15 + p.brain.pers.talk * 0.15)) {
+          if (U.chance(aiTalk ? 0.35 + p.brain.pers.talk * 0.35 : 0.3 + p.brain.pers.talk * 0.3)) {
             /* anunciar o voto influencia quem ainda não votou (quem segue a maioria presta atenção) */
             const vi = v === 'skip' ? [{ type: 'skip' }] : [{ type: 'accuse', who: v, reason: 'vote' }];
             const why = ai && ai.target === v && ai.reason ? ai.reason : p.brain.voteReason ? p.brain.voteReason(v) : '';
@@ -397,6 +397,32 @@
       let n = 0;
       for (const k of Object.keys(this.votes)) if (this.votes[k] === id) n++;
       return n;
+    }
+    /* O que dá para saber da votação sem espiar: no jogo só aparece QUEM já votou, não em quem. Então os bots contam
+       apenas os votos anunciados no chat ("voto no X", "eu pulo"), valendo o último de cada um. Quem diz que viu
+       alguém matar, ventar ou se transformar vai votar nele: conta como voto anunciado. */
+    saidVotes() {
+      const out = {};
+      for (const m of this.msgs) {
+        for (const it of m.intents) {
+          if (it.type === 'skip') out[m.from] = 'skip';
+          else if (it.type === 'accuse' && it.who != null && it.who !== m.from && (it.reason === 'vote' || STRONG[it.reason])) out[m.from] = it.who;
+        }
+      }
+      return out;
+    }
+    saidOn(id) {
+      const s = this.saidVotes();
+      let n = 0;
+      for (const k of Object.keys(s)) if (s[k] === id) n++;
+      return n;
+    }
+    saidLeading() {
+      const s = this.saidVotes(), counts = {};
+      for (const k of Object.keys(s)) if (s[k] !== 'skip') counts[s[k]] = (counts[s[k]] || 0) + 1;
+      let best = null;
+      for (const id of Object.keys(counts)) if (!best || counts[id] > best.count) best = { id: +id, count: counts[id] };
+      return best;
     }
     leading() {
       const counts = {};

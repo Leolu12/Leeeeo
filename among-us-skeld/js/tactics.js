@@ -100,8 +100,8 @@
         if (p.special) out.push('Função: ' + C.ROLES[p.special].name + '.');
         const caught = b.mem.events.filter((e) => (e.type === 'fakeTask' || e.type === 'noscan') && e.t >= g.roundStart && g.players[e.who] && g.players[e.who].alive);
         if (caught.length) out.push('Pegou ' + this.who(caught[0].who) + ' fingindo tarefa (' + (caught[0].type === 'noscan' ? 'parado no scanner sem escanear' : 'terminou e a barra não subiu') + ').');
-        const vit = Object.keys(b.mem.vitals || {}).map(Number).filter((id) => !g.bodies.some((bd) => bd.pid === id && bd.reported) && !g.players[id].ejected);
-        if (vit.length) out.push('Viu nos sinais vitais que ' + vit.map((id) => g.players[id].name).join(', ') + ' morreu e ninguém reportou o corpo ainda.');
+        const vit = Object.keys(b.mem.vitals || {}).map(Number).filter((id) => g.bodies.some((bd) => bd.pid === id && !bd.reported && !bd.gone));
+        if (vit.length) out.push('Viu nos sinais vitais que ' + vit.map((id) => g.players[id].name).join(', ') + (vit.length > 1 ? ' morreram' : ' morreu') + ' e ninguém achou o corpo ainda.');
       } else {
         out.push('Recarga do abate: ' + (p.killCd > 0 ? Math.ceil(p.killCd) + 's' : 'PRONTO') + '.');
         const alone = b.crewVisible();
@@ -136,7 +136,8 @@
         '',
       ];
       if (team === 'crew') {
-        const alive = g.players.filter((p) => p.alive), imps = g.S.rules.confirmEjects ? alive.filter((p) => p.isImp).length : g.S.room.impostors;
+        const alive = g.players.filter((p) => p.alive), crewB = alive.filter((p) => p.brain && !p.isImp);
+        const imps = g.S.rules.confirmEjects ? alive.filter((p) => p.isImp).length : crewB.length ? Math.round(crewB.reduce((a, p) => a + p.brain.impsLeftEst(), 0) / crewB.length) : g.S.room.impostors;
         const endgame = alive.length - imps <= imps + 2;
         head.push('Estes são TRIPULANTES. Cada um só sabe o que está na própria lista. Decida como um jogador esperto: fazer tarefas é o principal; andar em dupla com quem confia; vigiar de longe quem é suspeito; nunca ficar sozinho com suspeito; mostrar tarefa visual para quem desconfia de você; quem terminou as tarefas não fica parado: patrulha as salas isoladas procurando corpos, olha câmeras/admin ou acompanha quem ainda tem tarefa; botão com motivo concreto (viu algo de impostor, pegou tarefa falsa, cientista viu morte sem corpo).' + (endgame ? ' RETA FINAL: poucos vivos — ninguém anda sozinho; grudar em quem já provou ser inocente.' : ''));
         head.push('Ações possíveis:', CREW_ACTIONS.map((a) => '- ' + a).join('\n'));

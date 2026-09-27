@@ -567,7 +567,8 @@
     async askVotes(list, imp) {
       const mt = this.mt, g = this.g;
       const alive = mt.alive.map((id) => g.players[id]);
-      const impsLeft = g.S.rules.confirmEjects ? mt.impostorsLeft : g.S.room.impostors;
+      /* sem ejeção confirmada, cada bot estima quantos impostores sobram; o impostor sabe */
+      const impsLeft = g.S.rules.confirmEjects ? mt.impostorsLeft : imp ? alive.filter((q) => q.isImp).length : Math.round(list.reduce((a, q) => a + q.brain.impsLeftEst(), 0) / list.length);
       const crewLeft = alive.length - impsLeft;
       const crisis = crewLeft <= impsLeft + 1;
       const heat = alive.map((q) => ({ q, h: mt.heat[q.id] || 0, acc: Object.keys(mt.accusers[q.id] || {}).length, def: Object.keys(mt.defenders[q.id] || {}).length })).filter((x) => x.h > 0 || x.def).sort((a, b) => b.h - a.h);
@@ -577,7 +578,8 @@
         lines.push('Agora é a votação. Decida o voto de cada tripulante abaixo usando SÓ o que ele sabe (as anotações dele) e o que foi dito no chat.');
         lines.push('Como um jogador esperto decide: vota em quem tem prova (viu matar, ventar, mudar de forma) ou contradição clara de álibi; pesa se quem acusa é confiável; nunca vota em quem ele viu fazer tarefa visual; desconfia de quem acusa sem prova ou defende demais alguém suspeito; desconfia de quem reportou o corpo segundos depois de a vítima ser vista viva (self report); se não há nada concreto, pula.');
         lines.push('Voto dividido não tira ninguém: se o mais votado também é suspeito para ele e quem puxou trouxe prova, junta ali.');
-        if (crisis) lines.push('SITUAÇÃO CRÍTICA: NINGUÉM PULA. Se ninguém sair, o próximo abate encerra o jogo. Cada um vota no mais provável (fora quem ele sabe que é inocente) e, se possível, todos no mesmo.');
+        if (crisis && (g.S.rules.visualTasks || g.S.rules.confirmEjects)) lines.push('SITUAÇÃO CRÍTICA: NINGUÉM PULA. Se ninguém sair, o próximo abate encerra o jogo. Cada um vota no mais provável (fora quem ele sabe que é inocente) e, se possível, todos no mesmo.');
+        else if (crisis) lines.push('SITUAÇÃO CRÍTICA, mas sem tarefa visual e sem confirmação ninguém prova nada: vota quem tem pista concreta (viu algo, relato forte); sem pista, pular dá tempo de terminar as tarefas — voto no chute costuma tirar inocente, porque os impostores votam juntos.');
       } else {
         const team = g.players.filter((q) => q.isImp && q.alive).map((q) => q.name).join(', ');
         lines.push('Você decide o voto dos IMPOSTORES abaixo (os tripulantes não sabem quem são). Impostores vivos: ' + team + '.');
@@ -884,7 +886,7 @@
         if (pend.mentioned.length) cand.push({ kind: 'mentioned', by: pend.mentioned.slice(0, 2), s: 45 });
         const cap = 1 + Math.round(b.pers.talk * 3);
         if (!cand.length && (this.free[id] || 0) >= cap) continue;
-        if (mt.phase === 'voting' && mt.votesOn(id) >= 2 && !recent.includes(id)) cand.push({ kind: 'plead', s: 75 });
+        if (mt.phase === 'voting' && mt.saidOn(id) >= 2 && !recent.includes(id)) cand.push({ kind: 'plead', s: 75 });
         if (!claimed.has(id) && t > mt.durI + 6) cand.push({ kind: 'claim', s: 38 + b.pers.talk * 20 });
         const others = unclaimed.filter((x) => x !== id && !(hp && x === hp.id && mt.askedHumanAt != null));
         if ((b.pers.leader || b.pers.skeptic) && others.length && t > mt.durI + 8) cand.push({ kind: 'pressClaims', who: others.slice(0, 3), s: 48 });

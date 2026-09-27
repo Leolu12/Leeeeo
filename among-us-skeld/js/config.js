@@ -77,9 +77,9 @@
   C.PERSONALITY_IDS = Object.keys(C.PERSONALITIES);
 
   C.IMP_LEVELS = {
-    iniciante: { name: 'Iniciante', desc: 'Arrisca abates com gente por perto e mente mal.', need: 0.36, eager: 0.95, miss: 0.35, riskTol: 0.3, useVents: 0.35, sabotage: 0.25, lie: 0.3, selfReport: 0.15, bus: 0, stalk: 0.2, fakeVisual: 0.45, camsAware: false, sabKill: false },
+    iniciante: { name: 'Iniciante', desc: 'Arrisca abates com gente por perto e mente mal.', need: 0.4, eager: 0.95, miss: 0.35, riskTol: 0.3, useVents: 0.35, sabotage: 0.25, lie: 0.3, selfReport: 0.15, bus: 0, stalk: 0.2, fakeVisual: 0.45, camsAware: false, sabKill: false },
     competente: { name: 'Competente', desc: 'Só mata sem testemunhas e cria álibis simples.', need: 0.25, eager: 0.92, miss: 0.2, riskTol: 0.1, useVents: 0.6, sabotage: 0.5, lie: 0.6, selfReport: 0.3, bus: 0.1, stalk: 0.4, fakeVisual: 0.1, camsAware: false, sabKill: false },
-    veterano: { name: 'Veterano', desc: 'Checa câmeras, usa dutos com calma e sabe entregar o parceiro.', need: 0.12, eager: 0.82, miss: 0.09, riskTol: 0.04, useVents: 0.75, sabotage: 0.7, lie: 0.8, selfReport: 0.4, bus: 0.35, stalk: 0.6, fakeVisual: 0, camsAware: true, sabKill: false },
+    veterano: { name: 'Veterano', desc: 'Checa câmeras, usa dutos com calma e sabe entregar o parceiro.', need: 0.1, eager: 0.9, miss: 0.09, riskTol: 0.04, useVents: 0.75, sabotage: 0.7, lie: 0.8, selfReport: 0.4, bus: 0.35, stalk: 0.6, fakeVisual: 0, camsAware: true, sabKill: false },
     implacavel: { name: 'Implacável', desc: 'Usa sabotagens para isolar vítimas e mente com detalhes.', need: 0.08, eager: 0.95, miss: 0.02, riskTol: 0.02, useVents: 0.85, sabotage: 0.9, lie: 0.95, selfReport: 0.5, bus: 0.5, stalk: 0.9, fakeVisual: 0, camsAware: true, sabKill: true },
   };
 

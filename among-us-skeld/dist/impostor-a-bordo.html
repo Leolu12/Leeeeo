@@ -963,9 +963,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   C.PERSONALITY_IDS = Object.keys(C.PERSONALITIES);
 
   C.IMP_LEVELS = {
-    iniciante: { name: 'Iniciante', desc: 'Arrisca abates com gente por perto e mente mal.', need: 0.36, eager: 0.95, miss: 0.35, riskTol: 0.3, useVents: 0.35, sabotage: 0.25, lie: 0.3, selfReport: 0.15, bus: 0, stalk: 0.2, fakeVisual: 0.45, camsAware: false, sabKill: false },
+    iniciante: { name: 'Iniciante', desc: 'Arrisca abates com gente por perto e mente mal.', need: 0.4, eager: 0.95, miss: 0.35, riskTol: 0.3, useVents: 0.35, sabotage: 0.25, lie: 0.3, selfReport: 0.15, bus: 0, stalk: 0.2, fakeVisual: 0.45, camsAware: false, sabKill: false },
     competente: { name: 'Competente', desc: 'Só mata sem testemunhas e cria álibis simples.', need: 0.25, eager: 0.92, miss: 0.2, riskTol: 0.1, useVents: 0.6, sabotage: 0.5, lie: 0.6, selfReport: 0.3, bus: 0.1, stalk: 0.4, fakeVisual: 0.1, camsAware: false, sabKill: false },
-    veterano: { name: 'Veterano', desc: 'Checa câmeras, usa dutos com calma e sabe entregar o parceiro.', need: 0.12, eager: 0.82, miss: 0.09, riskTol: 0.04, useVents: 0.75, sabotage: 0.7, lie: 0.8, selfReport: 0.4, bus: 0.35, stalk: 0.6, fakeVisual: 0, camsAware: true, sabKill: false },
+    veterano: { name: 'Veterano', desc: 'Checa câmeras, usa dutos com calma e sabe entregar o parceiro.', need: 0.1, eager: 0.9, miss: 0.09, riskTol: 0.04, useVents: 0.75, sabotage: 0.7, lie: 0.8, selfReport: 0.4, bus: 0.35, stalk: 0.6, fakeVisual: 0, camsAware: true, sabKill: false },
     implacavel: { name: 'Implacável', desc: 'Usa sabotagens para isolar vítimas e mente com detalhes.', need: 0.08, eager: 0.95, miss: 0.02, riskTol: 0.02, useVents: 0.85, sabotage: 0.9, lie: 0.95, selfReport: 0.5, bus: 0.5, stalk: 0.9, fakeVisual: 0, camsAware: true, sabKill: true },
   };
 
@@ -1820,9 +1820,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         case 'shift': return pick([`${w} se transformou em outra pessoa na minha frente`, `vi ${w} mudando de cor, é metamorfo`]);
         case 'vanish': return pick([`${w} sumiu do nada ${x.inA(d.area)}`, `${w} ficou invisível, é impostor`]);
         case 'fakeTask': return pick([`chamei porque ${w} fingiu tarefa ${d.area ? x.inA(d.area) : ''}: terminou e a barra não subiu`.replace(/\s+:/, ':'), `${w} tá fingindo task, vi ${d.area ? x.inA(d.area) : 'agora'} e a barra não mexeu`]);
-        case 'noscan': return pick([`chamei porque ${w} ficou parado no scanner e não escaneou`, `${w} fingiu o scan, eu vi`]);
+        case 'noscan': return pick([`chamei porque ${x.Rc(d.who, 'o')} ficou parado no scanner e não escaneou`, `${w} fingiu o scan, eu vi`]);
         case 'vitals': return pick([`sou cientista: ${d.victim != null ? x.R(d.victim, 'o') : 'alguém'} morreu e ninguém achou o corpo`, `o vitals mostra ${d.victim != null ? x.Rc(d.victim, 'o') : 'alguém'} morto, chamei pra avisar`]);
-        case 'sus': return pick([`${w} tá muito estranho, chamei por isso`, `precisava falar: ${w} tá sus demais`, `apertei porque ${w} tá estranho`]);
+        case 'sus': return pick([`${x.Rc(d.who, 'o')} tá muito estranho, chamei por isso`, `precisava falar: ${x.Rc(d.who, 'o')} tá sus demais`, `apertei porque ${x.Rc(d.who, 'o')} tá estranho`]);
         case 'chaos': return pick([`foi mal, apertei sem querer kkk`, `só queria ver quem está vivo`, `reunião surpresa kkkk`, `alguém tem info?`]);
         default: return pick([`alguém tem info?`, `chamei pra gente conversar`]);
       }
@@ -1893,16 +1893,16 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         case 'vent': return pick([`vi ${w} ventar ${d.area ? x.inA(d.area) : ''}`.trim(), `${w} saiu do vent ${d.area ? x.inA(d.area) : ''}`.trim(), `${w} é impostor, vi ventando`]);
         case 'shift': return pick([`${w} é metamorfo, vi ele se transformar`, `${w} mudou de aparência na minha frente`]);
         case 'vanish': return pick([`${w} ficou invisível do nada, é impostor`, `vi ${w} sumir no ar`]);
-        case 'noscan': return pick([`${w} ficou parado no scanner e não escaneou`, `${w} fingiu o scan`]);
+        case 'noscan': return pick([`${x.Rc(d.who, 'o')} ficou parado no scanner e não escaneou`, `${w} fingiu o scan`]);
         case 'fakeTask': return pick([`vi ${w} terminar a tarefa ${d.area ? x.inA(d.area) : ''} e a barra não subiu`.replace(/\s+/g, ' '), `${w} fingiu tarefa, a barra não mexeu`, `${w} fez tarefa na minha frente e a barra ficou parada`]);
         case 'fastReport': return pick([
           `${w} reportou rápido demais, ${d.victim != null ? x.Rc(d.victim, 'o') + ' tava vivo' : 'a vítima tava viva'} uns ${d.ago || 10}s antes`,
-          `self report? ${w} achou o corpo logo depois de ${d.victim != null ? x.R(d.victim, 'o') : 'ele'} ser visto`,
+          `self report? ${w} achou o corpo logo depois de ${d.victim != null ? x.Rc(d.victim, 'o') : 'a vítima'} ser ${d.victim != null ? 'visto' : 'vista'}`,
           `estranho ${w} achar o corpo tão rápido`,
         ]);
         case 'follow': return pick([`${w} estava me seguindo, muito suspeito`, `${w} ficou atrás de mim um tempão`]);
         case 'nearBody': return pick([`${x.Rc(d.who, 'o')} é suspeito, estava perto ${x.deA(d.area)}`, `acho que foi ${w}, estava lá perto`]);
-        case 'lastWith': return pick([`foi ${x.Rc(d.who, 'o')}, estava sozinho ${d.victim != null ? x.R(d.victim, 'com') : 'com a vítima'}`, `${w} foi o último com ${d.victim != null ? x.R(d.victim, 'o') : 'ele'}`]);
+        case 'lastWith': return pick([`foi ${x.Rc(d.who, 'o')}, estava sozinho ${d.victim != null ? x.R(d.victim, 'com') : 'com a vítima'}`, `${x.Rc(d.who, 'o')} foi o último com ${d.victim != null ? x.R(d.victim, 'o') : 'a vítima'}`]);
         case 'lie': return pick([`${w} está mentindo`, `isso não bate, ${x.R(d.who)}`, `${w} mentiu, eu vi`]);
         case 'tracker': return pick([`rastreei ${w} e ele estava ${x.inA(d.area)} na hora`]);
         case 'vote': return pick([`vota ${x.R(d.who, 'no')}`, `bora votar ${x.R(d.who, 'no')}`]);
@@ -1942,7 +1942,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     topicDoubt: (d, x) => pick([`só você viu? aí fica difícil`, `é a sua palavra contra a ${x.R(d.who, 'de')}`, `hmm, sem mais ninguém ter visto eu não sei`, `não sei não... e se for você querendo se livrar?`, `alguém mais viu isso?`]),
     topicAskAccused: (d, x) => pick([`${x.R(d.who)}, e aí? fala aí`, `${x.R(d.who)}, onde você tava?`, `${x.R(d.who)}, se defende`, `e aí ${x.R(d.who)}, o que tem a dizer?`]),
     topicSawAt: (d, x) => pick([`e o que ${x.R(d.who, 'o')} tava fazendo ${x.inA(d.area)}?`, `${x.R(d.who)}, é verdade? tava ${x.inA(d.area)}?`, `${x.inA(d.area)}? e depois?`]),
-    crisis: (d, x) => pick([`gente, atenção: somos ${d.n} e ${d.imps > 1 ? 'tem ' + d.imps + ' impostores vivos' : 'ainda tem impostor vivo'}. se pular e matarem mais um, acabou`, `cuidado com o skip: mais uma morte e a gente perde`, `não dá pra errar agora, se pular e morrer mais um é vitória deles`]),
+    crisis: (d, x) => pick([`gente, atenção: somos ${d.n} e ${d.imps > 1 ? (d.maybe ? 'pode ter ' : 'tem ') + d.imps + ' impostores vivos' : 'ainda tem impostor vivo'}. se pular e matarem mais um, acabou`, `cuidado com o skip: mais uma morte e a gente perde`, `não dá pra errar agora, se pular e morrer mais um é vitória deles`]),
     summary: (d, x) => {
       const names = (d.cleared || []).map((id) => x.R(id, 'o'));
       const c = names.length > 1 ? names.slice(0, -1).join(', ') + ' e ' + names[names.length - 1] : names[0] || '';
@@ -1968,7 +1968,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     alsoSaw: (d, x) => pick([`é verdade, eu também vi`, `confirmo, vi também`, `eu vi a mesma coisa`]),
     disagree: (d, x) => pick([`não acho que é ${x.R(d.who, 'o')}`, `${x.R(d.who, 'o')}? sei não`, `calma, ${x.R(d.who, 'o')} pode ser inocente`]),
     voteSay: (d, x) => (d.who == null ? pick([`skipei`, `votei skip`, `pulei`]) : pick([`votei ${x.R(d.who, 'no')}`, `meu voto é ${x.R(d.who, 'o')}`])),
-    vitals: (d, x) => pick([`pelo vitals, ${x.R(d.victim, 'o')} morreu uns ${d.ago}s antes do report`, `sou cientista: ${x.R(d.victim, 'o')} morreu tipo ${d.ago}s antes`]),
+    vitals: (d, x) => pick([`pelo vitals, ${x.R(d.victim, 'o')} morreu uns ${d.ago}s antes ${d.btn ? 'da reunião' : 'do report'}`, `sou cientista: ${x.R(d.victim, 'o')} morreu tipo ${d.ago}s antes`]),
     tracker: (d, x) => `rastreei ${x.R(d.who, 'o')}: ${d.areas.map((a) => x.nA(a)).join(' → ')}`,
     camsInfo: (d, x) => pick([`estava nas cams e vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`, `pelas câmeras vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`]),
     adminInfo: (d, x) => pick([`no admin tinha ${d.n} ${x.inA(d.area)}`, `olhei o admin: ${d.n} ${x.inA(d.area)}`]),
@@ -5428,7 +5428,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
             if (!q.alive && !q.ejected && !this.mem.vitals[q.id]) {
               this.mem.vitals[q.id] = { from: this.lastVitals, to: t };
               /* cientista viu alguém morrer nos sinais vitais e ninguém reportou: chama reunião para avisar */
-              if (!p.isImp && !g.bodies.some((b) => b.pid === q.id && b.reported) && p.emergencyLeft > 0 && !this.wantButton && U.chance(0.55)) this.wantButton = { reason: 'vitals', victim: q.id };
+              if (!p.isImp && g.bodies.some((b) => b.pid === q.id && !b.reported && !b.gone) && p.emergencyLeft > 0 && !this.wantButton && U.chance(0.55)) this.wantButton = { reason: 'vitals', victim: q.id };
             }
           }
           this.lastVitals = t;
@@ -5840,7 +5840,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   const B = AU.Brain.prototype;
 
   const STRONG = { kill: 1, vent: 0.85, shift: 1, vanish: 0.95 };
-  const CLAIM_W = { kill: 70, vent: 58, shift: 36, vanish: 32, noscan: 32, fakeTask: 30, follow: 8, nearBody: 13, lastWith: 16, lie: 24, tracker: 30, sus: 16, hunch: 9, claim: 16, vote: 7, mention: 4, fromBody: 14, fastReport: 16 };
+  const CLAIM_W = { kill: 70, vent: 58, shift: 36, vanish: 32, noscan: 32, fakeTask: 30, follow: 8, nearBody: 13, lastWith: 16, lie: 24, tracker: 30, sus: 16, hunch: 3, claim: 16, vote: 7, mention: 4, fromBody: 14, fastReport: 16 };
 
   B.mStart = function (mt) {
     const g = this.g, p = this.p;
@@ -6241,7 +6241,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (this.mem.admin.some((a) => a.t >= this.rs)) items.push({ k: 'adminInfo' });
       if (pers.hunch > 0.3 && U.chance(pers.hunch)) items.push({ k: 'hunch' });
       /* conta de cabeça: se pular e morrer mais um, acabou */
-      const impsLeft = g.S.rules.confirmEjects ? mt.impostorsLeft : g.S.room.impostors;
+      const impsLeft = this.impsLeftEst();
       if (mt.alive.length - impsLeft <= impsLeft + 1 && (pers.leader || pers.times || pers.skeptic || U.chance(0.3)) && !mt.flags.crisisSaid) items.push({ k: 'crisis' });
       /* quem organiza a conversa fecha com um resumo: quem está limpo, quem pesa mais e por quê */
       if ((pers.leader || pers.times) && U.chance(0.75)) items.push({ k: 'summary', late: true });
@@ -6441,7 +6441,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   B.voteReason = function (v) {
     const g = this.g, mt = this.mt;
     if (v === 'skip' || v == null) return this.p.isImp ? 'não tem nada concreto' : 'sem prova suficiente';
-    if (this.p.isImp) return v === this.scapegoat ? 'desconfia dele desde o começo' : mt.votesOn(v) >= 2 ? 'a maioria está votando nele' : 'o álibi dele não convenceu';
+    if (this.p.isImp) return v === this.scapegoat ? 'desconfia dele desde o começo' : mt.saidOn(v) >= 2 ? 'a maioria está votando nele' : 'o álibi dele não convenceu';
     const ev = ((this.ev && this.ev[v]) || []).filter((e) => e.w > 0).sort((a, b) => b.w - a.w)[0];
     if (ev) {
       const t = { kill: 'viu matando', vent: 'viu no duto', shift: 'viu mudando de forma', vanish: 'viu sumindo', noscan: 'fingiu o scan', fakeTask: 'fingiu tarefa (a barra não subiu)', follow: 'estava seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava com a vítima', fastReport: 'reportou rápido demais (self report?)' }[ev.reason];
@@ -6449,7 +6449,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     }
     if ((this.chatDelta[v] || 0) > 8) return 'o álibi não bate com o que viu';
     if ((this.chatClaim[v] || 0) > 12) return 'acusaram com prova no chat';
-    if (mt.votesOn(v) >= 2) return 'a maioria está votando nele';
+    if (mt.saidOn(v) >= 2) return 'a maioria está votando nele';
     void g;
     return 'está suspeito';
   };
@@ -6563,12 +6563,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
       case 'vitals': {
         const b = mt.info.body;
-        const ids = Object.keys(this.mem.vitals).map(Number).filter((id) => !g.players[id].ejected);
+        /* sem corpo (reunião de emergência): a morte mais recente que eu vi nos sinais vitais nesta rodada */
+        const ids = Object.keys(this.mem.vitals).map(Number).filter((id) => !g.players[id].ejected && this.mem.vitals[id].to >= this.rs)
+          .sort((a, c) => this.mem.vitals[a].to - this.mem.vitals[c].to);
         const id = b ? b.pid : ids[ids.length - 1];
-        const v = this.mem.vitals[id];
+        const v = id != null ? this.mem.vitals[id] : null;
         if (!v) return null;
         const ago = Math.max(5, Math.round((mt.info.t - (v.from + v.to) / 2) / 5) * 5);
-        return msg('vitals', { victim: id, ago }, [{ type: 'roleClaim', role: 'cientista' }]);
+        return msg('vitals', { victim: id, ago, btn: !b }, [{ type: 'roleClaim', role: 'cientista' }]);
       }
       case 'tracker': {
         const tr = this.mem.track.filter((x) => x.t >= this.rs);
@@ -6616,8 +6618,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       case 'crisis': {
         if (mt.flags.crisisSaid) return null;
         mt.flags.crisisSaid = true;
-        const impsLeft = g.S.rules.confirmEjects ? mt.impostorsLeft : g.S.room.impostors;
-        return msg('crisis', { n: mt.alive.length, imps: impsLeft }, []);
+        return msg('crisis', { n: mt.alive.length, imps: this.impsLeftEst(), maybe: !g.S.rules.confirmEjects && g.players.some((q) => q.ejected) }, []);
       }
       case 'summary': {
         /* espera a conversa andar: resumo cedo demais não resume nada */
@@ -6757,7 +6758,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           this.bump(S, 28, 'own');
           if (!mt.flags['knew' + S] && (pers.times || pers.skeptic || U.chance(0.4))) {
             mt.flags['knew' + S] = true;
-            this.reply(0.8, () => say('knewBody', { who: S }, [{ type: 'accuse', who: S, reason: 'lie' }]), true);
+            this.reply(0.8, () => say('knewBody', { who: S }, [{ type: 'accuse', who: S, reason: 'lie', proof: true }]), true);
           }
         }
         if (!this.knowsBody && it.area) {
@@ -6905,7 +6906,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const key = 'noRole' + role + (claim ? S : '');
       if (!mt.flags[key] && (pers.times || pers.skeptic || pers.leader || U.chance(0.3))) {
         mt.flags[key] = true;
-        this.reply(0.8, () => say('roleNotInGame', { role }, claim && !p.isImp ? [{ type: 'accuse', who: S, reason: 'lie' }] : []), true);
+        this.reply(0.8, () => say('roleNotInGame', { role }, claim && !p.isImp ? [{ type: 'accuse', who: S, reason: 'lie', proof: true }] : []), true);
       }
       return;
     }
@@ -7282,6 +7283,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     if (it.reason === 'lie' && !it.area && mt.accusers[S] && mt.accusers[S][T2]) {
       belief *= 0.25;
       this.bump(S, 3, 'social');
+    } else if (it.reason === 'lie' && !it.area && !it.proof) {
+      /* "mentiroso" sem dizer onde nem por quê não dá para conferir: nas partidas de teste, quase sempre era o
+         impostor defendendo a si ou ao parceiro */
+      belief *= 0.4;
     }
     /* quem reportou estava no corpo, claro: "vi fulano perto do corpo" contra quem achou o corpo não diz nada */
     const reporterNear = mt.info.kind === 'report' && T2 === mt.info.caller && (it.reason === 'nearBody' || it.reason === 'fromBody') &&
@@ -7460,7 +7465,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     for (const id of mt.alive) {
       const q = g.players[id];
       if (id === me || q.isImp) continue;
-      const s = (mt.heat[id] || 0) + (this.accusedMe[id] ? 25 : 0) + (id === this.scapegoat ? 12 : 0) + mt.votesOn(id) * 12;
+      const s = (mt.heat[id] || 0) + (this.accusedMe[id] ? 25 : 0) + (id === this.scapegoat ? 12 : 0) + mt.saidOn(id) * 12;
       if (s > bs) {
         bs = s;
         best = id;
@@ -7475,20 +7480,24 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     if (this.p.isImp) {
       const partners = alive.filter((id) => g.players[id].isImp);
       for (const pid of partners) {
-        const on = mt.votesOn(pid);
+        const on = mt.saidOn(pid);
         if (on >= Math.ceil((mt.alive.length - 1) / 2) - 1 && on >= 2 && U.chance(this.lvl.bus)) return pid;
       }
       /* reta final (mais um abate e ganhamos): os impostores votam juntos no mesmo tripulante */
       const impsAlive = mt.alive.filter((id) => g.players[id].isImp).length;
       if (mt.alive.length - impsAlive <= impsAlive + 1 && partners.length) {
-        const mateVote = partners.map((pid) => mt.votes[pid]).find((v) => v != null && v !== 'skip' && g.players[v] && !g.players[v].isImp);
+        const said = mt.saidVotes();
+        const mateVote = partners.map((pid) => said[pid]).find((v) => v != null && v !== 'skip' && g.players[v] && !g.players[v].isImp);
         if (mateVote != null) return mateVote;
-        const lead0 = mt.leading();
+        const lead0 = mt.saidLeading();
         if (lead0 && !g.players[lead0.id].isImp && lead0.id !== me) return lead0.id;
+        /* sem voto anunciado para seguir: os dois escolhem pelo mesmo critério público (o mais acusado no chat) */
+        const pick = mt.alive.filter((id) => !g.players[id].isImp).sort((a, b) => (mt.heat[b] || 0) - (mt.heat[a] || 0) || a - b)[0];
+        if (pick != null) return pick;
       }
       const t = this.impTarget();
       if (t != null) return t;
-      const lead = mt.leading();
+      const lead = mt.saidLeading();
       if (lead && !g.players[lead.id].isImp && lead.count >= 2) return lead.id;
       return 'skip';
     }
@@ -7498,7 +7507,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     /* álibi firme: esteve comigo um bom tempo nesta rodada, ou alguém de confiança confirmou que estavam juntos */
     const solid = (id) => cleared(id) || ((this.ev && this.ev[id]) || []).some((e) => (e.reason === 'together' && e.secs >= 20) || (e.reason === 'alibi' && e.cover >= 0.7 && e.solo)) ||
       mt.msgs.some((m) => m.from !== id && m.from !== me && this.trust(m.from) >= 0.75 && m.intents.some((x) => x.type === 'vouch' && x.who === id && (x.reason === 'together' || x.reason === 'visual')));
-    const impsLeft = g.S.rules.confirmEjects ? mt.impostorsLeft : g.S.room.impostors;
+    const impsLeft = this.impsLeftEst();
     const open = alive.filter((id) => !solid(id));
     const elim = open.length > 0 && open.length <= impsLeft + 1 ? 22 : open.length <= impsLeft + 2 ? 12 : open.length <= impsLeft + 3 ? 5 : 0;
     /* linhas de prova independentes contra alguém: o que eu vi + acusações de gente diferente em quem confio */
@@ -7514,10 +7523,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
        ("acho que é ele", "vota nele" e "concordo" sozinhos não são motivo) */
     const leadOk = (id) => mt.msgs.some((m) => m.from !== me && m.from !== id && this.trust(m.from) >= 0.6 &&
       m.intents.some((x) => x.type === 'accuse' && x.who === id && !WEAK[x.reason]));
-    const score = (id) => (this.susp[id] || 0) + (elim && open.includes(id) ? elim : 0) + (leadOk(id) ? pers.follow * (mt.heat[id] || 0) * 0.3 + mt.votesOn(id) * pers.follow * 7 : 0) + said(id) - (solid(id) ? 12 : 0);
+    const score = (id) => (this.susp[id] || 0) + (elim && open.includes(id) ? elim : 0) + (leadOk(id) ? pers.follow * (mt.heat[id] || 0) * 0.3 + mt.saidOn(id) * pers.follow * 7 : 0) + said(id) - (solid(id) ? 12 : 0);
     const ranked = alive.map((id) => ({ id, s: score(id) })).sort((a, b) => b.s - a.s);
     if (AU.debug && AU.debug.trace) {
-      this.why = ranked.slice(0, 3).map((r) => ({ id: r.id, s: Math.round(r.s), susp: Math.round(this.susp[r.id] || 0), chat: Math.round(this.chatDelta[r.id] || 0), carry: Math.round((this.carry[r.id] || 0) * 0.5), heat: mt.heat[r.id] || 0, votes: mt.votesOn(r.id), ev: ((this.ev && this.ev[r.id]) || []).map((e) => e.reason + ':' + Math.round(e.w)) }));
+      this.why = ranked.slice(0, 3).map((r) => ({ id: r.id, s: Math.round(r.s), susp: Math.round(this.susp[r.id] || 0), chat: Math.round(this.chatDelta[r.id] || 0), carry: Math.round((this.carry[r.id] || 0) * 0.5), heat: mt.heat[r.id] || 0, votes: mt.saidOn(r.id), ev: ((this.ev && this.ev[r.id]) || []).map((e) => e.reason + ':' + Math.round(e.w)) }));
     }
     const top = ranked[0], second = ranked[1] || { s: -999 };
     if (!top) return 'skip';
@@ -7527,8 +7536,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     const ln = lines(top.id);
     const thr = pers.thr * (this.skipLean > 2 ? 1.12 : 1) * (crisis ? 0.75 : 1) * (ln >= 3 ? 0.65 : ln >= 2 ? 0.8 : 1);
     if (top.s >= thr && top.s - second.s >= (crisis ? 6 : 8)) return top.id;
-    const lead = mt.leading();
-    const trustedLead = (id) => leadOk(id) || Object.keys(mt.votes).some((v) => +v !== me && mt.votes[v] === id && this.trust(+v) >= 0.7 && (this.hardCleared(+v) || this.clearedByVisual(+v)));
+    const lead = mt.saidLeading();
+    const saidV = mt.saidVotes();
+    const trustedLead = (id) => leadOk(id) || Object.keys(saidV).some((v) => +v !== me && saidV[v] === id && this.trust(+v) >= 0.7 && (this.hardCleared(+v) || this.clearedByVisual(+v)));
     /* voto dividido não tira ninguém: se quem está na frente também é suspeito para mim e quem puxou trouxe prova
        (ou já provou ser tripulante), junto ali */
     if (lead && lead.count >= 2 && lead.id !== me && !cleared(lead.id) && trustedLead(lead.id)) {
@@ -7537,7 +7547,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     }
     /* crise: pular entrega o jogo (mais um abate e eles ganham). Vota em quem pesa mais entre os não inocentados;
        só vai no que está na frente se ele também é um dos meus dois mais suspeitos e quem puxou é confiável */
-    if (crisis) {
+    /* sem tarefa visual e sem ejeção confirmada ninguém prova nada: voto só pelo que se falou no chat vira chute (e os
+       dois impostores votando juntos ganham o chute). Aí só força o voto quem tem pista própria ou relato forte;
+       sem isso, pular dá tempo de terminar as tarefas. */
+    const blind = !g.S.rules.visualTasks && !g.S.rules.confirmEjects;
+    const grounded = (id) => ((this.ev && this.ev[id]) || []).some((e) => e.w > 0) || (this.chatClaim[id] || 0) > 12;
+    if (crisis && (!blind || ranked.some((r) => !cleared(r.id) && grounded(r.id)))) {
       /* na reta final até pista fraca decide: admitiu ter passado na sala do corpo, disse que estava numa sala onde
          eu fiquei um tempo e não o vi, ou ninguém confirmou onde estava */
       const bodyA = this.knowsBody || mt.facts.bodyArea;
@@ -7554,7 +7569,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       };
       for (const r of ranked) r.s += tie(r.id);
       ranked.sort((a, b) => b.s - a.s);
-      const pool = ranked.filter((r) => !cleared(r.id));
+      const pool = ranked.filter((r) => !cleared(r.id) && (!blind || grounded(r.id)));
       if (pool.length) {
         const lc = lead && pool.find((r) => r.id === lead.id);
         if (lc && pool.indexOf(lc) <= 1 && trustedLead(lc.id)) return lc.id;
@@ -7565,10 +7580,27 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     return 'skip';
   };
 
+  /* Quantos impostores ainda estão vivos. Com ejeção confirmada é público. Sem confirmação, o tripulante estima pelo
+     que achava de cada ejetado (se estava quase certo de que era impostor, conta um a menos); o impostor sabe. */
+  B.impsLeftEst = function () {
+    const g = this.g, mt = this.mt;
+    if (g.S.rules.confirmEjects && mt) return mt.impostorsLeft;
+    if (this.p.isImp) return g.players.filter((q) => q.isImp && q.alive).length;
+    let e = g.S.room.impostors;
+    for (const id of Object.keys(this.mem.ejImp || {})) e -= this.mem.ejImp[id];
+    return Math.max(1, Math.round(e));
+  };
+
   B.mEnd = function (result) {
     const g = this.g;
     if (!this.mt) return;
     const conf = g.S.rules.confirmEjects;
+    /* ejeção sem confirmação: guarda o quanto eu achava que o ejetado era impostor (para a conta de quantos sobram) */
+    if (result.ejected != null && !conf && !this.p.isImp && result.ejected !== this.p.id) {
+      const ej = result.ejected, ev = (this.ev && this.ev[ej]) || [], s = this.susp[ej] || 0;
+      const pImp = ev.some((e) => STRONG[e.reason] && e.w > 0) ? 0.95 : this.hardCleared(ej) ? 0.05 : U.clamp(0.25 + s / 120, 0.1, 0.85);
+      (this.mem.ejImp = this.mem.ejImp || {})[ej] = pImp;
+    }
     for (const q of g.players) {
       if (q.id === this.p.id) continue;
       this.carry[q.id] = U.clamp((this.susp[q.id] || 0) * 0.55, -45, 110);
@@ -8198,7 +8230,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     async askVotes(list, imp) {
       const mt = this.mt, g = this.g;
       const alive = mt.alive.map((id) => g.players[id]);
-      const impsLeft = g.S.rules.confirmEjects ? mt.impostorsLeft : g.S.room.impostors;
+      /* sem ejeção confirmada, cada bot estima quantos impostores sobram; o impostor sabe */
+      const impsLeft = g.S.rules.confirmEjects ? mt.impostorsLeft : imp ? alive.filter((q) => q.isImp).length : Math.round(list.reduce((a, q) => a + q.brain.impsLeftEst(), 0) / list.length);
       const crewLeft = alive.length - impsLeft;
       const crisis = crewLeft <= impsLeft + 1;
       const heat = alive.map((q) => ({ q, h: mt.heat[q.id] || 0, acc: Object.keys(mt.accusers[q.id] || {}).length, def: Object.keys(mt.defenders[q.id] || {}).length })).filter((x) => x.h > 0 || x.def).sort((a, b) => b.h - a.h);
@@ -8208,7 +8241,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         lines.push('Agora é a votação. Decida o voto de cada tripulante abaixo usando SÓ o que ele sabe (as anotações dele) e o que foi dito no chat.');
         lines.push('Como um jogador esperto decide: vota em quem tem prova (viu matar, ventar, mudar de forma) ou contradição clara de álibi; pesa se quem acusa é confiável; nunca vota em quem ele viu fazer tarefa visual; desconfia de quem acusa sem prova ou defende demais alguém suspeito; desconfia de quem reportou o corpo segundos depois de a vítima ser vista viva (self report); se não há nada concreto, pula.');
         lines.push('Voto dividido não tira ninguém: se o mais votado também é suspeito para ele e quem puxou trouxe prova, junta ali.');
-        if (crisis) lines.push('SITUAÇÃO CRÍTICA: NINGUÉM PULA. Se ninguém sair, o próximo abate encerra o jogo. Cada um vota no mais provável (fora quem ele sabe que é inocente) e, se possível, todos no mesmo.');
+        if (crisis && (g.S.rules.visualTasks || g.S.rules.confirmEjects)) lines.push('SITUAÇÃO CRÍTICA: NINGUÉM PULA. Se ninguém sair, o próximo abate encerra o jogo. Cada um vota no mais provável (fora quem ele sabe que é inocente) e, se possível, todos no mesmo.');
+        else if (crisis) lines.push('SITUAÇÃO CRÍTICA, mas sem tarefa visual e sem confirmação ninguém prova nada: vota quem tem pista concreta (viu algo, relato forte); sem pista, pular dá tempo de terminar as tarefas — voto no chute costuma tirar inocente, porque os impostores votam juntos.');
       } else {
         const team = g.players.filter((q) => q.isImp && q.alive).map((q) => q.name).join(', ');
         lines.push('Você decide o voto dos IMPOSTORES abaixo (os tripulantes não sabem quem são). Impostores vivos: ' + team + '.');
@@ -8515,7 +8549,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (pend.mentioned.length) cand.push({ kind: 'mentioned', by: pend.mentioned.slice(0, 2), s: 45 });
         const cap = 1 + Math.round(b.pers.talk * 3);
         if (!cand.length && (this.free[id] || 0) >= cap) continue;
-        if (mt.phase === 'voting' && mt.votesOn(id) >= 2 && !recent.includes(id)) cand.push({ kind: 'plead', s: 75 });
+        if (mt.phase === 'voting' && mt.saidOn(id) >= 2 && !recent.includes(id)) cand.push({ kind: 'plead', s: 75 });
         if (!claimed.has(id) && t > mt.durI + 6) cand.push({ kind: 'claim', s: 38 + b.pers.talk * 20 });
         const others = unclaimed.filter((x) => x !== id && !(hp && x === hp.id && mt.askedHumanAt != null));
         if ((b.pers.leader || b.pers.skeptic) && others.length && t > mt.durI + 8) cand.push({ kind: 'pressClaims', who: others.slice(0, 3), s: 48 });
@@ -8814,8 +8848,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (p.special) out.push('Função: ' + C.ROLES[p.special].name + '.');
         const caught = b.mem.events.filter((e) => (e.type === 'fakeTask' || e.type === 'noscan') && e.t >= g.roundStart && g.players[e.who] && g.players[e.who].alive);
         if (caught.length) out.push('Pegou ' + this.who(caught[0].who) + ' fingindo tarefa (' + (caught[0].type === 'noscan' ? 'parado no scanner sem escanear' : 'terminou e a barra não subiu') + ').');
-        const vit = Object.keys(b.mem.vitals || {}).map(Number).filter((id) => !g.bodies.some((bd) => bd.pid === id && bd.reported) && !g.players[id].ejected);
-        if (vit.length) out.push('Viu nos sinais vitais que ' + vit.map((id) => g.players[id].name).join(', ') + ' morreu e ninguém reportou o corpo ainda.');
+        const vit = Object.keys(b.mem.vitals || {}).map(Number).filter((id) => g.bodies.some((bd) => bd.pid === id && !bd.reported && !bd.gone));
+        if (vit.length) out.push('Viu nos sinais vitais que ' + vit.map((id) => g.players[id].name).join(', ') + (vit.length > 1 ? ' morreram' : ' morreu') + ' e ninguém achou o corpo ainda.');
       } else {
         out.push('Recarga do abate: ' + (p.killCd > 0 ? Math.ceil(p.killCd) + 's' : 'PRONTO') + '.');
         const alone = b.crewVisible();
@@ -8850,7 +8884,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         '',
       ];
       if (team === 'crew') {
-        const alive = g.players.filter((p) => p.alive), imps = g.S.rules.confirmEjects ? alive.filter((p) => p.isImp).length : g.S.room.impostors;
+        const alive = g.players.filter((p) => p.alive), crewB = alive.filter((p) => p.brain && !p.isImp);
+        const imps = g.S.rules.confirmEjects ? alive.filter((p) => p.isImp).length : crewB.length ? Math.round(crewB.reduce((a, p) => a + p.brain.impsLeftEst(), 0) / crewB.length) : g.S.room.impostors;
         const endgame = alive.length - imps <= imps + 2;
         head.push('Estes são TRIPULANTES. Cada um só sabe o que está na própria lista. Decida como um jogador esperto: fazer tarefas é o principal; andar em dupla com quem confia; vigiar de longe quem é suspeito; nunca ficar sozinho com suspeito; mostrar tarefa visual para quem desconfia de você; quem terminou as tarefas não fica parado: patrulha as salas isoladas procurando corpos, olha câmeras/admin ou acompanha quem ainda tem tarefa; botão com motivo concreto (viu algo de impostor, pegou tarefa falsa, cientista viu morte sem corpo).' + (endgame ? ' RETA FINAL: poucos vivos — ninguém anda sozinho; grudar em quem já provou ser inocente.' : ''));
         head.push('Ações possíveis:', CREW_ACTIONS.map((a) => '- ' + a).join('\n'));
@@ -9290,7 +9325,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
 
     /* Os fantasmas assistem a votação: quem sabe quem é o impostor reage ("não!! foi o verde") — os vivos não leem. */
     voteTalk(mt) {
-      const g = this.g, lead = mt.leading();
+      const g = this.g, lead = mt.saidLeading();
       if (!lead || lead.count < 2) return;
       this.voteSaid = this.voteSaid || {};
       const key = mt.info.index + ':' + lead.id;
@@ -9344,7 +9379,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         case 'greetHumanKilledMe': return this.name(c.v) + ' (o jogador, que era impostor e matou ' + p.name + ') acabou de chegar aqui. ' + p.name + ' comenta isso.';
         case 'greetHumanEj': case 'greetHumanEjCrew': case 'greetHumanEjImp': case 'greetHumanEjMate':
           return this.name(c.v) + ' (o jogador) foi EJETADO na votação (ninguém o matou)' + (g.S.rules.confirmEjects ? ' e ' + (hp.isImp ? 'era impostor' : 'era inocente') : '') + '. ' + p.name + ' recebe comentando a votação — não pergunte quem matou.';
-        case 'wrongVote': return 'Os vivos estão votando em ' + this.name(g.meeting && g.meeting.leading() ? g.meeting.leading().id : null) + ', mas ' + p.name + ' sabe que foi ' + this.name(c.k) + '. Reage (os vivos não leem).';
+        case 'wrongVote': return 'Os vivos estão votando em ' + this.name(g.meeting && g.meeting.saidLeading() ? g.meeting.saidLeading().id : null) + ', mas ' + p.name + ' sabe que foi ' + this.name(c.k) + '. Reage (os vivos não leem).';
         case 'rightVote': return 'Os vivos estão votando em ' + this.name(c.k) + ', que ' + p.name + ' sabe que é impostor. Torce.';
         case 'selfKiller': return p.name + ' acabou de morrer e conta quem o matou.';
         case 'selfUnknown': return p.name + ' acabou de morrer sem ver quem foi.';
@@ -9834,7 +9869,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           }
           this.castVote(+id, v);
           const aiTalk = this.dir && this.dir.on();
-          if (U.chance(aiTalk ? 0.3 + p.brain.pers.talk * 0.35 : 0.15 + p.brain.pers.talk * 0.15)) {
+          if (U.chance(aiTalk ? 0.35 + p.brain.pers.talk * 0.35 : 0.3 + p.brain.pers.talk * 0.3)) {
             /* anunciar o voto influencia quem ainda não votou (quem segue a maioria presta atenção) */
             const vi = v === 'skip' ? [{ type: 'skip' }] : [{ type: 'accuse', who: v, reason: 'vote' }];
             const why = ai && ai.target === v && ai.reason ? ai.reason : p.brain.voteReason ? p.brain.voteReason(v) : '';
@@ -10070,6 +10105,32 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       let n = 0;
       for (const k of Object.keys(this.votes)) if (this.votes[k] === id) n++;
       return n;
+    }
+    /* O que dá para saber da votação sem espiar: no jogo só aparece QUEM já votou, não em quem. Então os bots contam
+       apenas os votos anunciados no chat ("voto no X", "eu pulo"), valendo o último de cada um. Quem diz que viu
+       alguém matar, ventar ou se transformar vai votar nele: conta como voto anunciado. */
+    saidVotes() {
+      const out = {};
+      for (const m of this.msgs) {
+        for (const it of m.intents) {
+          if (it.type === 'skip') out[m.from] = 'skip';
+          else if (it.type === 'accuse' && it.who != null && it.who !== m.from && (it.reason === 'vote' || STRONG[it.reason])) out[m.from] = it.who;
+        }
+      }
+      return out;
+    }
+    saidOn(id) {
+      const s = this.saidVotes();
+      let n = 0;
+      for (const k of Object.keys(s)) if (s[k] === id) n++;
+      return n;
+    }
+    saidLeading() {
+      const s = this.saidVotes(), counts = {};
+      for (const k of Object.keys(s)) if (s[k] !== 'skip') counts[s[k]] = (counts[s[k]] || 0) + 1;
+      let best = null;
+      for (const id of Object.keys(counts)) if (!best || counts[id] > best.count) best = { id: +id, count: counts[id] };
+      return best;
     }
     leading() {
       const counts = {};

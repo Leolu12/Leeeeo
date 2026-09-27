@@ -6,7 +6,7 @@
   const B = AU.Brain.prototype;
 
   const STRONG = { kill: 1, vent: 0.85, shift: 1, vanish: 0.95 };
-  const CLAIM_W = { kill: 70, vent: 58, shift: 36, vanish: 32, noscan: 32, fakeTask: 30, follow: 8, nearBody: 13, lastWith: 16, lie: 24, tracker: 30, sus: 16, hunch: 9, claim: 16, vote: 7, mention: 4, fromBody: 14, fastReport: 16 };
+  const CLAIM_W = { kill: 70, vent: 58, shift: 36, vanish: 32, noscan: 32, fakeTask: 30, follow: 8, nearBody: 13, lastWith: 16, lie: 24, tracker: 30, sus: 16, hunch: 3, claim: 16, vote: 7, mention: 4, fromBody: 14, fastReport: 16 };
 
   B.mStart = function (mt) {
     const g = this.g, p = this.p;
@@ -407,7 +407,7 @@
       if (this.mem.admin.some((a) => a.t >= this.rs)) items.push({ k: 'adminInfo' });
       if (pers.hunch > 0.3 && U.chance(pers.hunch)) items.push({ k: 'hunch' });
       /* conta de cabeça: se pular e morrer mais um, acabou */
-      const impsLeft = g.S.rules.confirmEjects ? mt.impostorsLeft : g.S.room.impostors;
+      const impsLeft = this.impsLeftEst();
       if (mt.alive.length - impsLeft <= impsLeft + 1 && (pers.leader || pers.times || pers.skeptic || U.chance(0.3)) && !mt.flags.crisisSaid) items.push({ k: 'crisis' });
       /* quem organiza a conversa fecha com um resumo: quem está limpo, quem pesa mais e por quê */
       if ((pers.leader || pers.times) && U.chance(0.75)) items.push({ k: 'summary', late: true });
@@ -607,7 +607,7 @@
   B.voteReason = function (v) {
     const g = this.g, mt = this.mt;
     if (v === 'skip' || v == null) return this.p.isImp ? 'não tem nada concreto' : 'sem prova suficiente';
-    if (this.p.isImp) return v === this.scapegoat ? 'desconfia dele desde o começo' : mt.votesOn(v) >= 2 ? 'a maioria está votando nele' : 'o álibi dele não convenceu';
+    if (this.p.isImp) return v === this.scapegoat ? 'desconfia dele desde o começo' : mt.saidOn(v) >= 2 ? 'a maioria está votando nele' : 'o álibi dele não convenceu';
     const ev = ((this.ev && this.ev[v]) || []).filter((e) => e.w > 0).sort((a, b) => b.w - a.w)[0];
     if (ev) {
       const t = { kill: 'viu matando', vent: 'viu no duto', shift: 'viu mudando de forma', vanish: 'viu sumindo', noscan: 'fingiu o scan', fakeTask: 'fingiu tarefa (a barra não subiu)', follow: 'estava seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava com a vítima', fastReport: 'reportou rápido demais (self report?)' }[ev.reason];
@@ -615,7 +615,7 @@
     }
     if ((this.chatDelta[v] || 0) > 8) return 'o álibi não bate com o que viu';
     if ((this.chatClaim[v] || 0) > 12) return 'acusaram com prova no chat';
-    if (mt.votesOn(v) >= 2) return 'a maioria está votando nele';
+    if (mt.saidOn(v) >= 2) return 'a maioria está votando nele';
     void g;
     return 'está suspeito';
   };
@@ -729,12 +729,14 @@
       }
       case 'vitals': {
         const b = mt.info.body;
-        const ids = Object.keys(this.mem.vitals).map(Number).filter((id) => !g.players[id].ejected);
+        /* sem corpo (reunião de emergência): a morte mais recente que eu vi nos sinais vitais nesta rodada */
+        const ids = Object.keys(this.mem.vitals).map(Number).filter((id) => !g.players[id].ejected && this.mem.vitals[id].to >= this.rs)
+          .sort((a, c) => this.mem.vitals[a].to - this.mem.vitals[c].to);
         const id = b ? b.pid : ids[ids.length - 1];
-        const v = this.mem.vitals[id];
+        const v = id != null ? this.mem.vitals[id] : null;
         if (!v) return null;
         const ago = Math.max(5, Math.round((mt.info.t - (v.from + v.to) / 2) / 5) * 5);
-        return msg('vitals', { victim: id, ago }, [{ type: 'roleClaim', role: 'cientista' }]);
+        return msg('vitals', { victim: id, ago, btn: !b }, [{ type: 'roleClaim', role: 'cientista' }]);
       }
       case 'tracker': {
         const tr = this.mem.track.filter((x) => x.t >= this.rs);
@@ -782,8 +784,7 @@
       case 'crisis': {
         if (mt.flags.crisisSaid) return null;
         mt.flags.crisisSaid = true;
-        const impsLeft = g.S.rules.confirmEjects ? mt.impostorsLeft : g.S.room.impostors;
-        return msg('crisis', { n: mt.alive.length, imps: impsLeft }, []);
+        return msg('crisis', { n: mt.alive.length, imps: this.impsLeftEst(), maybe: !g.S.rules.confirmEjects && g.players.some((q) => q.ejected) }, []);
       }
       case 'summary': {
         /* espera a conversa andar: resumo cedo demais não resume nada */
@@ -923,7 +924,7 @@
           this.bump(S, 28, 'own');
           if (!mt.flags['knew' + S] && (pers.times || pers.skeptic || U.chance(0.4))) {
             mt.flags['knew' + S] = true;
-            this.reply(0.8, () => say('knewBody', { who: S }, [{ type: 'accuse', who: S, reason: 'lie' }]), true);
+            this.reply(0.8, () => say('knewBody', { who: S }, [{ type: 'accuse', who: S, reason: 'lie', proof: true }]), true);
           }
         }
         if (!this.knowsBody && it.area) {
@@ -1071,7 +1072,7 @@
       const key = 'noRole' + role + (claim ? S : '');
       if (!mt.flags[key] && (pers.times || pers.skeptic || pers.leader || U.chance(0.3))) {
         mt.flags[key] = true;
-        this.reply(0.8, () => say('roleNotInGame', { role }, claim && !p.isImp ? [{ type: 'accuse', who: S, reason: 'lie' }] : []), true);
+        this.reply(0.8, () => say('roleNotInGame', { role }, claim && !p.isImp ? [{ type: 'accuse', who: S, reason: 'lie', proof: true }] : []), true);
       }
       return;
     }
@@ -1448,6 +1449,10 @@
     if (it.reason === 'lie' && !it.area && mt.accusers[S] && mt.accusers[S][T2]) {
       belief *= 0.25;
       this.bump(S, 3, 'social');
+    } else if (it.reason === 'lie' && !it.area && !it.proof) {
+      /* "mentiroso" sem dizer onde nem por quê não dá para conferir: nas partidas de teste, quase sempre era o
+         impostor defendendo a si ou ao parceiro */
+      belief *= 0.4;
     }
     /* quem reportou estava no corpo, claro: "vi fulano perto do corpo" contra quem achou o corpo não diz nada */
     const reporterNear = mt.info.kind === 'report' && T2 === mt.info.caller && (it.reason === 'nearBody' || it.reason === 'fromBody') &&
@@ -1626,7 +1631,7 @@
     for (const id of mt.alive) {
       const q = g.players[id];
       if (id === me || q.isImp) continue;
-      const s = (mt.heat[id] || 0) + (this.accusedMe[id] ? 25 : 0) + (id === this.scapegoat ? 12 : 0) + mt.votesOn(id) * 12;
+      const s = (mt.heat[id] || 0) + (this.accusedMe[id] ? 25 : 0) + (id === this.scapegoat ? 12 : 0) + mt.saidOn(id) * 12;
       if (s > bs) {
         bs = s;
         best = id;
@@ -1641,20 +1646,24 @@
     if (this.p.isImp) {
       const partners = alive.filter((id) => g.players[id].isImp);
       for (const pid of partners) {
-        const on = mt.votesOn(pid);
+        const on = mt.saidOn(pid);
         if (on >= Math.ceil((mt.alive.length - 1) / 2) - 1 && on >= 2 && U.chance(this.lvl.bus)) return pid;
       }
       /* reta final (mais um abate e ganhamos): os impostores votam juntos no mesmo tripulante */
       const impsAlive = mt.alive.filter((id) => g.players[id].isImp).length;
       if (mt.alive.length - impsAlive <= impsAlive + 1 && partners.length) {
-        const mateVote = partners.map((pid) => mt.votes[pid]).find((v) => v != null && v !== 'skip' && g.players[v] && !g.players[v].isImp);
+        const said = mt.saidVotes();
+        const mateVote = partners.map((pid) => said[pid]).find((v) => v != null && v !== 'skip' && g.players[v] && !g.players[v].isImp);
         if (mateVote != null) return mateVote;
-        const lead0 = mt.leading();
+        const lead0 = mt.saidLeading();
         if (lead0 && !g.players[lead0.id].isImp && lead0.id !== me) return lead0.id;
+        /* sem voto anunciado para seguir: os dois escolhem pelo mesmo critério público (o mais acusado no chat) */
+        const pick = mt.alive.filter((id) => !g.players[id].isImp).sort((a, b) => (mt.heat[b] || 0) - (mt.heat[a] || 0) || a - b)[0];
+        if (pick != null) return pick;
       }
       const t = this.impTarget();
       if (t != null) return t;
-      const lead = mt.leading();
+      const lead = mt.saidLeading();
       if (lead && !g.players[lead.id].isImp && lead.count >= 2) return lead.id;
       return 'skip';
     }
@@ -1664,7 +1673,7 @@
     /* álibi firme: esteve comigo um bom tempo nesta rodada, ou alguém de confiança confirmou que estavam juntos */
     const solid = (id) => cleared(id) || ((this.ev && this.ev[id]) || []).some((e) => (e.reason === 'together' && e.secs >= 20) || (e.reason === 'alibi' && e.cover >= 0.7 && e.solo)) ||
       mt.msgs.some((m) => m.from !== id && m.from !== me && this.trust(m.from) >= 0.75 && m.intents.some((x) => x.type === 'vouch' && x.who === id && (x.reason === 'together' || x.reason === 'visual')));
-    const impsLeft = g.S.rules.confirmEjects ? mt.impostorsLeft : g.S.room.impostors;
+    const impsLeft = this.impsLeftEst();
     const open = alive.filter((id) => !solid(id));
     const elim = open.length > 0 && open.length <= impsLeft + 1 ? 22 : open.length <= impsLeft + 2 ? 12 : open.length <= impsLeft + 3 ? 5 : 0;
     /* linhas de prova independentes contra alguém: o que eu vi + acusações de gente diferente em quem confio */
@@ -1680,10 +1689,10 @@
        ("acho que é ele", "vota nele" e "concordo" sozinhos não são motivo) */
     const leadOk = (id) => mt.msgs.some((m) => m.from !== me && m.from !== id && this.trust(m.from) >= 0.6 &&
       m.intents.some((x) => x.type === 'accuse' && x.who === id && !WEAK[x.reason]));
-    const score = (id) => (this.susp[id] || 0) + (elim && open.includes(id) ? elim : 0) + (leadOk(id) ? pers.follow * (mt.heat[id] || 0) * 0.3 + mt.votesOn(id) * pers.follow * 7 : 0) + said(id) - (solid(id) ? 12 : 0);
+    const score = (id) => (this.susp[id] || 0) + (elim && open.includes(id) ? elim : 0) + (leadOk(id) ? pers.follow * (mt.heat[id] || 0) * 0.3 + mt.saidOn(id) * pers.follow * 7 : 0) + said(id) - (solid(id) ? 12 : 0);
     const ranked = alive.map((id) => ({ id, s: score(id) })).sort((a, b) => b.s - a.s);
     if (AU.debug && AU.debug.trace) {
-      this.why = ranked.slice(0, 3).map((r) => ({ id: r.id, s: Math.round(r.s), susp: Math.round(this.susp[r.id] || 0), chat: Math.round(this.chatDelta[r.id] || 0), carry: Math.round((this.carry[r.id] || 0) * 0.5), heat: mt.heat[r.id] || 0, votes: mt.votesOn(r.id), ev: ((this.ev && this.ev[r.id]) || []).map((e) => e.reason + ':' + Math.round(e.w)) }));
+      this.why = ranked.slice(0, 3).map((r) => ({ id: r.id, s: Math.round(r.s), susp: Math.round(this.susp[r.id] || 0), chat: Math.round(this.chatDelta[r.id] || 0), carry: Math.round((this.carry[r.id] || 0) * 0.5), heat: mt.heat[r.id] || 0, votes: mt.saidOn(r.id), ev: ((this.ev && this.ev[r.id]) || []).map((e) => e.reason + ':' + Math.round(e.w)) }));
     }
     const top = ranked[0], second = ranked[1] || { s: -999 };
     if (!top) return 'skip';
@@ -1693,8 +1702,9 @@
     const ln = lines(top.id);
     const thr = pers.thr * (this.skipLean > 2 ? 1.12 : 1) * (crisis ? 0.75 : 1) * (ln >= 3 ? 0.65 : ln >= 2 ? 0.8 : 1);
     if (top.s >= thr && top.s - second.s >= (crisis ? 6 : 8)) return top.id;
-    const lead = mt.leading();
-    const trustedLead = (id) => leadOk(id) || Object.keys(mt.votes).some((v) => +v !== me && mt.votes[v] === id && this.trust(+v) >= 0.7 && (this.hardCleared(+v) || this.clearedByVisual(+v)));
+    const lead = mt.saidLeading();
+    const saidV = mt.saidVotes();
+    const trustedLead = (id) => leadOk(id) || Object.keys(saidV).some((v) => +v !== me && saidV[v] === id && this.trust(+v) >= 0.7 && (this.hardCleared(+v) || this.clearedByVisual(+v)));
     /* voto dividido não tira ninguém: se quem está na frente também é suspeito para mim e quem puxou trouxe prova
        (ou já provou ser tripulante), junto ali */
     if (lead && lead.count >= 2 && lead.id !== me && !cleared(lead.id) && trustedLead(lead.id)) {
@@ -1703,7 +1713,12 @@
     }
     /* crise: pular entrega o jogo (mais um abate e eles ganham). Vota em quem pesa mais entre os não inocentados;
        só vai no que está na frente se ele também é um dos meus dois mais suspeitos e quem puxou é confiável */
-    if (crisis) {
+    /* sem tarefa visual e sem ejeção confirmada ninguém prova nada: voto só pelo que se falou no chat vira chute (e os
+       dois impostores votando juntos ganham o chute). Aí só força o voto quem tem pista própria ou relato forte;
+       sem isso, pular dá tempo de terminar as tarefas. */
+    const blind = !g.S.rules.visualTasks && !g.S.rules.confirmEjects;
+    const grounded = (id) => ((this.ev && this.ev[id]) || []).some((e) => e.w > 0) || (this.chatClaim[id] || 0) > 12;
+    if (crisis && (!blind || ranked.some((r) => !cleared(r.id) && grounded(r.id)))) {
       /* na reta final até pista fraca decide: admitiu ter passado na sala do corpo, disse que estava numa sala onde
          eu fiquei um tempo e não o vi, ou ninguém confirmou onde estava */
       const bodyA = this.knowsBody || mt.facts.bodyArea;
@@ -1720,7 +1735,7 @@
       };
       for (const r of ranked) r.s += tie(r.id);
       ranked.sort((a, b) => b.s - a.s);
-      const pool = ranked.filter((r) => !cleared(r.id));
+      const pool = ranked.filter((r) => !cleared(r.id) && (!blind || grounded(r.id)));
       if (pool.length) {
         const lc = lead && pool.find((r) => r.id === lead.id);
         if (lc && pool.indexOf(lc) <= 1 && trustedLead(lc.id)) return lc.id;
@@ -1731,10 +1746,27 @@
     return 'skip';
   };
 
+  /* Quantos impostores ainda estão vivos. Com ejeção confirmada é público. Sem confirmação, o tripulante estima pelo
+     que achava de cada ejetado (se estava quase certo de que era impostor, conta um a menos); o impostor sabe. */
+  B.impsLeftEst = function () {
+    const g = this.g, mt = this.mt;
+    if (g.S.rules.confirmEjects && mt) return mt.impostorsLeft;
+    if (this.p.isImp) return g.players.filter((q) => q.isImp && q.alive).length;
+    let e = g.S.room.impostors;
+    for (const id of Object.keys(this.mem.ejImp || {})) e -= this.mem.ejImp[id];
+    return Math.max(1, Math.round(e));
+  };
+
   B.mEnd = function (result) {
     const g = this.g;
     if (!this.mt) return;
     const conf = g.S.rules.confirmEjects;
+    /* ejeção sem confirmação: guarda o quanto eu achava que o ejetado era impostor (para a conta de quantos sobram) */
+    if (result.ejected != null && !conf && !this.p.isImp && result.ejected !== this.p.id) {
+      const ej = result.ejected, ev = (this.ev && this.ev[ej]) || [], s = this.susp[ej] || 0;
+      const pImp = ev.some((e) => STRONG[e.reason] && e.w > 0) ? 0.95 : this.hardCleared(ej) ? 0.05 : U.clamp(0.25 + s / 120, 0.1, 0.85);
+      (this.mem.ejImp = this.mem.ejImp || {})[ej] = pImp;
+    }
     for (const q of g.players) {
       if (q.id === this.p.id) continue;
       this.carry[q.id] = U.clamp((this.susp[q.id] || 0) * 0.55, -45, 110);
