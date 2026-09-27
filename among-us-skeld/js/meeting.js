@@ -208,6 +208,15 @@
         const b = U.pick(bots);
         this.say(b.brain, { text: T.line('askBody', {}, g, b.brain, { question: true }), intents: [{ type: 'askBody' }] }, { kind: 'askBody', important: true });
       }
+      /* o jogador apertou o botão e ainda não falou: alguém pergunta o motivo */
+      if (h0 && h0.alive && this.info.kind === 'emergency' && this.info.caller === h0.id && !this.humanSpoke && !this.flags.askCaller && t > this.durI + 4.5) {
+        this.flags.askCaller = true;
+        const b = U.weighted(bots, (q) => 0.3 + q.brain.pers.talk + (q.brain.pers.leader || q.brain.pers.skeptic ? 0.6 : 0));
+        if (b) {
+          this.lastToHuman = b.id;
+          this.say(b.brain, { text: T.line('askCaller', { who: h0.id }, g, b.brain, { question: true }), intents: [{ type: 'askWhy', who: h0.id }] }, { kind: 'askCaller', important: true });
+        }
+      }
       if (h0 && h0.alive && !this.humanSpoke && !this.flags.quiet && t > this.durI + 40) {
         this.flags.quiet = true;
         const b = bots.find((p) => p.brain.pers.skeptic || p.brain.pers.leader) || null;
@@ -249,7 +258,45 @@
         bodyKnown: !!this.facts.bodyArea,
       });
       const msg = this.post(hp, text, intents);
+      if (msg) this.engageHuman(msg);
       if (msg && this.dir) this.dir.onHuman(msg);
+    }
+
+    /* O que o jogador fala vira assunto. Quem chamou a reunião tem o motivo discutido por 2 ou 3 pessoas
+       (perguntam detalhe, acreditam, duvidam, cobram o acusado); uma acusação dele sempre ganha resposta.
+       O acusado se defende na própria reação. Quem já respondeu por conta própria conta na soma. */
+    engageHuman(msg) {
+      const g = this.g, hp = g.human;
+      if (!hp || !hp.alive || this.closed) return;
+      const accIt = msg.intents.find((i) => i.type === 'accuse' && i.who != null && i.who !== hp.id && i.reason !== 'vote');
+      const X = accIt ? accIt.who : null;
+      const caller = this.info.caller === hp.id;
+      const nth = this.msgs.filter((m) => m.from === hp.id).length;
+      let want = 0;
+      if (caller && nth <= 4 && accIt && !this.flags.topicAcc) {
+        this.flags.topicAcc = true;
+        want = 3;
+      } else if (caller && nth <= 2 && !this.flags.topicWhat && !this.flags.topicAcc && (msg.intents.some((i) => i.type === 'sawAt') || (!msg.intents.length && msg.text.length >= 8))) {
+        this.flags.topicWhat = true;
+        want = 2;
+      } else if (accIt) want = 1;
+      if (!want) return;
+      const bots = this.alive.map((id) => g.players[id]).filter((q) => q.brain && q !== hp && q.id !== X);
+      const replied = (q) => q.brain.repliedTo && q.brain.repliedTo.has(msg.id);
+      want -= bots.filter(replied).length;
+      if (want <= 0) return;
+      const knows = (q) => (X != null && ((q.brain.ev && q.brain.ev[X]) || []).some((e) => Math.abs(e.w) >= 8) ? 2 : 0);
+      const pool = bots.filter((q) => !replied(q)).map((q) => ({ q, s: knows(q) + (q.brain.pers.leader || q.brain.pers.skeptic ? 1 : 0) + q.brain.pers.talk + Math.random() * 1.2 }));
+      pool.sort((a, b) => b.s - a.s);
+      let asked = this.msgs.some((m) => m.from !== hp.id && m.t >= msg.t && m.intents.some((i) => i.type === 'askProof'));
+      for (const { q } of pool) {
+        if (want <= 0) break;
+        const role = accIt && !asked && caller ? 'ask' : 'judge';
+        if (q.brain.topicReply(msg, role)) {
+          want--;
+          if (role === 'ask') asked = true;
+        }
+      }
     }
 
     post(p, text, intents, opts) {

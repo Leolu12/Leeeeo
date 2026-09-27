@@ -146,7 +146,10 @@
       const dead = g.players.filter((p) => !p.alive).map((p) => V.who(g, p.id) + (p.ejected ? ' [ejetado]' : ' [morto]')).join(', ');
       const head = info.kind === 'report'
         ? `Reunião: ${V.who(g, info.caller)} reportou o corpo de ${V.who(g, info.body.pid)}.` + (mt.facts.bodyArea ? ` Já disseram no chat que o corpo estava em ${V.area(mt.facts.bodyArea)}.` : ' Ainda não disseram onde estava o corpo.')
-        : `Reunião de emergência: ${V.who(g, info.caller)} apertou o botão.`;
+        : `Reunião de emergência: ${V.who(g, info.caller)} apertou o botão.` + (() => {
+          const said = mt.msgs.filter((m) => m.from === info.caller).slice(0, 2).map((m) => '"' + m.text.slice(0, 100) + '"');
+          return said.length ? ` Motivo que deu: ${said.join(' / ')}. Esse é o assunto principal da reunião.` : ' Ainda não disse o motivo.';
+        })();
       const silent = mt.alive.filter((id) => !mt.hasClaimed(id)).map((id) => g.players[id].name);
       let phase;
       if (mt.phase === 'voting') {
@@ -234,6 +237,12 @@
       out.push('Onde esteve: ' + al.rooms.map(V.area).join(' → ') + (al.task ? ', fazendo ' + M.TASKS[al.task].name : '') + (al.with != null ? ', junto com ' + nm(al.with) : '') + '.');
       if (info.kind === 'report') {
         if (b.knowsBody) out.push('O corpo de ' + nm(info.body.pid) + ' estava em ' + V.area(b.knowsBody) + (b.sawBodyMyself ? ' (viu com os próprios olhos).' : '.'));
+        if (b.killWindow && !p.isImp) {
+          const w = b.killWindow, a0 = Math.round(info.t - w.t0);
+          out.push('Pelas suas contas o abate aconteceu nos últimos ' + a0 + 's antes do corpo ser achado' + (w.mine ? ' (você passou lá e não tinha corpo).' : '.'));
+          const al = Object.keys(b.ev || {}).filter((id) => (b.ev[id] || []).some((e) => e.reason === 'alibi' && e.cover >= 0.5)).map((id) => nm(+id));
+          if (al.length) out.push('Você viu longe do corpo nessa hora (não dá tempo de ter ido matar): ' + al.join(', ') + '.');
+        }
         else out.push('Não sabe onde estava o corpo de ' + nm(info.body.pid) + '.');
       }
       if (!p.isImp) {
@@ -243,7 +252,7 @@
             if (strongTxt[e.reason]) out.push('VIU ' + nm(+id) + ' ' + strongTxt[e.reason] + (e.area ? ' em ' + V.area(e.area) : '') + (e.past ? ' numa rodada anterior (e ele continua vivo)' : '') + '. Tem certeza absoluta.');
             if (e.reason === 'visual') out.push('Viu ' + nm(+id) + ' fazendo ' + (M.VISUAL_NAMES[e.task] || 'uma tarefa visual') + (e.past ? ' numa rodada anterior' : '') + ': é tripulante com certeza, lembra disso e NUNCA acusa ' + nm(+id) + ' por coisa fraca (seguir, estar perto, jeito estranho).');
             if (e.reason === 'lie' && e.past) out.push('Já pegou ' + nm(+id) + ' mentindo sobre onde estava numa reunião anterior.');
-            if (e.reason === 'spared') out.push('Já ficou sozinho com ' + nm(+id) + ' (' + e.secs + 's no total) e não morreu.');
+            if (e.reason === 'spared') out.push('Já ficou sozinho com ' + nm(+id) + ' (' + Math.round(e.secs) + 's no total) e não morreu.');
             if (e.reason === 'fakeTask') out.push('Viu ' + nm(+id) + ' terminar uma tarefa' + (e.area ? ' em ' + V.area(e.area) : '') + ' e a barra de tarefas NÃO subiu: a tarefa era falsa.');
             if (e.reason === 'noscan') out.push('Viu ' + nm(+id) + ' parado ' + ({ scan: 'no scanner da MedBay', asteroids: 'na arma de asteroides', shields: 'no painel dos escudos' }[e.task] || 'numa tarefa visual') + ' sem a animação aparecer (tarefa falsa).');
             if (e.reason === 'ventLink') out.push('Viu ' + nm(+id) + ' aparecer em ' + V.area(e.area) + ', que tem duto ligado a ' + V.area(e.bodyArea) + ' (onde estava o corpo), pouco antes.');
@@ -262,8 +271,27 @@
         if (e.type === 'noProof') out.push(nm(e.who) + ' disse que ia provar com tarefa visual, você seguiu e ele NÃO fez: suspeito.');
       }
       if (b.invite && b.invite.who != null && g.players[b.invite.who] && !p.isImp) out.push('Você chamou ' + nm(b.invite.who) + ' para te acompanhar' + (b.shownVisual ? ' e fez tarefa visual na frente dele.' : '.'));
-      const recent = b.mem.seen.filter((s) => s.t1 >= b.graceT() && s.t1 >= info.t - 45 && s.via !== 'track' && g.players[s.who] && s.who !== p.id).slice(-5);
-      for (const s of recent) out.push('Viu ' + nm(s.who) + ' em ' + V.area(s.area) + ' uns ' + Math.max(5, Math.round((info.t - s.t1) / 5) * 5) + 's antes da reunião' + (s.via === 'cams' ? ' (pelas câmeras)' : '') + '.');
+      /* a última vez que viu cada um (uma linha por pessoa, com as áreas em ordem) */
+      const recent = b.mem.seen.filter((s) => s.t1 >= b.graceT() && s.t1 >= info.t - 45 && s.via !== 'track' && g.players[s.who] && s.who !== p.id);
+      const byWho = new Map();
+      for (const s of recent) {
+        const r = byWho.get(s.who) || { areas: [], t1: 0, cams: false };
+        if (r.areas[r.areas.length - 1] !== s.area) r.areas.push(s.area);
+        r.t1 = Math.max(r.t1, s.t1);
+        r.cams = r.cams || s.via === 'cams';
+        byWho.set(s.who, r);
+      }
+      [...byWho.entries()].sort((a, c) => c[1].t1 - a[1].t1).slice(0, 5).forEach(([id, r]) => out.push('Viu ' + nm(id) + ' em ' + r.areas.slice(-2).map(V.area).join(' → ') + ' (última vez uns ' + Math.max(5, Math.round((info.t - r.t1) / 5) * 5) + 's antes da reunião)' + (r.cams ? ' (pelas câmeras)' : '') + '.'));
+      /* álibi que não bate com o que outra pessoa contou ter visto */
+      if (!p.isImp && b.claims) {
+        for (const id of Object.keys(b.claims)) {
+          if (+id === p.id || !b.claimClash) continue;
+          const m = mt.msgs.find((x) => x.from !== +id && x.intents.some((j) => j.who === +id && j.area && (j.type === 'accuse' || j.type === 'sawAt') && b.claimClash(+id, j.area)));
+          if (!m) continue;
+          const j = m.intents.find((x) => x.who === +id && x.area && b.claimClash(+id, x.area));
+          out.push(nm(+id) + ' disse que estava em ' + (b.claims[id] || []).map(V.area).join(' → ') + ', mas ' + nm(m.from) + ' contou que viu ' + nm(+id) + ' em ' + V.area(j.area) + ': não bate.');
+        }
+      }
       if (p.isImp) {
         if (b.scapegoat != null && g.players[b.scapegoat].alive) out.push('Desconfia de ' + nm(b.scapegoat) + ', mas sem prova concreta.');
         if (!opts.noLean) {
@@ -284,7 +312,7 @@
       }
       const accusers = Object.keys(b.accusedMe || {}).map(Number);
       if (accusers.length) out.push('Foi acusado por: ' + accusers.map(nm).join(', ') + '.');
-      return out.slice(0, 13);
+      return out.slice(0, 15);
     },
 
     /* Mensagens que cobram este bot desde a última vez que ele falou. */
@@ -857,6 +885,7 @@
         '- Quando está escrito "o sentido é", mantenha exatamente os fatos (quem, onde, o quê), mas com as palavras e o jeito do personagem, ligando com o que acabou de ser dito.',
         '- Nas outras falas, siga só o objetivo e o que o personagem sabe.',
         '- É uma conversa entre eles: quem responde a alguém cita o nome de quem está respondendo; um personagem pode responder a outro desta mesma rodada. Não fiquem todos falando da mesma pessoa.',
+        '- O que quem chamou a reunião contou (e o que o jogador humano diz) é assunto: ninguém ignora. Pode acreditar, duvidar com motivo, perguntar detalhe (onde, quando, quem mais viu) ou cobrar o acusado, mas sempre levando em conta o que foi dito.',
         '- Cada um escreve 1 mensagem (no máximo 2 curtas, se ficar mais natural quebrar). Até 120 caracteres cada. Não repita frases já ditas.',
         'Formato: só as linhas, uma por mensagem, assim:',
         round.map((s) => s.b.p.name + ': mensagem').join('\n'),

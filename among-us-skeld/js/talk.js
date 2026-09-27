@@ -133,6 +133,8 @@
       `vi ${x.R(d.who, 'o')} andando colado ${x.R(d.victim, 'com')} ${x.inA(d.area)}`,
       `${x.R(d.who, 'o')} e ${x.R(d.victim, 'o')} estavam juntos ${x.inA(d.area)} pouco antes`,
     ]),
+    sawVictimAlive: (d, x) => pick([`vi ${x.R(d.victim, 'o')} vivo ${x.inA(d.area)} uns ${d.ago}s antes`, `uns ${d.ago}s antes ${x.R(d.victim, 'o')} tava vivo ${x.inA(d.area)}, eu vi`, `${x.R(d.victim, 'o')} tava vivo uns ${d.ago}s antes, eu vi ${x.inA(d.area)}`]),
+    passedNoBody: (d, x) => pick([`passei ${x.inA(d.area)} uns ${d.ago}s antes e não tinha corpo`, `uns ${d.ago}s antes eu tava ${x.inA(d.area)} e não tinha nada lá`, `${x.inA(d.area)} tava vazio uns ${d.ago}s antes, eu passei lá`]),
     noOneNear: (d, x) => pick([`não vi ninguém perto ${x.deA(d.area)}`, `passei ${x.inA(d.area)} antes e não tinha ninguém`]),
     noOneNearBy: (d, x) => pick([`passei perto ${x.deA(d.area)} e não vi ninguém`, `passei do lado ${x.deA(d.area)}, não tinha ninguém por ali`]),
     notSureWith: (d, x) => pick([`comigo? não lembro de você lá, ${x.R(d.who)}`, `hmm, não reparei em você comigo`, `acho que ${x.R(d.who, 'o')} só passou por mim`, `não tenho certeza se tava comigo`]),
@@ -169,6 +171,31 @@
     knewBody: (d, x) => pick([`como ${x.R(d.who, 'o')} sabe onde tava o corpo? ninguém falou ainda`, `ué ${x.R(d.who)}, ninguém disse onde era o corpo`, `${x.R(d.who, 'o')} sabia do corpo antes de falarem... sus`]),
     contradictStay: (d, x) => pick([`eu fiquei ${x.inA(d.area)} um tempão e não vi ${x.R(d.who, 'o')}`, `${x.R(d.who)}, eu estava ${x.inA(d.area)} e você não passou lá`]),
     contradictSeen: (d, x) => pick([`mas eu vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`, `${x.R(d.who)}, eu te vi ${x.inA(d.area)}, não ${x.inA(d.claimed)}`, `estranho, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`]),
+    /* reação ao assunto de quem chamou a reunião (ou a uma acusação do jogador) */
+    askCaller: (d, x) => pick([`fala, por que apertou?`, `o que houve?`, `${x.R(d.who)}, por que chamou?`, `e aí ${x.R(d.who)}, o que rolou?`, `chamou por quê?`]),
+    topicWhat: (d, x) => pick([`como assim?`, `explica melhor`, `o que aconteceu?`, `viu alguma coisa?`, `e aí, o que foi que você viu?`]),
+    topicAsk: (d, x) => {
+      const w = x.R(d.who, 'o');
+      const wh = d.area ? `${x.inA(d.area)}? quando foi isso?` : 'onde foi isso?';
+      if (d.reason === 'shift') return pick([`em quem ${w} se transformou?`, `sério? ${wh}`, `você tem certeza que era ${w}?`, `virou quem? ${d.area ? '' : 'e onde?'}`.trim()]);
+      if (d.reason === 'vanish') return pick([`sumiu onde?`, `sério? ${wh}`, `ficou invisível do nada? ${d.area ? '' : 'onde?'}`.trim()]);
+      if (d.reason === 'kill') return pick([`${w} matou quem?`, `sério? ${wh}`, `e o corpo, ficou onde?`]);
+      if (d.reason === 'vent') return pick([`qual duto?`, `sério? ${wh}`, `${w} entrou ou saiu do duto?`]);
+      if (d.reason === 'follow') return pick([`seguindo onde?`, `por quanto tempo?`, `seguir não é prova... mas onde foi?`]);
+      return pick([`por que ${w}?`, `o que ${w} fez?`, `viu o quê?`, `tem prova?`]);
+    },
+    topicBelieve: (d, x) => pick([`se você viu, eu voto ${x.R(d.who, 'no')}`, `acredito, bora ${x.R(d.who, 'no')}`, `então é ${x.R(d.who, 'o')}`, `faz sentido, ${x.R(d.who, 'o')} tava sumido`, `${x.R(d.who)}, explica isso aí`]),
+    topicDoubt: (d, x) => pick([`só você viu? aí fica difícil`, `é a sua palavra contra a ${x.R(d.who, 'de')}`, `hmm, sem mais ninguém ter visto eu não sei`, `não sei não... e se for você querendo se livrar?`, `alguém mais viu isso?`]),
+    topicAskAccused: (d, x) => pick([`${x.R(d.who)}, e aí? fala aí`, `${x.R(d.who)}, onde você tava?`, `${x.R(d.who)}, se defende`, `e aí ${x.R(d.who)}, o que tem a dizer?`]),
+    topicSawAt: (d, x) => pick([`e o que ${x.R(d.who, 'o')} tava fazendo ${x.inA(d.area)}?`, `${x.R(d.who)}, é verdade? tava ${x.inA(d.area)}?`, `${x.inA(d.area)}? e depois?`]),
+    crisis: (d, x) => pick([`gente, atenção: somos ${d.n} e ${d.imps > 1 ? 'tem ' + d.imps + ' impostores vivos' : 'ainda tem impostor vivo'}. se pular e matarem mais um, acabou`, `cuidado com o skip: mais uma morte e a gente perde`, `não dá pra errar agora, se pular e morrer mais um é vitória deles`]),
+    summary: (d, x) => {
+      const c = (d.cleared || []).map((id) => x.R(id, 'o')).join(', ');
+      const lim = c ? (d.cleared.length > 1 ? `${c} estão limpos` : `${c} está limpo`) : '';
+      if (d.who == null) return pick([`resumindo: ${lim}. do resto ninguém tem prova, eu pulo`, `então: ${lim}. sem prova contra mais ninguém, skip`]);
+      return pick([`resumindo: ${lim ? lim + '. ' : ''}quem pesa é ${x.R(d.who, 'o')} (${d.why}). voto ${x.R(d.who, 'no')}`, `então: ${lim ? lim + '; ' : ''}contra ${x.R(d.who, 'o')}: ${d.why}. eu vou ${x.R(d.who, 'no')}`]);
+    },
+    claimClash: (d, x) => pick([`${x.R(d.who, 'o')} disse que tava ${x.inA(d.claimed)}, mas ${d.by != null ? x.R(d.by, 'o') + ' viu ele' : 'viram ele'} ${x.inA(d.area)}`, `pera, ${x.R(d.who)} falou ${x.inA(d.claimed)}... e ${d.by != null ? x.R(d.by, 'o') : 'ele'} ${d.by != null ? 'viu' : 'foi visto'} ${x.inA(d.area)}? não bate`, `${x.R(d.who)}, você não disse que tava ${x.inA(d.claimed)}? como te viram ${x.inA(d.area)}?`]),
     sawAgo: (d, x) => pick([`vi ${x.R(d.who, 'o')} ${x.inA(d.area)}, mas faz uns ${d.ago}s`, `${x.R(d.who, 'o')} tava ${x.inA(d.area)} uns ${d.ago}s antes, depois não vi mais`]),
     shiftDoubt: (d, x) => pick([`vi alguém igual a você ${x.inA(d.area)}, ${x.R(d.who)}... ou você mente, ou era o metamorfo com a sua cara`, `${x.R(d.who)}, te vi ${x.inA(d.area)}, não ${x.inA(d.claimed)}. se não era você, era o metamorfo disfarçado`]),
     shiftTheory: (d, x) => pick([`se ${x.R(d.who, 'o')} tava com ${x.R(d.by, 'o')}, quem eu vi ${x.inA(d.area)} era o metamorfo disfarçado`, `então era o metamorfo com a cara ${x.R(d.who, 'de')}`, `hmm, o metamorfo tava disfarçado ${x.R(d.who, 'de')}, não era ${x.R(d.who)} de verdade`]),
@@ -391,6 +418,13 @@
     self: /\b(eu|mim|me)\b/,
     you: /\b(vc|voce|tu|vcs)\b/,
     comX: /\bcom (o |a )?$/,
+    /* testemunha de habilidade: "a rosa se transformou na minha frente", "vi o verde sumir do nada" */
+    shift: /\b(se transformou|se transformando|se transformar|transformou|transformar|virou (o|a|outr\w*)|(mudou|mudar|mudando) de (cor|forma|aparencia|cara|skin|roupa)|shapeshift\w*|shiftou|metamorfou)\b/,
+    vanish: /\b(sumiu|sumir|desapareceu|desaparecer|ficou invisivel|invisivel|sumindo|desaparecendo)\b/,
+    /* "sumiu" também é "não vi mais": só vale como habilidade se foi na frente de alguém / do nada / invisível */
+    vanishSeen: /\b(invisivel|do nada|na minha frente|na frente|do meu lado)\b|\bvi\b.*\b(sumir|desaparecer|sumindo|desaparecendo)\b/,
+    follow: /\b(seguindo|me seguiu|me segue|seguiu|atras de mim|na minha cola|colad[oa] em mim)\b/,
+    hypo: /\b(pode|podia|talvez|sera|acho|deve|devia|se for|caso|quem sabe|pode ter)\b/,
     offer: /\b(me segue|me sigam|me segue[m]?|me acompanh\w*|posso provar|vou provar|provo|fac\w* (o |a )?(scan|visual|escaneamento|asteroide\w*|escudo\w*|lixo) na frente|na frente de voces|mostro (a )?visual)\b/,
   };
 
@@ -414,6 +448,11 @@
     if (RX.deny.test(n)) intents.push({ type: 'deny' });
     if (RX.offer.test(n)) intents.push({ type: 'offerVisual' });
     if (RX.where.test(n) && RX.body.test(n)) intents.push({ type: 'askBody' });
+    /* "passei na elétrica uns 20s antes e não tinha corpo": dá a janela do abate para os outros */
+    if (all.rooms.length && /\b(passei|tava|estava|fui|olhei)\b/.test(n) && /\b(nao tinha|vazi[oa]|ninguem|nada)\b/.test(n)) {
+      const wm = n.match(/\b(\d{1,3}) ?(s|seg|segundos)\b/);
+      intents.push({ type: 'window', area: all.rooms[0].area, ago: wm ? +wm[1] : 30 });
+    }
 
     let lastOthers = [];
     for (const c of clauses) {
@@ -446,10 +485,13 @@
         const who = others[0];
         if (has('kill')) intents.push({ type: 'accuse', who, reason: 'kill', area, strong: true });
         else if (has('vent')) intents.push({ type: 'accuse', who, reason: 'vent', area, strong: true });
+        else if (has('shift') && !has('hypo')) intents.push({ type: 'accuse', who, reason: 'shift', area, strong: true });
+        else if (has('vanish') && has('vanishSeen') && !has('hypo')) intents.push({ type: 'accuse', who, reason: 'vanish', area, strong: true });
         else if (has('lie')) intents.push({ type: 'accuse', who, reason: 'lie' });
         else if (has('safe') || (has('visual') && !has('sus'))) intents.push({ type: 'vouch', who, reason: has('visual') ? 'visual' : 'claim' });
         else if (has('comigo')) intents.push({ type: 'vouch', who, reason: 'together', area });
         else if (has('sus') || has('vote')) others.forEach((pid) => intents.push({ type: 'accuse', who: pid, reason: has('vote') ? 'vote' : 'sus' }));
+        else if (has('follow') && !has('offer')) intents.push({ type: 'accuse', who, reason: 'follow', area });
         else if (has('body')) intents.push({ type: 'accuse', who, reason: 'nearBody', area });
         else if (rooms.length && (has('vi') || has('been'))) intents.push({ type: 'sawAt', who, area });
         else if (isQ && c.trim().split(' ').length <= 3) intents.push({ type: 'askWhere', who });
@@ -483,8 +525,11 @@
       if (selfNamed && has('safe')) intents.push({ type: 'deny' });
     }
     /* funções especiais: "pode ser metamorfo", "sou engenheiro" */
+    const witnessed = (reason) => intents.some((i) => i.type === 'accuse' && i.reason === reason);
     for (const r of Object.keys(ROLE_RX)) {
       if (!ROLE_RX[r].test(n)) continue;
+      /* quem viu a habilidade está acusando, não levantando hipótese */
+      if ((r === 'metamorfo' && witnessed('shift')) || (r === 'fantasma' && witnessed('vanish'))) continue;
       if (ROLE_CLAIM[r].test(n)) intents.push({ type: 'roleClaim', role: r });
       else {
         const o = all.players.find((x) => x.pid !== me);
