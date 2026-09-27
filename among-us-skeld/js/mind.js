@@ -33,6 +33,8 @@
     this.knowsBody = null;
     this.sawBodyMyself = false;
     this.claims = {};
+    this.claimFull = {};
+    this.contraBump = {};
     this.clashAdj = {};
     this.clashList = [];
     this.voted = false;
@@ -962,6 +964,8 @@
         break;
       case 'claimLoc':
         this.claims[S] = it.rooms;
+        /* "tava na elétrica" fala de onde estava no fim, não do caminho; lista de salas ou "o tempo todo" cobre a rodada */
+        this.claimFull[S] = !!it.stay || (it.rooms || []).length >= 2;
         if (S === g.human?.id) mt.humanClaimed = true;
         if (!p.isImp) {
           this.checkClaim(S, it);
@@ -1096,15 +1100,18 @@
       return;
     }
     /* teoria: "pode ter sido o metamorfo", "pode ser engenheiro", "o fantasma sumiu" */
-    if (!p.isImp && (role === 'metamorfo' || role === 'engenheiro') && !this['doubt' + role]) {
-      this['doubt' + role] = true;
-      const kinds = role === 'metamorfo' ? ['nearBody', 'lastWith', 'withVictim'] : ['vent'];
-      const f = role === 'metamorfo' ? (pers.times ? 0.75 : 0.62) : 0.7;
+    if (!p.isImp && role === 'metamorfo') {
+      /* "não era eu, era o metamorfo": quando quem fala é o acusado (ou não disse de quem), a teoria é sobre ele mesmo */
+      const accusedS = mt.accusers[S] && Object.keys(mt.accusers[S]).length > 0;
+      const X = it.who == null || it.who === S || (accusedS && mt.accusers[S][it.who]) ? S : it.who;
+      if (X !== p.id && this.disguiseTheory(X, S)) return;
+    } else if (!p.isImp && role === 'engenheiro' && !this.replied.has('doubteng')) {
+      this.replied.add('doubteng');
       for (const id of Object.keys(this.ev || {})) {
         if (it.who != null && +id !== it.who) continue;
-        for (const e of this.ev[id]) if (kinds.includes(e.reason)) e.w *= f;
+        for (const e of this.ev[id]) if (e.reason === 'vent') e.w *= 0.7;
       }
-      for (const id of Object.keys(this.chatClaim)) if (it.who == null || +id === it.who) this.chatClaim[id] *= f;
+      for (const id of Object.keys(this.chatClaim)) if (it.who == null || +id === it.who) this.chatClaim[id] *= 0.7;
       this.recalc();
     }
     const key = 'roleTalk' + role;
@@ -1118,10 +1125,14 @@
   /* O que alguém contou ter visto ("vi o X perto do corpo", "vi o X saindo do Depósito") bate com onde o X disse
      que estava? */
   const PLACE_REASONS = ['nearBody', 'lastWith', 'withVictim', 'fromBody'];
-  B.claimClash = function (who, area) {
+  B.claimClash = function (who, area, j) {
     const rooms = this.claims[who];
     if (!rooms || !rooms.length || !area || !M.AREA[area]) return false;
-    return !rooms.some((r) => r === area || M.isNear(r, area));
+    if (rooms.some((r) => r === area || M.isNear(r, area))) return false;
+    /* quem disse uma sala só falou de onde estava no fim, não do caminho: ter sido visto em outro lugar antes não
+       desmente. Só desmente o que foi visto agora há pouco, ou se ele disse que ficou lá o tempo todo. */
+    if (!(this.claimFull && this.claimFull[who]) && !(j && j.ago != null && j.ago <= 12)) return false;
+    return true;
   };
   const placeIntent = (j) => j.who != null && j.area && ((j.type === 'accuse' && PLACE_REASONS.includes(j.reason)) || (j.type === 'sawAt' && (j.ago == null || j.ago <= 30)));
   /* Versões que não batem: A diz que viu X em W, X disse que estava em outro lugar. Um dos dois mente (nas
@@ -1140,7 +1151,7 @@
       for (const j of m.intents) {
         if (!placeIntent(j) || j.who === A || A === me || j.who === me) continue;
         const X = j.who, key = A + ':' + X;
-        if (done.has(key) || !this.claimClash(X, j.area)) continue;
+        if (done.has(key) || !this.claimClash(X, j.area, j)) continue;
         done.add(key);
         const near = (a) => a === j.area || M.isNear(a, j.area);
         const rooms = this.claims[X] || [];
@@ -1225,7 +1236,7 @@
     }
     /* alguém já tinha contado ter visto S num lugar que não está no álibi que S acabou de dar */
     const told = this.mt.msgs.filter((m) => m.from !== S && m.from !== me).map((m) => ({ m, it: m.intents.find((j) => j.who === S && j.area &&
-      ((j.type === 'accuse' && PLACE_REASONS.includes(j.reason)) || (j.type === 'sawAt' && (j.ago == null || j.ago <= 30)))) })).filter((x) => x.it && this.claimClash(S, x.it.area));
+      ((j.type === 'accuse' && PLACE_REASONS.includes(j.reason)) || (j.type === 'sawAt' && (j.ago == null || j.ago <= 30)))) })).filter((x) => x.it && this.claimClash(S, x.it.area, x.it));
     if (told.length) {
       const best = told.sort((a, b) => this.trust(b.m.from) - this.trust(a.m.from))[0];
       this.updateClashes();
@@ -1257,12 +1268,20 @@
     const bodyA = this.knowsBody;
     /* só é contradição se não bate de verdade: visto perto do corpo e escondeu isso, ou visto há tão pouco tempo
        num lugar tão longe que não daria para chegar na sala que disse */
+    const full = this.claimFull && this.claimFull[S];
+    const omit = [];
     const mism = seen.filter((s) => {
       if (s.t1 - s.t0 < 1.2 || matches.some((m) => m.t1 > s.t1)) return false;
       if (recentBad(s)) return true;
       if (matchR(s.area)) return false;
       const dt = T0 - s.t1;
-      if (bodyA && (s.area === bodyA || M.isNear(s.area, bodyA)) && dt <= 35) return true;
+      if (bodyA && (s.area === bodyA || M.isNear(s.area, bodyA)) && dt <= 35) {
+        /* passou perto do corpo e não falou: se ele contou o caminho todo, escondeu; se disse uma sala só, pode só não
+           ter mencionado (pergunta antes de acusar) */
+        if (full) return true;
+        omit.push(s);
+        return false;
+      }
       if (!last || dt > 20) return false;
       return dt + 3 < this.travelTime(s.area, last, S);
     });
@@ -1289,10 +1308,19 @@
       if (rel || U.chance(0.75)) {
         /* com metamorfo na partida, "te vi lá" pode ter sido o disfarce: pesa menos e fala isso */
         const shift = roleOn(this.g, 'metamorfo');
-        this.bump(S, (rel ? 28 : 18) * (shift ? 0.6 : 1));
+        const bw = (rel ? 28 : 18) * (shift ? 0.6 : 1);
+        this.bump(S, bw);
+        this.contraBump[S] = (this.contraBump[S] || 0) + bw;
         if (!shift) this.mem.lies[S] = (this.mem.lies[S] || 0) + 1;
         this.reply(1, () => say(shift ? 'shiftDoubt' : rel ? 'hidBodyRoom' : 'contradictSeen', { who: S, area: s.area, claimed: rooms[rooms.length - 1] }, [{ type: 'accuse', who: S, reason: 'lie', area: s.area }]));
       }
+    }
+    /* passou perto do corpo e não citou (disse uma sala só): pergunta, como gente faria */
+    if (!mism.length && omit.length && !this.replied.has('passed' + S) && (pers.times || pers.skeptic || U.chance(0.35))) {
+      this.replied.add('passed' + S);
+      const s = omit[omit.length - 1];
+      this.bump(S, 4, 'social');
+      this.reply(1.2, () => say('askPassed', { who: S, area: s.area }, [{ type: 'askWhere', who: S }]));
     }
     void g;
   };
@@ -1359,7 +1387,7 @@
       this.bump(T2, 8 * this.trust(S), 'social');
     }
     /* visto há pouco num lugar que não está no álibi dele */
-    if (T2 !== S && (it.ago == null || it.ago <= 30) && this.claimClash(T2, it.area) && this.trust(S) >= 0.6 && U.chance(0.4)) this.sayClash(T2, it.area, S);
+    if (T2 !== S && (it.ago == null || it.ago <= 30) && this.claimClash(T2, it.area, it) && this.trust(S) >= 0.6 && U.chance(0.4)) this.sayClash(T2, it.area, S);
   };
 
   B.onAccuse = function (S, it) {
@@ -1387,6 +1415,17 @@
         const task = vis ? vis.id : 'scan';
         this.reply(0.8, () => say('offerVisual', { task }, [{ type: 'deny' }, { type: 'offerVisual' }]), true);
         return;
+      }
+      /* com metamorfo na partida: me "viram" num lugar onde eu não estava (ou matando, e eu sei que não matei) —
+         quem acusa pode estar sendo honesto e ter visto o disfarce. Explico em vez de chamar de mentiroso. */
+      if (!p.isImp && roleOn(g, 'metamorfo') && (strong || (it.area && (PLACE_REASONS.includes(it.reason) || it.reason === 'lie')))) {
+        const T0 = mt.info.t;
+        const wasThere = it.area && this.mem.trail.some((s) => s.t1 >= T0 - 45 && (s.area === it.area || M.isNear(s.area, it.area)));
+        if (!wasThere && (it.reason === 'kill' || it.reason === 'shift' || it.area)) {
+          this.bump(S, strong ? 8 : 3);
+          this.reply(0.8, () => say('notMeShift', { area: it.area, mine: area }, [{ type: 'deny' }, { type: 'roleTheory', role: 'metamorfo', who: me }]), true);
+          return;
+        }
       }
       if (!p.isImp) {
         this.bump(S, strong ? 45 : 10);
@@ -1443,7 +1482,7 @@
       }
     }
     /* a acusação diz onde ele estava, e ele disse outro lugar: um dos dois mente (a conta fica em updateClashes) */
-    const clash = it.area && PLACE_REASONS.includes(it.reason) && T2 !== S && this.claimClash(T2, it.area);
+    const clash = it.area && PLACE_REASONS.includes(it.reason) && T2 !== S && this.claimClash(T2, it.area, it);
     if (clash && this.trust(S) >= 0.6 && (pers.times || pers.skeptic || pers.leader || U.chance(0.35))) this.sayClash(T2, it.area, S);
     /* revide: acusado que devolve "mentiroso" sem dizer nada concreto não é prova nova contra quem acusou */
     if (it.reason === 'lie' && !it.area && mt.accusers[S] && mt.accusers[S][T2]) {
@@ -1572,6 +1611,66 @@
     this.reply(role === 'ask' ? 0.5 : 1.1, fn, true);
     this.curMsg = c0;
     this.curMsgObj = o0;
+    return true;
+  };
+
+  /* "Quem vocês viram era o metamorfo com a cara do X." Confere com o que eu sei: se eu mesmo vi o X em outro lugar
+     nessa hora, ou estava com ele, ou ele já provou ser tripulante, é o disfarce mesmo — tiro o que pesava contra ele
+     por lugar/mentira e defendo. Sem nada que confirme, a pista de "te vi lá" perde bastante força (com metamorfo na
+     partida ela prova pouco), mas não inocento de vez: o próprio impostor pode usar essa desculpa. */
+  B.disguiseTheory = function (X, by) {
+    const g = this.g, mt = this.mt, pers = this.pers;
+    if (this.replied.has('disgT' + X)) return false;
+    this.replied.add('disgT' + X);
+    const say = (kind, d, intents) => ({ text: this.say(kind, d), intents: intents || [] });
+    const T0 = mt.info.t;
+    const near = (a, b) => a === b || M.isNear(a, b);
+    /* onde disseram ter visto o X (as versões que pesam contra ele) */
+    const told = [];
+    for (const m of mt.msgs) {
+      if (m.from === X) continue;
+      for (const j of m.intents) if (j.who === X && j.area && (placeIntent(j) || (j.type === 'accuse' && (j.reason === 'lie' || j.reason === 'kill')))) told.push({ from: m.from, area: j.area, kill: j.reason === 'kill' });
+    }
+    const myEv = (this.ev && this.ev[X]) || [];
+    const withMe = myEv.find((e) => e.reason === 'together' && e.secs >= 10);
+    const visual = myEv.some((e) => e.reason === 'visual') || this.clearedByVisual(X);
+    /* eu vi o X, recentemente, num lugar diferente de onde disseram: dois X ao mesmo tempo */
+    const mine = this.sawTimes(X).filter((q) => T0 - q.t1 <= 45);
+    const clash = told.length ? mine.find((q) => told.every((tt) => !near(q.area, tt.area)) && q.t1 - q.t0 >= 1) : null;
+    const place = ['nearBody', 'lastWith', 'withVictim', 'fromBody', 'lie'];
+    if (withMe || visual || clash) {
+      this.ev[X] = myEv.filter((e) => !place.includes(e.reason));
+      this.bump(X, -((this.contraBump[X] || 0) + 14), 'own');
+      this.contraBump[X] = 0;
+      this.chatClaim[X] = (this.chatClaim[X] || 0) * 0.35;
+      this.chatSocial[X] = (this.chatSocial[X] || 0) * 0.5;
+      this.recalc();
+      const area = told.length ? told[told.length - 1].area : null;
+      const myLast = this.recentRooms ? this.recentRooms().slice(-1)[0] : null;
+      const mineArea = clash ? clash.area : withMe ? myLast : null;
+      if (area && mineArea && !near(area, mineArea)) {
+        this.reply(1, () => say('disguiseYes', { who: X, area, mine: mineArea, with: !!withMe }, [{ type: 'vouch', who: X, reason: withMe ? 'together' : 'claim' }]), true);
+      } else {
+        this.reply(1, () => say('roleMaybe', { role: 'metamorfo', who: X }, [{ type: 'vouch', who: X, reason: 'claim' }]), true);
+      }
+      return true;
+    }
+    /* sem confirmação: "eu vi" perde força, mas pergunta quem confirma */
+    const f = pers.times ? 0.6 : 0.5;
+    for (const e of myEv) if (place.includes(e.reason)) e.w *= f;
+    if (this.contraBump[X]) {
+      this.bump(X, -this.contraBump[X] * 0.5, 'own');
+      this.contraBump[X] *= 0.5;
+    }
+    this.chatClaim[X] = (this.chatClaim[X] || 0) * (told.some((tt) => tt.kill) ? 0.75 : 0.6);
+    this.chatSocial[X] = (this.chatSocial[X] || 0) * 0.75;
+    this.recalc();
+    if ((pers.times || pers.skeptic || pers.defend || U.chance(0.3)) && !mt.flags['disgAsk' + X]) {
+      mt.flags['disgAsk' + X] = true;
+      this.reply(1.2, () => say('disguiseMaybe', { who: X }, [{ type: 'askConfirm', who: X }]));
+    }
+    void by;
+    void g;
     return true;
   };
 

@@ -223,7 +223,7 @@
     /* Zigue-zague do jogador (vai e volta 3 vezes sem sair do lugar) = "vem comigo". */
     trackMotion() {
       const h = this.human, t = this.t;
-      if (!h || !h.alive || h.inVent) return;
+      if (!h || h.inVent) return;
       const mv = (h.mv = h.mv || []);
       mv.push({ x: h.x, y: h.y });
       while (mv.length > 8) mv.shift();
@@ -251,6 +251,14 @@
       const t = this.t;
       p.gestT = t;
       this.log({ type: 'gesture', by: p.id, kind });
+      /* fantasma chamando fantasma: os outros fantasmas por perto veem (só eles se enxergam) e vão junto */
+      if (!p.alive) {
+        for (const q of this.players) {
+          if (q === p || q.alive || !q.brain || q.isHuman || U.dist(p, q) > 8) continue;
+          if (U.chance(0.85)) q.brain.ghostCome(p, null, 'sinal');
+        }
+        return;
+      }
       for (const q of this.players) {
         if (q === p || !q.alive || !q.brain || !q.brain.seenNow) continue;
         if (!q.brain.seenNow.includes(p)) continue;

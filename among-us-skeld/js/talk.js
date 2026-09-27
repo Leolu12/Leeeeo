@@ -243,6 +243,11 @@
     shiftDoubt: (d, x) => pick([`vi alguém igual a você ${x.inA(d.area)}, ${x.R(d.who)}... ou você mente, ou era o metamorfo com a sua cara`, `${x.R(d.who)}, te vi ${x.inA(d.area)}, não ${x.inA(d.claimed)}. se não era você, era o metamorfo disfarçado`]),
     shiftTheory: (d, x) => pick([`se ${x.R(d.who, 'o')} tava com ${x.R(d.by, 'o')}, quem eu vi ${x.inA(d.area)} era o metamorfo disfarçado`, `então era o metamorfo com a cara ${x.R(d.who, 'de')}`, `hmm, o metamorfo tava disfarçado ${x.R(d.who, 'de')}, não era ${x.R(d.who)} de verdade`]),
     hidBodyRoom: (d, x) => pick([`mas eu te vi ${x.inA(d.area)}, ${x.R(d.who)}, bem onde tava o corpo`, `${x.R(d.who)}, você tava ${x.inA(d.area)} e não falou isso`, `estranho, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}, perto do corpo, e agora diz ${x.inA(d.claimed)}`]),
+    askPassed: (d, x) => pick([`${x.R(d.who)}, te vi ${x.inA(d.area)} antes, você passou por lá?`, `${x.R(d.who)}, você passou ${x.inA(d.area)}? te vi por lá`, `peraí ${x.R(d.who)}, você não passou ${x.inA(d.area)} também?`]),
+    notMeShift: (d, x) => pick([d.area ? `não fui eu, eu nem passei ${x.inA(d.area)}. deve ter sido o metamorfo com a minha cara` : `não fui eu, deve ter sido o metamorfo com a minha cara`, d.area ? `eu não estava ${x.inA(d.area)}, quem vocês viram era o metamorfo disfarçado de mim` : `era o metamorfo disfarçado de mim, juro`, d.mine && d.area ? `eu estava ${x.inA(d.mine)}, não ${x.inA(d.area)}. tem metamorfo, era ele com a minha cara` : d.mine ? `eu estava ${x.inA(d.mine)}. tem metamorfo, era ele com a minha cara` : `tem metamorfo nessa partida, não era eu`]),
+    disguiseYes: (d, x) => pick(d.with ? [`${x.R(d.who, 'o')} tava comigo ${x.inA(d.mine)}, então quem viram ${x.inA(d.area)} era o metamorfo`, `eu tava ${x.R(d.who, 'com')} ${x.inA(d.mine)} nessa hora, era o metamorfo com a cara ${x.R(d.who, 'de')}`]
+      : [`faz sentido, eu vi ${x.R(d.who, 'o')} ${x.inA(d.mine)} nessa hora. quem viram ${x.inA(d.area)} era o metamorfo`, `acredito ${x.R(d.who, 'no')}, eu vi ${x.R(d.who, 'o')} ${x.inA(d.mine)}. tinha dois ao mesmo tempo, um era o metamorfo`]),
+    disguiseMaybe: (d, x) => pick([`pode ser, tem metamorfo. alguém tava ${x.R(d.who, 'com')}?`, `é, com metamorfo "eu vi" não prova muito. quem confirma ${x.R(d.who, 'o')}?`, `faz sentido, mas alguém viu ${x.R(d.who, 'o')} em outro lugar nessa hora?`]),
     notThere: (d, x) => pick([`eu nem passei ${x.inA(d.area)}`, `mentira, eu não estava ${x.inA(d.area)}`, `quê? eu estava ${x.inA(d.mine)}`]),
     wasThere: (d, x) => pick([`sim, eu estava ${x.inA(d.area)}`, `é, passei ${x.inA(d.area)}`]),
     deny: (d, x) => pick([`não fui eu`, d.area ? `o quê? eu estava ${x.inA(d.area)}` : `o quê?`, d.area ? `não, eu estava ${x.inA(d.area)}` : `não sou eu`, `não fui eu, juro`, `por que eu?`]),
@@ -548,6 +553,7 @@
     visual: /\b(scan\w*|escane\w*|visual|asteroide\w*|escudo\w*|lixo)\b/,
     comigo: /\b(comigo|junto|juntos)\b/,
     been: /\b(tava|estava|estive|fiquei|fui|to|estou|passei|vim|vinha|fazendo|fiz|indo)\b/,
+    stay: /\b(o tempo (todo|inteiro)|a rodada (toda|inteira)|nao sai\w*|n sai\w*|so fiquei|fiquei so|sempre (na|no|em))\b/,
     deny: /\b(nao fui eu|n fui eu|nao foi eu|n foi eu|nao sou eu|sou inocente|to limpo|tou limpo|sou crew|nao matei|n matei|nao sou impostor|nao sou imp|nao fui)\b/,
     lie: /\b(mentir\w*|mentindo|mentiroso|mentirosa|fake|falso|falsa)\b/,
     skip: /\b(skip\w*|pul(a|ar|o|ei|em)|ninguem|ngm)\b/,
@@ -617,7 +623,7 @@
       }
       /* "eu tava no admin com o verde" */
       if (others.length && has('been') && rooms.length && /\bcom\b/.test(c) && !has('vi')) {
-        intents.push({ type: 'claimLoc', rooms, with: others });
+        intents.push({ type: 'claimLoc', rooms, with: others, stay: has('stay') });
         others.forEach((pid) => intents.push({ type: 'vouch', who: pid, reason: 'together', area }));
         continue;
       }
@@ -648,7 +654,7 @@
           intents.push({ type: 'bodyArea', area });
           continue;
         }
-        intents.push({ type: 'claimLoc', rooms, with: [] });
+        intents.push({ type: 'claimLoc', rooms, with: [], stay: has('stay') });
         continue;
       }
       if (has('skip')) {

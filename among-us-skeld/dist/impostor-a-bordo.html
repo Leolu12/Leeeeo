@@ -1050,7 +1050,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     hardcore: {
       name: 'Hardcore',
       desc: 'Visão reduzida, votos anônimos, sem barra de tarefas, bots falham mais e impostores implacáveis.',
-      apply: { rules: { crewVision: 0.6, confirmEjects: false, anonymousVotes: true, taskBar: 'nunca', visualTasks: false, killCooldown: 22.5 }, bots: { impostorLevel: 'implacavel', humanError: 'alto' } },
+      apply: { rules: { crewVision: 0.7, confirmEjects: false, anonymousVotes: true, taskBar: 'nunca', visualTasks: false, killCooldown: 35 }, bots: { impostorLevel: 'implacavel', humanError: 'alto' } },
     },
     caos: {
       name: 'Caos',
@@ -1955,6 +1955,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     shiftDoubt: (d, x) => pick([`vi alguém igual a você ${x.inA(d.area)}, ${x.R(d.who)}... ou você mente, ou era o metamorfo com a sua cara`, `${x.R(d.who)}, te vi ${x.inA(d.area)}, não ${x.inA(d.claimed)}. se não era você, era o metamorfo disfarçado`]),
     shiftTheory: (d, x) => pick([`se ${x.R(d.who, 'o')} tava com ${x.R(d.by, 'o')}, quem eu vi ${x.inA(d.area)} era o metamorfo disfarçado`, `então era o metamorfo com a cara ${x.R(d.who, 'de')}`, `hmm, o metamorfo tava disfarçado ${x.R(d.who, 'de')}, não era ${x.R(d.who)} de verdade`]),
     hidBodyRoom: (d, x) => pick([`mas eu te vi ${x.inA(d.area)}, ${x.R(d.who)}, bem onde tava o corpo`, `${x.R(d.who)}, você tava ${x.inA(d.area)} e não falou isso`, `estranho, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}, perto do corpo, e agora diz ${x.inA(d.claimed)}`]),
+    askPassed: (d, x) => pick([`${x.R(d.who)}, te vi ${x.inA(d.area)} antes, você passou por lá?`, `${x.R(d.who)}, você passou ${x.inA(d.area)}? te vi por lá`, `peraí ${x.R(d.who)}, você não passou ${x.inA(d.area)} também?`]),
+    notMeShift: (d, x) => pick([d.area ? `não fui eu, eu nem passei ${x.inA(d.area)}. deve ter sido o metamorfo com a minha cara` : `não fui eu, deve ter sido o metamorfo com a minha cara`, d.area ? `eu não estava ${x.inA(d.area)}, quem vocês viram era o metamorfo disfarçado de mim` : `era o metamorfo disfarçado de mim, juro`, d.mine && d.area ? `eu estava ${x.inA(d.mine)}, não ${x.inA(d.area)}. tem metamorfo, era ele com a minha cara` : d.mine ? `eu estava ${x.inA(d.mine)}. tem metamorfo, era ele com a minha cara` : `tem metamorfo nessa partida, não era eu`]),
+    disguiseYes: (d, x) => pick(d.with ? [`${x.R(d.who, 'o')} tava comigo ${x.inA(d.mine)}, então quem viram ${x.inA(d.area)} era o metamorfo`, `eu tava ${x.R(d.who, 'com')} ${x.inA(d.mine)} nessa hora, era o metamorfo com a cara ${x.R(d.who, 'de')}`]
+      : [`faz sentido, eu vi ${x.R(d.who, 'o')} ${x.inA(d.mine)} nessa hora. quem viram ${x.inA(d.area)} era o metamorfo`, `acredito ${x.R(d.who, 'no')}, eu vi ${x.R(d.who, 'o')} ${x.inA(d.mine)}. tinha dois ao mesmo tempo, um era o metamorfo`]),
+    disguiseMaybe: (d, x) => pick([`pode ser, tem metamorfo. alguém tava ${x.R(d.who, 'com')}?`, `é, com metamorfo "eu vi" não prova muito. quem confirma ${x.R(d.who, 'o')}?`, `faz sentido, mas alguém viu ${x.R(d.who, 'o')} em outro lugar nessa hora?`]),
     notThere: (d, x) => pick([`eu nem passei ${x.inA(d.area)}`, `mentira, eu não estava ${x.inA(d.area)}`, `quê? eu estava ${x.inA(d.mine)}`]),
     wasThere: (d, x) => pick([`sim, eu estava ${x.inA(d.area)}`, `é, passei ${x.inA(d.area)}`]),
     deny: (d, x) => pick([`não fui eu`, d.area ? `o quê? eu estava ${x.inA(d.area)}` : `o quê?`, d.area ? `não, eu estava ${x.inA(d.area)}` : `não sou eu`, `não fui eu, juro`, `por que eu?`]),
@@ -2260,6 +2265,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     visual: /\b(scan\w*|escane\w*|visual|asteroide\w*|escudo\w*|lixo)\b/,
     comigo: /\b(comigo|junto|juntos)\b/,
     been: /\b(tava|estava|estive|fiquei|fui|to|estou|passei|vim|vinha|fazendo|fiz|indo)\b/,
+    stay: /\b(o tempo (todo|inteiro)|a rodada (toda|inteira)|nao sai\w*|n sai\w*|so fiquei|fiquei so|sempre (na|no|em))\b/,
     deny: /\b(nao fui eu|n fui eu|nao foi eu|n foi eu|nao sou eu|sou inocente|to limpo|tou limpo|sou crew|nao matei|n matei|nao sou impostor|nao sou imp|nao fui)\b/,
     lie: /\b(mentir\w*|mentindo|mentiroso|mentirosa|fake|falso|falsa)\b/,
     skip: /\b(skip\w*|pul(a|ar|o|ei|em)|ninguem|ngm)\b/,
@@ -2329,7 +2335,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
       /* "eu tava no admin com o verde" */
       if (others.length && has('been') && rooms.length && /\bcom\b/.test(c) && !has('vi')) {
-        intents.push({ type: 'claimLoc', rooms, with: others });
+        intents.push({ type: 'claimLoc', rooms, with: others, stay: has('stay') });
         others.forEach((pid) => intents.push({ type: 'vouch', who: pid, reason: 'together', area }));
         continue;
       }
@@ -2360,7 +2366,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           intents.push({ type: 'bodyArea', area });
           continue;
         }
-        intents.push({ type: 'claimLoc', rooms, with: [] });
+        intents.push({ type: 'claimLoc', rooms, with: [], stay: has('stay') });
         continue;
       }
       if (has('skip')) {
@@ -3013,7 +3019,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     /* Zigue-zague do jogador (vai e volta 3 vezes sem sair do lugar) = "vem comigo". */
     trackMotion() {
       const h = this.human, t = this.t;
-      if (!h || !h.alive || h.inVent) return;
+      if (!h || h.inVent) return;
       const mv = (h.mv = h.mv || []);
       mv.push({ x: h.x, y: h.y });
       while (mv.length > 8) mv.shift();
@@ -3041,6 +3047,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const t = this.t;
       p.gestT = t;
       this.log({ type: 'gesture', by: p.id, kind });
+      /* fantasma chamando fantasma: os outros fantasmas por perto veem (só eles se enxergam) e vão junto */
+      if (!p.alive) {
+        for (const q of this.players) {
+          if (q === p || q.alive || !q.brain || q.isHuman || U.dist(p, q) > 8) continue;
+          if (U.chance(0.85)) q.brain.ghostCome(p, null, 'sinal');
+        }
+        return;
+      }
       for (const q of this.players) {
         if (q === p || !q.alive || !q.brain || !q.brain.seenNow) continue;
         if (!q.brain.seenNow.includes(p)) continue;
@@ -3848,7 +3862,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.p = p;
       this.pers = C.PERSONALITIES[p.personality] || C.PERSONALITIES.analitico;
       this.err = (C.HUMAN_ERROR[g.S.bots.humanError] || C.HUMAN_ERROR.medio).mult;
-      this.lvl = C.IMP_LEVELS[g.S.bots.impostorLevel] || C.IMP_LEVELS.competente;
+      /* o nível dá a base; cada impostor tem o seu jeito em cima dela (um usa mais duto, outro persegue mais, outro
+         sabota mais, outro arrisca mais), então dois impostores do mesmo nível não jogam igual */
+      const base = C.IMP_LEVELS[g.S.bots.impostorLevel] || C.IMP_LEVELS.competente;
+      this.lvl = Object.assign({}, base);
+      for (const k of ['useVents', 'sabotage', 'stalk', 'selfReport', 'bus', 'fakeVisual', 'riskTol']) {
+        if (typeof base[k] === 'number') this.lvl[k] = U.clamp(base[k] * U.rf(0.7, 1.3), 0, 1);
+      }
       this.mem = new Memory();
       this.susp = {};
       this.carry = {};
@@ -4099,12 +4119,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
             this.path = [];
             this.dest = null;
             pl.shuffling = false;
-            /* esperando do lado de quem segue: muda de posição de vez em quando, sem ficar plantado */
-            if (!pl.noShuffle) {
-              pl.still = (pl.still || 0) + (pl.dynEvery || 0.5) + (this.crowded(0.55) ? 3 : 0);
-              if (pl.still > (pl.shuffleAt || (pl.shuffleAt = U.rf(3, 6)))) {
+            /* esperando do lado de quem segue: fica parado, como gente. Só dá um passo para o lado se esbarrou em
+               alguém (dois bonecos um em cima do outro) */
+            if (!pl.noShuffle && this.crowded(0.55) && g.t - (pl.stepAt || 0) > 6) {
+              pl.still = (pl.still || 0) + (pl.dynEvery || 0.5);
+              if (pl.still > 1) {
                 pl.still = 0;
-                pl.shuffleAt = U.rf(4, 8);
+                pl.stepAt = g.t;
                 const k = pl.keep || 0.8;
                 for (let i = 0; i < 4; i++) {
                   const a = Math.random() * Math.PI * 2, rr = Math.max(0.9, k * U.rf(0.55, 0.95));
@@ -4149,32 +4170,17 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     }
 
     /* ---------- planos ---------- */
-    /* "look": tempo olhando a sala; em vez de ficar parado, dá umas voltinhas por ela, como gente de verdade. */
+    /* "look": tempo olhando a sala. Entra, para num ponto e olha; não fica dando voltas dentro da sala (isso é coisa
+       de NPC). Se já está na sala, olha dali mesmo. */
     planWander(areaId, look) {
-      const g = this.g;
-      const pos = M.randomPointIn(areaId);
+      const g = this.g, p = this.p;
+      const here = M.roomOf(M.areaAt(p.x, p.y), p.x, p.y).id;
+      const pos = here === areaId ? { x: p.x, y: p.y } : M.randomPointIn(areaId);
       const span = look != null ? look : U.rf(2, 5);
       this.setPlan({
         type: 'wander', area: areaId, x: pos.x, y: pos.y,
-        onArrive: (pl) => {
-          /* chegou e dá uma olhada: parada de verdade (1-2,5s), ou segue direto se o tempo é curto */
-          pl.until = g.t + (span > 2.5 ? U.rf(1, 2.5) : U.rf(0.6, 1.4));
-          pl.strollEnd = g.t + span;
-        },
-        onDone: (pl) => this.stroll(areaId, pl.strollEnd),
+        onArrive: (pl) => (pl.until = g.t + Math.min(span, 4) * U.rf(0.6, 1)),
       });
-    }
-    stroll(areaId, end) {
-      const g = this.g, p = this.p;
-      if (this.plan || g.t >= end - 1.5) return;
-      let pos = null;
-      for (let i = 0; i < 6 && !pos; i++) {
-        const c = M.randomPointIn(areaId);
-        const d = U.d2(p.x, p.y, c.x, c.y);
-        if (d > 3 && d < 9) pos = c;
-      }
-      if (!pos) return;
-      this.setPlan({ type: 'wander', area: areaId, stroll: true, x: pos.x, y: pos.y, onArrive: (pl) => (pl.until = g.t + U.rf(1.2, 3)), onDone: () => this.stroll(areaId, end) });
     }
     /* Sem tarefas: ronda pelas salas vazias procurando corpos (as menos vistas há mais tempo primeiro). */
     planPatrol(n) {
@@ -4216,8 +4222,6 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           pl.until = g.t + U.rf(0.2, 0.7);
         },
         onDone: () => {
-          if (this.plan) return;
-          if (U.chance(0.35)) this.stroll(id, g.t + U.rf(1.5, 3));
           if (!this.plan) this.nextPatrol();
         },
       });
@@ -5119,7 +5123,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const st = U.pick(g.sabStationsNeeded());
         if (st) {
           const pos = M.SAB_STATIONS[st];
-          this.setPlan({ type: 'loiter', x: pos.x + U.rf(-2, 2), y: pos.y + U.rf(-2, 2), onArrive: (pl) => (pl.until = g.t + U.rf(0.8, 2)) });
+          const spot = this.standNear(pos.x, pos.y, 1.2);
+          this.setPlan({ type: 'loiter', x: spot.x, y: spot.y, onArrive: (pl) => (pl.until = g.t + U.rf(3, 6)) });
           return;
         }
       }
@@ -5322,20 +5327,99 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
     }
     maybeSabotage(others) {
-      const g = this.g, p = this.p, L = this.lvl;
-      if (!g.canSabotage(p)) return;
-      const lastKill = Math.max(...g.players.filter((q) => q.isImp).map((q) => q.lastKillT));
-      const sinceKill = g.t - Math.max(lastKill, g.roundStart);
-      if (L.sabKill && others.length === 1 && p.killCd < 3 && U.chance(0.35)) return g.sabotage('lights', p);
-      if (others.length === 1 && p.killCd < 2 && U.chance(L.sabotage * 0.5)) {
-        const a = M.roomOf(M.areaAt(p.x, p.y), p.x, p.y);
-        const ta = M.areaAt(others[0].x, others[0].y);
-        if (a && ta && a.id === ta.id && M.DOOR_ROOMS.includes(a.id) && g.doorReady(a.id)) return g.closeDoors(a.id, p);
+      const c = this.chooseSabotage(others, false);
+      if (!c) return;
+      this.lastSab = c;
+      if (c.type === 'doors') return this.g.closeDoors(c.room, this.p);
+      return this.g.sabotage(c.type, this.p);
+    }
+    /* Jeito próprio de sabotar: cada impostor tem as suas preferências (um gosta de apagar as luzes, outro de
+       travar a nave com reator/O2, outro de fechar portas), além do que o nível e a personalidade pedem. */
+    sabStyle() {
+      if (!this._sabStyle) {
+        const pers = this.pers;
+        this._sabStyle = {
+          lights: U.rf(0.6, 1.4), comms: U.rf(0.6, 1.4), doors: U.rf(0.6, 1.4),
+          crit: U.rf(0.6, 1.4) * (pers.chaos ? 1.3 : 1) * (pers.leader ? 1.1 : 1),
+        };
       }
-      if (this.escape && g.t - this.escape.t0 < 8 && L.camsAware && g.critAllowed() && U.chance(0.3)) return g.sabotage(U.pick(['reactor', 'o2']), p);
-      if (sinceKill > 50 && g.critAllowed() && U.chance(L.sabotage * 0.22)) return g.sabotage(U.pick(['reactor', 'o2', 'lights']), p);
-      if (g.anyoneOnCams() && U.chance(L.sabotage * 0.25)) return g.sabotage('comms', p);
-      if (U.chance(L.sabotage * 0.07)) return g.sabotage(U.pick(['lights', 'comms']), p);
+      return this._sabStyle;
+    }
+    /* Decide a sabotagem pelo que ESTE impostor sabe agora (quem ele viu e onde, o próprio abate, as câmeras),
+       não por sorteio: apagar as luzes quando alguém está sozinho perto de um impostor pronto; fechar a porta com a
+       vítima dentro; reator/O2 para separar um grupo ou puxar todo mundo para longe do corpo; comunicações quando
+       tem gente nas câmeras ou no Admin; travar a tripulação quando as tarefas estão quase no fim. */
+    chooseSabotage(others, ghost) {
+      const g = this.g, p = this.p, L = this.lvl, t = g.t;
+      if (!g.canSabotage(p)) return null;
+      const st = this.sabStyle();
+      const smart = 0.4 + L.lie * 0.6;
+      const opts = [];
+      const add = (type, sc, why, room) => {
+        if (sc <= 0) return;
+        const w = type === 'doors' ? st.doors : type === 'reactor' || type === 'o2' ? st.crit : st[type];
+        opts.push({ type, s: sc * w, why, room });
+      };
+      const crit = g.critAllowed();
+      const imps = g.players.filter((q) => q.isImp && q.alive);
+      const crew = g.players.filter((q) => q.alive && !q.isImp && this.lastSeenAt[q.id] && t - this.lastSeenAt[q.id].t < 6).map((q) => ({ q, s: this.lastSeenAt[q.id] }));
+      const far = (type, x, y) => {
+        const ks = type === 'reactor' ? ['reactorA', 'reactorB'] : ['o2A', 'o2B'];
+        return ks.reduce((a, k) => a + Math.sqrt(U.d2(M.SAB_STATIONS[k].x, M.SAB_STATIONS[k].y, x, y)), 0) / ks.length;
+      };
+      const bestCrit = (x, y) => (far('reactor', x, y) >= far('o2', x, y) ? 'reactor' : 'o2');
+      /* 1. alguém sozinho perto de um impostor com o abate pronto (eu, ou o parceiro se eu já morri) */
+      for (const c of crew) {
+        const others2 = crew.filter((o) => o !== c && U.d2(o.s.x, o.s.y, c.s.x, c.s.y) < 49);
+        if (others2.length) continue;
+        const killer = imps.find((q) => q.killCd < 4 && U.d2(q.x, q.y, c.s.x, c.s.y) < 64);
+        if (!killer) continue;
+        const nearby = crew.some((o) => o !== c && U.d2(o.s.x, o.s.y, c.s.x, c.s.y) < 196);
+        add('lights', (nearby ? 0.7 : 0.35) * (L.sabKill ? 1.3 : 1) * smart, 'isolar ' + c.q.name);
+        const room = M.roomOf(M.areaAt(c.s.x, c.s.y), c.s.x, c.s.y);
+        const kRoom = M.roomOf(M.areaAt(killer.x, killer.y), killer.x, killer.y);
+        if (room && kRoom && room.id === kRoom.id && M.DOOR_ROOMS.includes(room.id) && g.doorReady(room.id)) add('doors', 0.75 * smart, 'trancar ' + c.q.name, room.id);
+      }
+      /* 2. meu abate recente e o corpo ainda não foi achado: puxa todo mundo para o lado oposto da nave */
+      const myBody = g.bodies.find((b) => b.killer === p.id && !b.reported && !b.gone && t - b.t < 12);
+      if (myBody && crit) add(bestCrit(myBody.x, myBody.y), 0.8 * smart * (L.camsAware ? 1.15 : 1), 'longe do corpo');
+      /* 3. grupo grande junto: reator/O2 obriga a se separar em dois painéis longe dali */
+      if (crit && crew.length >= 4 && imps.some((q) => q.killCd < 8)) {
+        const cx = crew.reduce((a, c) => a + c.s.x, 0) / crew.length, cy = crew.reduce((a, c) => a + c.s.y, 0) / crew.length;
+        const tight = crew.filter((c) => U.d2(c.s.x, c.s.y, cx, cy) < 64).length;
+        if (tight >= 4) add(bestCrit(cx, cy), 0.55 * smart, 'separar o grupo');
+      }
+      /* 4. gente nas câmeras ou no Admin vendo onde cada um está */
+      const onCams = g.anyoneOnCams(), onAdmin = !g.commsDown() && g.players.some((q) => q.alive && q.onAdmin);
+      if (onCams || onAdmin) {
+        const underCam = M.CAMS.some((c) => U.d2(c.x, c.y, p.x, p.y) < M.CAM_R * M.CAM_R * 2.2);
+        add('comms', ((onCams ? 0.45 : 0.3) + (underCam || p.killCd < 4 ? 0.3 : 0)) * (L.camsAware ? 1.3 : 0.8), onCams ? 'câmeras' : 'admin');
+      }
+      /* 5. tarefas quase no fim (com a barra visível): trava todo mundo */
+      if (g.S.rules.taskBar === 'sempre' && !g.commsDown()) {
+        const tp = g.taskProgress();
+        const f = tp.total ? tp.done / tp.total : 0;
+        /* uma vez por rodada: sabotar sem parar só entrega que tem impostor desesperado */
+        if (f >= 0.7 && this.stallRound !== g.roundStart) {
+          /* o painel longe de onde a tripulação está (pelo que ele viu) faz todo mundo largar as tarefas e atravessar a nave */
+          const cx = crew.length ? crew.reduce((a, c) => a + c.s.x, 0) / crew.length : p.x, cy = crew.length ? crew.reduce((a, c) => a + c.s.y, 0) / crew.length : p.y;
+          if (crit) add(bestCrit(cx, cy), (0.25 + (f - 0.7) * 1.5) * smart, 'tarefas no fim');
+          add('lights', 0.2 * smart, 'atrasar tarefas');
+        }
+      }
+      /* 6. reta final: mais um abate ganha; pressão com sabotagem crítica */
+      const aliveN = g.players.filter((q) => q.alive).length;
+      if (crit && aliveN - imps.length <= imps.length + 2) add(bestCrit(p.x, p.y), 0.25 * smart, 'reta final');
+      /* 7. sem motivo claro: o iniciante (e o caótico) às vezes apaga as luzes à toa */
+      add('lights', 0.06 * (1.4 - smart) + (this.pers.chaos ? 0.06 : 0), 'confusão');
+      if (!opts.length) return null;
+      opts.sort((a, b) => b.s - a.s);
+      const best = opts[0];
+      if (best.type === 'doors' && !best.room) return null;
+      /* sabotagem tem hora: quem sabota toda chance que aparece fica previsível (e a nave inteira sabe que tem impostor ativo) */
+      if (!U.chance(Math.min(0.9, best.s * (0.15 + L.sabotage * 0.45)))) return null;
+      if (/^(tarefas|atrasar)/.test(best.why)) this.stallRound = g.roundStart;
+      return best;
     }
     chooseImpActivity(others) {
       const g = this.g, L = this.lvl, p = this.p;
@@ -5405,8 +5489,21 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (best) {
         const a = M.AREA[best.s.area];
         const room = a ? M.roomOf(a, best.s.x, best.s.y) : null;
+        const here = M.roomOf(M.areaAt(p.x, p.y), p.x, p.y);
+        /* já está na sala: se instala numa tarefa falsa ali (esperando parado, como quem faz tarefa), sem ficar
+           andando de um canto a outro */
+        if (room && room.kind === 'room' && here.id === room.id) {
+          this.planFakeTask(room.id);
+          return true;
+        }
         const pos = room && room.kind === 'room' ? M.randomPointIn(room.id) : { x: best.s.x, y: best.s.y };
-        this.setPlan({ type: 'prowl', target: best.q.id, x: pos.x, y: pos.y, onArrive: (pl) => (pl.until = g.t + U.rf(1.3, 2.6)) });
+        this.setPlan({
+          type: 'prowl', target: best.q.id, x: pos.x, y: pos.y,
+          onArrive: (pl) => (pl.until = g.t + U.rf(0.4, 1)),
+          onDone: () => {
+            if (!this.plan && room && room.kind === 'room') this.planFakeTask(room.id);
+          },
+        });
         return true;
       }
       const lurk = ['electrical', 'medbay', 'navigation', 'shields', 'o2', 'reactor', 'security', 'lowerEngine', 'upperEngine', 'comms', 'weapons']
@@ -5537,19 +5634,72 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
       return true;
     }
+    /* Fantasma chamado por outro fantasma ("me segue", "vem aqui", zigue-zague): vai junto, sem desconfiança — a
+       partida já acabou para os dois. Com sala dita ("vem na elétrica"), vai para lá. */
+    ghostCome(q, area, why) {
+      const g = this.g, p = this.p;
+      if (p.alive || !q || q.alive || q === p) return false;
+      const fresh = !this.ghostEscort || this.ghostEscort.who !== q.id;
+      this.ghostEscort = { who: q.id, area: area || null, until: g.t + (area ? 40 : U.rf(25, 40)), arrived: false };
+      this.plan = null;
+      if (fresh && why === 'sinal' && g.ghosts) g.ghosts.later(p, U.rf(0.6, 1.6), { kind: 'comeOk', x: q.id });
+      return true;
+    }
+    ghostRelease(q) {
+      if (this.ghostEscort && (!q || this.ghostEscort.who === q.id)) {
+        this.ghostEscort = null;
+        if (this.plan && this.plan.type === 'follow') this.plan = null;
+        return true;
+      }
+      return false;
+    }
+    /* o que o fantasma está fazendo agora (para ele mesmo contar no chat) */
+    ghostDoing() {
+      const g = this.g, p = this.p, pl = this.plan;
+      const room = M.roomOf(M.areaAt(p.x, p.y), p.x, p.y);
+      const ge = this.ghostEscort;
+      if (ge) return { kind: ge.area && !ge.arrived ? 'going' : 'with', who: ge.who, area: ge.area || room.id };
+      if (pl && pl.type === 'task' && pl.task) return { kind: 'task', area: room.id, task: pl.task.id };
+      if (pl && pl.type === 'guard') return { kind: 'guard', who: pl.target, area: room.id };
+      return { kind: 'idle', area: room.id, left: p.tasks.filter((tk) => !tk.done).length };
+    }
     ghostUpdate(dt) {
       const g = this.g, p = this.p;
       this.thinkT -= dt;
+      const ge = this.ghostEscort;
+      if (ge && (g.t > ge.until || !g.players[ge.who] || g.players[ge.who].alive)) this.ghostEscort = null;
+      if (this.ghostEscort && this.thinkT <= 0) {
+        this.thinkT = 0.4;
+        const q = g.players[ge.who];
+        const room = M.roomOf(M.areaAt(p.x, p.y), p.x, p.y);
+        if (ge.area && !ge.arrived) {
+          if (room.id === ge.area) {
+            ge.arrived = true;
+            this.plan = null;
+          } else if (!this.plan || this.plan.type !== 'wander') {
+            const pos = M.randomPointIn(ge.area);
+            this.setPlan({ type: 'wander', area: ge.area, x: pos.x, y: pos.y, onArrive: (pl) => (pl.until = g.t + 30) });
+          }
+        } else if (!ge.area && (!this.plan || this.plan.type !== 'follow' || this.plan.target !== q.id)) {
+          this.setPlan({ type: 'follow', target: q.id, dyn: () => (q.alive ? null : { x: q.x, y: q.y }), keep: 1.8, endAt: ge.until, dynEvery: 0.4, noShuffle: true });
+        }
+      }
+      if (this.ghostEscort) {
+        this.act(dt);
+        return;
+      }
       if (this.thinkT <= 0) {
         this.thinkT = 0.5;
         if (p.isImp) {
           this.sabThink -= 0.5;
           if (this.sabThink <= 0) {
             this.sabThink = U.rf(12, 25);
-            if (g.canSabotage(p) && U.chance(this.lvl.sabotage * 0.5)) {
-              const opts = ['lights', 'comms'];
-              if (g.critAllowed()) opts.push('reactor', 'o2');
-              g.sabotage(U.pick(opts), p);
+            /* fantasma impostor ajuda o parceiro vivo com a sabotagem que a situação pede */
+            const c = this.chooseSabotage([], true);
+            if (c) {
+              this.lastSab = c;
+              if (c.type === 'doors') g.closeDoors(c.room, p);
+              else g.sabotage(c.type, p);
             }
           }
           if (!this.plan) this.planWander(U.pick(M.ROOMS).id, U.rf(3, 8));
@@ -5867,6 +6017,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     this.knowsBody = null;
     this.sawBodyMyself = false;
     this.claims = {};
+    this.claimFull = {};
+    this.contraBump = {};
     this.clashAdj = {};
     this.clashList = [];
     this.voted = false;
@@ -6796,6 +6948,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         break;
       case 'claimLoc':
         this.claims[S] = it.rooms;
+        /* "tava na elétrica" fala de onde estava no fim, não do caminho; lista de salas ou "o tempo todo" cobre a rodada */
+        this.claimFull[S] = !!it.stay || (it.rooms || []).length >= 2;
         if (S === g.human?.id) mt.humanClaimed = true;
         if (!p.isImp) {
           this.checkClaim(S, it);
@@ -6930,15 +7084,18 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       return;
     }
     /* teoria: "pode ter sido o metamorfo", "pode ser engenheiro", "o fantasma sumiu" */
-    if (!p.isImp && (role === 'metamorfo' || role === 'engenheiro') && !this['doubt' + role]) {
-      this['doubt' + role] = true;
-      const kinds = role === 'metamorfo' ? ['nearBody', 'lastWith', 'withVictim'] : ['vent'];
-      const f = role === 'metamorfo' ? (pers.times ? 0.75 : 0.62) : 0.7;
+    if (!p.isImp && role === 'metamorfo') {
+      /* "não era eu, era o metamorfo": quando quem fala é o acusado (ou não disse de quem), a teoria é sobre ele mesmo */
+      const accusedS = mt.accusers[S] && Object.keys(mt.accusers[S]).length > 0;
+      const X = it.who == null || it.who === S || (accusedS && mt.accusers[S][it.who]) ? S : it.who;
+      if (X !== p.id && this.disguiseTheory(X, S)) return;
+    } else if (!p.isImp && role === 'engenheiro' && !this.replied.has('doubteng')) {
+      this.replied.add('doubteng');
       for (const id of Object.keys(this.ev || {})) {
         if (it.who != null && +id !== it.who) continue;
-        for (const e of this.ev[id]) if (kinds.includes(e.reason)) e.w *= f;
+        for (const e of this.ev[id]) if (e.reason === 'vent') e.w *= 0.7;
       }
-      for (const id of Object.keys(this.chatClaim)) if (it.who == null || +id === it.who) this.chatClaim[id] *= f;
+      for (const id of Object.keys(this.chatClaim)) if (it.who == null || +id === it.who) this.chatClaim[id] *= 0.7;
       this.recalc();
     }
     const key = 'roleTalk' + role;
@@ -6952,10 +7109,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   /* O que alguém contou ter visto ("vi o X perto do corpo", "vi o X saindo do Depósito") bate com onde o X disse
      que estava? */
   const PLACE_REASONS = ['nearBody', 'lastWith', 'withVictim', 'fromBody'];
-  B.claimClash = function (who, area) {
+  B.claimClash = function (who, area, j) {
     const rooms = this.claims[who];
     if (!rooms || !rooms.length || !area || !M.AREA[area]) return false;
-    return !rooms.some((r) => r === area || M.isNear(r, area));
+    if (rooms.some((r) => r === area || M.isNear(r, area))) return false;
+    /* quem disse uma sala só falou de onde estava no fim, não do caminho: ter sido visto em outro lugar antes não
+       desmente. Só desmente o que foi visto agora há pouco, ou se ele disse que ficou lá o tempo todo. */
+    if (!(this.claimFull && this.claimFull[who]) && !(j && j.ago != null && j.ago <= 12)) return false;
+    return true;
   };
   const placeIntent = (j) => j.who != null && j.area && ((j.type === 'accuse' && PLACE_REASONS.includes(j.reason)) || (j.type === 'sawAt' && (j.ago == null || j.ago <= 30)));
   /* Versões que não batem: A diz que viu X em W, X disse que estava em outro lugar. Um dos dois mente (nas
@@ -6974,7 +7135,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       for (const j of m.intents) {
         if (!placeIntent(j) || j.who === A || A === me || j.who === me) continue;
         const X = j.who, key = A + ':' + X;
-        if (done.has(key) || !this.claimClash(X, j.area)) continue;
+        if (done.has(key) || !this.claimClash(X, j.area, j)) continue;
         done.add(key);
         const near = (a) => a === j.area || M.isNear(a, j.area);
         const rooms = this.claims[X] || [];
@@ -7059,7 +7220,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     }
     /* alguém já tinha contado ter visto S num lugar que não está no álibi que S acabou de dar */
     const told = this.mt.msgs.filter((m) => m.from !== S && m.from !== me).map((m) => ({ m, it: m.intents.find((j) => j.who === S && j.area &&
-      ((j.type === 'accuse' && PLACE_REASONS.includes(j.reason)) || (j.type === 'sawAt' && (j.ago == null || j.ago <= 30)))) })).filter((x) => x.it && this.claimClash(S, x.it.area));
+      ((j.type === 'accuse' && PLACE_REASONS.includes(j.reason)) || (j.type === 'sawAt' && (j.ago == null || j.ago <= 30)))) })).filter((x) => x.it && this.claimClash(S, x.it.area, x.it));
     if (told.length) {
       const best = told.sort((a, b) => this.trust(b.m.from) - this.trust(a.m.from))[0];
       this.updateClashes();
@@ -7091,12 +7252,20 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     const bodyA = this.knowsBody;
     /* só é contradição se não bate de verdade: visto perto do corpo e escondeu isso, ou visto há tão pouco tempo
        num lugar tão longe que não daria para chegar na sala que disse */
+    const full = this.claimFull && this.claimFull[S];
+    const omit = [];
     const mism = seen.filter((s) => {
       if (s.t1 - s.t0 < 1.2 || matches.some((m) => m.t1 > s.t1)) return false;
       if (recentBad(s)) return true;
       if (matchR(s.area)) return false;
       const dt = T0 - s.t1;
-      if (bodyA && (s.area === bodyA || M.isNear(s.area, bodyA)) && dt <= 35) return true;
+      if (bodyA && (s.area === bodyA || M.isNear(s.area, bodyA)) && dt <= 35) {
+        /* passou perto do corpo e não falou: se ele contou o caminho todo, escondeu; se disse uma sala só, pode só não
+           ter mencionado (pergunta antes de acusar) */
+        if (full) return true;
+        omit.push(s);
+        return false;
+      }
       if (!last || dt > 20) return false;
       return dt + 3 < this.travelTime(s.area, last, S);
     });
@@ -7123,10 +7292,19 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (rel || U.chance(0.75)) {
         /* com metamorfo na partida, "te vi lá" pode ter sido o disfarce: pesa menos e fala isso */
         const shift = roleOn(this.g, 'metamorfo');
-        this.bump(S, (rel ? 28 : 18) * (shift ? 0.6 : 1));
+        const bw = (rel ? 28 : 18) * (shift ? 0.6 : 1);
+        this.bump(S, bw);
+        this.contraBump[S] = (this.contraBump[S] || 0) + bw;
         if (!shift) this.mem.lies[S] = (this.mem.lies[S] || 0) + 1;
         this.reply(1, () => say(shift ? 'shiftDoubt' : rel ? 'hidBodyRoom' : 'contradictSeen', { who: S, area: s.area, claimed: rooms[rooms.length - 1] }, [{ type: 'accuse', who: S, reason: 'lie', area: s.area }]));
       }
+    }
+    /* passou perto do corpo e não citou (disse uma sala só): pergunta, como gente faria */
+    if (!mism.length && omit.length && !this.replied.has('passed' + S) && (pers.times || pers.skeptic || U.chance(0.35))) {
+      this.replied.add('passed' + S);
+      const s = omit[omit.length - 1];
+      this.bump(S, 4, 'social');
+      this.reply(1.2, () => say('askPassed', { who: S, area: s.area }, [{ type: 'askWhere', who: S }]));
     }
     void g;
   };
@@ -7193,7 +7371,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.bump(T2, 8 * this.trust(S), 'social');
     }
     /* visto há pouco num lugar que não está no álibi dele */
-    if (T2 !== S && (it.ago == null || it.ago <= 30) && this.claimClash(T2, it.area) && this.trust(S) >= 0.6 && U.chance(0.4)) this.sayClash(T2, it.area, S);
+    if (T2 !== S && (it.ago == null || it.ago <= 30) && this.claimClash(T2, it.area, it) && this.trust(S) >= 0.6 && U.chance(0.4)) this.sayClash(T2, it.area, S);
   };
 
   B.onAccuse = function (S, it) {
@@ -7221,6 +7399,17 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const task = vis ? vis.id : 'scan';
         this.reply(0.8, () => say('offerVisual', { task }, [{ type: 'deny' }, { type: 'offerVisual' }]), true);
         return;
+      }
+      /* com metamorfo na partida: me "viram" num lugar onde eu não estava (ou matando, e eu sei que não matei) —
+         quem acusa pode estar sendo honesto e ter visto o disfarce. Explico em vez de chamar de mentiroso. */
+      if (!p.isImp && roleOn(g, 'metamorfo') && (strong || (it.area && (PLACE_REASONS.includes(it.reason) || it.reason === 'lie')))) {
+        const T0 = mt.info.t;
+        const wasThere = it.area && this.mem.trail.some((s) => s.t1 >= T0 - 45 && (s.area === it.area || M.isNear(s.area, it.area)));
+        if (!wasThere && (it.reason === 'kill' || it.reason === 'shift' || it.area)) {
+          this.bump(S, strong ? 8 : 3);
+          this.reply(0.8, () => say('notMeShift', { area: it.area, mine: area }, [{ type: 'deny' }, { type: 'roleTheory', role: 'metamorfo', who: me }]), true);
+          return;
+        }
       }
       if (!p.isImp) {
         this.bump(S, strong ? 45 : 10);
@@ -7277,7 +7466,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
     }
     /* a acusação diz onde ele estava, e ele disse outro lugar: um dos dois mente (a conta fica em updateClashes) */
-    const clash = it.area && PLACE_REASONS.includes(it.reason) && T2 !== S && this.claimClash(T2, it.area);
+    const clash = it.area && PLACE_REASONS.includes(it.reason) && T2 !== S && this.claimClash(T2, it.area, it);
     if (clash && this.trust(S) >= 0.6 && (pers.times || pers.skeptic || pers.leader || U.chance(0.35))) this.sayClash(T2, it.area, S);
     /* revide: acusado que devolve "mentiroso" sem dizer nada concreto não é prova nova contra quem acusou */
     if (it.reason === 'lie' && !it.area && mt.accusers[S] && mt.accusers[S][T2]) {
@@ -7409,6 +7598,66 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     return true;
   };
 
+  /* "Quem vocês viram era o metamorfo com a cara do X." Confere com o que eu sei: se eu mesmo vi o X em outro lugar
+     nessa hora, ou estava com ele, ou ele já provou ser tripulante, é o disfarce mesmo — tiro o que pesava contra ele
+     por lugar/mentira e defendo. Sem nada que confirme, a pista de "te vi lá" perde bastante força (com metamorfo na
+     partida ela prova pouco), mas não inocento de vez: o próprio impostor pode usar essa desculpa. */
+  B.disguiseTheory = function (X, by) {
+    const g = this.g, mt = this.mt, pers = this.pers;
+    if (this.replied.has('disgT' + X)) return false;
+    this.replied.add('disgT' + X);
+    const say = (kind, d, intents) => ({ text: this.say(kind, d), intents: intents || [] });
+    const T0 = mt.info.t;
+    const near = (a, b) => a === b || M.isNear(a, b);
+    /* onde disseram ter visto o X (as versões que pesam contra ele) */
+    const told = [];
+    for (const m of mt.msgs) {
+      if (m.from === X) continue;
+      for (const j of m.intents) if (j.who === X && j.area && (placeIntent(j) || (j.type === 'accuse' && (j.reason === 'lie' || j.reason === 'kill')))) told.push({ from: m.from, area: j.area, kill: j.reason === 'kill' });
+    }
+    const myEv = (this.ev && this.ev[X]) || [];
+    const withMe = myEv.find((e) => e.reason === 'together' && e.secs >= 10);
+    const visual = myEv.some((e) => e.reason === 'visual') || this.clearedByVisual(X);
+    /* eu vi o X, recentemente, num lugar diferente de onde disseram: dois X ao mesmo tempo */
+    const mine = this.sawTimes(X).filter((q) => T0 - q.t1 <= 45);
+    const clash = told.length ? mine.find((q) => told.every((tt) => !near(q.area, tt.area)) && q.t1 - q.t0 >= 1) : null;
+    const place = ['nearBody', 'lastWith', 'withVictim', 'fromBody', 'lie'];
+    if (withMe || visual || clash) {
+      this.ev[X] = myEv.filter((e) => !place.includes(e.reason));
+      this.bump(X, -((this.contraBump[X] || 0) + 14), 'own');
+      this.contraBump[X] = 0;
+      this.chatClaim[X] = (this.chatClaim[X] || 0) * 0.35;
+      this.chatSocial[X] = (this.chatSocial[X] || 0) * 0.5;
+      this.recalc();
+      const area = told.length ? told[told.length - 1].area : null;
+      const myLast = this.recentRooms ? this.recentRooms().slice(-1)[0] : null;
+      const mineArea = clash ? clash.area : withMe ? myLast : null;
+      if (area && mineArea && !near(area, mineArea)) {
+        this.reply(1, () => say('disguiseYes', { who: X, area, mine: mineArea, with: !!withMe }, [{ type: 'vouch', who: X, reason: withMe ? 'together' : 'claim' }]), true);
+      } else {
+        this.reply(1, () => say('roleMaybe', { role: 'metamorfo', who: X }, [{ type: 'vouch', who: X, reason: 'claim' }]), true);
+      }
+      return true;
+    }
+    /* sem confirmação: "eu vi" perde força, mas pergunta quem confirma */
+    const f = pers.times ? 0.6 : 0.5;
+    for (const e of myEv) if (place.includes(e.reason)) e.w *= f;
+    if (this.contraBump[X]) {
+      this.bump(X, -this.contraBump[X] * 0.5, 'own');
+      this.contraBump[X] *= 0.5;
+    }
+    this.chatClaim[X] = (this.chatClaim[X] || 0) * (told.some((tt) => tt.kill) ? 0.75 : 0.6);
+    this.chatSocial[X] = (this.chatSocial[X] || 0) * 0.75;
+    this.recalc();
+    if ((pers.times || pers.skeptic || pers.defend || U.chance(0.3)) && !mt.flags['disgAsk' + X]) {
+      mt.flags['disgAsk' + X] = true;
+      this.reply(1.2, () => say('disguiseMaybe', { who: X }, [{ type: 'askConfirm', who: X }]));
+    }
+    void by;
+    void g;
+    return true;
+  };
+
   B.onVouch = function (S, it) {
     const me = this.p.id, T2 = it.who, mt = this.mt;
     if (T2 === me || this.p.isImp) return;
@@ -7523,7 +7772,16 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
        ("acho que é ele", "vota nele" e "concordo" sozinhos não são motivo) */
     const leadOk = (id) => mt.msgs.some((m) => m.from !== me && m.from !== id && this.trust(m.from) >= 0.6 &&
       m.intents.some((x) => x.type === 'accuse' && x.who === id && !WEAK[x.reason]));
-    const score = (id) => (this.susp[id] || 0) + (elim && open.includes(id) ? elim : 0) + (leadOk(id) ? pers.follow * (mt.heat[id] || 0) * 0.3 + mt.saidOn(id) * pers.follow * 7 : 0) + said(id) - (solid(id) ? 12 : 0);
+    /* sem tarefa visual e sem ejeção confirmada ninguém prova nada. Com a visão curta, ainda por cima, quase ninguém vê
+       nada por conta própria e o chat vira terreno dos impostores: aí o que só se falou no chat pesa bem menos e o voto
+       pede pista própria ou relato forte (vale para qualquer reunião) */
+    const blind = !g.S.rules.visualTasks && !g.S.rules.confirmEjects;
+    const chatBlind = blind && g.S.rules.crewVision < 1;
+    const grounded = (id) => ((this.ev && this.ev[id]) || []).some((e) => e.w > 0) || (this.chatClaim[id] || 0) > 12;
+    const score = (id) => {
+      const v = (this.susp[id] || 0) + (elim && open.includes(id) ? elim : 0) + (leadOk(id) ? pers.follow * (mt.heat[id] || 0) * 0.3 + mt.saidOn(id) * pers.follow * 7 : 0) + said(id) - (solid(id) ? 12 : 0);
+      return chatBlind && v > 0 && !grounded(id) ? v * 0.55 : v;
+    };
     const ranked = alive.map((id) => ({ id, s: score(id) })).sort((a, b) => b.s - a.s);
     if (AU.debug && AU.debug.trace) {
       this.why = ranked.slice(0, 3).map((r) => ({ id: r.id, s: Math.round(r.s), susp: Math.round(this.susp[r.id] || 0), chat: Math.round(this.chatDelta[r.id] || 0), carry: Math.round((this.carry[r.id] || 0) * 0.5), heat: mt.heat[r.id] || 0, votes: mt.saidOn(r.id), ev: ((this.ev && this.ev[r.id]) || []).map((e) => e.reason + ':' + Math.round(e.w)) }));
@@ -7541,17 +7799,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     const trustedLead = (id) => leadOk(id) || Object.keys(saidV).some((v) => +v !== me && saidV[v] === id && this.trust(+v) >= 0.7 && (this.hardCleared(+v) || this.clearedByVisual(+v)));
     /* voto dividido não tira ninguém: se quem está na frente também é suspeito para mim e quem puxou trouxe prova
        (ou já provou ser tripulante), junto ali */
-    if (lead && lead.count >= 2 && lead.id !== me && !cleared(lead.id) && trustedLead(lead.id)) {
+    if (lead && lead.count >= 2 && lead.id !== me && !cleared(lead.id) && trustedLead(lead.id) && (!chatBlind || grounded(lead.id))) {
       const lc = ranked.find((r) => r.id === lead.id);
       if (lc && ranked.indexOf(lc) <= 1 && lc.s >= thr * (pers.follow > 0.7 ? 0.35 : 0.55)) return lead.id;
     }
     /* crise: pular entrega o jogo (mais um abate e eles ganham). Vota em quem pesa mais entre os não inocentados;
        só vai no que está na frente se ele também é um dos meus dois mais suspeitos e quem puxou é confiável */
-    /* sem tarefa visual e sem ejeção confirmada ninguém prova nada: voto só pelo que se falou no chat vira chute (e os
-       dois impostores votando juntos ganham o chute). Aí só força o voto quem tem pista própria ou relato forte;
-       sem isso, pular dá tempo de terminar as tarefas. */
-    const blind = !g.S.rules.visualTasks && !g.S.rules.confirmEjects;
-    const grounded = (id) => ((this.ev && this.ev[id]) || []).some((e) => e.w > 0) || (this.chatClaim[id] || 0) > 12;
+    /* reta final às cegas: voto só pelo que se falou no chat vira chute (e os dois impostores votando juntos ganham o
+       chute). Só força o voto quem tem pista própria ou relato forte; sem isso, pular dá tempo de terminar as tarefas. */
     if (crisis && (!blind || ranked.some((r) => !cleared(r.id) && grounded(r.id)))) {
       /* na reta final até pista fraca decide: admitiu ter passado na sala do corpo, disse que estava numa sala onde
          eu fiquei um tempo e não o vi, ou ninguém confirmou onde estava */
@@ -7576,7 +7831,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (pool[0].s > -20) return pool[0].id;
       }
     }
-    if (pers.hunch > 0.3 && top.s >= thr * 0.6 && U.chance(0.45)) return top.id;
+    if (pers.hunch > 0.3 && top.s >= thr * 0.6 && (!chatBlind || grounded(top.id)) && U.chance(0.45)) return top.id;
     return 'skip';
   };
 
@@ -8862,6 +9117,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (near.length) out.push('Duto perto: ' + near[0] + '.');
         const sawMe = g.players.filter((q) => q.alive && !q.isImp && b.lastSeenAt[q.id] && g.t - b.lastSeenAt[q.id].t < 18 && U.d2(b.lastSeenAt[q.id].x, b.lastSeenAt[q.id].y, p.x, p.y) < 11);
         if (sawMe.length) out.push('Foi visto por aqui há pouco por ' + sawMe.map((q) => this.who(q.id)).join(', ') + ' (matar agora nesta área o deixaria como suspeito).');
+        /* o jeito de cada impostor (a IA decide por ele, mas respeitando o estilo dele) */
+        if (b.sabStyle) {
+          const sty = b.sabStyle();
+          const fav = Object.keys(sty).sort((a, c) => sty[c] - sty[a])[0];
+          out.push('Jeito dele: ' + ({ lights: 'gosta de apagar as luzes antes de agir', comms: 'gosta de cortar as comunicações (câmeras/admin)', doors: 'gosta de trancar portas', crit: 'gosta de sabotar reator/O2 para separar o grupo' }[fav]) + '; usa duto ' + (b.lvl.useVents > 0.6 ? 'bastante' : 'pouco') + '; ' + (b.lvl.stalk > 0.5 ? 'persegue a vítima' : 'espera a vítima vir') + '.');
+        }
         const lone = g.players.filter((q) => q.alive && !q.isImp && b.lastSeenAt[q.id] && g.t - b.lastSeenAt[q.id].t < 30).map((q) => ({ q, s: b.lastSeenAt[q.id] }))
           .filter((x) => !g.players.some((o) => o !== x.q && o.alive && !o.isImp && b.lastSeenAt[o.id] && Math.abs(b.lastSeenAt[o.id].t - x.s.t) < 4 && U.d2(b.lastSeenAt[o.id].x, b.lastSeenAt[o.id].y, x.s.x, x.s.y) < 7));
         if (lone.length) out.push('Viu sozinho há pouco: ' + lone.slice(0, 3).map((x) => this.who(x.q.id) + ' em ' + (M.AREA[x.s.area] ? M.AREA[x.s.area].name : '?') + ' (' + Math.round(g.t - x.s.t) + 's atrás)').join(', ') + '.');
@@ -9039,6 +9300,19 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     mate: ['{x} é meu parceiro kkk', 'é {x}, o outro impostor', 'shh, {x} é dos meus kkk'],
     killerGone: ['foi {k}, mas já ejetaram', '{k} me matou, e já saiu na votação'],
     protect: ['protegi {x}', 'escudo em {xn}', 'tô cuidando de {xn}', 'coloquei escudo em {xn}'],
+    comeOk: ['tô indo', 'bora', 'já vou', 'indo aí', 'colando aí', 'blz, tô indo'],
+    comeRoom: ['tô indo {a}', 'bora, te encontro {a}', 'já tô indo {a}'],
+    comeWhere: ['onde você tá?', 'tá onde?', 'vou, mas onde?'],
+    stopOk: ['beleza', 'falou', 'ok, vou fazer minhas tasks', 'tranquilo'],
+    whereTask: ['tô {a} fazendo task de fantasma', '{a}, fazendo task', 'tô {a}'],
+    whereIdle: ['tô {a}', '{a}, só assistindo', 'tô {a} olhando os vivos'],
+    whereWith: ['tô contigo', 'tô aqui do seu lado', 'aqui junto de você'],
+    whereGuard: ['tô {a} cuidando de {xn}', '{a}, de olho em {xn}'],
+    doingTask: ['fazendo task de fantasma {a}', 'terminando minhas tasks', 'task de fantasma'],
+    doingIdle: ['nada, só assistindo', 'já fiz minhas tasks, tô só olhando', 'assistindo a partida'],
+    doingWith: ['te seguindo', 'indo com você'],
+    amDead: ['sim, morri', 'morri sim kkk', 'tô morto, igual você'],
+    amDeadEj: ['sim, me ejetaram', 'fui ejetado'],
     shieldHit: ['o escudo salvou {x}!!', 'kkk o escudo funcionou em {xn}', 'salvei {x}'],
   };
 
@@ -9163,6 +9437,34 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (!bots.length) return;
       const n = U.norm(text);
       const named = bots.filter((q) => n.includes(U.norm(q.name)) || n.includes(U.norm(C.COLOR[q.color].name)));
+      /* pedido para vir junto ("me segue", "vem aqui", "vem na elétrica"): os chamados (ou os mais perto) vão de verdade */
+      const come = /\b(me (segue|sigam|siga|acompanha)|segue eu|vem (comigo|aqui|ca|pra ca|junto)|venham|vem (na|no|pro|pra|para)|cola (aqui|comigo|ai)|bora comigo|chega (aqui|ai|mais)|vamo (junto|comigo)|me encontra)\b/.test(n);
+      const stop = /\b(pode ir|para de me seguir|parem de me seguir|nao precisa mais|valeu|obrigad\w*|pode parar|ja deu|tchau)\b/.test(n);
+      if (come && !stop) {
+        let area = null;
+        try {
+          const it = (AU.Talk.parse(text, g, { self: hp.id }) || []).find((x) => x.area || (x.rooms && x.rooms.length));
+          if (it) area = it.area || it.rooms[it.rooms.length - 1];
+        } catch (e) {
+          area = null;
+        }
+        const all = /\b(todos|todo mundo|galera|gente|voces|vcs|venham|sigam)\b/.test(n);
+        const near = bots.slice().sort((a, b) => U.dist(a, hp) - U.dist(b, hp));
+        const go = named.length ? named : all ? near.slice(0, 3) : near.slice(0, 1);
+        go.forEach((q, i) => {
+          if (q.brain) q.brain.ghostCome(hp, area, 'chat');
+          this.later(q, U.rf(1, 2.2) + i * U.rf(1, 1.8), { kind: 'reply', text, human: true, come: true, a: area });
+        });
+        return;
+      }
+      if (stop) {
+        const following = bots.filter((q) => q.brain && q.brain.ghostEscort && q.brain.ghostEscort.who === hp.id);
+        following.forEach((q, i) => {
+          q.brain.ghostRelease(hp);
+          if (i < 2) this.later(q, U.rf(1, 2.2) + i * 1.3, { kind: 'reply', text, human: true, stop: true });
+        });
+        if (following.length) return;
+      }
       let resp = named.length ? named.slice(0, 2) : U.shuffle(bots.slice()).slice(0, bots.length > 1 && U.chance(0.45) ? 2 : 1);
       resp.forEach((q, i) => this.later(q, U.rf(1.4, 3) + i * U.rf(1.5, 2.5), { kind: 'reply', text, human: true }));
     }
@@ -9252,6 +9554,22 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         case 'reply': {
           const n = U.norm(ctx.text);
           const hp = g.human, hk = this.k(hp.id);
+          const doing = p.brain && p.brain.ghostDoing ? p.brain.ghostDoing() : null;
+          if (ctx.come) return ctx.a ? this.choose(LINES.comeRoom, { a: ctx.a }) : this.choose(LINES.comeOk, {});
+          if (ctx.stop) return this.choose(LINES.stopOk, {});
+          /* "onde você tá?" / "o que tá fazendo?": responde com o lugar e o que está fazendo de verdade */
+          if (doing && /\b(onde|aonde|cade)\b.*\b(vc|voce|voces|vcs|tu|ta|tao|esta|estao)\b|\bonde (vc|voce|voces|vcs) (ta|tao|esta)/.test(n)) {
+            if (doing.kind === 'with' && doing.who === hp.id) return this.choose(LINES.whereWith, {});
+            if (doing.kind === 'task') return this.choose(LINES.whereTask, { a: doing.area });
+            if (doing.kind === 'guard') return this.choose(LINES.whereGuard, { a: doing.area, x: doing.who });
+            return this.choose(LINES.whereIdle, { a: doing.area });
+          }
+          if (doing && /\b(o que|oq|q) (vc|voce|voces|vcs|tu)? ?(ta|tao|esta|estao) fazendo\b|\bfazendo o que\b/.test(n)) {
+            if (doing.kind === 'with' && doing.who === hp.id) return this.choose(LINES.doingWith, {});
+            return this.choose(doing.kind === 'task' ? LINES.doingTask : LINES.doingIdle, { a: doing.area });
+          }
+          /* "você morreu?" / "tá morto também?" */
+          if (/\b(vc|voce|tu)\b.*\b(morreu|morto|morta|ta morto|foi ejetad\w*)\b/.test(n) && !/\bquem\b/.test(n)) return this.choose(kp.ejected ? LINES.amDeadEj : LINES.amDead, {});
           const alive = g.players.filter((q) => q.alive);
           const x = g.players.find((q) => q !== hp && q !== p && (n.split(/\W+/).includes(U.norm(q.name)) || new RegExp('\\b' + U.norm(C.COLOR[q.color].name) + '\\b').test(n)));
           /* "quem me matou?", "como eu morri?": quem foi ejetado não foi morto por ninguém */
@@ -9352,6 +9670,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     /* ---------- IA ---------- */
     fact(p) {
       const g = this.g, kp = this.k(p.id), out = [];
+      /* quem ele é agora: morto, onde está, o que está fazendo, o que um fantasma pode fazer */
+      const d = p.brain && p.brain.ghostDoing ? p.brain.ghostDoing() : null;
+      const ago = p.deathT != null ? Math.max(1, Math.round((g.t - p.deathT) / 5) * 5) : null;
+      out.push('Está MORTO (fantasma)' + (ago ? ', há uns ' + ago + 's' : '') + '. Agora está ' + (d ? this.room(d.area) : 'pela nave') +
+        (d && d.kind === 'task' ? ', fazendo tarefa de fantasma' : d && d.kind === 'with' ? ', acompanhando ' + this.name(d.who) : d && d.kind === 'going' ? ', indo encontrar ' + this.name(d.who) : d && d.kind === 'guard' ? ', de olho em ' + this.name(d.who) : ', só assistindo') +
+        '. Faltam ' + p.tasks.filter((tk) => !tk.done).length + ' tarefas de fantasma. Atravessa paredes; os vivos não o veem nem o ouvem.');
       if (kp.ejected) out.push('Foi ejetado na votação' + (g.S.rules.confirmEjects ? ' (todos viram se era impostor).' : '.'));
       else if (kp.killer != null) out.push('Foi morto por ' + AU.Voice.who(g, kp.killer) + ' ' + this.room(kp.area) + '.');
       if (p.isImp) {
@@ -9373,7 +9697,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const g = this.g, c = it.ctx, p = g.players[it.who];
       const hp = g.human;
       switch (c.kind) {
-        case 'reply': return AU.Voice.who(g, hp.id) + ' escreveu: "' + c.text + '". ' + p.name + ' responde a isso.';
+        case 'reply':
+          if (c.come) return AU.Voice.who(g, hp.id) + ' (fantasma) escreveu: "' + c.text + '" e ' + p.name + ' está indo ' + (c.a ? this.room(c.a) : 'até ele') + ' agora (fantasmas atravessam paredes). ' + p.name + ' responde que está indo.';
+          if (c.stop) return AU.Voice.who(g, hp.id) + ' escreveu: "' + c.text + '" e ' + p.name + ' parou de segui-lo. Responde curto.';
+          return AU.Voice.who(g, hp.id) + ' escreveu: "' + c.text + '". ' + p.name + ' responde a isso.';
+        case 'comeOk': return this.name(c.x) + ' (fantasma) fez sinal de "vem comigo" e ' + p.name + ' vai junto. Responde curto.';
         case 'greet': return this.name(c.v) + ' acabou de morrer e chegou no chat dos fantasmas. ' + p.name + ' recebe.';
         case 'greetHuman': return this.name(c.v) + ' (o jogador) acabou de ser morto e chegou aqui. ' + p.name + ' recebe e talvez pergunte quem matou.';
         case 'greetHumanKilledMe': return this.name(c.v) + ' (o jogador, que era impostor e matou ' + p.name + ') acabou de chegar aqui. ' + p.name + ' comenta isso.';
@@ -9411,8 +9739,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           const hp = g.human;
           if (!hp || hp.alive) return '';
           const hk = this.k(hp.id);
-          if (hk.ejected) return 'O jogador ' + hp.name + ' foi EJETADO na votação (ninguém o matou)' + (g.S.rules.confirmEjects ? '; ' + (hp.isImp ? 'era impostor' : 'era inocente') : '') + '.';
-          return 'O jogador ' + hp.name + ' foi morto' + (hk.killer != null ? ' (ele mesmo viu quem foi)' : '') + '.';
+          const hr = M ? ' Agora está ' + this.room(M.roomOf(M.areaAt(hp.x, hp.y), hp.x, hp.y).id) + '.' : '';
+          if (hk.ejected) return 'O jogador ' + hp.name + ' foi EJETADO na votação (ninguém o matou)' + (g.S.rules.confirmEjects ? '; ' + (hp.isImp ? 'era impostor' : 'era inocente') : '') + '.' + hr;
+          return 'O jogador ' + hp.name + ' foi morto' + (hk.killer != null ? ' (ele mesmo viu quem foi)' : '') + '.' + hr;
         })(),
         '',
         'Chat dos fantasmas até agora:',
@@ -9435,6 +9764,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         '- Quem foi EJETADO saiu na votação, não foi morto por ninguém: nunca pergunte "quem te matou" para quem foi ejetado e nunca diga que ele morreu assassinado.',
         '- Use o que cada um sabe (está no bloco dele): quem o matou, o que viu depois de morto, o que viu quando estava vivo (tarefa visual, de quem desconfiava), quem ainda está vivo.',
         '- Morto não precisa mais mentir: impostor morto pode admitir e até falar do parceiro.',
+        '- Cada um sabe onde está e o que está fazendo (está no bloco dele): se perguntarem, responde com isso. Entre fantasmas ninguém é suspeito — a partida já acabou para eles; se outro fantasma chama ("me segue", "vem aqui"), vai junto sem desconfiar.',
         '- Entenda erros de digitação e ditado de voz pelo sentido mais provável.',
         '- Nunca diga que é IA ou bot.',
       ].join('\n');

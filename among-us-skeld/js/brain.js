@@ -1865,9 +1865,60 @@
       }
       return true;
     }
+    /* Fantasma chamado por outro fantasma ("me segue", "vem aqui", zigue-zague): vai junto, sem desconfiança — a
+       partida já acabou para os dois. Com sala dita ("vem na elétrica"), vai para lá. */
+    ghostCome(q, area, why) {
+      const g = this.g, p = this.p;
+      if (p.alive || !q || q.alive || q === p) return false;
+      const fresh = !this.ghostEscort || this.ghostEscort.who !== q.id;
+      this.ghostEscort = { who: q.id, area: area || null, until: g.t + (area ? 40 : U.rf(25, 40)), arrived: false };
+      this.plan = null;
+      if (fresh && why === 'sinal' && g.ghosts) g.ghosts.later(p, U.rf(0.6, 1.6), { kind: 'comeOk', x: q.id });
+      return true;
+    }
+    ghostRelease(q) {
+      if (this.ghostEscort && (!q || this.ghostEscort.who === q.id)) {
+        this.ghostEscort = null;
+        if (this.plan && this.plan.type === 'follow') this.plan = null;
+        return true;
+      }
+      return false;
+    }
+    /* o que o fantasma está fazendo agora (para ele mesmo contar no chat) */
+    ghostDoing() {
+      const g = this.g, p = this.p, pl = this.plan;
+      const room = M.roomOf(M.areaAt(p.x, p.y), p.x, p.y);
+      const ge = this.ghostEscort;
+      if (ge) return { kind: ge.area && !ge.arrived ? 'going' : 'with', who: ge.who, area: ge.area || room.id };
+      if (pl && pl.type === 'task' && pl.task) return { kind: 'task', area: room.id, task: pl.task.id };
+      if (pl && pl.type === 'guard') return { kind: 'guard', who: pl.target, area: room.id };
+      return { kind: 'idle', area: room.id, left: p.tasks.filter((tk) => !tk.done).length };
+    }
     ghostUpdate(dt) {
       const g = this.g, p = this.p;
       this.thinkT -= dt;
+      const ge = this.ghostEscort;
+      if (ge && (g.t > ge.until || !g.players[ge.who] || g.players[ge.who].alive)) this.ghostEscort = null;
+      if (this.ghostEscort && this.thinkT <= 0) {
+        this.thinkT = 0.4;
+        const q = g.players[ge.who];
+        const room = M.roomOf(M.areaAt(p.x, p.y), p.x, p.y);
+        if (ge.area && !ge.arrived) {
+          if (room.id === ge.area) {
+            ge.arrived = true;
+            this.plan = null;
+          } else if (!this.plan || this.plan.type !== 'wander') {
+            const pos = M.randomPointIn(ge.area);
+            this.setPlan({ type: 'wander', area: ge.area, x: pos.x, y: pos.y, onArrive: (pl) => (pl.until = g.t + 30) });
+          }
+        } else if (!ge.area && (!this.plan || this.plan.type !== 'follow' || this.plan.target !== q.id)) {
+          this.setPlan({ type: 'follow', target: q.id, dyn: () => (q.alive ? null : { x: q.x, y: q.y }), keep: 1.8, endAt: ge.until, dynEvery: 0.4, noShuffle: true });
+        }
+      }
+      if (this.ghostEscort) {
+        this.act(dt);
+        return;
+      }
       if (this.thinkT <= 0) {
         this.thinkT = 0.5;
         if (p.isImp) {

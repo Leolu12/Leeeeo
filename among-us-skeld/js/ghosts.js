@@ -57,6 +57,19 @@
     mate: ['{x} é meu parceiro kkk', 'é {x}, o outro impostor', 'shh, {x} é dos meus kkk'],
     killerGone: ['foi {k}, mas já ejetaram', '{k} me matou, e já saiu na votação'],
     protect: ['protegi {x}', 'escudo em {xn}', 'tô cuidando de {xn}', 'coloquei escudo em {xn}'],
+    comeOk: ['tô indo', 'bora', 'já vou', 'indo aí', 'colando aí', 'blz, tô indo'],
+    comeRoom: ['tô indo {a}', 'bora, te encontro {a}', 'já tô indo {a}'],
+    comeWhere: ['onde você tá?', 'tá onde?', 'vou, mas onde?'],
+    stopOk: ['beleza', 'falou', 'ok, vou fazer minhas tasks', 'tranquilo'],
+    whereTask: ['tô {a} fazendo task de fantasma', '{a}, fazendo task', 'tô {a}'],
+    whereIdle: ['tô {a}', '{a}, só assistindo', 'tô {a} olhando os vivos'],
+    whereWith: ['tô contigo', 'tô aqui do seu lado', 'aqui junto de você'],
+    whereGuard: ['tô {a} cuidando de {xn}', '{a}, de olho em {xn}'],
+    doingTask: ['fazendo task de fantasma {a}', 'terminando minhas tasks', 'task de fantasma'],
+    doingIdle: ['nada, só assistindo', 'já fiz minhas tasks, tô só olhando', 'assistindo a partida'],
+    doingWith: ['te seguindo', 'indo com você'],
+    amDead: ['sim, morri', 'morri sim kkk', 'tô morto, igual você'],
+    amDeadEj: ['sim, me ejetaram', 'fui ejetado'],
     shieldHit: ['o escudo salvou {x}!!', 'kkk o escudo funcionou em {xn}', 'salvei {x}'],
   };
 
@@ -181,6 +194,34 @@
       if (!bots.length) return;
       const n = U.norm(text);
       const named = bots.filter((q) => n.includes(U.norm(q.name)) || n.includes(U.norm(C.COLOR[q.color].name)));
+      /* pedido para vir junto ("me segue", "vem aqui", "vem na elétrica"): os chamados (ou os mais perto) vão de verdade */
+      const come = /\b(me (segue|sigam|siga|acompanha)|segue eu|vem (comigo|aqui|ca|pra ca|junto)|venham|vem (na|no|pro|pra|para)|cola (aqui|comigo|ai)|bora comigo|chega (aqui|ai|mais)|vamo (junto|comigo)|me encontra)\b/.test(n);
+      const stop = /\b(pode ir|para de me seguir|parem de me seguir|nao precisa mais|valeu|obrigad\w*|pode parar|ja deu|tchau)\b/.test(n);
+      if (come && !stop) {
+        let area = null;
+        try {
+          const it = (AU.Talk.parse(text, g, { self: hp.id }) || []).find((x) => x.area || (x.rooms && x.rooms.length));
+          if (it) area = it.area || it.rooms[it.rooms.length - 1];
+        } catch (e) {
+          area = null;
+        }
+        const all = /\b(todos|todo mundo|galera|gente|voces|vcs|venham|sigam)\b/.test(n);
+        const near = bots.slice().sort((a, b) => U.dist(a, hp) - U.dist(b, hp));
+        const go = named.length ? named : all ? near.slice(0, 3) : near.slice(0, 1);
+        go.forEach((q, i) => {
+          if (q.brain) q.brain.ghostCome(hp, area, 'chat');
+          this.later(q, U.rf(1, 2.2) + i * U.rf(1, 1.8), { kind: 'reply', text, human: true, come: true, a: area });
+        });
+        return;
+      }
+      if (stop) {
+        const following = bots.filter((q) => q.brain && q.brain.ghostEscort && q.brain.ghostEscort.who === hp.id);
+        following.forEach((q, i) => {
+          q.brain.ghostRelease(hp);
+          if (i < 2) this.later(q, U.rf(1, 2.2) + i * 1.3, { kind: 'reply', text, human: true, stop: true });
+        });
+        if (following.length) return;
+      }
       let resp = named.length ? named.slice(0, 2) : U.shuffle(bots.slice()).slice(0, bots.length > 1 && U.chance(0.45) ? 2 : 1);
       resp.forEach((q, i) => this.later(q, U.rf(1.4, 3) + i * U.rf(1.5, 2.5), { kind: 'reply', text, human: true }));
     }
@@ -270,6 +311,22 @@
         case 'reply': {
           const n = U.norm(ctx.text);
           const hp = g.human, hk = this.k(hp.id);
+          const doing = p.brain && p.brain.ghostDoing ? p.brain.ghostDoing() : null;
+          if (ctx.come) return ctx.a ? this.choose(LINES.comeRoom, { a: ctx.a }) : this.choose(LINES.comeOk, {});
+          if (ctx.stop) return this.choose(LINES.stopOk, {});
+          /* "onde você tá?" / "o que tá fazendo?": responde com o lugar e o que está fazendo de verdade */
+          if (doing && /\b(onde|aonde|cade)\b.*\b(vc|voce|voces|vcs|tu|ta|tao|esta|estao)\b|\bonde (vc|voce|voces|vcs) (ta|tao|esta)/.test(n)) {
+            if (doing.kind === 'with' && doing.who === hp.id) return this.choose(LINES.whereWith, {});
+            if (doing.kind === 'task') return this.choose(LINES.whereTask, { a: doing.area });
+            if (doing.kind === 'guard') return this.choose(LINES.whereGuard, { a: doing.area, x: doing.who });
+            return this.choose(LINES.whereIdle, { a: doing.area });
+          }
+          if (doing && /\b(o que|oq|q) (vc|voce|voces|vcs|tu)? ?(ta|tao|esta|estao) fazendo\b|\bfazendo o que\b/.test(n)) {
+            if (doing.kind === 'with' && doing.who === hp.id) return this.choose(LINES.doingWith, {});
+            return this.choose(doing.kind === 'task' ? LINES.doingTask : LINES.doingIdle, { a: doing.area });
+          }
+          /* "você morreu?" / "tá morto também?" */
+          if (/\b(vc|voce|tu)\b.*\b(morreu|morto|morta|ta morto|foi ejetad\w*)\b/.test(n) && !/\bquem\b/.test(n)) return this.choose(kp.ejected ? LINES.amDeadEj : LINES.amDead, {});
           const alive = g.players.filter((q) => q.alive);
           const x = g.players.find((q) => q !== hp && q !== p && (n.split(/\W+/).includes(U.norm(q.name)) || new RegExp('\\b' + U.norm(C.COLOR[q.color].name) + '\\b').test(n)));
           /* "quem me matou?", "como eu morri?": quem foi ejetado não foi morto por ninguém */
@@ -370,6 +427,12 @@
     /* ---------- IA ---------- */
     fact(p) {
       const g = this.g, kp = this.k(p.id), out = [];
+      /* quem ele é agora: morto, onde está, o que está fazendo, o que um fantasma pode fazer */
+      const d = p.brain && p.brain.ghostDoing ? p.brain.ghostDoing() : null;
+      const ago = p.deathT != null ? Math.max(1, Math.round((g.t - p.deathT) / 5) * 5) : null;
+      out.push('Está MORTO (fantasma)' + (ago ? ', há uns ' + ago + 's' : '') + '. Agora está ' + (d ? this.room(d.area) : 'pela nave') +
+        (d && d.kind === 'task' ? ', fazendo tarefa de fantasma' : d && d.kind === 'with' ? ', acompanhando ' + this.name(d.who) : d && d.kind === 'going' ? ', indo encontrar ' + this.name(d.who) : d && d.kind === 'guard' ? ', de olho em ' + this.name(d.who) : ', só assistindo') +
+        '. Faltam ' + p.tasks.filter((tk) => !tk.done).length + ' tarefas de fantasma. Atravessa paredes; os vivos não o veem nem o ouvem.');
       if (kp.ejected) out.push('Foi ejetado na votação' + (g.S.rules.confirmEjects ? ' (todos viram se era impostor).' : '.'));
       else if (kp.killer != null) out.push('Foi morto por ' + AU.Voice.who(g, kp.killer) + ' ' + this.room(kp.area) + '.');
       if (p.isImp) {
@@ -391,7 +454,11 @@
       const g = this.g, c = it.ctx, p = g.players[it.who];
       const hp = g.human;
       switch (c.kind) {
-        case 'reply': return AU.Voice.who(g, hp.id) + ' escreveu: "' + c.text + '". ' + p.name + ' responde a isso.';
+        case 'reply':
+          if (c.come) return AU.Voice.who(g, hp.id) + ' (fantasma) escreveu: "' + c.text + '" e ' + p.name + ' está indo ' + (c.a ? this.room(c.a) : 'até ele') + ' agora (fantasmas atravessam paredes). ' + p.name + ' responde que está indo.';
+          if (c.stop) return AU.Voice.who(g, hp.id) + ' escreveu: "' + c.text + '" e ' + p.name + ' parou de segui-lo. Responde curto.';
+          return AU.Voice.who(g, hp.id) + ' escreveu: "' + c.text + '". ' + p.name + ' responde a isso.';
+        case 'comeOk': return this.name(c.x) + ' (fantasma) fez sinal de "vem comigo" e ' + p.name + ' vai junto. Responde curto.';
         case 'greet': return this.name(c.v) + ' acabou de morrer e chegou no chat dos fantasmas. ' + p.name + ' recebe.';
         case 'greetHuman': return this.name(c.v) + ' (o jogador) acabou de ser morto e chegou aqui. ' + p.name + ' recebe e talvez pergunte quem matou.';
         case 'greetHumanKilledMe': return this.name(c.v) + ' (o jogador, que era impostor e matou ' + p.name + ') acabou de chegar aqui. ' + p.name + ' comenta isso.';
@@ -429,8 +496,9 @@
           const hp = g.human;
           if (!hp || hp.alive) return '';
           const hk = this.k(hp.id);
-          if (hk.ejected) return 'O jogador ' + hp.name + ' foi EJETADO na votação (ninguém o matou)' + (g.S.rules.confirmEjects ? '; ' + (hp.isImp ? 'era impostor' : 'era inocente') : '') + '.';
-          return 'O jogador ' + hp.name + ' foi morto' + (hk.killer != null ? ' (ele mesmo viu quem foi)' : '') + '.';
+          const hr = M ? ' Agora está ' + this.room(M.roomOf(M.areaAt(hp.x, hp.y), hp.x, hp.y).id) + '.' : '';
+          if (hk.ejected) return 'O jogador ' + hp.name + ' foi EJETADO na votação (ninguém o matou)' + (g.S.rules.confirmEjects ? '; ' + (hp.isImp ? 'era impostor' : 'era inocente') : '') + '.' + hr;
+          return 'O jogador ' + hp.name + ' foi morto' + (hk.killer != null ? ' (ele mesmo viu quem foi)' : '') + '.' + hr;
         })(),
         '',
         'Chat dos fantasmas até agora:',
@@ -453,6 +521,7 @@
         '- Quem foi EJETADO saiu na votação, não foi morto por ninguém: nunca pergunte "quem te matou" para quem foi ejetado e nunca diga que ele morreu assassinado.',
         '- Use o que cada um sabe (está no bloco dele): quem o matou, o que viu depois de morto, o que viu quando estava vivo (tarefa visual, de quem desconfiava), quem ainda está vivo.',
         '- Morto não precisa mais mentir: impostor morto pode admitir e até falar do parceiro.',
+        '- Cada um sabe onde está e o que está fazendo (está no bloco dele): se perguntarem, responde com isso. Entre fantasmas ninguém é suspeito — a partida já acabou para eles; se outro fantasma chama ("me segue", "vem aqui"), vai junto sem desconfiar.',
         '- Entenda erros de digitação e ditado de voz pelo sentido mais provável.',
         '- Nunca diga que é IA ou bot.',
       ].join('\n');
