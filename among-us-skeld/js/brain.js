@@ -93,7 +93,13 @@
       this.p = p;
       this.pers = C.PERSONALITIES[p.personality] || C.PERSONALITIES.analitico;
       this.err = (C.HUMAN_ERROR[g.S.bots.humanError] || C.HUMAN_ERROR.medio).mult;
-      this.lvl = C.IMP_LEVELS[g.S.bots.impostorLevel] || C.IMP_LEVELS.competente;
+      /* o nível dá a base; cada impostor tem o seu jeito em cima dela (um usa mais duto, outro persegue mais, outro
+         sabota mais, outro arrisca mais), então dois impostores do mesmo nível não jogam igual */
+      const base = C.IMP_LEVELS[g.S.bots.impostorLevel] || C.IMP_LEVELS.competente;
+      this.lvl = Object.assign({}, base);
+      for (const k of ['useVents', 'sabotage', 'stalk', 'selfReport', 'bus', 'fakeVisual', 'riskTol']) {
+        if (typeof base[k] === 'number') this.lvl[k] = U.clamp(base[k] * U.rf(0.7, 1.3), 0, 1);
+      }
       this.mem = new Memory();
       this.susp = {};
       this.carry = {};
@@ -344,12 +350,13 @@
             this.path = [];
             this.dest = null;
             pl.shuffling = false;
-            /* esperando do lado de quem segue: muda de posição de vez em quando, sem ficar plantado */
-            if (!pl.noShuffle) {
-              pl.still = (pl.still || 0) + (pl.dynEvery || 0.5) + (this.crowded(0.55) ? 3 : 0);
-              if (pl.still > (pl.shuffleAt || (pl.shuffleAt = U.rf(3, 6)))) {
+            /* esperando do lado de quem segue: fica parado, como gente. Só dá um passo para o lado se esbarrou em
+               alguém (dois bonecos um em cima do outro) */
+            if (!pl.noShuffle && this.crowded(0.55) && g.t - (pl.stepAt || 0) > 6) {
+              pl.still = (pl.still || 0) + (pl.dynEvery || 0.5);
+              if (pl.still > 1) {
                 pl.still = 0;
-                pl.shuffleAt = U.rf(4, 8);
+                pl.stepAt = g.t;
                 const k = pl.keep || 0.8;
                 for (let i = 0; i < 4; i++) {
                   const a = Math.random() * Math.PI * 2, rr = Math.max(0.9, k * U.rf(0.55, 0.95));
@@ -394,32 +401,17 @@
     }
 
     /* ---------- planos ---------- */
-    /* "look": tempo olhando a sala; em vez de ficar parado, dá umas voltinhas por ela, como gente de verdade. */
+    /* "look": tempo olhando a sala. Entra, para num ponto e olha; não fica dando voltas dentro da sala (isso é coisa
+       de NPC). Se já está na sala, olha dali mesmo. */
     planWander(areaId, look) {
-      const g = this.g;
-      const pos = M.randomPointIn(areaId);
+      const g = this.g, p = this.p;
+      const here = M.roomOf(M.areaAt(p.x, p.y), p.x, p.y).id;
+      const pos = here === areaId ? { x: p.x, y: p.y } : M.randomPointIn(areaId);
       const span = look != null ? look : U.rf(2, 5);
       this.setPlan({
         type: 'wander', area: areaId, x: pos.x, y: pos.y,
-        onArrive: (pl) => {
-          /* chegou e dá uma olhada: parada de verdade (1-2,5s), ou segue direto se o tempo é curto */
-          pl.until = g.t + (span > 2.5 ? U.rf(1, 2.5) : U.rf(0.6, 1.4));
-          pl.strollEnd = g.t + span;
-        },
-        onDone: (pl) => this.stroll(areaId, pl.strollEnd),
+        onArrive: (pl) => (pl.until = g.t + Math.min(span, 4) * U.rf(0.6, 1)),
       });
-    }
-    stroll(areaId, end) {
-      const g = this.g, p = this.p;
-      if (this.plan || g.t >= end - 1.5) return;
-      let pos = null;
-      for (let i = 0; i < 6 && !pos; i++) {
-        const c = M.randomPointIn(areaId);
-        const d = U.d2(p.x, p.y, c.x, c.y);
-        if (d > 3 && d < 9) pos = c;
-      }
-      if (!pos) return;
-      this.setPlan({ type: 'wander', area: areaId, stroll: true, x: pos.x, y: pos.y, onArrive: (pl) => (pl.until = g.t + U.rf(1.2, 3)), onDone: () => this.stroll(areaId, end) });
     }
     /* Sem tarefas: ronda pelas salas vazias procurando corpos (as menos vistas há mais tempo primeiro). */
     planPatrol(n) {
@@ -461,8 +453,6 @@
           pl.until = g.t + U.rf(0.2, 0.7);
         },
         onDone: () => {
-          if (this.plan) return;
-          if (U.chance(0.35)) this.stroll(id, g.t + U.rf(1.5, 3));
           if (!this.plan) this.nextPatrol();
         },
       });
@@ -1364,7 +1354,8 @@
         const st = U.pick(g.sabStationsNeeded());
         if (st) {
           const pos = M.SAB_STATIONS[st];
-          this.setPlan({ type: 'loiter', x: pos.x + U.rf(-2, 2), y: pos.y + U.rf(-2, 2), onArrive: (pl) => (pl.until = g.t + U.rf(0.8, 2)) });
+          const spot = this.standNear(pos.x, pos.y, 1.2);
+          this.setPlan({ type: 'loiter', x: spot.x, y: spot.y, onArrive: (pl) => (pl.until = g.t + U.rf(3, 6)) });
           return;
         }
       }
@@ -1567,20 +1558,99 @@
       }
     }
     maybeSabotage(others) {
-      const g = this.g, p = this.p, L = this.lvl;
-      if (!g.canSabotage(p)) return;
-      const lastKill = Math.max(...g.players.filter((q) => q.isImp).map((q) => q.lastKillT));
-      const sinceKill = g.t - Math.max(lastKill, g.roundStart);
-      if (L.sabKill && others.length === 1 && p.killCd < 3 && U.chance(0.35)) return g.sabotage('lights', p);
-      if (others.length === 1 && p.killCd < 2 && U.chance(L.sabotage * 0.5)) {
-        const a = M.roomOf(M.areaAt(p.x, p.y), p.x, p.y);
-        const ta = M.areaAt(others[0].x, others[0].y);
-        if (a && ta && a.id === ta.id && M.DOOR_ROOMS.includes(a.id) && g.doorReady(a.id)) return g.closeDoors(a.id, p);
+      const c = this.chooseSabotage(others, false);
+      if (!c) return;
+      this.lastSab = c;
+      if (c.type === 'doors') return this.g.closeDoors(c.room, this.p);
+      return this.g.sabotage(c.type, this.p);
+    }
+    /* Jeito próprio de sabotar: cada impostor tem as suas preferências (um gosta de apagar as luzes, outro de
+       travar a nave com reator/O2, outro de fechar portas), além do que o nível e a personalidade pedem. */
+    sabStyle() {
+      if (!this._sabStyle) {
+        const pers = this.pers;
+        this._sabStyle = {
+          lights: U.rf(0.6, 1.4), comms: U.rf(0.6, 1.4), doors: U.rf(0.6, 1.4),
+          crit: U.rf(0.6, 1.4) * (pers.chaos ? 1.3 : 1) * (pers.leader ? 1.1 : 1),
+        };
       }
-      if (this.escape && g.t - this.escape.t0 < 8 && L.camsAware && g.critAllowed() && U.chance(0.3)) return g.sabotage(U.pick(['reactor', 'o2']), p);
-      if (sinceKill > 50 && g.critAllowed() && U.chance(L.sabotage * 0.22)) return g.sabotage(U.pick(['reactor', 'o2', 'lights']), p);
-      if (g.anyoneOnCams() && U.chance(L.sabotage * 0.25)) return g.sabotage('comms', p);
-      if (U.chance(L.sabotage * 0.07)) return g.sabotage(U.pick(['lights', 'comms']), p);
+      return this._sabStyle;
+    }
+    /* Decide a sabotagem pelo que ESTE impostor sabe agora (quem ele viu e onde, o próprio abate, as câmeras),
+       não por sorteio: apagar as luzes quando alguém está sozinho perto de um impostor pronto; fechar a porta com a
+       vítima dentro; reator/O2 para separar um grupo ou puxar todo mundo para longe do corpo; comunicações quando
+       tem gente nas câmeras ou no Admin; travar a tripulação quando as tarefas estão quase no fim. */
+    chooseSabotage(others, ghost) {
+      const g = this.g, p = this.p, L = this.lvl, t = g.t;
+      if (!g.canSabotage(p)) return null;
+      const st = this.sabStyle();
+      const smart = 0.4 + L.lie * 0.6;
+      const opts = [];
+      const add = (type, sc, why, room) => {
+        if (sc <= 0) return;
+        const w = type === 'doors' ? st.doors : type === 'reactor' || type === 'o2' ? st.crit : st[type];
+        opts.push({ type, s: sc * w, why, room });
+      };
+      const crit = g.critAllowed();
+      const imps = g.players.filter((q) => q.isImp && q.alive);
+      const crew = g.players.filter((q) => q.alive && !q.isImp && this.lastSeenAt[q.id] && t - this.lastSeenAt[q.id].t < 6).map((q) => ({ q, s: this.lastSeenAt[q.id] }));
+      const far = (type, x, y) => {
+        const ks = type === 'reactor' ? ['reactorA', 'reactorB'] : ['o2A', 'o2B'];
+        return ks.reduce((a, k) => a + Math.sqrt(U.d2(M.SAB_STATIONS[k].x, M.SAB_STATIONS[k].y, x, y)), 0) / ks.length;
+      };
+      const bestCrit = (x, y) => (far('reactor', x, y) >= far('o2', x, y) ? 'reactor' : 'o2');
+      /* 1. alguém sozinho perto de um impostor com o abate pronto (eu, ou o parceiro se eu já morri) */
+      for (const c of crew) {
+        const others2 = crew.filter((o) => o !== c && U.d2(o.s.x, o.s.y, c.s.x, c.s.y) < 49);
+        if (others2.length) continue;
+        const killer = imps.find((q) => q.killCd < 4 && U.d2(q.x, q.y, c.s.x, c.s.y) < 64);
+        if (!killer) continue;
+        const nearby = crew.some((o) => o !== c && U.d2(o.s.x, o.s.y, c.s.x, c.s.y) < 196);
+        add('lights', (nearby ? 0.7 : 0.35) * (L.sabKill ? 1.3 : 1) * smart, 'isolar ' + c.q.name);
+        const room = M.roomOf(M.areaAt(c.s.x, c.s.y), c.s.x, c.s.y);
+        const kRoom = M.roomOf(M.areaAt(killer.x, killer.y), killer.x, killer.y);
+        if (room && kRoom && room.id === kRoom.id && M.DOOR_ROOMS.includes(room.id) && g.doorReady(room.id)) add('doors', 0.75 * smart, 'trancar ' + c.q.name, room.id);
+      }
+      /* 2. meu abate recente e o corpo ainda não foi achado: puxa todo mundo para o lado oposto da nave */
+      const myBody = g.bodies.find((b) => b.killer === p.id && !b.reported && !b.gone && t - b.t < 12);
+      if (myBody && crit) add(bestCrit(myBody.x, myBody.y), 0.8 * smart * (L.camsAware ? 1.15 : 1), 'longe do corpo');
+      /* 3. grupo grande junto: reator/O2 obriga a se separar em dois painéis longe dali */
+      if (crit && crew.length >= 4 && imps.some((q) => q.killCd < 8)) {
+        const cx = crew.reduce((a, c) => a + c.s.x, 0) / crew.length, cy = crew.reduce((a, c) => a + c.s.y, 0) / crew.length;
+        const tight = crew.filter((c) => U.d2(c.s.x, c.s.y, cx, cy) < 64).length;
+        if (tight >= 4) add(bestCrit(cx, cy), 0.55 * smart, 'separar o grupo');
+      }
+      /* 4. gente nas câmeras ou no Admin vendo onde cada um está */
+      const onCams = g.anyoneOnCams(), onAdmin = !g.commsDown() && g.players.some((q) => q.alive && q.onAdmin);
+      if (onCams || onAdmin) {
+        const underCam = M.CAMS.some((c) => U.d2(c.x, c.y, p.x, p.y) < M.CAM_R * M.CAM_R * 2.2);
+        add('comms', ((onCams ? 0.45 : 0.3) + (underCam || p.killCd < 4 ? 0.3 : 0)) * (L.camsAware ? 1.3 : 0.8), onCams ? 'câmeras' : 'admin');
+      }
+      /* 5. tarefas quase no fim (com a barra visível): trava todo mundo */
+      if (g.S.rules.taskBar === 'sempre' && !g.commsDown()) {
+        const tp = g.taskProgress();
+        const f = tp.total ? tp.done / tp.total : 0;
+        /* uma vez por rodada: sabotar sem parar só entrega que tem impostor desesperado */
+        if (f >= 0.7 && this.stallRound !== g.roundStart) {
+          /* o painel longe de onde a tripulação está (pelo que ele viu) faz todo mundo largar as tarefas e atravessar a nave */
+          const cx = crew.length ? crew.reduce((a, c) => a + c.s.x, 0) / crew.length : p.x, cy = crew.length ? crew.reduce((a, c) => a + c.s.y, 0) / crew.length : p.y;
+          if (crit) add(bestCrit(cx, cy), (0.25 + (f - 0.7) * 1.5) * smart, 'tarefas no fim');
+          add('lights', 0.2 * smart, 'atrasar tarefas');
+        }
+      }
+      /* 6. reta final: mais um abate ganha; pressão com sabotagem crítica */
+      const aliveN = g.players.filter((q) => q.alive).length;
+      if (crit && aliveN - imps.length <= imps.length + 2) add(bestCrit(p.x, p.y), 0.25 * smart, 'reta final');
+      /* 7. sem motivo claro: o iniciante (e o caótico) às vezes apaga as luzes à toa */
+      add('lights', 0.06 * (1.4 - smart) + (this.pers.chaos ? 0.06 : 0), 'confusão');
+      if (!opts.length) return null;
+      opts.sort((a, b) => b.s - a.s);
+      const best = opts[0];
+      if (best.type === 'doors' && !best.room) return null;
+      /* sabotagem tem hora: quem sabota toda chance que aparece fica previsível (e a nave inteira sabe que tem impostor ativo) */
+      if (!U.chance(Math.min(0.9, best.s * (0.15 + L.sabotage * 0.45)))) return null;
+      if (/^(tarefas|atrasar)/.test(best.why)) this.stallRound = g.roundStart;
+      return best;
     }
     chooseImpActivity(others) {
       const g = this.g, L = this.lvl, p = this.p;
@@ -1650,8 +1720,21 @@
       if (best) {
         const a = M.AREA[best.s.area];
         const room = a ? M.roomOf(a, best.s.x, best.s.y) : null;
+        const here = M.roomOf(M.areaAt(p.x, p.y), p.x, p.y);
+        /* já está na sala: se instala numa tarefa falsa ali (esperando parado, como quem faz tarefa), sem ficar
+           andando de um canto a outro */
+        if (room && room.kind === 'room' && here.id === room.id) {
+          this.planFakeTask(room.id);
+          return true;
+        }
         const pos = room && room.kind === 'room' ? M.randomPointIn(room.id) : { x: best.s.x, y: best.s.y };
-        this.setPlan({ type: 'prowl', target: best.q.id, x: pos.x, y: pos.y, onArrive: (pl) => (pl.until = g.t + U.rf(1.3, 2.6)) });
+        this.setPlan({
+          type: 'prowl', target: best.q.id, x: pos.x, y: pos.y,
+          onArrive: (pl) => (pl.until = g.t + U.rf(0.4, 1)),
+          onDone: () => {
+            if (!this.plan && room && room.kind === 'room') this.planFakeTask(room.id);
+          },
+        });
         return true;
       }
       const lurk = ['electrical', 'medbay', 'navigation', 'shields', 'o2', 'reactor', 'security', 'lowerEngine', 'upperEngine', 'comms', 'weapons']
@@ -1791,10 +1874,12 @@
           this.sabThink -= 0.5;
           if (this.sabThink <= 0) {
             this.sabThink = U.rf(12, 25);
-            if (g.canSabotage(p) && U.chance(this.lvl.sabotage * 0.5)) {
-              const opts = ['lights', 'comms'];
-              if (g.critAllowed()) opts.push('reactor', 'o2');
-              g.sabotage(U.pick(opts), p);
+            /* fantasma impostor ajuda o parceiro vivo com a sabotagem que a situação pede */
+            const c = this.chooseSabotage([], true);
+            if (c) {
+              this.lastSab = c;
+              if (c.type === 'doors') g.closeDoors(c.room, p);
+              else g.sabotage(c.type, p);
             }
           }
           if (!this.plan) this.planWander(U.pick(M.ROOMS).id, U.rf(3, 8));

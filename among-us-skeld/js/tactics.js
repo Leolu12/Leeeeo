@@ -114,6 +114,12 @@
         if (near.length) out.push('Duto perto: ' + near[0] + '.');
         const sawMe = g.players.filter((q) => q.alive && !q.isImp && b.lastSeenAt[q.id] && g.t - b.lastSeenAt[q.id].t < 18 && U.d2(b.lastSeenAt[q.id].x, b.lastSeenAt[q.id].y, p.x, p.y) < 11);
         if (sawMe.length) out.push('Foi visto por aqui há pouco por ' + sawMe.map((q) => this.who(q.id)).join(', ') + ' (matar agora nesta área o deixaria como suspeito).');
+        /* o jeito de cada impostor (a IA decide por ele, mas respeitando o estilo dele) */
+        if (b.sabStyle) {
+          const sty = b.sabStyle();
+          const fav = Object.keys(sty).sort((a, c) => sty[c] - sty[a])[0];
+          out.push('Jeito dele: ' + ({ lights: 'gosta de apagar as luzes antes de agir', comms: 'gosta de cortar as comunicações (câmeras/admin)', doors: 'gosta de trancar portas', crit: 'gosta de sabotar reator/O2 para separar o grupo' }[fav]) + '; usa duto ' + (b.lvl.useVents > 0.6 ? 'bastante' : 'pouco') + '; ' + (b.lvl.stalk > 0.5 ? 'persegue a vítima' : 'espera a vítima vir') + '.');
+        }
         const lone = g.players.filter((q) => q.alive && !q.isImp && b.lastSeenAt[q.id] && g.t - b.lastSeenAt[q.id].t < 30).map((q) => ({ q, s: b.lastSeenAt[q.id] }))
           .filter((x) => !g.players.some((o) => o !== x.q && o.alive && !o.isImp && b.lastSeenAt[o.id] && Math.abs(b.lastSeenAt[o.id].t - x.s.t) < 4 && U.d2(b.lastSeenAt[o.id].x, b.lastSeenAt[o.id].y, x.s.x, x.s.y) < 7));
         if (lone.length) out.push('Viu sozinho há pouco: ' + lone.slice(0, 3).map((x) => this.who(x.q.id) + ' em ' + (M.AREA[x.s.area] ? M.AREA[x.s.area].name : '?') + ' (' + Math.round(g.t - x.s.t) + 's atrás)').join(', ') + '.');

@@ -1689,7 +1689,16 @@
        ("acho que é ele", "vota nele" e "concordo" sozinhos não são motivo) */
     const leadOk = (id) => mt.msgs.some((m) => m.from !== me && m.from !== id && this.trust(m.from) >= 0.6 &&
       m.intents.some((x) => x.type === 'accuse' && x.who === id && !WEAK[x.reason]));
-    const score = (id) => (this.susp[id] || 0) + (elim && open.includes(id) ? elim : 0) + (leadOk(id) ? pers.follow * (mt.heat[id] || 0) * 0.3 + mt.saidOn(id) * pers.follow * 7 : 0) + said(id) - (solid(id) ? 12 : 0);
+    /* sem tarefa visual e sem ejeção confirmada ninguém prova nada. Com a visão curta, ainda por cima, quase ninguém vê
+       nada por conta própria e o chat vira terreno dos impostores: aí o que só se falou no chat pesa bem menos e o voto
+       pede pista própria ou relato forte (vale para qualquer reunião) */
+    const blind = !g.S.rules.visualTasks && !g.S.rules.confirmEjects;
+    const chatBlind = blind && g.S.rules.crewVision < 1;
+    const grounded = (id) => ((this.ev && this.ev[id]) || []).some((e) => e.w > 0) || (this.chatClaim[id] || 0) > 12;
+    const score = (id) => {
+      const v = (this.susp[id] || 0) + (elim && open.includes(id) ? elim : 0) + (leadOk(id) ? pers.follow * (mt.heat[id] || 0) * 0.3 + mt.saidOn(id) * pers.follow * 7 : 0) + said(id) - (solid(id) ? 12 : 0);
+      return chatBlind && v > 0 && !grounded(id) ? v * 0.55 : v;
+    };
     const ranked = alive.map((id) => ({ id, s: score(id) })).sort((a, b) => b.s - a.s);
     if (AU.debug && AU.debug.trace) {
       this.why = ranked.slice(0, 3).map((r) => ({ id: r.id, s: Math.round(r.s), susp: Math.round(this.susp[r.id] || 0), chat: Math.round(this.chatDelta[r.id] || 0), carry: Math.round((this.carry[r.id] || 0) * 0.5), heat: mt.heat[r.id] || 0, votes: mt.saidOn(r.id), ev: ((this.ev && this.ev[r.id]) || []).map((e) => e.reason + ':' + Math.round(e.w)) }));
@@ -1707,17 +1716,14 @@
     const trustedLead = (id) => leadOk(id) || Object.keys(saidV).some((v) => +v !== me && saidV[v] === id && this.trust(+v) >= 0.7 && (this.hardCleared(+v) || this.clearedByVisual(+v)));
     /* voto dividido não tira ninguém: se quem está na frente também é suspeito para mim e quem puxou trouxe prova
        (ou já provou ser tripulante), junto ali */
-    if (lead && lead.count >= 2 && lead.id !== me && !cleared(lead.id) && trustedLead(lead.id)) {
+    if (lead && lead.count >= 2 && lead.id !== me && !cleared(lead.id) && trustedLead(lead.id) && (!chatBlind || grounded(lead.id))) {
       const lc = ranked.find((r) => r.id === lead.id);
       if (lc && ranked.indexOf(lc) <= 1 && lc.s >= thr * (pers.follow > 0.7 ? 0.35 : 0.55)) return lead.id;
     }
     /* crise: pular entrega o jogo (mais um abate e eles ganham). Vota em quem pesa mais entre os não inocentados;
        só vai no que está na frente se ele também é um dos meus dois mais suspeitos e quem puxou é confiável */
-    /* sem tarefa visual e sem ejeção confirmada ninguém prova nada: voto só pelo que se falou no chat vira chute (e os
-       dois impostores votando juntos ganham o chute). Aí só força o voto quem tem pista própria ou relato forte;
-       sem isso, pular dá tempo de terminar as tarefas. */
-    const blind = !g.S.rules.visualTasks && !g.S.rules.confirmEjects;
-    const grounded = (id) => ((this.ev && this.ev[id]) || []).some((e) => e.w > 0) || (this.chatClaim[id] || 0) > 12;
+    /* reta final às cegas: voto só pelo que se falou no chat vira chute (e os dois impostores votando juntos ganham o
+       chute). Só força o voto quem tem pista própria ou relato forte; sem isso, pular dá tempo de terminar as tarefas. */
     if (crisis && (!blind || ranked.some((r) => !cleared(r.id) && grounded(r.id)))) {
       /* na reta final até pista fraca decide: admitiu ter passado na sala do corpo, disse que estava numa sala onde
          eu fiquei um tempo e não o vi, ou ninguém confirmou onde estava */
@@ -1742,7 +1748,7 @@
         if (pool[0].s > -20) return pool[0].id;
       }
     }
-    if (pers.hunch > 0.3 && top.s >= thr * 0.6 && U.chance(0.45)) return top.id;
+    if (pers.hunch > 0.3 && top.s >= thr * 0.6 && (!chatBlind || grounded(top.id)) && U.chance(0.45)) return top.id;
     return 'skip';
   };
 
