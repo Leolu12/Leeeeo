@@ -18,10 +18,11 @@
     'admin — olhar o mapa do Admin',
     'patrulhar — rodar pelas salas vazias procurando corpos (bom para quem já terminou as tarefas)',
     'ir SALA — ir para uma sala (ex.: juntar-se ao grupo, checar um lugar)',
-    'botao — ir apertar o botão de emergência (só com motivo forte)',
+    'botao — ir apertar o botão de emergência (com motivo: viu abate/duto/transformação, pegou alguém fingindo tarefa ou o scan, ou, sendo cientista, viu uma morte nos sinais vitais que ninguém reportou)',
   ];
   const IMP_ACTIONS = [
     'cacar NOME — escolher a próxima vítima e ir atrás quando ela estiver sozinha',
+    'procurar — com o abate pronto e ninguém por perto: ir até onde viu alguém sozinho há pouco, ou ficar de tocaia numa sala isolada',
     'fingir SALA — fingir tarefa numa sala (criar álibi)',
     'grupo — andar com o grupo para parecer inocente',
     'sabotar luzes|comms|reator|o2 — sabotagem (luzes ajudam a matar; reator/o2 separam o grupo; comms desliga câmeras e admin)',
@@ -97,6 +98,10 @@
         if (sus.length) out.push('Desconfia de: ' + sus.map((x) => this.who(x.id) + (x.s >= 80 ? ' (viu fazer algo de impostor!)' : '')).join(', ') + '.');
         if (ok.length) out.push('Confia em: ' + ok.map((x) => this.who(x.id)).join(', ') + '.');
         if (p.special) out.push('Função: ' + C.ROLES[p.special].name + '.');
+        const caught = b.mem.events.filter((e) => (e.type === 'fakeTask' || e.type === 'noscan') && e.t >= g.roundStart && g.players[e.who] && g.players[e.who].alive);
+        if (caught.length) out.push('Pegou ' + this.who(caught[0].who) + ' fingindo tarefa (' + (caught[0].type === 'noscan' ? 'parado no scanner sem escanear' : 'terminou e a barra não subiu') + ').');
+        const vit = Object.keys(b.mem.vitals || {}).map(Number).filter((id) => !g.bodies.some((bd) => bd.pid === id && bd.reported) && !g.players[id].ejected);
+        if (vit.length) out.push('Viu nos sinais vitais que ' + vit.map((id) => g.players[id].name).join(', ') + ' morreu e ninguém reportou o corpo ainda.');
       } else {
         out.push('Recarga do abate: ' + (p.killCd > 0 ? Math.ceil(p.killCd) + 's' : 'PRONTO') + '.');
         const alone = b.crewVisible();
@@ -107,6 +112,11 @@
         if (cleared.length) out.push('Já provaram inocência com tarefa visual (os outros confiam neles; bons alvos): ' + cleared.map((id) => this.who(id)).join(', ') + '.');
         const near = M.VENTS.filter((v) => U.d2(v.x, v.y, p.x, p.y) < 6).map((v) => M.AREA[v.area].name);
         if (near.length) out.push('Duto perto: ' + near[0] + '.');
+        const sawMe = g.players.filter((q) => q.alive && !q.isImp && b.lastSeenAt[q.id] && g.t - b.lastSeenAt[q.id].t < 18 && U.d2(b.lastSeenAt[q.id].x, b.lastSeenAt[q.id].y, p.x, p.y) < 11);
+        if (sawMe.length) out.push('Foi visto por aqui há pouco por ' + sawMe.map((q) => this.who(q.id)).join(', ') + ' (matar agora nesta área o deixaria como suspeito).');
+        const lone = g.players.filter((q) => q.alive && !q.isImp && b.lastSeenAt[q.id] && g.t - b.lastSeenAt[q.id].t < 30).map((q) => ({ q, s: b.lastSeenAt[q.id] }))
+          .filter((x) => !g.players.some((o) => o !== x.q && o.alive && !o.isImp && b.lastSeenAt[o.id] && Math.abs(b.lastSeenAt[o.id].t - x.s.t) < 4 && U.d2(b.lastSeenAt[o.id].x, b.lastSeenAt[o.id].y, x.s.x, x.s.y) < 7));
+        if (lone.length) out.push('Viu sozinho há pouco: ' + lone.slice(0, 3).map((x) => this.who(x.q.id) + ' em ' + (M.AREA[x.s.area] ? M.AREA[x.s.area].name : '?') + ' (' + Math.round(g.t - x.s.t) + 's atrás)').join(', ') + '.');
         if (p.special) out.push('Função: ' + C.ROLES[p.special].name + '.');
       }
       if (p.emergencyLeft > 0 && !p.isImp) out.push('Botões de emergência restantes: ' + p.emergencyLeft + '.');
@@ -126,11 +136,13 @@
         '',
       ];
       if (team === 'crew') {
-        head.push('Estes são TRIPULANTES. Cada um só sabe o que está na própria lista. Decida como um jogador esperto: fazer tarefas é o principal; andar em dupla com quem confia; vigiar de longe quem é suspeito; nunca ficar sozinho com suspeito; mostrar tarefa visual para quem desconfia de você; quem terminou as tarefas não fica parado: patrulha as salas isoladas procurando corpos, olha câmeras/admin ou acompanha quem ainda tem tarefa; botão só com motivo forte.');
+        const alive = g.players.filter((p) => p.alive), imps = g.S.rules.confirmEjects ? alive.filter((p) => p.isImp).length : g.S.room.impostors;
+        const endgame = alive.length - imps <= imps + 2;
+        head.push('Estes são TRIPULANTES. Cada um só sabe o que está na própria lista. Decida como um jogador esperto: fazer tarefas é o principal; andar em dupla com quem confia; vigiar de longe quem é suspeito; nunca ficar sozinho com suspeito; mostrar tarefa visual para quem desconfia de você; quem terminou as tarefas não fica parado: patrulha as salas isoladas procurando corpos, olha câmeras/admin ou acompanha quem ainda tem tarefa; botão com motivo concreto (viu algo de impostor, pegou tarefa falsa, cientista viu morte sem corpo).' + (endgame ? ' RETA FINAL: poucos vivos — ninguém anda sozinho; grudar em quem já provou ser inocente.' : ''));
         head.push('Ações possíveis:', CREW_ACTIONS.map((a) => '- ' + a).join('\n'));
       } else {
         const team2 = g.players.filter((p) => p.isImp && p.alive).map((p) => p.name).join(', ');
-        head.push('Estes são os IMPOSTORES (' + team2 + '). Os tripulantes não sabem quem são. Decida como impostores espertos: matar só quem está sozinho e sem testemunha, longe das câmeras; criar álibi fingindo tarefa e andando com o grupo; usar duto para fugir ou chegar; sabotar para separar o grupo ou apagar as luzes antes de matar; combinar double kill; atrair vítimas; não andar colado no parceiro o tempo todo; se foi acusado, ficar na moita.');
+        head.push('Estes são os IMPOSTORES (' + team2 + '). Os tripulantes não sabem quem são. Decida como impostores espertos: matar só quem está sozinho e sem testemunha, longe das câmeras; criar álibi fingindo tarefa e andando com o grupo; usar duto para fugir ou chegar; sabotar para separar o grupo ou apagar as luzes antes de matar; combinar double kill; atrair vítimas; não andar colado no parceiro o tempo todo; se foi acusado, ficar na moita; com o abate pronto e ninguém por perto, "procurar" em vez de ficar fingindo tarefa; não matar logo depois de ter sido visto na mesma área; não reportar o próprio abate na hora (a vítima pode ter sido vista viva segundos antes: self report denuncia).');
         head.push('Ações possíveis:', IMP_ACTIONS.map((a) => '- ' + a).join('\n'));
       }
       head.push('');
@@ -190,7 +202,7 @@
       const K = {
         tarefa: 'task', tarefas: 'task', task: 'task', seguir: 'follow', vigiar: 'tail', evitar: 'avoid', sinal: 'signal', cameras: 'cams', camera: 'cams',
         admin: 'admin', ir: 'go', botao: 'button', cacar: 'hunt', fingir: 'fake', grupo: 'group', sabotar: 'sab', portas: 'doors', porta: 'doors',
-        duto: 'vent', atrair: 'lure', double: 'double', patrulhar: 'patrol', patrulha: 'patrol', rondar: 'patrol', ronda: 'patrol',
+        duto: 'vent', atrair: 'lure', double: 'double', patrulhar: 'patrol', patrulha: 'patrol', rondar: 'patrol', ronda: 'patrol', procurar: 'prowl', tocaia: 'prowl',
       }[verb];
       if (!K) return null;
       const o = { kind: K, until, at: g.t };
@@ -209,6 +221,7 @@
       }
       if (!p.isImp && ['fake', 'group', 'sab', 'doors', 'vent'].includes(K)) return null;
       if (p.isImp && ['task', 'cams', 'admin', 'button', 'follow', 'tail', 'patrol'].includes(K)) return null;
+      if (!p.isImp && K === 'prowl') return null;
       return o;
     }
   }

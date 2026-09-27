@@ -963,10 +963,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   C.PERSONALITY_IDS = Object.keys(C.PERSONALITIES);
 
   C.IMP_LEVELS = {
-    iniciante: { name: 'Iniciante', desc: 'Arrisca abates com gente por perto e mente mal.', need: 0.3, eager: 0.95, miss: 0.35, riskTol: 0.3, useVents: 0.35, sabotage: 0.25, lie: 0.3, selfReport: 0.15, bus: 0, stalk: 0.2, fakeVisual: 0.45, camsAware: false, sabKill: false },
-    competente: { name: 'Competente', desc: 'Só mata sem testemunhas e cria álibis simples.', need: 0.44, eager: 0.92, miss: 0.2, riskTol: 0.1, useVents: 0.6, sabotage: 0.5, lie: 0.6, selfReport: 0.3, bus: 0.1, stalk: 0.4, fakeVisual: 0.1, camsAware: false, sabKill: false },
-    veterano: { name: 'Veterano', desc: 'Checa câmeras, usa dutos com calma e sabe entregar o parceiro.', need: 0.5, eager: 0.82, miss: 0.09, riskTol: 0.04, useVents: 0.75, sabotage: 0.7, lie: 0.8, selfReport: 0.4, bus: 0.35, stalk: 0.6, fakeVisual: 0, camsAware: true, sabKill: false },
-    implacavel: { name: 'Implacável', desc: 'Usa sabotagens para isolar vítimas e mente com detalhes.', need: 0.42, eager: 0.85, miss: 0.02, riskTol: 0.02, useVents: 0.85, sabotage: 0.9, lie: 0.95, selfReport: 0.5, bus: 0.5, stalk: 0.8, fakeVisual: 0, camsAware: true, sabKill: true },
+    iniciante: { name: 'Iniciante', desc: 'Arrisca abates com gente por perto e mente mal.', need: 0.36, eager: 0.95, miss: 0.35, riskTol: 0.3, useVents: 0.35, sabotage: 0.25, lie: 0.3, selfReport: 0.15, bus: 0, stalk: 0.2, fakeVisual: 0.45, camsAware: false, sabKill: false },
+    competente: { name: 'Competente', desc: 'Só mata sem testemunhas e cria álibis simples.', need: 0.25, eager: 0.92, miss: 0.2, riskTol: 0.1, useVents: 0.6, sabotage: 0.5, lie: 0.6, selfReport: 0.3, bus: 0.1, stalk: 0.4, fakeVisual: 0.1, camsAware: false, sabKill: false },
+    veterano: { name: 'Veterano', desc: 'Checa câmeras, usa dutos com calma e sabe entregar o parceiro.', need: 0.12, eager: 0.82, miss: 0.09, riskTol: 0.04, useVents: 0.75, sabotage: 0.7, lie: 0.8, selfReport: 0.4, bus: 0.35, stalk: 0.6, fakeVisual: 0, camsAware: true, sabKill: false },
+    implacavel: { name: 'Implacável', desc: 'Usa sabotagens para isolar vítimas e mente com detalhes.', need: 0.08, eager: 0.95, miss: 0.02, riskTol: 0.02, useVents: 0.85, sabotage: 0.9, lie: 0.95, selfReport: 0.5, bus: 0.5, stalk: 0.9, fakeVisual: 0, camsAware: true, sabKill: true },
   };
 
   C.HUMAN_ERROR = {
@@ -1819,6 +1819,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         case 'kill': return pick([`${w} matou ${x.R(d.victim, 'o')} ${x.inA(d.area)}`, `vi ${w} matando ${x.R(d.victim, 'o')}`, `EU VI! ${w} matou`]);
         case 'shift': return pick([`${w} se transformou em outra pessoa na minha frente`, `vi ${w} mudando de cor, é metamorfo`]);
         case 'vanish': return pick([`${w} sumiu do nada ${x.inA(d.area)}`, `${w} ficou invisível, é impostor`]);
+        case 'fakeTask': return pick([`chamei porque ${w} fingiu tarefa ${d.area ? x.inA(d.area) : ''}: terminou e a barra não subiu`.replace(/\s+:/, ':'), `${w} tá fingindo task, vi ${d.area ? x.inA(d.area) : 'agora'} e a barra não mexeu`]);
+        case 'noscan': return pick([`chamei porque ${w} ficou parado no scanner e não escaneou`, `${w} fingiu o scan, eu vi`]);
+        case 'vitals': return pick([`sou cientista: ${d.victim != null ? x.R(d.victim, 'o') : 'alguém'} morreu e ninguém achou o corpo`, `o vitals mostra ${d.victim != null ? x.Rc(d.victim, 'o') : 'alguém'} morto, chamei pra avisar`]);
         case 'sus': return pick([`${w} tá muito estranho, chamei por isso`, `precisava falar: ${w} tá sus demais`, `apertei porque ${w} tá estranho`]);
         case 'chaos': return pick([`foi mal, apertei sem querer kkk`, `só queria ver quem está vivo`, `reunião surpresa kkkk`, `alguém tem info?`]);
         default: return pick([`alguém tem info?`, `chamei pra gente conversar`]);
@@ -1892,6 +1895,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         case 'vanish': return pick([`${w} ficou invisível do nada, é impostor`, `vi ${w} sumir no ar`]);
         case 'noscan': return pick([`${w} ficou parado no scanner e não escaneou`, `${w} fingiu o scan`]);
         case 'fakeTask': return pick([`vi ${w} terminar a tarefa ${d.area ? x.inA(d.area) : ''} e a barra não subiu`.replace(/\s+/g, ' '), `${w} fingiu tarefa, a barra não mexeu`, `${w} fez tarefa na minha frente e a barra ficou parada`]);
+        case 'fastReport': return pick([
+          `${w} reportou rápido demais, ${d.victim != null ? x.Rc(d.victim, 'o') + ' tava vivo' : 'a vítima tava viva'} uns ${d.ago || 10}s antes`,
+          `self report? ${w} achou o corpo logo depois de ${d.victim != null ? x.R(d.victim, 'o') : 'ele'} ser visto`,
+          `estranho ${w} achar o corpo tão rápido`,
+        ]);
         case 'follow': return pick([`${w} estava me seguindo, muito suspeito`, `${w} ficou atrás de mim um tempão`]);
         case 'nearBody': return pick([`${x.Rc(d.who, 'o')} é suspeito, estava perto ${x.deA(d.area)}`, `acho que foi ${w}, estava lá perto`]);
         case 'lastWith': return pick([`foi ${x.Rc(d.who, 'o')}, estava sozinho ${d.victim != null ? x.R(d.victim, 'com') : 'com a vítima'}`, `${w} foi o último com ${d.victim != null ? x.R(d.victim, 'o') : 'ele'}`]);
@@ -2026,7 +2034,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     [/\bvotei skip\b/gi, 'votei para pular'], [/\bvamos de skip\b/gi, 'vamos pular'], [/,\s*skip\b/gi, ', vamos pular'], [/^skip$/gi, 'Vou pular'],
     [/\bsem info\b/gi, 'sem informação'], [/\binfo\b/gi, 'informação'], [/\bo scan\b/gi, 'o escaneamento'], [/\bscan\b/gi, 'escaneamento'], [/\bme segue\b/gi, 'me siga'],
     [/\bsus\b/gi, 'suspeito'], [/\bsafe\b/gi, 'inocente'], [/\bskipei\b/gi, 'pulei'], [/\bskipar\b/gi, 'pular'], [/\bskipa\b/gi, 'pula'], [/\bskip\b/gi, 'pular'],
-    [/\bself ?report\b/gi, 'reportou o próprio corpo'], [/\bventou\b/gi, 'usou o duto'], [/\bventando\b/gi, 'usando o duto'], [/\bventar\b/gi, 'usar o duto'],
+    [/^self ?report\?/gi, 'Será que reportou o próprio abate?'], [/\bself ?report\b/gi, 'reportar o próprio abate'], [/\bventou\b/gi, 'usou o duto'], [/\bventando\b/gi, 'usando o duto'], [/\bventar\b/gi, 'usar o duto'],
     [/\bvent\b/gi, 'duto'], [/\bimps\b/gi, 'impostores'], [/\bimp\b/gi, 'impostor'], [/\bvcs\b/gi, 'vocês'], [/\bvc\b/gi, 'você'],
     [/\btbm\b/gi, 'também'], [/\btb\b/gi, 'também'], [/\bpq\b/gi, 'por que'], [/\bmsm\b/gi, 'mesmo'], [/\bagr\b/gi, 'agora'], [/\bngm\b/gi, 'ninguém'],
     [/\bblz\b/gi, 'certo'], [/\bvlw\b/gi, 'obrigado'], [/\bpfv\b/gi, 'por favor'], [/\bqm\b/gi, 'quem'], [/\btd\b/gi, 'tudo'], [/\bq\b/gi, 'que'],
@@ -2036,7 +2044,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     [/\btavam\b/gi, 'estavam'], [/\btava\b/gi, 'estava'], [/\btá\b/gi, 'está'], [/\btô\b/gi, 'estou'], [/\bpros\b/gi, 'para os'], [/\bpras\b/gi, 'para as'],
     [/\bpro\b/gi, 'para o'], [/\bpra\b/gi, 'para'], [/\bfechou\b/gi, 'certo'], [/\bbora\b/gi, 'vamos'], [/\bpera\b/gi, 'espera'], [/\bné\b/gi, ''],
     [/\bagora pouco\b/gi, 'agora há pouco'], [/\b(\d+) ?s\b/g, '$1 segundos'], [/\btasks\b/gi, 'tarefas'], [/\btask\b/gi, 'tarefa'], [/\bcard\b/gi, 'cartão'],
-    [/\bdo report\b/gi, 'de acharem o corpo'], [/\ba visual\b/gi, 'a tarefa visual'], [/\bvitals\b/gi, 'sinais vitais'], [/^\+1$/, 'concordo'],
+    [/\bdo report\b/gi, 'de acharem o corpo'], [/\ba visual\b/gi, 'a tarefa visual'], [/\bpelo vitals\b/gi, 'pelos sinais vitais'], [/\bo vitals mostra\b/gi, 'os sinais vitais mostram'], [/\bno vitals\b/gi, 'nos sinais vitais'], [/\bvitals\b/gi, 'sinais vitais'], [/^\+1$/, 'concordo'],
   ];
   /* \b do JavaScript não entende acento ("está", "você", "tá"): troca por uma fronteira de palavra que entende */
   const UB = '(?:(?<![\\p{L}\\d])(?=[\\p{L}\\d])|(?<=[\\p{L}\\d])(?![\\p{L}\\d]))';
@@ -2267,6 +2275,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     /* "sumiu" também é "não vi mais": só vale como habilidade se foi na frente de alguém / do nada / invisível */
     vanishSeen: /\b(invisivel|do nada|na minha frente|na frente|do meu lado)\b|\bvi\b.*\b(sumir|desaparecer|sumindo|desaparecendo)\b/,
     follow: /\b(seguindo|me seguiu|me segue|seguiu|atras de mim|na minha cola|colad[oa] em mim)\b/,
+    selfrep: /\b(self ?report\w*|reportou (muito )?rapido|achou (o corpo )?(muito )?rapido)\b/,
     hypo: /\b(pode|podia|talvez|sera|acho|deve|devia|se for|caso|quem sabe|pode ter)\b/,
     offer: /\b(me segue|me sigam|me segue[m]?|me acompanh\w*|posso provar|vou provar|provo|fac\w* (o |a )?(scan|visual|escaneamento|asteroide\w*|escudo\w*|lixo) na frente|na frente de voces|mostro (a )?visual)\b/,
   };
@@ -2335,6 +2344,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         else if (has('comigo')) intents.push({ type: 'vouch', who, reason: 'together', area });
         else if (has('sus') || has('vote')) others.forEach((pid) => intents.push({ type: 'accuse', who: pid, reason: has('vote') ? 'vote' : 'sus' }));
         else if (has('follow') && !has('offer')) intents.push({ type: 'accuse', who, reason: 'follow', area });
+        else if (has('selfrep')) intents.push({ type: 'accuse', who, reason: 'fastReport' });
         else if (has('body')) intents.push({ type: 'accuse', who, reason: 'nearBody', area });
         else if (rooms.length && (has('vi') || has('been'))) intents.push({ type: 'sawAt', who, area });
         else if (isQ && c.trim().split(' ').length <= 3) intents.push({ type: 'askWhere', who });
@@ -4513,6 +4523,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           return goToward();
         case 'fake':
           return this.planFakeTask(o.room || undefined);
+        case 'prowl':
+          return this.planProwl();
         case 'group': {
           const crowd = this.seenNow.filter((x) => !x.isImp && x.alive);
           return crowd.length ? this.planFollow(U.pick(crowd), U.rf(8, 14), 2.8) : this.planWander('cafeteria', U.rf(2, 4));
@@ -4729,12 +4741,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.setPlan({ type: 'flee', x: pos.x, y: pos.y, onArrive: (pl) => (pl.until = g.t + 1.5) });
     }
     planHunt(tgt) {
-      const g = this.g;
+      const g = this.g, p = this.p;
       this.setPlan({
         type: 'hunt', target: tgt.id, keep: g.killDist * 0.7, dynEvery: 0.3, noShuffle: true,
         dyn: () => {
           const s = this.lastSeenAt[g.appearId(tgt)];
-          if (!tgt.alive || !s || g.t - s.t > 2.5) return null;
+          if (!tgt.alive || !s) return null;
+          /* perdeu de vista: vai até onde viu por último (quase sempre a vítima só entrou na sala seguinte) */
+          if (g.t - s.t > 2.5 && (g.t - s.t > 8 || U.d2(p.x, p.y, s.x, s.y) < 1.2)) return null;
           return { x: s.x, y: s.y };
         },
         endAt: g.t + 20,
@@ -4946,15 +4960,19 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (!e.decided && t - e.t0 < 7 && others.length && !g.S.house.noSelfReport && !e.body.reported && p.shiftAs == null) {
           if (others.some((q) => U.d2(q.x, q.y, e.body.x, e.body.y) < 9)) {
             e.decided = true;
-            if (U.chance(L.selfReport)) {
+            /* reportar o próprio abate na hora denuncia (a vítima foi vista viva segundos antes): o impostor experiente
+               reporta menos e, quando reporta, deixa passar uns segundos, como quem "chegou agora" */
+            const smart = L.lie >= 0.8;
+            if (U.chance(L.selfReport * (smart ? 0.6 : 1))) {
               this.selfReport = true;
+              if (smart) this.reportDelayUntil = t + U.rf(3, 6);
               this.planReport(e.body);
               return;
             }
           }
         }
         if (this.plan && this.plan.type === 'report') {
-          g.tryReport(p, this.plan.body);
+          if (t >= (this.reportDelayUntil || 0)) g.tryReport(p, this.plan.body);
           return;
         }
         if (!e.moved) {
@@ -5057,7 +5075,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const threat = tgt && ((tgt.brain && (tgt.brain.pers.leader || tgt.brain.pers.times)) || this.mem.events.some((e) => e.type === 'visual' && e.who === tgt.id));
         /* alguém acabou de me ver junto com essa pessoa: matar agora me deixa como "o último com a vítima" */
         const pairSeen = tgt && L.lie >= 0.5 && this.seenWithRecently(tgt);
-        const need = L.need * (busy ? 1.8 : 1) * (lowKey ? 1.8 : 1) * (grudge ? 0.75 : 1) * (nearVent && L.useVents > 0.5 ? 0.92 : 1) * (threat ? 0.92 : 1) * (pairSeen ? 1.6 : 1);
+        /* alguém (fora a vítima) me viu por aqui há pouco: o corpo vai aparecer "perto de onde viram o X" */
+        const hereSeen = tgt && L.lie >= 0.5 && this.seenHereRecently(tgt);
+        const need = L.need * (busy ? 1.8 : 1) * (lowKey ? 1.8 : 1) * (grudge ? 0.75 : 1) * (nearVent && L.useVents > 0.5 ? 0.92 : 1) * (threat ? 0.92 : 1) * (pairSeen ? 1.6 : 1) * (hereSeen ? 1.45 : 1);
         if (tgt && this.eagerRoll == null && this.isoT >= need) {
           const waited = t - this.readyT;
           this.eagerRoll = U.chance(L.eager * U.clamp(0.7 + waited / 15, 0.7, 1) * (busy ? 0.7 : 1) * (lowKey && !grudge ? 0.55 : 1));
@@ -5103,6 +5123,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           return;
         }
       }
+      /* abate pronto, tarefa falsa longe de todo mundo há um tempo: larga a encenação e vai caçar */
+      if (others.length) this.lastCrewT = t;
+      if (this.plan && (this.plan.type === 'fake' || this.plan.type === 'wander') && p.killCd <= 0 && t - (this.lastCrewT || 0) > 5 &&
+          !(this.layLowUntil && t < this.layLowUntil) && !this.aiOrder && t - (this.prowlAt || 0) > 8 && U.chance(0.12 + L.stalk * 0.15)) {
+        this.prowlAt = t;
+        if (this.planProwl()) return;
+      }
       if (!this.plan) this.chooseImpActivity(others);
     }
     /* Fim do disfarce / da invisibilidade: volta ao normal longe dos olhos. O metamorfo desfaz sozinho quando
@@ -5144,6 +5171,15 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const pos = M.randomPointIn(U.pick(cands.slice(0, 2)).id);
       this.setPlan({ type: 'leave', x: pos.x, y: pos.y, slip: g.t + 4, onArrive: (pl) => (pl.until = g.t + 0.5) });
       return true;
+    }
+    seenHereRecently(tgt) {
+      const g = this.g, p = this.p, t = g.t;
+      for (const id of Object.keys(this.lastSeenAt)) {
+        const s = this.lastSeenAt[id], q = g.players[+id];
+        if (!q || q.isImp || !q.alive || q === tgt || t - s.t > 18) continue;
+        if (U.d2(s.x, s.y, p.x, p.y) < 11) return true;
+      }
+      return false;
     }
     seenWithRecently(tgt) {
       const g = this.g, t = g.t;
@@ -5302,8 +5338,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (U.chance(L.sabotage * 0.07)) return g.sabotage(U.pick(['lights', 'comms']), p);
     }
     chooseImpActivity(others) {
-      const g = this.g, L = this.lvl;
+      const g = this.g, L = this.lvl, p = this.p;
       const r = Math.random();
+      /* abate liberado e ninguém à vista: vai caçar (onde viu alguém sozinho há pouco, ou de tocaia numa sala afastada) */
+      if (p.killCd <= 1.5 && !others.length && !(this.layLowUntil && g.t < this.layLowUntil) && !this.aiOrder && U.chance(0.45 + L.stalk * 0.45)) {
+        if (this.planProwl()) return;
+      }
       if (this.aiOrder) {
         const res = this.runOrder();
         if (res !== false && (this.plan || this.p.inVent)) return;
@@ -5344,6 +5384,38 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.planWander(U.chance(0.25) ? 'cafeteria' : U.pick(M.ROOMS).id);
     }
 
+    /* Caça com o abate liberado: vai até onde viu alguém sozinho há pouco (sala afastada vale mais; gente em grupo,
+       menos) andando como quem vai fazer tarefa; sem pista, fica de tocaia numa sala isolada fingindo tarefa. */
+    planProwl() {
+      const g = this.g, p = this.p, t = g.t;
+      const seen = (id) => this.lastSeenAt[id];
+      let best = null, bs = 0;
+      for (const q of g.players) {
+        if (!q.alive || q.isImp || q === p) continue;
+        const s = seen(q.id);
+        if (!s || t - s.t > 30) continue;
+        const crowd = g.players.filter((o) => o !== q && o.alive && !o.isImp && seen(o.id) && Math.abs(seen(o.id).t - s.t) < 4 && U.d2(seen(o.id).x, seen(o.id).y, s.x, s.y) < 7).length;
+        const remote = !HIGH_TRAFFIC.has(s.area);
+        const sc = 30 - (t - s.t) - U.d2(p.x, p.y, s.x, s.y) * 0.35 + (remote ? 8 : 0) - crowd * 14 + (q.id === this.grudge ? 10 : 0);
+        if (sc > bs) {
+          bs = sc;
+          best = { q, s };
+        }
+      }
+      if (best) {
+        const a = M.AREA[best.s.area];
+        const room = a ? M.roomOf(a, best.s.x, best.s.y) : null;
+        const pos = room && room.kind === 'room' ? M.randomPointIn(room.id) : { x: best.s.x, y: best.s.y };
+        this.setPlan({ type: 'prowl', target: best.q.id, x: pos.x, y: pos.y, onArrive: (pl) => (pl.until = g.t + U.rf(1.3, 2.6)) });
+        return true;
+      }
+      const lurk = ['electrical', 'medbay', 'navigation', 'shields', 'o2', 'reactor', 'security', 'lowerEngine', 'upperEngine', 'comms', 'weapons']
+        .filter((id) => U.d2(M.AREA[id].cx, M.AREA[id].cy, p.x, p.y) < 40);
+      if (!lurk.length) return false;
+      this.planFakeTask(U.pick(lurk));
+      return true;
+    }
+
     /* ---------- funções especiais ---------- */
     thinkRoles() {
       const g = this.g, p = this.p, t = g.t;
@@ -5353,7 +5425,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           this.vitalsT = U.rf(18, 30);
           p.battery -= 2;
           for (const q of g.players) {
-            if (!q.alive && !q.ejected && !this.mem.vitals[q.id]) this.mem.vitals[q.id] = { from: this.lastVitals, to: t };
+            if (!q.alive && !q.ejected && !this.mem.vitals[q.id]) {
+              this.mem.vitals[q.id] = { from: this.lastVitals, to: t };
+              /* cientista viu alguém morrer nos sinais vitais e ninguém reportou: chama reunião para avisar */
+              if (!p.isImp && !g.bodies.some((b) => b.pid === q.id && b.reported) && p.emergencyLeft > 0 && !this.wantButton && U.chance(0.55)) this.wantButton = { reason: 'vitals', victim: q.id };
+            }
           }
           this.lastVitals = t;
         }
@@ -5413,6 +5489,24 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         s -= (this.susp[q.id] || 0) * 0.3;
         return s + U.rf(0, 6);
       };
+      /* sabe quem é o assassino: acompanha ELE (fantasma é mais rápido) e protege quem ele pegar sozinho por perto */
+      const hot = () => {
+        let best = null, bd = 99;
+        for (const kid of killers) {
+          const k = g.players[kid];
+          for (const q of alive) {
+            if (q === k || killers.has(q.id)) continue;
+            const d = U.dist(k, q);
+            if (d > 6.5 || d >= bd) continue;
+            if (alive.some((o) => o !== q && o !== k && U.dist(o, q) < 6)) continue;
+            bd = d;
+            best = q;
+          }
+        }
+        return best;
+      };
+      const h = killers.size ? hot() : null;
+      if (h && (!this.angelPick || this.angelPick.id !== h.id)) this.angelPick = { id: h.id, until: g.t + 6, since: g.t - 10, risk: 60 };
       if (!this.angelPick || g.t > this.angelPick.until || !g.players[this.angelPick.id].alive) {
         const best = alive.slice().sort((a, b) => danger(b) - danger(a))[0];
         this.angelPick = { id: best.id, until: g.t + U.rf(6, 12), since: g.t, risk: danger(best) };
@@ -5422,17 +5516,24 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
          de recarga decide se vai usar (uns 40-50%, mais para quem é atento); distraído, espera e tenta de novo. */
       if (p.abilityCd <= 0 && (!this.angelWin || this.angelWin.until < g.t)) {
         const pUse = 0.2 + this.pers.att * 0.3;
-        this.angelWin = { use: U.chance(pUse), until: g.t + U.rf(20, 40), react: g.t + U.rf(0.6, 2.2) };
+        const use = U.chance(pUse);
+        this.angelWin = { use, until: g.t + (use ? U.rf(35, 50) : U.rf(20, 40)), react: g.t + U.rf(0.6, 2.2) };
       }
       const win = this.angelWin;
       if (win && !win.use && win.until > g.t && tasksLeft) return false;
       const urgent = this.angelPick.risk >= 30;
-      if (p.abilityCd <= 0 && win && win.use && g.t >= win.react && U.dist(p, tg) <= 3.5 && !(tg.protectedUntil > g.t) && (urgent || g.t - this.angelPick.since > 8)) {
+      /* quando decide usar, guarda o escudo para a hora do perigo (assassino sozinho com alguém); se a janela está
+         acabando sem essa hora, usa em quem está mais exposto — a frequência de uso continua a de um jogador normal */
+      const saving = killers.size > 0 && !h && win && g.t < win.until - 3;
+      if (p.abilityCd <= 0 && win && win.use && g.t >= win.react && U.dist(p, tg) <= 3.5 && !(tg.protectedUntil > g.t) && (h ? tg === h : !saving && (urgent || g.t - this.angelPick.since > 8))) {
         if (g.protect(p, tg.id)) this.angelWin = null;
         this.angelPick.until = g.t + U.rf(10, 20);
       }
-      if (!this.plan || this.plan.type !== 'guard' || this.plan.target !== tg.id) {
-        this.setPlan({ type: 'guard', target: tg.id, dyn: () => (tg.alive ? { x: tg.x, y: tg.y } : null), keep: 2.4, endAt: g.t + 25, dynEvery: 0.6 });
+      /* com assassino conhecido e ninguém em perigo agora: fica na cola do assassino (de onde dá para proteger rápido) */
+      const kFollow = !h && killers.size ? g.players[[...killers].sort((a, b) => U.dist(p, g.players[a]) - U.dist(p, g.players[b]))[0]] : null;
+      const gt = h || kFollow || tg;
+      if (!this.plan || this.plan.type !== 'guard' || this.plan.target !== gt.id) {
+        this.setPlan({ type: 'guard', target: gt.id, dyn: () => (gt.alive ? { x: gt.x, y: gt.y } : null), keep: gt === kFollow ? 3 : 2.4, endAt: g.t + 25, dynEvery: 0.4 });
       }
       return true;
     }
@@ -5539,14 +5640,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           } else if (tw) {
             delete this.taskWatch[aid];
             if (t - tw.t0 >= 2.5 && g.S.rules.taskBar === 'sempre' && !g.commsDown() && finalStations().has(tw.station) && g.taskProgress().done === tw.done0 && U.chance(0.4 + pers.att * 0.5)) {
-              mem.event({ type: 'fakeTask', t, who: aid, area, station: tw.station }, 'fakeTask:' + aid + ':' + g.meetings);
+              if (mem.event({ type: 'fakeTask', t, who: aid, area, station: tw.station }, 'fakeTask:' + aid + ':' + g.meetings)) this.maybeButton('fakeTask', aid, area);
             }
           }
           /* parado numa tarefa visual sem a animação aparecer = tarefa falsa */
           const vst = g.S.rules.visualTasks ? VISUAL_ST.find((k) => U.d2(q.x, q.y, M.STATIONS[k].x, M.STATIONS[k].y) < 0.9) : null;
           if (vst && !q.visual && !q.moving) {
             this.scanWatch[aid] = (this.scanWatch[aid] || 0) + 0.2;
-            if (this.scanWatch[aid] >= 3.2) mem.event({ type: 'noscan', t, who: aid, area, task: vst }, 'noscan:' + aid + ':' + g.meetings);
+            if (this.scanWatch[aid] >= 3.2 && mem.event({ type: 'noscan', t, who: aid, area, task: vst }, 'noscan:' + aid + ':' + g.meetings)) this.maybeButton('noscan', aid, area);
           }
         }
       }
@@ -5573,6 +5674,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (g.t - this.trackT < 1) return;
       this.trackT = g.t;
       this.mem.track.push({ who: q.id, area: M.areaAt(q.x, q.y).id, t: g.t });
+    }
+    /* pegou alguém fingindo tarefa: quem tem iniciativa chama reunião na hora (a prova não espera o próximo corpo) */
+    maybeButton(reason, who, area) {
+      const p = this.p, pers = this.pers;
+      if (p.isImp || p.emergencyLeft <= 0 || this.wantButton) return;
+      const pr = 0.35 + (pers.leader ? 0.3 : 0) + (pers.times ? 0.15 : 0) + (pers.skeptic ? 0.1 : 0) - (pers.talk < 0.3 ? 0.15 : 0);
+      if (U.chance(pr)) this.wantButton = { reason, who, area };
     }
     onWitnessKill(apparent, victimId, area, via, body) {
       const g = this.g, pers = this.pers;
@@ -5732,7 +5840,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   const B = AU.Brain.prototype;
 
   const STRONG = { kill: 1, vent: 0.85, shift: 1, vanish: 0.95 };
-  const CLAIM_W = { kill: 70, vent: 58, shift: 36, vanish: 32, noscan: 32, fakeTask: 30, follow: 8, nearBody: 13, lastWith: 16, lie: 24, tracker: 30, sus: 16, hunch: 9, claim: 16, vote: 7, mention: 4, fromBody: 14 };
+  const CLAIM_W = { kill: 70, vent: 58, shift: 36, vanish: 32, noscan: 32, fakeTask: 30, follow: 8, nearBody: 13, lastWith: 16, lie: 24, tracker: 30, sus: 16, hunch: 9, claim: 16, vote: 7, mention: 4, fromBody: 14, fastReport: 16 };
 
   B.mStart = function (mt) {
     const g = this.g, p = this.p;
@@ -5873,7 +5981,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     const victim = mt.info.body ? mt.info.body.pid : null;
     const reporter = mt.info.kind === 'report' ? mt.info.caller : null;
     const tR = mt.info.t;
-    for (const id of Object.keys(this.ev)) this.ev[id] = this.ev[id].filter((e) => !['nearBody', 'lastWith', 'alibi', 'withVictim', 'fromBody', 'ventLink'].includes(e.reason));
+    for (const id of Object.keys(this.ev)) this.ev[id] = this.ev[id].filter((e) => !['nearBody', 'lastWith', 'alibi', 'withVictim', 'fromBody', 'ventLink', 'fastReport'].includes(e.reason));
     const add = (id, w, reason, extra) => {
       if (id === me || id === victim) return;
       if (w > 0 && this.hardCleared(id)) return;
@@ -5924,6 +6032,15 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     if (myPass) tStart = Math.max(tStart || 0, myPass.t1);
     if (this.sharedWindow && this.sharedWindow.area === bodyArea) tStart = Math.max(tStart || 0, this.sharedWindow.t);
     this.killWindow = tStart != null && tFound - tStart < 90 ? { t0: tStart, t1: tFound, area: bodyArea, mine: !!myPass && myPass.t1 === tStart } : null;
+    /* reportou rápido demais: a vítima estava viva poucos segundos antes do report. Nas partidas de teste, quem acha
+       o corpo até ~8s depois do abate era o próprio impostor em mais da metade das vezes (self report) */
+    if (reporter != null && reporter !== me && tStart != null && tR - tStart <= 10) {
+      const fresh = Math.max(0, tR - tStart);
+      /* se eu estava vendo quem reportou durante esse tempo (fomos juntos até o corpo), não foi ele */
+      let watched = 0;
+      for (const x of this.mem.seen) if (x.who === reporter && x.via === 'eyes') watched += Math.max(0, Math.min(x.t1, tR) - Math.max(x.t0, tStart));
+      if (watched < Math.max(1, fresh) * 0.5) add(reporter, Math.round(24 - fresh), 'fastReport', { ago: Math.max(1, Math.round(fresh)), victim, area: bodyArea });
+    }
     if (this.killWindow) {
       const W0 = this.killWindow.t0, W1 = tFound, len = Math.max(2, W1 - W0);
       const byWho = {};
@@ -6109,6 +6226,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (e.reason === 'visual' && g.players[+id].alive) items.push({ k: 'vouch', who: +id, reason: 'visual', task: e.task });
         if (e.reason === 'noscan') items.push({ k: 'accuse', who: +id, reason: 'noscan' });
         if (e.reason === 'fakeTask') items.push({ k: 'accuse', who: +id, reason: 'fakeTask', area: e.area });
+        if (e.reason === 'fastReport') items.push({ k: 'accuse', who: +id, reason: 'fastReport', ago: e.ago, victim: e.victim, late: true });
         /* não acusa de "me seguir" quem estava junto comigo fazendo tarefa (é o meu álibi) */
         if (e.reason === 'follow' && (this.togetherMap()[+id] || 0) < 12 && this.getAlibi().with !== +id) items.push({ k: pers.panic ? 'panic' : 'accuse', who: +id, reason: 'follow' });
       }
@@ -6326,7 +6444,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     if (this.p.isImp) return v === this.scapegoat ? 'desconfia dele desde o começo' : mt.votesOn(v) >= 2 ? 'a maioria está votando nele' : 'o álibi dele não convenceu';
     const ev = ((this.ev && this.ev[v]) || []).filter((e) => e.w > 0).sort((a, b) => b.w - a.w)[0];
     if (ev) {
-      const t = { kill: 'viu matando', vent: 'viu no duto', shift: 'viu mudando de forma', vanish: 'viu sumindo', noscan: 'fingiu o scan', fakeTask: 'fingiu tarefa (a barra não subiu)', follow: 'estava seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava com a vítima' }[ev.reason];
+      const t = { kill: 'viu matando', vent: 'viu no duto', shift: 'viu mudando de forma', vanish: 'viu sumindo', noscan: 'fingiu o scan', fakeTask: 'fingiu tarefa (a barra não subiu)', follow: 'estava seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava com a vítima', fastReport: 'reportou rápido demais (self report?)' }[ev.reason];
       if (t) return t;
     }
     if ((this.chatDelta[v] || 0) > 8) return 'o álibi não bate com o que viu';
@@ -6363,8 +6481,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (p.isImp && this.scapegoat != null && U.chance(this.lvl.lie)) {
           return msg('accuse', { who: this.scapegoat, reason: 'hunch' }, [{ type: 'accuse', who: this.scapegoat, reason: 'hunch' }]);
         }
-        const intents = w.who != null && STRONG[w.reason] ? [{ type: 'accuse', who: w.who, reason: w.reason, area: w.area, victim: w.victim, strong: true }] : [];
-        return msg('callReason', w, intents, { strong: !!intents.length });
+        const intents = w.who != null && (STRONG[w.reason] || w.reason === 'fakeTask' || w.reason === 'noscan') ? [{ type: 'accuse', who: w.who, reason: w.reason, area: w.area, victim: w.victim, strong: !!STRONG[w.reason] }] : [];
+        if (w.reason === 'vitals') intents.push({ type: 'roleClaim', role: 'cientista' });
+        return msg('callReason', w, intents, { strong: intents.some((i) => i.strong) });
       }
       case 'organize':
         return msg('organize', {}, [{ type: 'askAll' }]);
@@ -6372,6 +6491,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const q = g.players[it.who];
         if (!q || !q.alive) return null;
         this.lastAccusation = it;
+        if (it.reason === 'fastReport') {
+          if (mt.flags['fast' + it.who]) return null;
+          mt.flags['fast' + it.who] = true;
+        }
         return msg('accuse', it, [{ type: 'accuse', who: it.who, reason: it.reason, area: it.area, victim: it.victim, strong: !!STRONG[it.reason] }], { strong: !!STRONG[it.reason] });
       }
       case 'panic':
@@ -6730,6 +6853,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           if (!this.sharedWindow || t > this.sharedWindow.t) {
             this.sharedWindow = { area: it.area, t };
             if (this.knowsBody === it.area) this.bodyEvidence(this.knowsBody);
+            /* com essa janela, quem reportou achou o corpo rápido demais? */
+            const rep = mt.info.kind === 'report' ? mt.info.caller : null;
+            const fe = rep != null && ((this.ev[rep] || []).find((e) => e.reason === 'fastReport'));
+            if (fe && !mt.flags['fast' + rep] && rep !== me) {
+              mt.flags['fast' + rep] = true;
+              this.reply(1.2, () => say('accuse', { who: rep, reason: 'fastReport', ago: fe.ago, victim: fe.victim }, [{ type: 'accuse', who: rep, reason: 'fastReport' }]));
+            }
           }
         }
         break;
@@ -7014,8 +7144,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     if (((this.ev && this.ev[S]) || []).some((e) => e.reason === 'visual' || e.reason === 'alibi' || e.reason === 'together')) return;
     this.bump(S, 4, 'own');
     const inRoom = true;
-    if (inRoom && !mt.flags['atBody' + S] && (pers.skeptic || pers.times || U.chance(0.2))) {
+    if (inRoom && !mt.flags['atBody' + S] && !this.replied.has('atBody') && (pers.skeptic || pers.times || U.chance(0.2))) {
       mt.flags['atBody' + S] = true;
+      this.replied.add('atBody');
       this.reply(1, () => ({ text: this.say('atBody', { who: S, area: bodyArea }), intents: [{ type: 'accuse', who: S, reason: 'nearBody', area: bodyArea }] }), true);
     }
     void g;
@@ -7347,6 +7478,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const on = mt.votesOn(pid);
         if (on >= Math.ceil((mt.alive.length - 1) / 2) - 1 && on >= 2 && U.chance(this.lvl.bus)) return pid;
       }
+      /* reta final (mais um abate e ganhamos): os impostores votam juntos no mesmo tripulante */
+      const impsAlive = mt.alive.filter((id) => g.players[id].isImp).length;
+      if (mt.alive.length - impsAlive <= impsAlive + 1 && partners.length) {
+        const mateVote = partners.map((pid) => mt.votes[pid]).find((v) => v != null && v !== 'skip' && g.players[v] && !g.players[v].isImp);
+        if (mateVote != null) return mateVote;
+        const lead0 = mt.leading();
+        if (lead0 && !g.players[lead0.id].isImp && lead0.id !== me) return lead0.id;
+      }
       const t = this.impTarget();
       if (t != null) return t;
       const lead = mt.leading();
@@ -7388,9 +7527,39 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     const ln = lines(top.id);
     const thr = pers.thr * (this.skipLean > 2 ? 1.12 : 1) * (crisis ? 0.75 : 1) * (ln >= 3 ? 0.65 : ln >= 2 ? 0.8 : 1);
     if (top.s >= thr && top.s - second.s >= (crisis ? 6 : 8)) return top.id;
-    if (pers.follow > 0.7) {
-      const lead = mt.leading();
-      if (lead && lead.count >= 2 && lead.id !== me && (this.susp[lead.id] || 0) > 12 && !cleared(lead.id) && leadOk(lead.id)) return lead.id;
+    const lead = mt.leading();
+    const trustedLead = (id) => leadOk(id) || Object.keys(mt.votes).some((v) => +v !== me && mt.votes[v] === id && this.trust(+v) >= 0.7 && (this.hardCleared(+v) || this.clearedByVisual(+v)));
+    /* voto dividido não tira ninguém: se quem está na frente também é suspeito para mim e quem puxou trouxe prova
+       (ou já provou ser tripulante), junto ali */
+    if (lead && lead.count >= 2 && lead.id !== me && !cleared(lead.id) && trustedLead(lead.id)) {
+      const lc = ranked.find((r) => r.id === lead.id);
+      if (lc && ranked.indexOf(lc) <= 1 && lc.s >= thr * (pers.follow > 0.7 ? 0.35 : 0.55)) return lead.id;
+    }
+    /* crise: pular entrega o jogo (mais um abate e eles ganham). Vota em quem pesa mais entre os não inocentados;
+       só vai no que está na frente se ele também é um dos meus dois mais suspeitos e quem puxou é confiável */
+    if (crisis) {
+      /* na reta final até pista fraca decide: admitiu ter passado na sala do corpo, disse que estava numa sala onde
+         eu fiquei um tempo e não o vi, ou ninguém confirmou onde estava */
+      const bodyA = this.knowsBody || mt.facts.bodyArea;
+      const vouched = (id) => mt.msgs.some((m) => m.from !== id && m.intents.some((x) => x.type === 'vouch' && x.who === id));
+      const tie = (id) => {
+        let t = 0;
+        const rooms = this.claims[id] || [];
+        if (bodyA && rooms.some((r) => r === bodyA)) t += 6;
+        const last = rooms[rooms.length - 1];
+        if (last && this.myStay(last) >= 8 && !this.sawTimes(id).some((x) => mt.info.t - x.t1 <= 35 && (x.area === last || M.isNear(x.area, last)))) t += 5;
+        if (!vouched(id)) t += 3;
+        if (!rooms.length) t += 4;
+        return t;
+      };
+      for (const r of ranked) r.s += tie(r.id);
+      ranked.sort((a, b) => b.s - a.s);
+      const pool = ranked.filter((r) => !cleared(r.id));
+      if (pool.length) {
+        const lc = lead && pool.find((r) => r.id === lead.id);
+        if (lc && pool.indexOf(lc) <= 1 && trustedLead(lc.id)) return lc.id;
+        if (pool[0].s > -20) return pool[0].id;
+      }
     }
     if (pers.hunch > 0.3 && top.s >= thr * 0.6 && U.chance(0.45)) return top.id;
     return 'skip';
@@ -7548,7 +7717,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     kill: 'viu matando', vent: 'viu usando o duto', shift: 'viu mudando de aparência', vanish: 'viu ficar invisível',
     noscan: 'ficou no scanner sem escanear', fakeTask: 'terminou uma tarefa e a barra não subiu (tarefa falsa)', follow: 'estava seguindo alguém', nearBody: 'estava perto do corpo',
     lastWith: 'estava com a vítima pouco antes', fromBody: 'vinha da direção do corpo', lie: 'mentiu ou o álibi não bate', tracker: 'o rastreador mostrou',
-    sus: 'está suspeito', hunch: 'pressentimento', claim: 'contaram no chat', vote: 'vai votar nele',
+    sus: 'está suspeito', hunch: 'pressentimento', claim: 'contaram no chat', vote: 'vai votar nele', fastReport: 'reportou o corpo pouco depois da vítima ser vista viva (possível self report)',
   };
   const VOUCH = { visual: 'viu fazendo tarefa visual (inocente)', together: 'estava junto', claim: 'confirma o que ele disse' };
 
@@ -7711,7 +7880,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     reasonOf(b, id) {
       const ev = ((b.ev && b.ev[id]) || []).filter((e) => e.w > 0).sort((a, c) => c.w - a.w)[0];
       if (ev) {
-        const t = { ventLink: 'apareceu numa sala ligada por duto ao corpo', fromBody: 'vinha da direção do corpo', kill: 'você viu matando', vent: 'você viu no duto', shift: 'você viu mudando de forma', vanish: 'você viu sumindo', noscan: 'fingiu o scan', fakeTask: 'terminou tarefa e a barra não subiu', follow: 'ficou te seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava colado na vítima', odd: 'agiu estranho na rodada (te chamou e ficou enrolando / ficou na sua cola)' }[ev.reason];
+        const t = { fastReport: 'reportou rápido demais (self report?)', ventLink: 'apareceu numa sala ligada por duto ao corpo', fromBody: 'vinha da direção do corpo', kill: 'você viu matando', vent: 'você viu no duto', shift: 'você viu mudando de forma', vanish: 'você viu sumindo', noscan: 'fingiu o scan', fakeTask: 'terminou tarefa e a barra não subiu', follow: 'ficou te seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava colado na vítima', odd: 'agiu estranho na rodada (te chamou e ficou enrolando / ficou na sua cola)' }[ev.reason];
         if (t) return t + (ev.area ? ' (' + V.area(ev.area) + ')' : '');
       }
       if ((b.chatClaim[id] || 0) > 12) return 'outros disseram que viram algo';
@@ -7753,6 +7922,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
             if (e.reason === 'withVictim' || e.reason === 'lastWith') out.push('Viu ' + nm(+id) + ' junto da vítima pouco antes' + (e.area ? ', em ' + V.area(e.area) : '') + '.');
             if (e.reason === 'nearBody' && e.w >= 14) out.push('Viu ' + nm(+id) + ' perto de onde estava o corpo' + (e.area ? ' (' + V.area(e.area) + ')' : '') + ' pouco antes.');
             if (e.reason === 'together' && e.secs >= 20) out.push('Ficou um tempo junto de ' + nm(+id) + ' e nada aconteceu.');
+            if (e.reason === 'fastReport') out.push(nm(+id) + ' reportou o corpo só uns ' + e.ago + 's depois de a vítima ser vista viva: rápido demais, pode ser self report (o impostor reportando o próprio abate).');
             if (e.reason === 'fromBody') out.push('Viu ' + nm(+id) + ' vindo da direção de ' + V.area(e.bodyArea) + ' (onde estava o corpo), andando por ' + V.area(e.area) + ', pouco antes.');
           }
         }
@@ -8036,11 +8206,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const lines = [V.scene(mt), '', 'Chat da reunião (mais antigo primeiro):', V.transcript(mt, 30), '', 'Pressão no chat: ' + heatTxt + '.', 'Situação: ' + alive.length + ' vivos' + (g.S.rules.confirmEjects ? ', ' + impsLeft + ' impostor(es) restante(s)' : '') + (crisis ? '. SITUAÇÃO CRÍTICA: se pularem, o próximo abate pode dar a vitória aos impostores.' : '.'), ''];
       if (!imp) {
         lines.push('Agora é a votação. Decida o voto de cada tripulante abaixo usando SÓ o que ele sabe (as anotações dele) e o que foi dito no chat.');
-        lines.push('Como um jogador esperto decide: vota em quem tem prova (viu matar, ventar, mudar de forma) ou contradição clara de álibi; pesa se quem acusa é confiável; nunca vota em quem ele viu fazer tarefa visual; desconfia de quem acusa sem prova ou defende demais alguém suspeito; se não há nada concreto, pula. Em situação crítica, vota no mais provável em vez de pular.');
+        lines.push('Como um jogador esperto decide: vota em quem tem prova (viu matar, ventar, mudar de forma) ou contradição clara de álibi; pesa se quem acusa é confiável; nunca vota em quem ele viu fazer tarefa visual; desconfia de quem acusa sem prova ou defende demais alguém suspeito; desconfia de quem reportou o corpo segundos depois de a vítima ser vista viva (self report); se não há nada concreto, pula.');
+        lines.push('Voto dividido não tira ninguém: se o mais votado também é suspeito para ele e quem puxou trouxe prova, junta ali.');
+        if (crisis) lines.push('SITUAÇÃO CRÍTICA: NINGUÉM PULA. Se ninguém sair, o próximo abate encerra o jogo. Cada um vota no mais provável (fora quem ele sabe que é inocente) e, se possível, todos no mesmo.');
       } else {
         const team = g.players.filter((q) => q.isImp && q.alive).map((q) => q.name).join(', ');
         lines.push('Você decide o voto dos IMPOSTORES abaixo (os tripulantes não sabem quem são). Impostores vivos: ' + team + '.');
         lines.push('Estratégia esperta: votar junto na pessoa que o chat já está acusando (desde que não seja parceiro) para ejetar um tripulante; não defender o parceiro às claras; se o parceiro estiver perdido (várias acusações com prova), votar nele para ganhar confiança; não votar sozinho em alguém que ninguém acusou; pular quando todo mundo está pulando.');
+        if (crisis) lines.push('RETA FINAL: se ninguém de vocês sair, o próximo abate ganha o jogo. Votem os dois no MESMO tripulante (o mais acusado) ou pulem juntos; nunca num parceiro.');
       }
       lines.push('Opções de voto: pular, ou um destes: ' + alive.map((q) => q.name).join(', ') + '.', '');
       for (const p of list) {
@@ -8074,6 +8247,16 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         }
         if (target == null || target === p.id) continue;
         if (!p.isImp && target !== 'skip' && ((p.brain.ev && p.brain.ev[target]) || []).some((e) => e.reason === 'visual')) continue;
+        /* trava da reta final: tripulante não pula na crise se o motor tem um candidato */
+        if (!p.isImp && crisis && target === 'skip') {
+          const eng = p.brain.mVote();
+          if (eng != null && eng !== 'skip') target = eng;
+        }
+        /* impostor nunca vota no parceiro por engano da IA (entregar o parceiro é decisão do motor) */
+        if (p.isImp && target !== 'skip' && g.players[target] && g.players[target].isImp) {
+          const eng = p.brain.mVote();
+          target = eng != null ? eng : 'skip';
+        }
         this.aiVotes[p.id] = { target, reason: tidy(m[3] || '').slice(0, 90) };
       }
     }
@@ -8549,10 +8732,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     'admin — olhar o mapa do Admin',
     'patrulhar — rodar pelas salas vazias procurando corpos (bom para quem já terminou as tarefas)',
     'ir SALA — ir para uma sala (ex.: juntar-se ao grupo, checar um lugar)',
-    'botao — ir apertar o botão de emergência (só com motivo forte)',
+    'botao — ir apertar o botão de emergência (com motivo: viu abate/duto/transformação, pegou alguém fingindo tarefa ou o scan, ou, sendo cientista, viu uma morte nos sinais vitais que ninguém reportou)',
   ];
   const IMP_ACTIONS = [
     'cacar NOME — escolher a próxima vítima e ir atrás quando ela estiver sozinha',
+    'procurar — com o abate pronto e ninguém por perto: ir até onde viu alguém sozinho há pouco, ou ficar de tocaia numa sala isolada',
     'fingir SALA — fingir tarefa numa sala (criar álibi)',
     'grupo — andar com o grupo para parecer inocente',
     'sabotar luzes|comms|reator|o2 — sabotagem (luzes ajudam a matar; reator/o2 separam o grupo; comms desliga câmeras e admin)',
@@ -8628,6 +8812,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (sus.length) out.push('Desconfia de: ' + sus.map((x) => this.who(x.id) + (x.s >= 80 ? ' (viu fazer algo de impostor!)' : '')).join(', ') + '.');
         if (ok.length) out.push('Confia em: ' + ok.map((x) => this.who(x.id)).join(', ') + '.');
         if (p.special) out.push('Função: ' + C.ROLES[p.special].name + '.');
+        const caught = b.mem.events.filter((e) => (e.type === 'fakeTask' || e.type === 'noscan') && e.t >= g.roundStart && g.players[e.who] && g.players[e.who].alive);
+        if (caught.length) out.push('Pegou ' + this.who(caught[0].who) + ' fingindo tarefa (' + (caught[0].type === 'noscan' ? 'parado no scanner sem escanear' : 'terminou e a barra não subiu') + ').');
+        const vit = Object.keys(b.mem.vitals || {}).map(Number).filter((id) => !g.bodies.some((bd) => bd.pid === id && bd.reported) && !g.players[id].ejected);
+        if (vit.length) out.push('Viu nos sinais vitais que ' + vit.map((id) => g.players[id].name).join(', ') + ' morreu e ninguém reportou o corpo ainda.');
       } else {
         out.push('Recarga do abate: ' + (p.killCd > 0 ? Math.ceil(p.killCd) + 's' : 'PRONTO') + '.');
         const alone = b.crewVisible();
@@ -8638,6 +8826,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (cleared.length) out.push('Já provaram inocência com tarefa visual (os outros confiam neles; bons alvos): ' + cleared.map((id) => this.who(id)).join(', ') + '.');
         const near = M.VENTS.filter((v) => U.d2(v.x, v.y, p.x, p.y) < 6).map((v) => M.AREA[v.area].name);
         if (near.length) out.push('Duto perto: ' + near[0] + '.');
+        const sawMe = g.players.filter((q) => q.alive && !q.isImp && b.lastSeenAt[q.id] && g.t - b.lastSeenAt[q.id].t < 18 && U.d2(b.lastSeenAt[q.id].x, b.lastSeenAt[q.id].y, p.x, p.y) < 11);
+        if (sawMe.length) out.push('Foi visto por aqui há pouco por ' + sawMe.map((q) => this.who(q.id)).join(', ') + ' (matar agora nesta área o deixaria como suspeito).');
+        const lone = g.players.filter((q) => q.alive && !q.isImp && b.lastSeenAt[q.id] && g.t - b.lastSeenAt[q.id].t < 30).map((q) => ({ q, s: b.lastSeenAt[q.id] }))
+          .filter((x) => !g.players.some((o) => o !== x.q && o.alive && !o.isImp && b.lastSeenAt[o.id] && Math.abs(b.lastSeenAt[o.id].t - x.s.t) < 4 && U.d2(b.lastSeenAt[o.id].x, b.lastSeenAt[o.id].y, x.s.x, x.s.y) < 7));
+        if (lone.length) out.push('Viu sozinho há pouco: ' + lone.slice(0, 3).map((x) => this.who(x.q.id) + ' em ' + (M.AREA[x.s.area] ? M.AREA[x.s.area].name : '?') + ' (' + Math.round(g.t - x.s.t) + 's atrás)').join(', ') + '.');
         if (p.special) out.push('Função: ' + C.ROLES[p.special].name + '.');
       }
       if (p.emergencyLeft > 0 && !p.isImp) out.push('Botões de emergência restantes: ' + p.emergencyLeft + '.');
@@ -8657,11 +8850,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         '',
       ];
       if (team === 'crew') {
-        head.push('Estes são TRIPULANTES. Cada um só sabe o que está na própria lista. Decida como um jogador esperto: fazer tarefas é o principal; andar em dupla com quem confia; vigiar de longe quem é suspeito; nunca ficar sozinho com suspeito; mostrar tarefa visual para quem desconfia de você; quem terminou as tarefas não fica parado: patrulha as salas isoladas procurando corpos, olha câmeras/admin ou acompanha quem ainda tem tarefa; botão só com motivo forte.');
+        const alive = g.players.filter((p) => p.alive), imps = g.S.rules.confirmEjects ? alive.filter((p) => p.isImp).length : g.S.room.impostors;
+        const endgame = alive.length - imps <= imps + 2;
+        head.push('Estes são TRIPULANTES. Cada um só sabe o que está na própria lista. Decida como um jogador esperto: fazer tarefas é o principal; andar em dupla com quem confia; vigiar de longe quem é suspeito; nunca ficar sozinho com suspeito; mostrar tarefa visual para quem desconfia de você; quem terminou as tarefas não fica parado: patrulha as salas isoladas procurando corpos, olha câmeras/admin ou acompanha quem ainda tem tarefa; botão com motivo concreto (viu algo de impostor, pegou tarefa falsa, cientista viu morte sem corpo).' + (endgame ? ' RETA FINAL: poucos vivos — ninguém anda sozinho; grudar em quem já provou ser inocente.' : ''));
         head.push('Ações possíveis:', CREW_ACTIONS.map((a) => '- ' + a).join('\n'));
       } else {
         const team2 = g.players.filter((p) => p.isImp && p.alive).map((p) => p.name).join(', ');
-        head.push('Estes são os IMPOSTORES (' + team2 + '). Os tripulantes não sabem quem são. Decida como impostores espertos: matar só quem está sozinho e sem testemunha, longe das câmeras; criar álibi fingindo tarefa e andando com o grupo; usar duto para fugir ou chegar; sabotar para separar o grupo ou apagar as luzes antes de matar; combinar double kill; atrair vítimas; não andar colado no parceiro o tempo todo; se foi acusado, ficar na moita.');
+        head.push('Estes são os IMPOSTORES (' + team2 + '). Os tripulantes não sabem quem são. Decida como impostores espertos: matar só quem está sozinho e sem testemunha, longe das câmeras; criar álibi fingindo tarefa e andando com o grupo; usar duto para fugir ou chegar; sabotar para separar o grupo ou apagar as luzes antes de matar; combinar double kill; atrair vítimas; não andar colado no parceiro o tempo todo; se foi acusado, ficar na moita; com o abate pronto e ninguém por perto, "procurar" em vez de ficar fingindo tarefa; não matar logo depois de ter sido visto na mesma área; não reportar o próprio abate na hora (a vítima pode ter sido vista viva segundos antes: self report denuncia).');
         head.push('Ações possíveis:', IMP_ACTIONS.map((a) => '- ' + a).join('\n'));
       }
       head.push('');
@@ -8721,7 +8916,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const K = {
         tarefa: 'task', tarefas: 'task', task: 'task', seguir: 'follow', vigiar: 'tail', evitar: 'avoid', sinal: 'signal', cameras: 'cams', camera: 'cams',
         admin: 'admin', ir: 'go', botao: 'button', cacar: 'hunt', fingir: 'fake', grupo: 'group', sabotar: 'sab', portas: 'doors', porta: 'doors',
-        duto: 'vent', atrair: 'lure', double: 'double', patrulhar: 'patrol', patrulha: 'patrol', rondar: 'patrol', ronda: 'patrol',
+        duto: 'vent', atrair: 'lure', double: 'double', patrulhar: 'patrol', patrulha: 'patrol', rondar: 'patrol', ronda: 'patrol', procurar: 'prowl', tocaia: 'prowl',
       }[verb];
       if (!K) return null;
       const o = { kind: K, until, at: g.t };
@@ -8740,6 +8935,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
       if (!p.isImp && ['fake', 'group', 'sab', 'doors', 'vent'].includes(K)) return null;
       if (p.isImp && ['task', 'cams', 'admin', 'button', 'follow', 'tail', 'patrol'].includes(K)) return null;
+      if (!p.isImp && K === 'prowl') return null;
       return o;
     }
   }

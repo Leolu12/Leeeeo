@@ -6,7 +6,7 @@
   const B = AU.Brain.prototype;
 
   const STRONG = { kill: 1, vent: 0.85, shift: 1, vanish: 0.95 };
-  const CLAIM_W = { kill: 70, vent: 58, shift: 36, vanish: 32, noscan: 32, fakeTask: 30, follow: 8, nearBody: 13, lastWith: 16, lie: 24, tracker: 30, sus: 16, hunch: 9, claim: 16, vote: 7, mention: 4, fromBody: 14 };
+  const CLAIM_W = { kill: 70, vent: 58, shift: 36, vanish: 32, noscan: 32, fakeTask: 30, follow: 8, nearBody: 13, lastWith: 16, lie: 24, tracker: 30, sus: 16, hunch: 9, claim: 16, vote: 7, mention: 4, fromBody: 14, fastReport: 16 };
 
   B.mStart = function (mt) {
     const g = this.g, p = this.p;
@@ -147,7 +147,7 @@
     const victim = mt.info.body ? mt.info.body.pid : null;
     const reporter = mt.info.kind === 'report' ? mt.info.caller : null;
     const tR = mt.info.t;
-    for (const id of Object.keys(this.ev)) this.ev[id] = this.ev[id].filter((e) => !['nearBody', 'lastWith', 'alibi', 'withVictim', 'fromBody', 'ventLink'].includes(e.reason));
+    for (const id of Object.keys(this.ev)) this.ev[id] = this.ev[id].filter((e) => !['nearBody', 'lastWith', 'alibi', 'withVictim', 'fromBody', 'ventLink', 'fastReport'].includes(e.reason));
     const add = (id, w, reason, extra) => {
       if (id === me || id === victim) return;
       if (w > 0 && this.hardCleared(id)) return;
@@ -198,6 +198,15 @@
     if (myPass) tStart = Math.max(tStart || 0, myPass.t1);
     if (this.sharedWindow && this.sharedWindow.area === bodyArea) tStart = Math.max(tStart || 0, this.sharedWindow.t);
     this.killWindow = tStart != null && tFound - tStart < 90 ? { t0: tStart, t1: tFound, area: bodyArea, mine: !!myPass && myPass.t1 === tStart } : null;
+    /* reportou rápido demais: a vítima estava viva poucos segundos antes do report. Nas partidas de teste, quem acha
+       o corpo até ~8s depois do abate era o próprio impostor em mais da metade das vezes (self report) */
+    if (reporter != null && reporter !== me && tStart != null && tR - tStart <= 10) {
+      const fresh = Math.max(0, tR - tStart);
+      /* se eu estava vendo quem reportou durante esse tempo (fomos juntos até o corpo), não foi ele */
+      let watched = 0;
+      for (const x of this.mem.seen) if (x.who === reporter && x.via === 'eyes') watched += Math.max(0, Math.min(x.t1, tR) - Math.max(x.t0, tStart));
+      if (watched < Math.max(1, fresh) * 0.5) add(reporter, Math.round(24 - fresh), 'fastReport', { ago: Math.max(1, Math.round(fresh)), victim, area: bodyArea });
+    }
     if (this.killWindow) {
       const W0 = this.killWindow.t0, W1 = tFound, len = Math.max(2, W1 - W0);
       const byWho = {};
@@ -383,6 +392,7 @@
         if (e.reason === 'visual' && g.players[+id].alive) items.push({ k: 'vouch', who: +id, reason: 'visual', task: e.task });
         if (e.reason === 'noscan') items.push({ k: 'accuse', who: +id, reason: 'noscan' });
         if (e.reason === 'fakeTask') items.push({ k: 'accuse', who: +id, reason: 'fakeTask', area: e.area });
+        if (e.reason === 'fastReport') items.push({ k: 'accuse', who: +id, reason: 'fastReport', ago: e.ago, victim: e.victim, late: true });
         /* não acusa de "me seguir" quem estava junto comigo fazendo tarefa (é o meu álibi) */
         if (e.reason === 'follow' && (this.togetherMap()[+id] || 0) < 12 && this.getAlibi().with !== +id) items.push({ k: pers.panic ? 'panic' : 'accuse', who: +id, reason: 'follow' });
       }
@@ -600,7 +610,7 @@
     if (this.p.isImp) return v === this.scapegoat ? 'desconfia dele desde o começo' : mt.votesOn(v) >= 2 ? 'a maioria está votando nele' : 'o álibi dele não convenceu';
     const ev = ((this.ev && this.ev[v]) || []).filter((e) => e.w > 0).sort((a, b) => b.w - a.w)[0];
     if (ev) {
-      const t = { kill: 'viu matando', vent: 'viu no duto', shift: 'viu mudando de forma', vanish: 'viu sumindo', noscan: 'fingiu o scan', fakeTask: 'fingiu tarefa (a barra não subiu)', follow: 'estava seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava com a vítima' }[ev.reason];
+      const t = { kill: 'viu matando', vent: 'viu no duto', shift: 'viu mudando de forma', vanish: 'viu sumindo', noscan: 'fingiu o scan', fakeTask: 'fingiu tarefa (a barra não subiu)', follow: 'estava seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava com a vítima', fastReport: 'reportou rápido demais (self report?)' }[ev.reason];
       if (t) return t;
     }
     if ((this.chatDelta[v] || 0) > 8) return 'o álibi não bate com o que viu';
@@ -637,8 +647,9 @@
         if (p.isImp && this.scapegoat != null && U.chance(this.lvl.lie)) {
           return msg('accuse', { who: this.scapegoat, reason: 'hunch' }, [{ type: 'accuse', who: this.scapegoat, reason: 'hunch' }]);
         }
-        const intents = w.who != null && STRONG[w.reason] ? [{ type: 'accuse', who: w.who, reason: w.reason, area: w.area, victim: w.victim, strong: true }] : [];
-        return msg('callReason', w, intents, { strong: !!intents.length });
+        const intents = w.who != null && (STRONG[w.reason] || w.reason === 'fakeTask' || w.reason === 'noscan') ? [{ type: 'accuse', who: w.who, reason: w.reason, area: w.area, victim: w.victim, strong: !!STRONG[w.reason] }] : [];
+        if (w.reason === 'vitals') intents.push({ type: 'roleClaim', role: 'cientista' });
+        return msg('callReason', w, intents, { strong: intents.some((i) => i.strong) });
       }
       case 'organize':
         return msg('organize', {}, [{ type: 'askAll' }]);
@@ -646,6 +657,10 @@
         const q = g.players[it.who];
         if (!q || !q.alive) return null;
         this.lastAccusation = it;
+        if (it.reason === 'fastReport') {
+          if (mt.flags['fast' + it.who]) return null;
+          mt.flags['fast' + it.who] = true;
+        }
         return msg('accuse', it, [{ type: 'accuse', who: it.who, reason: it.reason, area: it.area, victim: it.victim, strong: !!STRONG[it.reason] }], { strong: !!STRONG[it.reason] });
       }
       case 'panic':
@@ -1004,6 +1019,13 @@
           if (!this.sharedWindow || t > this.sharedWindow.t) {
             this.sharedWindow = { area: it.area, t };
             if (this.knowsBody === it.area) this.bodyEvidence(this.knowsBody);
+            /* com essa janela, quem reportou achou o corpo rápido demais? */
+            const rep = mt.info.kind === 'report' ? mt.info.caller : null;
+            const fe = rep != null && ((this.ev[rep] || []).find((e) => e.reason === 'fastReport'));
+            if (fe && !mt.flags['fast' + rep] && rep !== me) {
+              mt.flags['fast' + rep] = true;
+              this.reply(1.2, () => say('accuse', { who: rep, reason: 'fastReport', ago: fe.ago, victim: fe.victim }, [{ type: 'accuse', who: rep, reason: 'fastReport' }]));
+            }
           }
         }
         break;
@@ -1288,8 +1310,9 @@
     if (((this.ev && this.ev[S]) || []).some((e) => e.reason === 'visual' || e.reason === 'alibi' || e.reason === 'together')) return;
     this.bump(S, 4, 'own');
     const inRoom = true;
-    if (inRoom && !mt.flags['atBody' + S] && (pers.skeptic || pers.times || U.chance(0.2))) {
+    if (inRoom && !mt.flags['atBody' + S] && !this.replied.has('atBody') && (pers.skeptic || pers.times || U.chance(0.2))) {
       mt.flags['atBody' + S] = true;
+      this.replied.add('atBody');
       this.reply(1, () => ({ text: this.say('atBody', { who: S, area: bodyArea }), intents: [{ type: 'accuse', who: S, reason: 'nearBody', area: bodyArea }] }), true);
     }
     void g;
@@ -1621,6 +1644,14 @@
         const on = mt.votesOn(pid);
         if (on >= Math.ceil((mt.alive.length - 1) / 2) - 1 && on >= 2 && U.chance(this.lvl.bus)) return pid;
       }
+      /* reta final (mais um abate e ganhamos): os impostores votam juntos no mesmo tripulante */
+      const impsAlive = mt.alive.filter((id) => g.players[id].isImp).length;
+      if (mt.alive.length - impsAlive <= impsAlive + 1 && partners.length) {
+        const mateVote = partners.map((pid) => mt.votes[pid]).find((v) => v != null && v !== 'skip' && g.players[v] && !g.players[v].isImp);
+        if (mateVote != null) return mateVote;
+        const lead0 = mt.leading();
+        if (lead0 && !g.players[lead0.id].isImp && lead0.id !== me) return lead0.id;
+      }
       const t = this.impTarget();
       if (t != null) return t;
       const lead = mt.leading();
@@ -1662,9 +1693,39 @@
     const ln = lines(top.id);
     const thr = pers.thr * (this.skipLean > 2 ? 1.12 : 1) * (crisis ? 0.75 : 1) * (ln >= 3 ? 0.65 : ln >= 2 ? 0.8 : 1);
     if (top.s >= thr && top.s - second.s >= (crisis ? 6 : 8)) return top.id;
-    if (pers.follow > 0.7) {
-      const lead = mt.leading();
-      if (lead && lead.count >= 2 && lead.id !== me && (this.susp[lead.id] || 0) > 12 && !cleared(lead.id) && leadOk(lead.id)) return lead.id;
+    const lead = mt.leading();
+    const trustedLead = (id) => leadOk(id) || Object.keys(mt.votes).some((v) => +v !== me && mt.votes[v] === id && this.trust(+v) >= 0.7 && (this.hardCleared(+v) || this.clearedByVisual(+v)));
+    /* voto dividido não tira ninguém: se quem está na frente também é suspeito para mim e quem puxou trouxe prova
+       (ou já provou ser tripulante), junto ali */
+    if (lead && lead.count >= 2 && lead.id !== me && !cleared(lead.id) && trustedLead(lead.id)) {
+      const lc = ranked.find((r) => r.id === lead.id);
+      if (lc && ranked.indexOf(lc) <= 1 && lc.s >= thr * (pers.follow > 0.7 ? 0.35 : 0.55)) return lead.id;
+    }
+    /* crise: pular entrega o jogo (mais um abate e eles ganham). Vota em quem pesa mais entre os não inocentados;
+       só vai no que está na frente se ele também é um dos meus dois mais suspeitos e quem puxou é confiável */
+    if (crisis) {
+      /* na reta final até pista fraca decide: admitiu ter passado na sala do corpo, disse que estava numa sala onde
+         eu fiquei um tempo e não o vi, ou ninguém confirmou onde estava */
+      const bodyA = this.knowsBody || mt.facts.bodyArea;
+      const vouched = (id) => mt.msgs.some((m) => m.from !== id && m.intents.some((x) => x.type === 'vouch' && x.who === id));
+      const tie = (id) => {
+        let t = 0;
+        const rooms = this.claims[id] || [];
+        if (bodyA && rooms.some((r) => r === bodyA)) t += 6;
+        const last = rooms[rooms.length - 1];
+        if (last && this.myStay(last) >= 8 && !this.sawTimes(id).some((x) => mt.info.t - x.t1 <= 35 && (x.area === last || M.isNear(x.area, last)))) t += 5;
+        if (!vouched(id)) t += 3;
+        if (!rooms.length) t += 4;
+        return t;
+      };
+      for (const r of ranked) r.s += tie(r.id);
+      ranked.sort((a, b) => b.s - a.s);
+      const pool = ranked.filter((r) => !cleared(r.id));
+      if (pool.length) {
+        const lc = lead && pool.find((r) => r.id === lead.id);
+        if (lc && pool.indexOf(lc) <= 1 && trustedLead(lc.id)) return lc.id;
+        if (pool[0].s > -20) return pool[0].id;
+      }
     }
     if (pers.hunch > 0.3 && top.s >= thr * 0.6 && U.chance(0.45)) return top.id;
     return 'skip';

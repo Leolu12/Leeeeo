@@ -86,7 +86,7 @@
     kill: 'viu matando', vent: 'viu usando o duto', shift: 'viu mudando de aparência', vanish: 'viu ficar invisível',
     noscan: 'ficou no scanner sem escanear', fakeTask: 'terminou uma tarefa e a barra não subiu (tarefa falsa)', follow: 'estava seguindo alguém', nearBody: 'estava perto do corpo',
     lastWith: 'estava com a vítima pouco antes', fromBody: 'vinha da direção do corpo', lie: 'mentiu ou o álibi não bate', tracker: 'o rastreador mostrou',
-    sus: 'está suspeito', hunch: 'pressentimento', claim: 'contaram no chat', vote: 'vai votar nele',
+    sus: 'está suspeito', hunch: 'pressentimento', claim: 'contaram no chat', vote: 'vai votar nele', fastReport: 'reportou o corpo pouco depois da vítima ser vista viva (possível self report)',
   };
   const VOUCH = { visual: 'viu fazendo tarefa visual (inocente)', together: 'estava junto', claim: 'confirma o que ele disse' };
 
@@ -249,7 +249,7 @@
     reasonOf(b, id) {
       const ev = ((b.ev && b.ev[id]) || []).filter((e) => e.w > 0).sort((a, c) => c.w - a.w)[0];
       if (ev) {
-        const t = { ventLink: 'apareceu numa sala ligada por duto ao corpo', fromBody: 'vinha da direção do corpo', kill: 'você viu matando', vent: 'você viu no duto', shift: 'você viu mudando de forma', vanish: 'você viu sumindo', noscan: 'fingiu o scan', fakeTask: 'terminou tarefa e a barra não subiu', follow: 'ficou te seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava colado na vítima', odd: 'agiu estranho na rodada (te chamou e ficou enrolando / ficou na sua cola)' }[ev.reason];
+        const t = { fastReport: 'reportou rápido demais (self report?)', ventLink: 'apareceu numa sala ligada por duto ao corpo', fromBody: 'vinha da direção do corpo', kill: 'você viu matando', vent: 'você viu no duto', shift: 'você viu mudando de forma', vanish: 'você viu sumindo', noscan: 'fingiu o scan', fakeTask: 'terminou tarefa e a barra não subiu', follow: 'ficou te seguindo', nearBody: 'estava perto do corpo', lastWith: 'estava com a vítima', withVictim: 'andava colado na vítima', odd: 'agiu estranho na rodada (te chamou e ficou enrolando / ficou na sua cola)' }[ev.reason];
         if (t) return t + (ev.area ? ' (' + V.area(ev.area) + ')' : '');
       }
       if ((b.chatClaim[id] || 0) > 12) return 'outros disseram que viram algo';
@@ -291,6 +291,7 @@
             if (e.reason === 'withVictim' || e.reason === 'lastWith') out.push('Viu ' + nm(+id) + ' junto da vítima pouco antes' + (e.area ? ', em ' + V.area(e.area) : '') + '.');
             if (e.reason === 'nearBody' && e.w >= 14) out.push('Viu ' + nm(+id) + ' perto de onde estava o corpo' + (e.area ? ' (' + V.area(e.area) + ')' : '') + ' pouco antes.');
             if (e.reason === 'together' && e.secs >= 20) out.push('Ficou um tempo junto de ' + nm(+id) + ' e nada aconteceu.');
+            if (e.reason === 'fastReport') out.push(nm(+id) + ' reportou o corpo só uns ' + e.ago + 's depois de a vítima ser vista viva: rápido demais, pode ser self report (o impostor reportando o próprio abate).');
             if (e.reason === 'fromBody') out.push('Viu ' + nm(+id) + ' vindo da direção de ' + V.area(e.bodyArea) + ' (onde estava o corpo), andando por ' + V.area(e.area) + ', pouco antes.');
           }
         }
@@ -574,11 +575,14 @@
       const lines = [V.scene(mt), '', 'Chat da reunião (mais antigo primeiro):', V.transcript(mt, 30), '', 'Pressão no chat: ' + heatTxt + '.', 'Situação: ' + alive.length + ' vivos' + (g.S.rules.confirmEjects ? ', ' + impsLeft + ' impostor(es) restante(s)' : '') + (crisis ? '. SITUAÇÃO CRÍTICA: se pularem, o próximo abate pode dar a vitória aos impostores.' : '.'), ''];
       if (!imp) {
         lines.push('Agora é a votação. Decida o voto de cada tripulante abaixo usando SÓ o que ele sabe (as anotações dele) e o que foi dito no chat.');
-        lines.push('Como um jogador esperto decide: vota em quem tem prova (viu matar, ventar, mudar de forma) ou contradição clara de álibi; pesa se quem acusa é confiável; nunca vota em quem ele viu fazer tarefa visual; desconfia de quem acusa sem prova ou defende demais alguém suspeito; se não há nada concreto, pula. Em situação crítica, vota no mais provável em vez de pular.');
+        lines.push('Como um jogador esperto decide: vota em quem tem prova (viu matar, ventar, mudar de forma) ou contradição clara de álibi; pesa se quem acusa é confiável; nunca vota em quem ele viu fazer tarefa visual; desconfia de quem acusa sem prova ou defende demais alguém suspeito; desconfia de quem reportou o corpo segundos depois de a vítima ser vista viva (self report); se não há nada concreto, pula.');
+        lines.push('Voto dividido não tira ninguém: se o mais votado também é suspeito para ele e quem puxou trouxe prova, junta ali.');
+        if (crisis) lines.push('SITUAÇÃO CRÍTICA: NINGUÉM PULA. Se ninguém sair, o próximo abate encerra o jogo. Cada um vota no mais provável (fora quem ele sabe que é inocente) e, se possível, todos no mesmo.');
       } else {
         const team = g.players.filter((q) => q.isImp && q.alive).map((q) => q.name).join(', ');
         lines.push('Você decide o voto dos IMPOSTORES abaixo (os tripulantes não sabem quem são). Impostores vivos: ' + team + '.');
         lines.push('Estratégia esperta: votar junto na pessoa que o chat já está acusando (desde que não seja parceiro) para ejetar um tripulante; não defender o parceiro às claras; se o parceiro estiver perdido (várias acusações com prova), votar nele para ganhar confiança; não votar sozinho em alguém que ninguém acusou; pular quando todo mundo está pulando.');
+        if (crisis) lines.push('RETA FINAL: se ninguém de vocês sair, o próximo abate ganha o jogo. Votem os dois no MESMO tripulante (o mais acusado) ou pulem juntos; nunca num parceiro.');
       }
       lines.push('Opções de voto: pular, ou um destes: ' + alive.map((q) => q.name).join(', ') + '.', '');
       for (const p of list) {
@@ -612,6 +616,16 @@
         }
         if (target == null || target === p.id) continue;
         if (!p.isImp && target !== 'skip' && ((p.brain.ev && p.brain.ev[target]) || []).some((e) => e.reason === 'visual')) continue;
+        /* trava da reta final: tripulante não pula na crise se o motor tem um candidato */
+        if (!p.isImp && crisis && target === 'skip') {
+          const eng = p.brain.mVote();
+          if (eng != null && eng !== 'skip') target = eng;
+        }
+        /* impostor nunca vota no parceiro por engano da IA (entregar o parceiro é decisão do motor) */
+        if (p.isImp && target !== 'skip' && g.players[target] && g.players[target].isImp) {
+          const eng = p.brain.mVote();
+          target = eng != null ? eng : 'skip';
+        }
         this.aiVotes[p.id] = { target, reason: tidy(m[3] || '').slice(0, 90) };
       }
     }
