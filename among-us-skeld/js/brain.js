@@ -4,7 +4,8 @@
   const AU = window.AU;
   const U = AU.U, C = AU.C, M = AU.Map, Nav = AU.Nav;
 
-  const VISUAL_ST = ['scan', 'asteroids', 'shields'];
+  /* estações onde a tarefa mostra animação o tempo todo (os escudos só piscam no fim; não servem para "não escaneou") */
+  const VISUAL_ST = ['scan', 'asteroids'];
   /* Estações onde a tarefa SEMPRE termina de uma vez (etapa única/última): se alguém "termina" ali na sua frente
      e a barra de tarefas não sobe, a tarefa era falsa. Calculado a partir das definições das tarefas. */
   let FINAL_ST = null;
@@ -91,7 +92,36 @@
     constructor(g, p) {
       this.g = g;
       this.p = p;
-      this.pers = C.PERSONALITIES[p.personality] || C.PERSONALITIES.analitico;
+      /* o tipo de personalidade dá a base; cada bot tem os próprios números em cima dela (mais ou menos atento,
+         memória melhor ou pior, mais ou menos desconfiado, mais rápido nas tarefas) e dois hábitos próprios — dois
+         "analíticos" não jogam igual */
+      const pt = C.PERSONALITIES[p.personality] || C.PERSONALITIES.analitico;
+      this.pers = Object.assign({}, pt);
+      const J = { talk: [0.25, 0.05, 1], att: [0.12, 0.3, 1], mem: [0.12, 0.3, 1], thr: [0.2, 15, 80], voteDelay: [0.35, 0.05, 1], follow: [0.35, 0, 1], hunch: [0.35, 0, 1], trust: [0.2, 0.2, 0.95], taskSpeed: [0.1, 0.6, 1.3] };
+      for (const k of Object.keys(J)) if (typeof pt[k] === 'number' && pt[k] > 0) this.pers[k] = U.clamp(pt[k] * U.rf(1 - J[k][0], 1 + J[k][0]), J[k][1], J[k][2]);
+      const hw = Object.assign({}, C.HABIT_WEIGHTS[p.personality] || {});
+      for (const k of Object.keys(C.HABITS)) hw[k] = (hw[k] || 0) + 0.6;
+      this.habits = [];
+      for (let i = 0; i < 2; i++) {
+        const keys = Object.keys(hw).filter((k) => !this.habits.includes(k) && !(k === 'solitario' && this.habits.includes('escolta')) && !(k === 'escolta' && this.habits.includes('solitario')));
+        let r = Math.random() * keys.reduce((a, k) => a + hw[k], 0);
+        for (const k of keys) if ((r -= hw[k]) <= 0) {
+          this.habits.push(k);
+          break;
+        }
+      }
+      this.hab = (k) => this.habits.includes(k);
+      /* como esse bot difere do próprio tipo, em palavras (vai para a IA e para o relatório) */
+      const dv = (k) => (pt[k] ? this.pers[k] / pt[k] : 1);
+      this.quirks = [
+        dv('att') > 1.07 ? 'mais atento que o normal' : dv('att') < 0.93 ? 'meio distraído' : '',
+        dv('mem') > 1.07 ? 'boa memória' : dv('mem') < 0.93 ? 'esquece detalhes' : '',
+        dv('thr') < 0.88 ? 'desconfia rápido' : dv('thr') > 1.12 ? 'demora a desconfiar' : '',
+        dv('talk') > 1.15 ? 'fala mais que o normal' : dv('talk') < 0.85 ? 'fala menos que o normal' : '',
+        dv('trust') > 1.1 ? 'acredita fácil nos outros' : dv('trust') < 0.9 ? 'custa a acreditar nos outros' : '',
+        dv('voteDelay') < 0.8 ? 'vota rápido' : dv('voteDelay') > 1.2 ? 'vota por último' : '',
+      ].filter(Boolean);
+      this.traitLine = () => [this.quirks.join(', '), this.habits.map((k) => C.HABITS[k].name).join(', ')].filter(Boolean).join('; ');
       this.err = (C.HUMAN_ERROR[g.S.bots.humanError] || C.HUMAN_ERROR.medio).mult;
       /* o nível dá a base; cada impostor tem o seu jeito em cima dela (um usa mais duto, outro persegue mais, outro
          sabota mais, outro arrisca mais), então dois impostores do mesmo nível não jogam igual */
@@ -657,6 +687,38 @@
           return { x: s.x, y: s.y };
         },
         keep: keep || 2.2, endAt: g.t + dur, dynEvery: 0.6,
+        /* esperando a pessoa terminar uma tarefa: se tenho tarefa ali do lado, faço a minha enquanto isso (gente de
+           verdade não fica olhando parada), e depois volto a andar junto */
+        tick: (dt, pl) => {
+          pl.chk = (pl.chk || 0) - dt;
+          if (pl.stage !== 'wait' || pl.chk > 0) return;
+          pl.chk = 1;
+          /* os dois seguindo um ao outro = dois bonecos parados se olhando. Um assume a frente (quem quer ver a
+             tarefa visual do outro continua seguindo; senão, decide pelo número) e vai fazer as coisas dele */
+          const qp = q.brain && q.alive ? q.brain.plan : null;
+          if (qp && qp.type === 'follow' && qp.target === this.p.id && qp.stage === 'wait') {
+            const iLead = purpose === 'verify' ? false : qp.purpose === 'verify' ? true : this.p.id < q.id;
+            if (iLead) {
+              this.plan = null;
+              return;
+            }
+          }
+          if (purpose === 'verify' || !q.busy || !this.p.alive || pl.endAt - g.t < 5) return;
+          const me = this.p;
+          const near = (x, y) => U.d2(x, y, q.x, q.y) < 5.5 && Nav.los(q.x, q.y, x, y);
+          const own = me.isImp ? null : me.tasks.find((tk) => !tk.done && g.taskAvailable(tk) && near(g.stationOfTask(tk).x, g.stationOfTask(tk).y));
+          const endAt = pl.endAt, k = pl.keep;
+          if (own) this.planTask(own);
+          else if (me.isImp && U.chance(0.35) && me.tasks.some((tk) => !tk.done && M.STATIONS[tk.steps[tk.step]] && M.STATIONS[tk.steps[tk.step]].area === M.areaAt(q.x, q.y))) this.planFakeTask(M.areaAt(q.x, q.y));
+          else return;
+          const tp = this.plan;
+          if (!tp || tp === pl) return;
+          const od = tp.onDone;
+          tp.onDone = (x) => {
+            if (od) od(x);
+            if (this.p.alive && q.alive && g.t < endAt - 2 && (!this.plan || this.plan.type === 'pause')) this.planFollow(q, endAt - g.t, k, purpose);
+          };
+        },
         onEnd: () => {
           if (purpose === 'verify' && q.alive && !this.sawVisualOf(q) && g.S.rules.visualTasks) {
             const id = g.appearId(q);
@@ -1045,8 +1107,13 @@
       if (this.wantButton) {
         if (p.emergencyLeft <= 0) this.wantButton = null;
         else if (!g.sabCritical()) {
-          if (!this.plan || (this.plan.type !== 'button' && !this.plan.buttonWait)) this.planButton();
-          return;
+          /* motivo que não é flagrante: termina a tarefa que já está fazendo antes de correr para o botão */
+          const urgent = ['kill', 'vent', 'shift', 'vanish'].includes(this.wantButton.reason);
+          const finishing = !urgent && this.plan && this.plan.type === 'task' && p.busy && p.busy.until - g.t < 8;
+          if (!finishing) {
+            if (!this.plan || (this.plan.type !== 'button' && !this.plan.buttonWait)) this.planButton();
+            return;
+          }
         }
       }
       const threat = this.threatNear();
@@ -1121,10 +1188,23 @@
             });
           }
         }
-        const visual = (tk) => (this.prove && M.TASKS[tk.id] && M.TASKS[tk.id].visual ? -400 : 0);
+        /* hábitos: visual primeiro (prova cedo), sozinho ou junto de quem está por perto */
+        const vfirst = this.hab('visualPrimeiro') && g.S.rules.visualTasks;
+        const visual = (tk) => (M.TASKS[tk.id] && M.TASKS[tk.id].visual && (this.prove || vfirst) ? (this.prove ? -400 : -60) : 0);
+        const social = this.hab('escolta') ? -1 : this.hab('solitario') ? 1 : 0;
+        const nearby = (tk) => {
+          if (!social) return 0;
+          const st = g.stationOfTask(tk);
+          const n = Object.keys(this.lastSeenAt).filter((id) => +id !== p.id && g.t - this.lastSeenAt[id].t < 6 && U.d2(this.lastSeenAt[id].x, this.lastSeenAt[id].y, st.x, st.y) < 7).length;
+          return social * Math.min(2, n) * 18;
+        };
         let tk;
         if ((pers.lost || pers.chaos) && U.chance(0.45)) tk = U.pick(avail);
-        else tk = avail.slice().sort((a, b) => dist(a) + visual(a) - dist(b) - visual(b))[0];
+        else if (this.hab('metodico') && U.chance(0.7)) tk = avail[0];
+        else {
+          const sc = new Map(avail.map((x) => [x, dist(x) + visual(x) + nearby(x)]));
+          tk = avail.slice().sort((a, b) => sc.get(a) - sc.get(b))[0];
+        }
         if (this.prove && M.TASKS[tk.id] && M.TASKS[tk.id].visual) this.prove = false;
         return this.planTask(tk);
       }
@@ -1152,17 +1232,18 @@
         return;
       }
       const q = Math.random();
-      /* câmeras: um de cada vez; quem é observador fica mais tempo */
-      if (camsOk && q < (watcher ? 0.3 : 0.14) && !this.camsRound) {
+      /* câmeras: um de cada vez; quem é observador (ou gosta de câmeras) fica mais tempo */
+      const camper = this.hab('camper');
+      if (camsOk && q < (watcher ? 0.3 : 0.14) + (camper ? 0.25 : 0) && !this.camsRound) {
         this.camsRound = true;
         return this.planCams(watcher ? U.rf(14, 26) : U.rf(8, 15));
       }
-      if (!g.commsDown() && q < (watcher ? 0.42 : 0.22) && g.t - (this.adminAt || -99) > 40) {
+      if (!g.commsDown() && q < (watcher ? 0.42 : 0.22) + (camper ? 0.2 : 0) && g.t - (this.adminAt || -99) > 40) {
         this.adminAt = g.t;
         return this.planAdmin();
       }
-      /* acompanha quem ainda tem tarefa (segurança em grupo) */
-      if (q < 0.4 + pers.follow * 0.25) {
+      /* acompanha quem ainda tem tarefa (segurança em grupo); quem gosta de ronda vai direto para as salas vazias */
+      if (q < 0.4 + pers.follow * 0.25 + (this.hab('escolta') ? 0.25 : 0) - (this.hab('patrulheiro') || this.hab('solitario') ? 0.25 : 0)) {
         const cand = this.seenNow.filter((x) => x.alive && this.liveSusp(g.appearId(x)) < 20 && U.dist(p, x) < 7);
         if (cand.length) return this.planFollow(U.pick(cand), U.rf(10, 20), U.rf(2.2, 3.4));
       }
@@ -1892,6 +1973,7 @@
       if (ge) return { kind: ge.area && !ge.arrived ? 'going' : 'with', who: ge.who, area: ge.area || room.id };
       if (pl && pl.type === 'task' && pl.task) return { kind: 'task', area: room.id, task: pl.task.id };
       if (pl && pl.type === 'guard') return { kind: 'guard', who: pl.target, area: room.id };
+      if (pl && pl.type === 'follow' && g.players[pl.target] && g.players[pl.target].alive) return { kind: 'watch', who: pl.target, area: room.id };
       return { kind: 'idle', area: room.id, left: p.tasks.filter((tk) => !tk.done).length };
     }
     ghostUpdate(dt) {
@@ -1933,7 +2015,7 @@
               else g.sabotage(c.type, p);
             }
           }
-          if (!this.plan) this.planWander(U.pick(M.ROOMS).id, U.rf(3, 8));
+          if (!this.plan && !this.ghostSpectate()) this.planWander(U.pick(M.ROOMS).id, U.rf(1.5, 4));
         } else if (p.special === 'anjo' && !p.isImp && this.angelThink()) {
           /* anjo cuidando de alguém */
         } else if (!this.plan || this.plan.type === 'guard') {
@@ -1944,10 +2026,22 @@
               return U.d2(p.x, p.y, sa.x, sa.y) - U.d2(p.x, p.y, sb.x, sb.y);
             });
             this.planTask(avail[0]);
-          } else this.planWander(U.pick(M.ROOMS).id, U.rf(3, 8));
+          } else if (!this.ghostSpectate()) this.planWander(U.pick(M.ROOMS).id, U.rf(1.5, 4));
         }
       }
       this.act(dt);
+    }
+
+    /* Fantasma sem tarefa: como gente de verdade, vai assistir alguém vivo (curioso para ver quem é o impostor, ou
+       acompanhando o parceiro, se era impostor) em vez de ficar parado numa sala. */
+    ghostSpectate() {
+      const g = this.g, p = this.p, pers = this.pers;
+      const alive = g.players.filter((q) => q.alive && !q.inVent);
+      if (!alive.length || !U.chance(0.35 + (pers.skeptic || pers.leader ? 0.2 : 0) + (pers.follow || 0) * 0.2)) return false;
+      /* ex-impostor tende a ir ver o parceiro (aparece duas vezes no sorteio) */
+      const q = U.pick(p.isImp ? alive.filter((x) => x.isImp).concat(alive) : alive);
+      this.setPlan({ type: 'follow', target: q.id, dyn: () => (q.alive && !q.inVent ? { x: q.x, y: q.y } : null), keep: U.rf(2, 3.5), endAt: g.t + U.rf(12, 30), dynEvery: 0.5, noShuffle: true });
+      return true;
     }
 
     /* ---------- percepção e eventos ---------- */
@@ -2017,19 +2111,25 @@
           this.taskWatch = this.taskWatch || {};
           const tw = this.taskWatch[aid];
           if (q.busy && q.busy.station && !q.moving) {
-            if (!tw || tw.station !== q.busy.station) this.taskWatch[aid] = { station: q.busy.station, t0: t, done0: g.taskProgress().done };
+            if (!tw || tw.station !== q.busy.station) this.taskWatch[aid] = { station: q.busy.station, t0: t, done0: g.taskProgress().done, sab0: g.sab };
+            else tw.last = t;
           } else if (tw) {
             delete this.taskWatch[aid];
-            if (t - tw.t0 >= 2.5 && g.S.rules.taskBar === 'sempre' && !g.commsDown() && finalStations().has(tw.station) && g.taskProgress().done === tw.done0 && U.chance(0.4 + pers.att * 0.5)) {
+            /* só vale se viu a pessoa sair da tarefa agora (não quando reaparece depois), e sem sabotagem nova no meio
+               (quem larga a tarefa para consertar o reator não está fingindo) */
+            const sawStop = t - (tw.last || tw.t0) < 0.8;
+            if (sawStop && !this.hardCleared(aid) && !(g.sab && g.sab !== tw.sab0) && t - tw.t0 >= 2.5 && g.S.rules.taskBar === 'sempre' && !g.commsDown() && finalStations().has(tw.station) && g.taskProgress().done === tw.done0 && U.chance(0.4 + pers.att * 0.5)) {
               if (mem.event({ type: 'fakeTask', t, who: aid, area, station: tw.station }, 'fakeTask:' + aid + ':' + g.meetings)) this.maybeButton('fakeTask', aid, area);
             }
           }
           /* parado numa tarefa visual sem a animação aparecer = tarefa falsa */
           const vst = g.S.rules.visualTasks ? VISUAL_ST.find((k) => U.d2(q.x, q.y, M.STATIONS[k].x, M.STATIONS[k].y) < 0.9) : null;
-          if (vst && !q.visual && !q.moving) {
+          /* só conta quem está "fazendo" a tarefa ali (parado na estação, ocupado) e sem a animação; ficar do lado
+             esperando a vez ou acompanhando alguém não é tarefa falsa. Precisa ser seguido: saiu, zera. */
+          if (vst && !q.visual && !q.moving && q.busy && q.busy.station === vst) {
             this.scanWatch[aid] = (this.scanWatch[aid] || 0) + 0.2;
-            if (this.scanWatch[aid] >= 3.2 && mem.event({ type: 'noscan', t, who: aid, area, task: vst }, 'noscan:' + aid + ':' + g.meetings)) this.maybeButton('noscan', aid, area);
-          }
+            if (this.scanWatch[aid] >= 3.2 && !this.hardCleared(aid) && mem.event({ type: 'noscan', t, who: aid, area, task: vst }, 'noscan:' + aid + ':' + g.meetings)) this.maybeButton('noscan', aid, area);
+          } else if (this.scanWatch[aid]) this.scanWatch[aid] = 0;
         }
       }
       for (const b of bodies) mem.bodySeen(b, t, seen.map((q) => g.appearId(q)), via);
@@ -2060,7 +2160,9 @@
     maybeButton(reason, who, area) {
       const p = this.p, pers = this.pers;
       if (p.isImp || p.emergencyLeft <= 0 || this.wantButton) return;
-      const pr = 0.35 + (pers.leader ? 0.3 : 0) + (pers.times ? 0.15 : 0) + (pers.skeptic ? 0.1 : 0) - (pers.talk < 0.3 ? 0.15 : 0);
+      /* já vi essa pessoa fazer tarefa visual: um detalhe estranho não vale uma reunião */
+      if (who != null && ['fakeTask', 'noscan', 'follow'].includes(reason) && this.hardCleared(who)) return;
+      const pr = 0.35 + (pers.leader ? 0.3 : 0) + (pers.times ? 0.15 : 0) + (pers.skeptic ? 0.1 : 0) - (pers.talk < 0.3 ? 0.15 : 0) + (this.hab('botao') ? 0.25 : 0);
       if (U.chance(pr)) this.wantButton = { reason, who, area };
     }
     onWitnessKill(apparent, victimId, area, via, body) {
@@ -2186,6 +2288,7 @@
       this.engVent = null;
       this.followWatch = {};
       this.scanWatch = {};
+      this.taskWatch = {};
       this.aloneWith = {};
       this.seenNow = [];
       this.bodiesNow = [];

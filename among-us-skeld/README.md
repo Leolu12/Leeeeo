@@ -65,7 +65,7 @@ Dentro do claude.ai a página roda sem acesso à internet, por isso lá só o Cl
 ## O que tem no jogo
 
 **Criação da partida**
-- 5 presets: Clássico, Competitivo, Hardcore, Caos e Casual.
+- 5 presets: Clássico, Competitivo, Hardcore, Caos e Casual. Mudou qualquer regra, papel ou nível dos bots e a combinação não bate com nenhum deles, o modo vira **Personalizado** (o card acende sozinho e o resumo mostra "Personalizado"); desfez a mudança, volta para o preset.
 - Perfil do jogador: nome, 18 cores, chapéu, visor e pet.
 - Sala de 4 a 15 jogadores e de 1 a 3 impostores.
 - Sorteio do impostor: aleatório, sempre impostor, sempre tripulante ou com chance personalizada.
@@ -147,7 +147,7 @@ Dentro do claude.ai a página roda sem acesso à internet, por isso lá só o Cl
   - **Raiz**: o mais caótico — apelidos das salas (café, elec, nav, med, storage, weapons, upper), siglas (n, q, cmg, dps, mt, ss), gírias (mano, tlgd, tá ligado, slk, pqp, mds), kkkk e CAPS quando se exaltam. A gíria aparece na hora certa (susto, bronca, negação), não colada em qualquer frase.
 - Conversa com cara de chat de verdade: quem responde a uma mensagem antiga diz com quem está falando ("verde, pq eu?"), quem já ouviu a mesma garantia só confirma ("também vi"), ninguém repete palavra por palavra o que outro disse, cada um dá o álibi do seu jeito (às vezes só "admin fazendo os fios"), quem estava junto não é acusado de "me seguir" e ninguém dá o álibi duas vezes (se perguntam de novo: "já falei, tava na elétrica").
 - Chat dos fantasmas esperto: sabe quem foi ejetado e quem foi morto (ninguém pergunta "quem te matou" para quem saiu na votação, e quem morreu e diz "fui ejetado" é corrigido), conta quem matou quem, quem fez tarefa visual e de quem desconfiava quando estava vivo, quantos vivos e impostores sobram, e reage à votação dos vivos ("não!! foi o verde"). Morto não diz que vai voltar nem fala com os vivos; impostor morto admite. Cada fantasma sabe que está morto, onde está e o que está fazendo ("tô na elétrica fazendo task de fantasma"). Entre fantasmas ninguém é suspeito: se você (fantasma) escreve "me segue", "vem aqui" ou "vem na elétrica", ou faz o zigue-zague perto de um deles, ele vai junto de verdade; "pode ir" ou "valeu" libera.
-- Bots que terminam as tarefas não ficam parados: rondam as salas isoladas procurando corpos, olham câmeras e Admin, acompanham quem ainda tem tarefa ou vigiam um suspeito de longe. Andam como gente: caminhadas contínuas até onde vão, sem o "para-anda-para" de NPC e sem ficar dando voltas dentro da sala à toa. Ao chegar numa sala param e olham dali; esperando ao lado de alguém ficam parados (só dão um passo para o lado se esbarrarem em alguém); seguindo alguém que anda, andam junto.
+- Bots que terminam as tarefas não ficam parados: rondam as salas isoladas procurando corpos, olham câmeras e Admin, acompanham quem ainda tem tarefa ou vigiam um suspeito de longe. Andam como gente: caminhadas contínuas até onde vão, sem o "para-anda-para" de NPC e sem ficar dando voltas dentro da sala à toa. Ao chegar numa sala param e olham dali; seguindo alguém que anda, andam junto. Esperando alguém terminar uma tarefa, fazem a própria tarefa se ela estiver ali do lado e depois voltam a acompanhar; dois bots que seguem um ao outro não ficam parados se olhando (um assume a frente). Fantasma sem tarefa vai assistir alguém vivo em vez de ficar parado numa sala (e conta no chat: "tô na elétrica assistindo o verde").
 - Narrador com descrição das salas, das sabotagens e do ambiente.
 
 **Bots**
@@ -155,6 +155,8 @@ Dentro do claude.ai a página roda sem acesso à internet, por isso lá só o Cl
 - Lembram rotas, encontros, quem andava com quem, tarefas visuais, quem os seguiu e quem ficou parado no scanner sem escanear.
 - Erram de verdade: às vezes não notam alguém, confundem cores parecidas ou lembram a sala errada.
 - Têm 10 personalidades com fala, atenção, memória, limiar de voto e comportamento próprios: Analítico, Impulsivo, Falador, Silencioso, Caótico, Líder, Defensor, Cético, Seguidor e Inexperiente.
+- Cada bot é único dentro da personalidade: tem os próprios números (mais ou menos atento, memória melhor ou pior, desconfia mais rápido ou mais devagar, acredita mais ou menos nos outros, fala mais ou menos, vota rápido ou por último, faz tarefa mais rápido ou mais devagar) e dois hábitos sorteados com peso pela personalidade: faz a tarefa visual primeiro, segue a lista na ordem, gosta de câmeras e Admin, faz ronda, anda junto, prefere tarefa sozinho, aperta o botão fácil. Os hábitos aparecem no relatório final, e a IA (quando ligada) recebe os traços de cada um.
+- Detectores de tarefa falsa só acusam o que dá para ver: "terminou e a barra não subiu" só conta se o bot viu a pessoa sair da tarefa (não vale reunião no meio, nem quem largou para consertar sabotagem), e "parado no scanner sem escanear" só conta quem está fazendo a tarefa ali (não quem espera a vez). Quem já foi visto fazendo tarefa visual não é acusado por isso. Nas partidas de teste, as acusações falsas desses detectores (contra tripulantes) caíram de 23 em 60 partidas para 1 em 80.
 - Impostores:
   - Esperam a vítima ficar isolada e evitam corredores cheios.
   - Checam câmeras (a partir do Veterano) e fogem pelos dutos.

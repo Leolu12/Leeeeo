@@ -14,6 +14,7 @@
       const base = C.buildSettings(saved && saved.preset ? saved.preset : 'classico');
       if (saved) U.merge(base, saved);
       if (!C.COLOR[base.profile.color]) base.profile.color = 'ciano';
+      base.preset = C.matchPreset(base);
       this.S = base;
       return base;
     },
@@ -40,6 +41,7 @@
     /* ---------------- criação ---------------- */
     create(root) {
       root.innerHTML = '';
+      this.S.preset = C.matchPreset(this.S);
       const sections = [
         ['preset', 'Presets'], ['perfil', 'Seu perfil'], ['sala', 'Sala'], ['regras', 'Regras de jogo'],
         ['funcoes', 'Funções especiais'], ['bots', 'Bots'], ['ia', 'IA das conversas'], ['interface', 'Narração e interface'], ['casa', 'Regras da casa'],
@@ -59,9 +61,16 @@
         const m = root.querySelector('.cfg-main');
         if (m) m.scrollTop = y;
       };
+      /* qualquer mudança que saia de um preset vira "Personalizado" (e voltar a bater com um preset o destaca de novo) */
       const change = () => {
+        this.S.preset = C.matchPreset(this.S);
         this.save();
         summary.textContent = this.summary();
+        root.querySelectorAll('.preset[data-id]').forEach((b) => {
+          const on = b.dataset.id === this.S.preset;
+          b.classList.toggle('on', on);
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
       };
       main.appendChild(this.secPreset(rerender));
       main.appendChild(this.secProfile(change));
@@ -84,7 +93,7 @@
     summary() {
       const S = this.S;
       const draw = { A: 'sorteio aleatório', B: 'você é impostor', C: 'você é tripulante', D: S.room.drawChance + '% de chance de ser impostor' }[S.room.draw];
-      return `${C.PRESETS[S.preset] ? C.PRESETS[S.preset].name : 'Personalizado'} · ${S.room.players} jogadores · ${S.room.impostors} impostor${S.room.impostors > 1 ? 'es' : ''} · ${draw}`;
+      return `${C.presetName(S.preset)} · ${S.room.players} jogadores · ${S.room.impostors} impostor${S.room.impostors > 1 ? 'es' : ''} · ${draw}`;
     },
 
     sec(id, title, desc, ...content) {
@@ -132,7 +141,7 @@
       for (const id of Object.keys(C.PRESETS)) {
         const p = C.PRESETS[id];
         grid.appendChild(h('button', {
-          class: 'preset' + (S.preset === id ? ' on' : ''), 'aria-pressed': S.preset === id ? 'true' : 'false',
+          class: 'preset' + (S.preset === id ? ' on' : ''), 'aria-pressed': S.preset === id ? 'true' : 'false', 'data-id': id,
           onclick: () => {
             const keep = { profile: U.clone(S.profile), room: U.clone(S.room), ui: U.clone(S.ui) };
             this.S = C.buildSettings(id, keep);
@@ -141,7 +150,16 @@
           },
         }, h('strong', {}, p.name), h('span', {}, p.desc)));
       }
-      return this.sec('preset', 'Presets rápidos', 'Escolher um preset reaplica regras, funções e bots. Seu perfil e a sala são mantidos.', grid);
+      /* não se escolhe: acende sozinho quando as regras não batem com nenhum preset */
+      grid.appendChild(h('button', {
+        class: 'preset custom' + (S.preset === 'personalizado' ? ' on' : ''), 'aria-pressed': S.preset === 'personalizado' ? 'true' : 'false', 'data-id': 'personalizado',
+        title: 'Acende sozinho quando você muda uma regra, função, bot ou regra da casa',
+        onclick: () => {
+          const el = document.getElementById('cfg-regras');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        },
+      }, h('strong', {}, 'Personalizado'), h('span', {}, 'Suas próprias regras. Acende sozinho quando você muda algo que não bate com nenhum preset.')));
+      return this.sec('preset', 'Presets rápidos', 'Escolher um preset reaplica regras, funções e bots. Seu perfil e a sala são mantidos. Mudou alguma regra? O modo vira Personalizado.', grid);
     },
 
     secProfile(change) {
@@ -637,7 +655,7 @@
         return h('tr', { class: p.isImp ? 'imp' : '' },
           h('td', {}, h('span', { class: 'cell-bean', html: AU.Render.beanSVG(p.color, { size: 28, visor: p.visor, x: !p.alive }) }), p.name + (p.isHuman ? ' (você)' : '')),
           h('td', {}, p.isImp ? 'Impostor' : 'Tripulante', p.special ? h('small', {}, C.ROLES[p.special].name) : null),
-          h('td', {}, p.personality ? C.PERSONALITIES[p.personality].name : '—'),
+          h('td', {}, p.personality ? C.PERSONALITIES[p.personality].name : '—', b && !p.isImp && b.habits && b.habits.length ? h('small', { title: b.habits.map((k) => C.HABITS[k].name).join(', ') }, b.habits.map((k) => C.HABITS[k].short).join(' · ')) : null),
           h('td', {}, fate(p)),
           h('td', { class: 'num' }, p.isImp ? '—' : done + '/' + p.tasks.length),
           h('td', {}, top || '—'));

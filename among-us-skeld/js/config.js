@@ -75,6 +75,21 @@
     inexperiente: { name: 'Inexperiente', desc: 'Se perde pelas salas.', talk: 0.45, att: 0.45, mem: 0.5, thr: 35, voteDelay: 0.4, follow: 0.6, hunch: 0.2, trust: 0.75, taskSpeed: 0.75, lost: 0.45 },
   };
   C.PERSONALITY_IDS = Object.keys(C.PERSONALITIES);
+  /* Hábitos: cada bot sorteia dois (com peso pela personalidade), além dos números próprios em cima do tipo. */
+  C.HABITS = {
+    visualPrimeiro: { short: 'visual primeiro', name: 'faz a tarefa visual primeiro', desc: 'prova inocência cedo' },
+    metodico: { short: 'tarefas em ordem', name: 'segue a lista de tarefas na ordem', desc: 'metódico' },
+    camper: { short: 'câmeras e Admin', name: 'gosta de câmeras e Admin', desc: 'vigia de longe' },
+    patrulheiro: { short: 'faz ronda', name: 'faz ronda pelas salas vazias', desc: 'procura corpos' },
+    escolta: { short: 'anda junto', name: 'gosta de andar junto', desc: 'acompanha os outros' },
+    solitario: { short: 'tarefa sozinho', name: 'prefere fazer tarefa sozinho', desc: 'evita aglomeração' },
+    botao: { short: 'botão fácil', name: 'aperta o botão fácil', desc: 'chama reunião com pouca prova' },
+  };
+  C.HABIT_WEIGHTS = {
+    analitico: { camper: 3, metodico: 2, visualPrimeiro: 1 }, impulsivo: { botao: 3, escolta: 1 }, falador: { escolta: 3, botao: 1 },
+    silencioso: { solitario: 3, metodico: 2 }, caotico: { botao: 2, patrulheiro: 1, solitario: 1 }, lider: { visualPrimeiro: 3, camper: 1, escolta: 1 },
+    defensor: { escolta: 2, visualPrimeiro: 1 }, cetico: { camper: 2, patrulheiro: 2 }, seguidor: { escolta: 3 }, inexperiente: { escolta: 2, metodico: 1 },
+  };
 
   C.IMP_LEVELS = {
     iniciante: { name: 'Iniciante', desc: 'Arrisca abates com gente por perto e mente mal.', need: 0.4, eager: 0.95, miss: 0.35, riskTol: 0.3, useVents: 0.35, sabotage: 0.25, lie: 0.3, selfReport: 0.15, bus: 0, stalk: 0.2, fakeVisual: 0.45, camsAware: false, sabKill: false },
@@ -190,6 +205,31 @@
     if (overrides) U.merge(s, overrides);
     return s;
   };
+
+  /* Qual preset as configurações atuais seguem. Perfil, sala, interface, IA e nomes dos bots não contam (trocar de
+     preset mantém esses). Se nada bate — o jogador mudou alguma regra, função, bot ou regra da casa — é
+     'personalizado'. */
+  const sig = (x) => {
+    const norm = (v) => {
+      if (Array.isArray(v)) return v.map(norm).sort((a, b) => (JSON.stringify(a) < JSON.stringify(b) ? -1 : 1));
+      if (v && typeof v === 'object') {
+        const o = {};
+        for (const k of Object.keys(v).sort()) o[k] = norm(v[k]);
+        return o;
+      }
+      return v;
+    };
+    const bots = Object.assign({}, x.bots || {});
+    delete bots.names;
+    delete bots.customNames;
+    return JSON.stringify(norm({ rules: x.rules, roles: x.roles, house: x.house, bots }));
+  };
+  C.matchPreset = function (S) {
+    const cur = sig(S);
+    for (const id of Object.keys(C.PRESETS)) if (sig(C.buildSettings(id)) === cur) return id;
+    return 'personalizado';
+  };
+  C.presetName = (id) => (C.PRESETS[id] ? C.PRESETS[id].name : 'Personalizado');
 
   C.RECOMMENDED_IMPOSTORS = (n) => (n <= 6 ? 1 : n <= 11 ? 2 : 3);
   C.MAX_IMPOSTORS = (n) => (n <= 6 ? 1 : n <= 8 ? 2 : 3);

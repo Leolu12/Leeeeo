@@ -68,6 +68,8 @@
     doingTask: ['fazendo task de fantasma {a}', 'terminando minhas tasks', 'task de fantasma'],
     doingIdle: ['nada, só assistindo', 'já fiz minhas tasks, tô só olhando', 'assistindo a partida'],
     doingWith: ['te seguindo', 'indo com você'],
+    whereWatch: ['tô {a} assistindo {xn}', '{a}, atrás de {xn}', 'tô {a} de olho em {xn}'],
+    doingWatch: ['assistindo {xn}', 'seguindo {xn} pra ver no que dá', 'vendo o que {xn} faz'],
     amDead: ['sim, morri', 'morri sim kkk', 'tô morto, igual você'],
     amDeadEj: ['sim, me ejetaram', 'fui ejetado'],
     shieldHit: ['o escudo salvou {x}!!', 'kkk o escudo funcionou em {xn}', 'salvei {x}'],
@@ -319,10 +321,12 @@
             if (doing.kind === 'with' && doing.who === hp.id) return this.choose(LINES.whereWith, {});
             if (doing.kind === 'task') return this.choose(LINES.whereTask, { a: doing.area });
             if (doing.kind === 'guard') return this.choose(LINES.whereGuard, { a: doing.area, x: doing.who });
+            if (doing.kind === 'watch') return this.choose(LINES.whereWatch, { a: doing.area, x: doing.who });
             return this.choose(LINES.whereIdle, { a: doing.area });
           }
           if (doing && /\b(o que|oq|q) (vc|voce|voces|vcs|tu)? ?(ta|tao|esta|estao) fazendo\b|\bfazendo o que\b/.test(n)) {
             if (doing.kind === 'with' && doing.who === hp.id) return this.choose(LINES.doingWith, {});
+            if (doing.kind === 'watch') return this.choose(LINES.doingWatch, { a: doing.area, x: doing.who });
             return this.choose(doing.kind === 'task' ? LINES.doingTask : LINES.doingIdle, { a: doing.area });
           }
           /* "você morreu?" / "tá morto também?" */
@@ -431,7 +435,7 @@
       const d = p.brain && p.brain.ghostDoing ? p.brain.ghostDoing() : null;
       const ago = p.deathT != null ? Math.max(1, Math.round((g.t - p.deathT) / 5) * 5) : null;
       out.push('Está MORTO (fantasma)' + (ago ? ', há uns ' + ago + 's' : '') + '. Agora está ' + (d ? this.room(d.area) : 'pela nave') +
-        (d && d.kind === 'task' ? ', fazendo tarefa de fantasma' : d && d.kind === 'with' ? ', acompanhando ' + this.name(d.who) : d && d.kind === 'going' ? ', indo encontrar ' + this.name(d.who) : d && d.kind === 'guard' ? ', de olho em ' + this.name(d.who) : ', só assistindo') +
+        (d && d.kind === 'task' ? ', fazendo tarefa de fantasma' : d && d.kind === 'with' ? ', acompanhando ' + this.name(d.who) : d && d.kind === 'going' ? ', indo encontrar ' + this.name(d.who) : d && d.kind === 'guard' ? ', de olho em ' + this.name(d.who) : d && d.kind === 'watch' ? ', assistindo ' + this.name(d.who) + ' de perto' : ', só assistindo') +
         '. Faltam ' + p.tasks.filter((tk) => !tk.done).length + ' tarefas de fantasma. Atravessa paredes; os vivos não o veem nem o ouvem.');
       if (kp.ejected) out.push('Foi ejetado na votação' + (g.S.rules.confirmEjects ? ' (todos viram se era impostor).' : '.'));
       else if (kp.killer != null) out.push('Foi morto por ' + AU.Voice.who(g, kp.killer) + ' ' + this.room(kp.area) + '.');

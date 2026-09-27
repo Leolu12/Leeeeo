@@ -215,7 +215,8 @@
     persona(b) {
       const p = b.p;
       const pers = C.PERSONALITIES[p.personality] || C.PERSONALITIES.analitico;
-      return `${V.who(b.g, p.id)} — ${pers.name}: ${STYLE[p.personality] || pers.desc}. Jeito de escrever: ${V.voiceOf(b)}`;
+      const own = b.traitLine ? b.traitLine() : '';
+      return `${V.who(b.g, p.id)} — ${pers.name}: ${STYLE[p.personality] || pers.desc}.${own ? ' Traços próprios: ' + own + '.' : ''} Jeito de escrever: ${V.voiceOf(b)}`;
     },
     voiceOf(b) {
       if (b.voiceStyle) return b.voiceStyle;

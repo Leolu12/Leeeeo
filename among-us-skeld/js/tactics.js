@@ -118,7 +118,7 @@
         if (b.sabStyle) {
           const sty = b.sabStyle();
           const fav = Object.keys(sty).sort((a, c) => sty[c] - sty[a])[0];
-          out.push('Jeito dele: ' + ({ lights: 'gosta de apagar as luzes antes de agir', comms: 'gosta de cortar as comunicações (câmeras/admin)', doors: 'gosta de trancar portas', crit: 'gosta de sabotar reator/O2 para separar o grupo' }[fav]) + '; usa duto ' + (b.lvl.useVents > 0.6 ? 'bastante' : 'pouco') + '; ' + (b.lvl.stalk > 0.5 ? 'persegue a vítima' : 'espera a vítima vir') + '.');
+          out.push('Estilo próprio: ' + ({ lights: 'gosta de apagar as luzes antes de agir', comms: 'gosta de cortar as comunicações (câmeras/admin)', doors: 'gosta de trancar portas', crit: 'gosta de sabotar reator/O2 para separar o grupo' }[fav]) + '; usa duto ' + (b.lvl.useVents > 0.6 ? 'bastante' : 'pouco') + '; ' + (b.lvl.stalk > 0.5 ? 'persegue a vítima' : 'espera a vítima vir') + '.');
         }
         const lone = g.players.filter((q) => q.alive && !q.isImp && b.lastSeenAt[q.id] && g.t - b.lastSeenAt[q.id].t < 30).map((q) => ({ q, s: b.lastSeenAt[q.id] }))
           .filter((x) => !g.players.some((o) => o !== x.q && o.alive && !o.isImp && b.lastSeenAt[o.id] && Math.abs(b.lastSeenAt[o.id].t - x.s.t) < 4 && U.d2(b.lastSeenAt[o.id].x, b.lastSeenAt[o.id].y, x.s.x, x.s.y) < 7));
@@ -155,7 +155,7 @@
       head.push('');
       for (const p of bots) {
         const pers = C.PERSONALITIES[p.personality] || C.PERSONALITIES.analitico;
-        head.push('### ' + this.who(p.id) + ' — ' + pers.name);
+        head.push('### ' + this.who(p.id) + ' — ' + pers.name + (p.brain && p.brain.traitLine && p.brain.traitLine() ? ' (' + p.brain.traitLine() + ')' : ''));
         this.state(p).forEach((l) => head.push('- ' + l));
         head.push('');
       }
