@@ -591,7 +591,9 @@
     follow: /\b(seguindo|me seguiu|me segue|seguiu|atras de mim|na minha cola|colad[oa] em mim)\b/,
     selfrep: /\b(self ?report\w*|reportou (muito )?rapido|achou (o corpo )?(muito )?rapido)\b/,
     hypo: /\b(pode|podia|talvez|sera|acho|deve|devia|se for|caso|quem sabe|pode ter)\b/,
-    offer: /\b(me segue|me sigam|me segue[m]?|me acompanh\w*|posso provar|vou provar|provo|fac\w* (o |a )?(scan|visual|escaneamento|asteroide\w*|escudo\w*|lixo) na frente|na frente de voces|mostro (a )?visual)\b/,
+    offer: /\b(me segue|me sigam|me segue[m]?|me acompanh\w*|posso provar|vou provar|pra provar|para provar|provo|fac\w* (o |a )?(scan|visual|escaneamento|asteroide\w*|escudo\w*|lixo) na frente|na frente de voces|mostro (a )?visual)\b/,
+    /* oferta de prova sem a palavra "provar": "vou fazer os escudos", "faço o scan", "tenho lixo", "vem ver" */
+    offerTask: /\b(fazer|faco|mostrar|mostro)\b(?:\s+\S+){0,3}?\s+(escudo\w*|scan\w*|escane\w*|lixo|asteroide\w*|visual)\b|\btenho (o |a |os |as |uma |um )?(escudo\w*|scan\w*|escane\w*|lixo|asteroide\w*|visual|tarefa visual|task visual)\b|\b(vem|venham|vcs vem|voces vem|quem quiser|quem duvida\w*|pode) ver\b/,
     /* combinado de andar junto: "vamos ficar juntos", "fica comigo", "eu te sigo", "bora de dupla a partida toda" */
     pact: /\b(vamos|vamo|bora|vou|quer|topa|podemos) (ficar|andar|fazer (as )?(tasks?|tarefas?)|jogar|ir) (junto|juntos|juntas|em dupla|de dupla)\b|\b(fica|anda|vem|cola) comigo\b|\bcola em mim\b|\b(fico|vou ficar|vou andar|ando|vou) (com|junto com|junto de) (vc|voce|tu|ti)\b|\b(eu )?te sigo\b|\bvou te seguir\b|\bvou atras de (vc|voce|ti)\b|\b(eu )?te acompanho\b|\bde dupla\b|\bem dupla\b/,
     pactNo: /\b(nao|n) (vou|quero|vamos|fico|ando|topo)\b/,
@@ -618,8 +620,8 @@
     const all = { players: findAll(n, table, 'pid'), rooms: findAll(n, ROOM_ALIASES, 'area') };
 
     if (RX.deny.test(n)) intents.push({ type: 'deny' });
-    if (RX.offer.test(n)) intents.push({ type: 'offerVisual' });
-    if (/^ (fechou|fechado|bora|beleza|blz|ok|okay|pode ser|sim|claro|vamo|vamos|tranquilo|combinado|firmeza|show|pode|demorou|s)\b/.test(n) && n.trim().split(' ').length <= 5 && !RX.pact.test(n)) intents.push({ type: 'yes', to: ctx.addressed != null ? ctx.addressed : null });
+    if (RX.offer.test(n) || (RX.offerTask.test(n) && !/\b(fiz|fez|fizeram|fazendo|tava|estava)\b/.test(n))) intents.push({ type: 'offerVisual' });
+    if ((/^ (fechou|fechado|beleza|blz|ok|okay|pode ser|sim|claro|tranquilo|combinado|firmeza|show|demorou|s)\b/.test(n) || /^ (bora|vamo|vamos|pode)( sim| ja| entao)? $/.test(n)) && n.trim().split(' ').length <= 5 && !RX.pact.test(n) && !RX.vote.test(n) && !RX.sus.test(n) && !RX.skip.test(n)) intents.push({ type: 'yes', to: ctx.addressed != null ? ctx.addressed : null });
     if (RX.pact.test(n) && !RX.pactNo.test(n)) {
       const o = all.players.find((x) => x.pid !== me);
       intents.push({ type: 'pact', who: o ? o.pid : null, to: o ? o.pid : ctx.addressed != null ? ctx.addressed : null, lead: RX.leadYou.test(n) ? 'addressee' : RX.leadMe.test(n) ? 'speaker' : null, scope: RX.scopeGame.test(n) ? 'game' : 'round' });
@@ -638,7 +640,7 @@
       let others = ps.filter((x) => x.pid !== me).map((x) => x.pid);
       const selfNamed = ps.some((x) => x.pid === me);
       const has = (k) => RX[k].test(c);
-      if (!others.length && RX.you.test(c) && ctx.addressed != null) others = [ctx.addressed];
+      if (!others.length && /\b(vc|voce|tu)\b/.test(c) && ctx.addressed != null) others = [ctx.addressed];
       /* "..., sus" / "..., vota nele": herda o jogador da oração anterior */
       if (!others.length && lastOthers.length && (has('sus') || has('vote') || has('safe') || has('lie') || has('kill') || has('vent')) && !rooms.length) others = lastOthers;
       if (others.length) lastOthers = others;
@@ -665,7 +667,7 @@
         else if (has('shift') && !has('hypo')) intents.push({ type: 'accuse', who, reason: 'shift', area, strong: true });
         else if (has('vanish') && has('vanishSeen') && !has('hypo')) intents.push({ type: 'accuse', who, reason: 'vanish', area, strong: true });
         else if (has('lie')) intents.push({ type: 'accuse', who, reason: 'lie' });
-        else if (has('safe') || (has('visual') && !has('sus'))) intents.push({ type: 'vouch', who, reason: has('visual') ? 'visual' : 'claim' });
+        else if ((has('safe') || (has('visual') && !has('sus'))) && !isQ) intents.push({ type: 'vouch', who, reason: has('visual') ? 'visual' : 'claim' });
         else if (has('comigo')) intents.push({ type: 'vouch', who, reason: 'together', area });
         else if (has('sus') || has('vote')) others.forEach((pid) => intents.push({ type: 'accuse', who: pid, reason: has('vote') ? 'vote' : 'sus' }));
         else if (has('follow') && !has('offer')) intents.push({ type: 'accuse', who, reason: 'follow', area });
@@ -681,7 +683,7 @@
         continue;
       }
       /* "me segue que eu faço os escudos" / "vou fazer o lixo na frente de vocês": é o que vai fazer, não onde estava */
-      if (rooms.length && /\b(faco|vou (fazer|provar|mostrar|la)|posso (fazer|provar)|provo|mostro|me segue\w*|me sigam|me acompanh\w*|na frente de)\b/.test(c) && !/\b(tava|estava|estive|fiquei|fui|passei|vim|vinha|fiz)\b/.test(c)) continue;
+      if (rooms.length && /\b(faco|vou (fazer|provar|mostrar|la|lah|no|na|nos|nas|pro|pra|pros|pras|para)|posso (fazer|provar|mostrar)|provo|mostro|tenho|me segue\w*|me sigam|me acompanh\w*|na frente de|vem comigo|vem ver|segue eu|vamos|bora|indo pro|indo pra)\b/.test(c) && !/\b(tava|estava|estive|fiquei|fui|passei|vim|vinha|fiz)\b/.test(c)) continue;
       if (rooms.length) {
         if (ctx.humanReported && !ctx.bodyKnown && !intents.some((i) => i.type === 'bodyArea')) {
           intents.push({ type: 'bodyArea', area });

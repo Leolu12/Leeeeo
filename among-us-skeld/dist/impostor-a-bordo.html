@@ -346,6 +346,7 @@ body.touch .act kbd { display: none; }
 .sab-btn { position: relative; padding: 10px 14px; border-radius: 10px; background: #2a1418; border: 1px solid var(--imp); font-weight: 800; }
 .sab-btn:disabled { opacity: 0.4; }
 .sab-btn[data-cd]:not([data-cd=''])::after { content: attr(data-cd); margin-left: 8px; color: #ffb3b3; font-family: var(--display); }
+.door-btn[data-cd]:not([data-cd=''])::after { content: attr(data-cd); position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 2px; color: #ffb3b3; font-family: var(--display); font-size: 11px; white-space: nowrap; pointer-events: none; }
 .door-btn { position: absolute; transform: translate(-50%, -50%); width: 34px; height: 34px; border-radius: 50%; background: #2a1418; border: 1px solid var(--imp); font-size: 16px; }
 .door-btn:disabled { opacity: 0.35; }
 .cams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; position: relative; }
@@ -2354,7 +2355,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     follow: /\b(seguindo|me seguiu|me segue|seguiu|atras de mim|na minha cola|colad[oa] em mim)\b/,
     selfrep: /\b(self ?report\w*|reportou (muito )?rapido|achou (o corpo )?(muito )?rapido)\b/,
     hypo: /\b(pode|podia|talvez|sera|acho|deve|devia|se for|caso|quem sabe|pode ter)\b/,
-    offer: /\b(me segue|me sigam|me segue[m]?|me acompanh\w*|posso provar|vou provar|provo|fac\w* (o |a )?(scan|visual|escaneamento|asteroide\w*|escudo\w*|lixo) na frente|na frente de voces|mostro (a )?visual)\b/,
+    offer: /\b(me segue|me sigam|me segue[m]?|me acompanh\w*|posso provar|vou provar|pra provar|para provar|provo|fac\w* (o |a )?(scan|visual|escaneamento|asteroide\w*|escudo\w*|lixo) na frente|na frente de voces|mostro (a )?visual)\b/,
+    /* oferta de prova sem a palavra "provar": "vou fazer os escudos", "faço o scan", "tenho lixo", "vem ver" */
+    offerTask: /\b(fazer|faco|mostrar|mostro)\b(?:\s+\S+){0,3}?\s+(escudo\w*|scan\w*|escane\w*|lixo|asteroide\w*|visual)\b|\btenho (o |a |os |as |uma |um )?(escudo\w*|scan\w*|escane\w*|lixo|asteroide\w*|visual|tarefa visual|task visual)\b|\b(vem|venham|vcs vem|voces vem|quem quiser|quem duvida\w*|pode) ver\b/,
     /* combinado de andar junto: "vamos ficar juntos", "fica comigo", "eu te sigo", "bora de dupla a partida toda" */
     pact: /\b(vamos|vamo|bora|vou|quer|topa|podemos) (ficar|andar|fazer (as )?(tasks?|tarefas?)|jogar|ir) (junto|juntos|juntas|em dupla|de dupla)\b|\b(fica|anda|vem|cola) comigo\b|\bcola em mim\b|\b(fico|vou ficar|vou andar|ando|vou) (com|junto com|junto de) (vc|voce|tu|ti)\b|\b(eu )?te sigo\b|\bvou te seguir\b|\bvou atras de (vc|voce|ti)\b|\b(eu )?te acompanho\b|\bde dupla\b|\bem dupla\b/,
     pactNo: /\b(nao|n) (vou|quero|vamos|fico|ando|topo)\b/,
@@ -2381,8 +2384,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     const all = { players: findAll(n, table, 'pid'), rooms: findAll(n, ROOM_ALIASES, 'area') };
 
     if (RX.deny.test(n)) intents.push({ type: 'deny' });
-    if (RX.offer.test(n)) intents.push({ type: 'offerVisual' });
-    if (/^ (fechou|fechado|bora|beleza|blz|ok|okay|pode ser|sim|claro|vamo|vamos|tranquilo|combinado|firmeza|show|pode|demorou|s)\b/.test(n) && n.trim().split(' ').length <= 5 && !RX.pact.test(n)) intents.push({ type: 'yes', to: ctx.addressed != null ? ctx.addressed : null });
+    if (RX.offer.test(n) || (RX.offerTask.test(n) && !/\b(fiz|fez|fizeram|fazendo|tava|estava)\b/.test(n))) intents.push({ type: 'offerVisual' });
+    if ((/^ (fechou|fechado|beleza|blz|ok|okay|pode ser|sim|claro|tranquilo|combinado|firmeza|show|demorou|s)\b/.test(n) || /^ (bora|vamo|vamos|pode)( sim| ja| entao)? $/.test(n)) && n.trim().split(' ').length <= 5 && !RX.pact.test(n) && !RX.vote.test(n) && !RX.sus.test(n) && !RX.skip.test(n)) intents.push({ type: 'yes', to: ctx.addressed != null ? ctx.addressed : null });
     if (RX.pact.test(n) && !RX.pactNo.test(n)) {
       const o = all.players.find((x) => x.pid !== me);
       intents.push({ type: 'pact', who: o ? o.pid : null, to: o ? o.pid : ctx.addressed != null ? ctx.addressed : null, lead: RX.leadYou.test(n) ? 'addressee' : RX.leadMe.test(n) ? 'speaker' : null, scope: RX.scopeGame.test(n) ? 'game' : 'round' });
@@ -2401,7 +2404,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       let others = ps.filter((x) => x.pid !== me).map((x) => x.pid);
       const selfNamed = ps.some((x) => x.pid === me);
       const has = (k) => RX[k].test(c);
-      if (!others.length && RX.you.test(c) && ctx.addressed != null) others = [ctx.addressed];
+      if (!others.length && /\b(vc|voce|tu)\b/.test(c) && ctx.addressed != null) others = [ctx.addressed];
       /* "..., sus" / "..., vota nele": herda o jogador da oração anterior */
       if (!others.length && lastOthers.length && (has('sus') || has('vote') || has('safe') || has('lie') || has('kill') || has('vent')) && !rooms.length) others = lastOthers;
       if (others.length) lastOthers = others;
@@ -2428,7 +2431,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         else if (has('shift') && !has('hypo')) intents.push({ type: 'accuse', who, reason: 'shift', area, strong: true });
         else if (has('vanish') && has('vanishSeen') && !has('hypo')) intents.push({ type: 'accuse', who, reason: 'vanish', area, strong: true });
         else if (has('lie')) intents.push({ type: 'accuse', who, reason: 'lie' });
-        else if (has('safe') || (has('visual') && !has('sus'))) intents.push({ type: 'vouch', who, reason: has('visual') ? 'visual' : 'claim' });
+        else if ((has('safe') || (has('visual') && !has('sus'))) && !isQ) intents.push({ type: 'vouch', who, reason: has('visual') ? 'visual' : 'claim' });
         else if (has('comigo')) intents.push({ type: 'vouch', who, reason: 'together', area });
         else if (has('sus') || has('vote')) others.forEach((pid) => intents.push({ type: 'accuse', who: pid, reason: has('vote') ? 'vote' : 'sus' }));
         else if (has('follow') && !has('offer')) intents.push({ type: 'accuse', who, reason: 'follow', area });
@@ -2444,7 +2447,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         continue;
       }
       /* "me segue que eu faço os escudos" / "vou fazer o lixo na frente de vocês": é o que vai fazer, não onde estava */
-      if (rooms.length && /\b(faco|vou (fazer|provar|mostrar|la)|posso (fazer|provar)|provo|mostro|me segue\w*|me sigam|me acompanh\w*|na frente de)\b/.test(c) && !/\b(tava|estava|estive|fiquei|fui|passei|vim|vinha|fiz)\b/.test(c)) continue;
+      if (rooms.length && /\b(faco|vou (fazer|provar|mostrar|la|lah|no|na|nos|nas|pro|pra|pros|pras|para)|posso (fazer|provar|mostrar)|provo|mostro|tenho|me segue\w*|me sigam|me acompanh\w*|na frente de|vem comigo|vem ver|segue eu|vamos|bora|indo pro|indo pra)\b/.test(c) && !/\b(tava|estava|estive|fiquei|fui|passei|vim|vinha|fiz)\b/.test(c)) continue;
       if (rooms.length) {
         if (ctx.humanReported && !ctx.bodyKnown && !intents.some((i) => i.type === 'bodyArea')) {
           intents.push({ type: 'bodyArea', area });
@@ -4853,12 +4856,21 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const alone = this.seenNow.length === 1 && this.seenNow[0] === q;
       if (alone) e.alone += dt;
       else e.alone = Math.max(0, e.alone - dt);
-      /* o propósito de seguir era ver a prova: viu a tarefa visual, missão cumprida, volta ao próprio jogo */
+      /* o propósito de seguir era ver a prova: viu a tarefa visual, assiste até a pessoa terminar (como gente) e
+         aí volta ao próprio jogo */
       if (q.visual && g.S.rules.visualTasks && this.seenNow.includes(q)) e.sawVisualT = e.sawVisualT || g.t;
-      if (e.sawVisualT && g.t - e.sawVisualT > 1.5) {
-        this.mem.event({ type: 'escortVisual', t: g.t, who: aid }, 'escortVisual:' + aid + ':' + g.meetings);
-        return this.endEscort(null);
+      if (e.sawVisualT) {
+        if (!e.visualNoted) {
+          e.visualNoted = true;
+          this.mem.event({ type: 'escortVisual', t: g.t, who: aid }, 'escortVisual:' + aid + ':' + g.meetings);
+        }
+        if (!q.busy || g.t - e.sawVisualT > 25) e.leaveAt = e.leaveAt || g.t + U.rf(0.6, 1.5);
+        if (e.leaveAt && g.t >= e.leaveAt) return this.endEscort(null);
+        if (q.busy && e.until - g.t < 2) this.extendEscort(g.t + 2);
+        return;
       }
+      /* está no meio de uma tarefa na minha frente: espera terminar antes de desistir */
+      if (q.busy && e.until - g.t < 2 && g.t - e.since < 50) this.extendEscort(g.t + 2);
       /* seguiu um tempo e a pessoa não mostrou nada: desiste e volta às tarefas */
       if (g.t - e.since > 20 && !q.busy && !q.visual) return this.endEscort(null);
       if (e.idle > 6) {
@@ -4876,6 +4888,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
       if (s >= 30) return this.endEscort('não');
       if (e.alone > (cautious ? 7 : 12) + (s < 0 ? 20 : 0) && (dark || s >= 10 || U.chance(cautious ? 0.03 : 0.01))) return this.endEscort('...');
+    }
+    extendEscort(until) {
+      if (!this.escort) return;
+      this.escort.until = until;
+      if (this.plan && this.plan.escort) this.plan.endAt = until;
     }
     endEscort(text) {
       const g = this.g;
@@ -5105,6 +5122,17 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (ago > 45 && g.t - pa.since > 45) {
         if (pa.scope !== 'game') this.pact = null;
         return false;
+      }
+      /* vou atrás, mas o parceiro está parado à toa há um tempo: troco, eu vou na frente fazer as minhas (ele que venha) */
+      if (pa.lead === 'them' && s && ago < 1.5) {
+        if (!q.moving && !q.busy && !q.onCams && !q.onAdmin) pa.idleT = (pa.idleT || 0) + 0.3;
+        else pa.idleT = 0;
+        if (pa.idleT > 15) {
+          pa.lead = 'me';
+          pa.idleT = 0;
+          if (this.plan && this.plan.type === 'follow' && this.plan.target === q.id) this.plan = null;
+          return false;
+        }
       }
       if (pa.lead !== 'me' || p.busy || !s) return false;
       /* vou na frente: o parceiro ficou para trás (ainda à vista) → espero; se continua longe, chamo de novo */
@@ -14804,6 +14832,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
               b.dataset.cd = !g.sab && g.sabCd > 0 ? Math.ceil(g.sabCd) + 's' : '';
             } else if (b._room) {
               b.disabled = !g.doorReady(b._room) || hp.inVent;
+              const left = (g.doorCd[b._room] || 0) - g.t;
+              b.dataset.cd = left > 0 ? Math.ceil(left) + 's' : '';
             }
           }
         },

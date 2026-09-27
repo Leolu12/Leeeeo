@@ -994,12 +994,21 @@
       const alone = this.seenNow.length === 1 && this.seenNow[0] === q;
       if (alone) e.alone += dt;
       else e.alone = Math.max(0, e.alone - dt);
-      /* o propósito de seguir era ver a prova: viu a tarefa visual, missão cumprida, volta ao próprio jogo */
+      /* o propósito de seguir era ver a prova: viu a tarefa visual, assiste até a pessoa terminar (como gente) e
+         aí volta ao próprio jogo */
       if (q.visual && g.S.rules.visualTasks && this.seenNow.includes(q)) e.sawVisualT = e.sawVisualT || g.t;
-      if (e.sawVisualT && g.t - e.sawVisualT > 1.5) {
-        this.mem.event({ type: 'escortVisual', t: g.t, who: aid }, 'escortVisual:' + aid + ':' + g.meetings);
-        return this.endEscort(null);
+      if (e.sawVisualT) {
+        if (!e.visualNoted) {
+          e.visualNoted = true;
+          this.mem.event({ type: 'escortVisual', t: g.t, who: aid }, 'escortVisual:' + aid + ':' + g.meetings);
+        }
+        if (!q.busy || g.t - e.sawVisualT > 25) e.leaveAt = e.leaveAt || g.t + U.rf(0.6, 1.5);
+        if (e.leaveAt && g.t >= e.leaveAt) return this.endEscort(null);
+        if (q.busy && e.until - g.t < 2) this.extendEscort(g.t + 2);
+        return;
       }
+      /* está no meio de uma tarefa na minha frente: espera terminar antes de desistir */
+      if (q.busy && e.until - g.t < 2 && g.t - e.since < 50) this.extendEscort(g.t + 2);
       /* seguiu um tempo e a pessoa não mostrou nada: desiste e volta às tarefas */
       if (g.t - e.since > 20 && !q.busy && !q.visual) return this.endEscort(null);
       if (e.idle > 6) {
@@ -1017,6 +1026,11 @@
       }
       if (s >= 30) return this.endEscort('não');
       if (e.alone > (cautious ? 7 : 12) + (s < 0 ? 20 : 0) && (dark || s >= 10 || U.chance(cautious ? 0.03 : 0.01))) return this.endEscort('...');
+    }
+    extendEscort(until) {
+      if (!this.escort) return;
+      this.escort.until = until;
+      if (this.plan && this.plan.escort) this.plan.endAt = until;
     }
     endEscort(text) {
       const g = this.g;
@@ -1246,6 +1260,17 @@
       if (ago > 45 && g.t - pa.since > 45) {
         if (pa.scope !== 'game') this.pact = null;
         return false;
+      }
+      /* vou atrás, mas o parceiro está parado à toa há um tempo: troco, eu vou na frente fazer as minhas (ele que venha) */
+      if (pa.lead === 'them' && s && ago < 1.5) {
+        if (!q.moving && !q.busy && !q.onCams && !q.onAdmin) pa.idleT = (pa.idleT || 0) + 0.3;
+        else pa.idleT = 0;
+        if (pa.idleT > 15) {
+          pa.lead = 'me';
+          pa.idleT = 0;
+          if (this.plan && this.plan.type === 'follow' && this.plan.target === q.id) this.plan = null;
+          return false;
+        }
       }
       if (pa.lead !== 'me' || p.busy || !s) return false;
       /* vou na frente: o parceiro ficou para trás (ainda à vista) → espero; se continua longe, chamo de novo */

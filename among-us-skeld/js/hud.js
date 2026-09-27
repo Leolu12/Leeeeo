@@ -658,6 +658,8 @@
               b.dataset.cd = !g.sab && g.sabCd > 0 ? Math.ceil(g.sabCd) + 's' : '';
             } else if (b._room) {
               b.disabled = !g.doorReady(b._room) || hp.inVent;
+              const left = (g.doorCd[b._room] || 0) - g.t;
+              b.dataset.cd = left > 0 ? Math.ceil(left) + 's' : '';
             }
           }
         },

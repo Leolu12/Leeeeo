@@ -335,6 +335,7 @@ body.touch .act kbd { display: none; }
 .sab-btn { position: relative; padding: 10px 14px; border-radius: 10px; background: #2a1418; border: 1px solid var(--imp); font-weight: 800; }
 .sab-btn:disabled { opacity: 0.4; }
 .sab-btn[data-cd]:not([data-cd=''])::after { content: attr(data-cd); margin-left: 8px; color: #ffb3b3; font-family: var(--display); }
+.door-btn[data-cd]:not([data-cd=''])::after { content: attr(data-cd); position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 2px; color: #ffb3b3; font-family: var(--display); font-size: 11px; white-space: nowrap; pointer-events: none; }
 .door-btn { position: absolute; transform: translate(-50%, -50%); width: 34px; height: 34px; border-radius: 50%; background: #2a1418; border: 1px solid var(--imp); font-size: 16px; }
 .door-btn:disabled { opacity: 0.35; }
 .cams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; position: relative; }
