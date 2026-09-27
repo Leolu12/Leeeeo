@@ -188,15 +188,33 @@ textarea { resize: vertical; margin-top: 10px; }
 
 /* ---------- revelação ---------- */
 #screen-reveal { display: grid; place-items: center; background: #000; padding-inline: 16px; }
-.reveal { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; animation: pop 0.6s ease-out; }
-.reveal-title { font-family: var(--display); font-size: clamp(54px, 12vw, 120px); font-weight: 700; text-transform: uppercase; line-height: 1; }
+.reveal { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; animation: pop 0.6s ease-out; width: 100%; max-width: 100%; min-width: 0; }
+.reveal-title { font-family: var(--display); font-size: clamp(34px, 11.5vw, 120px); font-weight: 700; text-transform: uppercase; line-height: 1; max-width: 100%; overflow-wrap: anywhere; }
+.reveal-draw { color: var(--muted); font-size: 13px; text-align: center; max-width: min(32em, 100%); margin: 0 auto; }
 .reveal.crew .reveal-title { color: var(--crew); text-shadow: 0 0 40px rgba(95, 214, 255, 0.45); }
 .reveal.imp .reveal-title { color: var(--imp); text-shadow: 0 0 40px rgba(255, 77, 77, 0.5); }
 .reveal-sub { color: #c2cbe3; font-size: 18px; }
 .reveal-role { max-width: 520px; color: var(--violet); font-weight: 700; }
-.reveal-row { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 10px; margin: 10px 0 8px; max-width: 900px; }
+.reveal-row { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 10px; margin: 10px 0 8px; max-width: min(900px, 100%); }
 .reveal-p { display: flex; flex-direction: column; align-items: center; gap: 2px; animation: pop 0.5s ease-out both; font-weight: 700; font-size: 13px; }
 .reveal-p .imp { color: var(--imp); }
+@media (max-height: 560px), (max-width: 400px) {
+  .reveal { gap: 8px; }
+  .reveal-title { font-size: min(clamp(34px, 11.5vw, 120px), 17vh); }
+  .reveal-sub { font-size: 15px; }
+  .reveal-row { gap: 6px 8px; margin: 4px 0; }
+  .reveal-p { font-size: 11px; }
+  .reveal-p .bean { width: 44px; height: 44px; }
+  .reveal-p.me .bean { width: 70px; height: 70px; }
+  .reveal-draw { font-size: 12px; }
+}
+@media (max-height: 400px) {
+  .reveal { gap: 4px; }
+  .reveal-sub { font-size: 13px; }
+  .reveal-p .bean { width: 34px; height: 34px; }
+  .reveal-p.me .bean { width: 52px; height: 52px; }
+  .reveal-p { font-size: 10px; }
+}
 
 /* ---------- jogo ---------- */
 #world { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }

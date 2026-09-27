@@ -150,6 +150,7 @@
         '- Nada de repetição: ninguém repete o que já disse nem o que outro já disse com as mesmas palavras. Cada mensagem acrescenta algo (um fato, uma pergunta, uma dúvida, uma opinião, uma reação curta). Quem já contou onde estava não conta de novo, a não ser que perguntem.',
         '- Perguntar algo não é motivo para acusar ninguém. Só acuse quem as anotações do personagem dão motivo.',
         '- Cada jogador tem um nome e uma cor (ex.: "Léo" é o "Lima"). Nome e cor são a MESMA pessoa: nunca defenda alguém pela cor e acuse o mesmo pelo nome. Ninguém defende e acusa a mesma pessoa na mesma mensagem.',
+        '- Quem fala nunca se refere a si mesmo pelo próprio nome ou pela própria cor (quem é o verde não escreve "confirma, verde" nem "o verde estava comigo"): fala em primeira pessoa e, para pedir confirmação, chama a OUTRA pessoa.',
         '- As pessoas escrevem com erro de digitação ou por ditado de voz (nomes e salas trocados, palavras juntas). Entenda o sentido mais provável (ex.: "médica" = MedBay, "caio hino" = "Caio, hein", "eletrica" = Elétrica) e responda ao que a pessoa quis dizer, sem zoar o erro e sem responder "que X?" quando dá para entender.',
         '- Eles conversam entre si e com todos: chamam pelo nome ou pela cor ("o verde", "rafa"), respondem perguntas, cobram, desconfiam, defendem.',
         '- Só confirme onde alguém estava se as anotações dizem que o personagem VIU a pessoa lá pouco antes da reunião; ter visto no começo da rodada não confirma nada. Na dúvida, diga que não viu. Com metamorfo na partida, "vi fulano" pode ter sido o metamorfo disfarçado de fulano.',
@@ -212,6 +213,18 @@
       return mt.msgs.slice(-(n || 22)).map((m) => `${V.who(g, m.from)}: ${m.text}`).join('\n') || '(ninguém falou ainda)';
     },
 
+    /* a fala cita o próprio nome ou a própria cor de quem fala (fora "eu sou o verde" / "o verde sou eu")? */
+    selfRef(p, text) {
+      const n = ' ' + U.norm(text).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ') + ' ';
+      const own = [U.norm(p.name), U.norm(C.COLOR[p.color].name)].filter((w) => w && w.length >= 2);
+      for (const w of own) {
+        const re = new RegExp(' ' + w + ' ');
+        if (!re.test(n)) continue;
+        const ok = new RegExp('(eu )?(sou|era|to de|tou de) (o |a )?' + w + ' | (o |a )?' + w + ' (sou|era) eu | me chamo ' + w + ' ').test(n);
+        if (!ok) return true;
+      }
+      return false;
+    },
     persona(b) {
       const p = b.p;
       const pers = C.PERSONALITIES[p.personality] || C.PERSONALITIES.analitico;
@@ -979,6 +992,11 @@
         /* linha repetida descartada: a mesma pessoa dizendo quase a mesma coisa, ou cópia de outra fala longa */
         const dup = seenText.some((x) => (x.from === p.id ? similar(x.text, ln.text) >= 0.6 : !s.beats.length && words(ln.text).size >= 5 && similar(x.text, ln.text) >= 0.85));
         if (dup) continue;
+        /* o modelo trocou quem fala ("confirma, verde" dito pelo próprio verde): fica o texto do motor */
+        if (V.selfRef(p, ln.text)) {
+          if (s.beats.length) s.beats.forEach((x) => this.postRaw(x, delay + 0.4));
+          continue;
+        }
         seenText.push({ from: p.id, text: ln.text });
         let intents;
         if (!firstOf.has(p.id)) {

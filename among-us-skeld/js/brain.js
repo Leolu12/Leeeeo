@@ -1550,13 +1550,14 @@
           U.chance(0.06 + L.lie * 0.06) && this.unseen()) this.disguise(null, others);
       /* jogada do disfarce: mata na frente de uma ou duas pessoas, com a cara de outro, e some */
       if (p.shiftAs != null && p.killCd <= 0 && others.length >= 2) {
-        const v = others.filter((q) => U.dist(p, q) <= g.killDist && Nav.los(p.x, p.y, q.x, q.y)).sort((a, b) => U.dist(p, a) - U.dist(p, b))[0];
+        /* nunca mata quem está imitando (a testemunha veria "fulano matando fulano") */
+        const v = others.filter((q) => q.id !== p.shiftAs && U.dist(p, q) <= g.killDist && Nav.los(p.x, p.y, q.x, q.y)).sort((a, b) => U.dist(p, a) - U.dist(p, b))[0];
         if (v && this.frameKill(v, others) && g.tryKill(p, v)) {
           this.framedX = p.shiftAs;
           return;
         }
         if (!v && this.frameRoll && others.length <= 3 && (!this.plan || this.plan.type !== 'hunt')) {
-          const near = others.slice().sort((a, b) => U.dist(p, a) - U.dist(p, b))[0];
+          const near = others.filter((q) => q.id !== p.shiftAs).sort((a, b) => U.dist(p, a) - U.dist(p, b))[0];
           if (near && U.dist(p, near) < 6 && this.frameKill(near, others)) return this.planHunt(near);
         }
       }
@@ -1564,6 +1565,7 @@
         /* a dupla combinada na reunião (todo mundo ouviu): matar o próprio parceiro me entrega na hora; o esperto não mata */
         const pactWith = (q) => q && (g.publicPacts || []).some((pc) => (pc.from === g.meetings || pc.scope === 'game') && ((pc.a === p.id && pc.b === q.id) || (pc.b === p.id && pc.a === q.id)));
         let tgt = others.length === 1 ? others[0] : null;
+        if (tgt && p.shiftAs === tgt.id) tgt = null;
         const myPact = pactWith(tgt);
         if (myPact && L.lie >= 0.5) tgt = null;
         /* só age depois de ver a vítima isolada por um tempo, e nem sempre na primeira chance */

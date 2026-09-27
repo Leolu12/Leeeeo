@@ -623,16 +623,27 @@
       const nImp = g.players.filter((p) => p.isImp).length;
       const team = imp ? g.players.filter((p) => p.isImp) : g.players;
       const row = h('div', { class: 'reveal-row' });
-      team.forEach((p, i) => row.appendChild(h('div', { class: 'reveal-p', style: { animationDelay: 0.15 + i * 0.06 + 's' } }, h('span', { html: AU.Render.beanSVG(p.color, { size: p === hp ? 110 : 70, visor: p.visor }) }), h('span', { class: imp ? 'imp' : '' }, p.name))));
+      team.forEach((p, i) => row.appendChild(h('div', { class: 'reveal-p' + (p === hp ? ' me' : ''), style: { animationDelay: 0.15 + i * 0.06 + 's' } }, h('span', { html: AU.Render.beanSVG(p.color, { size: p === hp ? 110 : 70, visor: p.visor }) }), h('span', { class: imp ? 'imp' : '' }, p.name))));
       const sp = hp.special ? C.ROLES[hp.special] : null;
       root.append(h('div', { class: 'reveal ' + (imp ? 'imp' : 'crew') },
         h('div', { class: 'reveal-sub' }, imp ? (nImp > 1 ? 'Você e seu parceiro' : 'Elimine a tripulação sem ser descoberto') : `Há ${nImp} impostor${nImp > 1 ? 'es' : ''} entre nós`),
         h('div', { class: 'reveal-title' }, imp ? 'Impostor' : 'Tripulante'),
         sp ? h('div', { class: 'reveal-role' }, sp.name + ': ' + sp.desc) : null,
         row,
+        h('div', { class: 'reveal-draw' }, this.drawNote(g, nImp)),
         h('button', { class: 'btn primary', onclick: () => done() }, 'Começar')));
       AU.Audio.play('reveal');
       this._revealT = setTimeout(done, 6500);
+    },
+
+    /* como foi o sorteio desta partida (para dar para conferir que é justo) */
+    drawNote(g, nImp) {
+      const S = g.S, n = g.players.length, d = S.room.draw;
+      const pct = (x) => Math.round(x) + '%';
+      if (d === 'B') return 'Sorteio: você sempre impostor (configuração da sala).';
+      if (d === 'C') return 'Sorteio: você sempre tripulante (configuração da sala).';
+      if (d === 'D') return 'Sorteio personalizado: ' + pct(S.room.drawChance || 0) + ' de chance de você ser impostor.';
+      return 'Sorteio aleatório puro: cada um dos ' + n + ' tinha ' + pct((100 * nImp) / n) + ' de chance de ser impostor.';
     },
 
     /* ---------------- fim ---------------- */

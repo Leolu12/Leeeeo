@@ -17,6 +17,8 @@
     x.R = (pid, form) => {
       const q = g.players[pid];
       if (!q) return 'alguém';
+      /* quem fala não se chama pela própria cor: vira primeira pessoa ("votou em mim", "comigo") */
+      if (sp && sp.p && sp.p.id === pid) return { no: 'em mim', com: 'comigo', de: 'de mim', o: 'eu' }[form] || 'eu';
       const byName = q.isHuman ? U.chance(0.45) : U.chance(0.18);
       const col = C.COLOR[q.color].name.toLowerCase();
       if (byName) {

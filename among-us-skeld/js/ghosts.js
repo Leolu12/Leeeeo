@@ -51,6 +51,7 @@
     knowNothing: ['{x}? sei não', 'não sei nada {xde}', '{x}? não vi nada'],
     iWasCrew: ['não, eu era tripulante', 'eu era inocente', 'não era eu não'],
     iWasImp: ['era eu sim kkk', 'é, era eu', 'fui eu kkk'],
+    selfFaced: ['quem me matou tava com a minha cara, foi o metamorfo', 'era alguém igual a mim... metamorfo', 'me matei? kkk não, foi o metamorfo com a minha cara'],
     wrongVote: ['não!! foi {k}', 'tão votando errado, foi {k}', 'não é esse, foi {k} que me matou', 'aaa vota em {kn}'],
     rightVote: ['isso, vota em {kn}', 'isso!! é {k}', 'vai, tira {kn}'],
     notEjected: ['ejetado? você foi morto, não ejetado', 'não, te mataram... ninguém votou em você', 'você morreu, não foi votação'],
@@ -133,7 +134,9 @@
     /* ---------- eventos do jogo ---------- */
     onKill(killer, victim, apparent, area) {
       const kv = this.k(victim.id);
-      kv.killer = apparent;
+      /* morto por alguém com a própria cara (metamorfo imitando a vítima): não diz "foi eu mesmo" */
+      kv.selfFaced = apparent === victim.id;
+      kv.killer = kv.selfFaced ? null : apparent;
       kv.area = area;
       for (const p of this.g.players) {
         if (p.alive || p === victim || !p.brain || p.isHuman) continue;
@@ -188,7 +191,7 @@
       }
       const others = this.ghostBots().filter((q) => q !== v);
       if (others.length && U.chance(0.55)) this.later(U.pick(others), U.rf(1.5, 4), { kind: 'greet', v: v.id });
-      if (U.chance(0.7)) this.later(v, U.rf(3, 6), { kind: kv.killer != null ? 'selfKiller' : 'selfUnknown', k: kv.killer, a: kv.area });
+      if (U.chance(0.7)) this.later(v, U.rf(3, 6), { kind: kv.selfFaced ? 'selfFaced' : kv.killer != null ? 'selfKiller' : 'selfUnknown', k: kv.killer, a: kv.area });
     }
 
     /* ---------- o jogador fala ---------- */
@@ -431,6 +434,7 @@
               const mate = alive.find((q) => q.isImp && q !== p);
               return mate ? this.choose(LINES.mate, { x: mate.id }) : this.choose(LINES.iWasImp, {});
             }
+            if (kp.selfFaced) return this.choose(LINES.selfFaced, {});
             if (kp.killer != null) {
               if (!(g.players[kp.killer] && g.players[kp.killer].alive)) return this.choose(LINES.killerGone, { k: kp.killer });
               return this.choose(this.saidName(p, kp.killer) ? LINES.whoAgain : LINES.whoKnown, { k: kp.killer, a: kp.area });
@@ -528,6 +532,7 @@
         case 'wrongVote': return 'Os vivos estão votando em ' + this.name(g.meeting && g.meeting.saidLeading() ? g.meeting.saidLeading().id : null) + ', mas ' + p.name + ' sabe que foi ' + this.name(c.k) + '. Reage (os vivos não leem).';
         case 'rightVote': return 'Os vivos estão votando em ' + this.name(c.k) + ', que ' + p.name + ' sabe que é impostor. Torce.';
         case 'selfKiller': return p.name + ' acabou de morrer e conta quem o matou.';
+        case 'selfFaced': return p.name + ' acabou de morrer: quem matou estava com a cara dele(a) — foi o metamorfo.';
         case 'selfUnknown': return p.name + ' acabou de morrer sem ver quem foi.';
         case 'sawKill': return p.name + ' (fantasma) acabou de ver ' + this.name(c.k) + ' matar ' + this.name(c.v) + ' ' + this.room(c.a) + '.';
         case 'ejImp': case 'ejCrew': return p.name + ' acabou de ser ejetado e comenta.';

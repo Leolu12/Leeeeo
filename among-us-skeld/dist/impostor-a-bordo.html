@@ -199,15 +199,33 @@ textarea { resize: vertical; margin-top: 10px; }
 
 /* ---------- revelação ---------- */
 #screen-reveal { display: grid; place-items: center; background: #000; padding-inline: 16px; }
-.reveal { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; animation: pop 0.6s ease-out; }
-.reveal-title { font-family: var(--display); font-size: clamp(54px, 12vw, 120px); font-weight: 700; text-transform: uppercase; line-height: 1; }
+.reveal { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; animation: pop 0.6s ease-out; width: 100%; max-width: 100%; min-width: 0; }
+.reveal-title { font-family: var(--display); font-size: clamp(34px, 11.5vw, 120px); font-weight: 700; text-transform: uppercase; line-height: 1; max-width: 100%; overflow-wrap: anywhere; }
+.reveal-draw { color: var(--muted); font-size: 13px; text-align: center; max-width: min(32em, 100%); margin: 0 auto; }
 .reveal.crew .reveal-title { color: var(--crew); text-shadow: 0 0 40px rgba(95, 214, 255, 0.45); }
 .reveal.imp .reveal-title { color: var(--imp); text-shadow: 0 0 40px rgba(255, 77, 77, 0.5); }
 .reveal-sub { color: #c2cbe3; font-size: 18px; }
 .reveal-role { max-width: 520px; color: var(--violet); font-weight: 700; }
-.reveal-row { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 10px; margin: 10px 0 8px; max-width: 900px; }
+.reveal-row { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 10px; margin: 10px 0 8px; max-width: min(900px, 100%); }
 .reveal-p { display: flex; flex-direction: column; align-items: center; gap: 2px; animation: pop 0.5s ease-out both; font-weight: 700; font-size: 13px; }
 .reveal-p .imp { color: var(--imp); }
+@media (max-height: 560px), (max-width: 400px) {
+  .reveal { gap: 8px; }
+  .reveal-title { font-size: min(clamp(34px, 11.5vw, 120px), 17vh); }
+  .reveal-sub { font-size: 15px; }
+  .reveal-row { gap: 6px 8px; margin: 4px 0; }
+  .reveal-p { font-size: 11px; }
+  .reveal-p .bean { width: 44px; height: 44px; }
+  .reveal-p.me .bean { width: 70px; height: 70px; }
+  .reveal-draw { font-size: 12px; }
+}
+@media (max-height: 400px) {
+  .reveal { gap: 4px; }
+  .reveal-sub { font-size: 13px; }
+  .reveal-p .bean { width: 34px; height: 34px; }
+  .reveal-p.me .bean { width: 52px; height: 52px; }
+  .reveal-p { font-size: 10px; }
+}
 
 /* ---------- jogo ---------- */
 #world { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
@@ -1781,6 +1799,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     x.R = (pid, form) => {
       const q = g.players[pid];
       if (!q) return 'alguém';
+      /* quem fala não se chama pela própria cor: vira primeira pessoa ("votou em mim", "comigo") */
+      if (sp && sp.p && sp.p.id === pid) return { no: 'em mim', com: 'comigo', de: 'de mim', o: 'eu' }[form] || 'eu';
       const byName = q.isHuman ? U.chance(0.45) : U.chance(0.18);
       const col = C.COLOR[q.color].name.toLowerCase();
       if (byName) {
@@ -5428,13 +5448,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           U.chance(0.06 + L.lie * 0.06) && this.unseen()) this.disguise(null, others);
       /* jogada do disfarce: mata na frente de uma ou duas pessoas, com a cara de outro, e some */
       if (p.shiftAs != null && p.killCd <= 0 && others.length >= 2) {
-        const v = others.filter((q) => U.dist(p, q) <= g.killDist && Nav.los(p.x, p.y, q.x, q.y)).sort((a, b) => U.dist(p, a) - U.dist(p, b))[0];
+        /* nunca mata quem está imitando (a testemunha veria "fulano matando fulano") */
+        const v = others.filter((q) => q.id !== p.shiftAs && U.dist(p, q) <= g.killDist && Nav.los(p.x, p.y, q.x, q.y)).sort((a, b) => U.dist(p, a) - U.dist(p, b))[0];
         if (v && this.frameKill(v, others) && g.tryKill(p, v)) {
           this.framedX = p.shiftAs;
           return;
         }
         if (!v && this.frameRoll && others.length <= 3 && (!this.plan || this.plan.type !== 'hunt')) {
-          const near = others.slice().sort((a, b) => U.dist(p, a) - U.dist(p, b))[0];
+          const near = others.filter((q) => q.id !== p.shiftAs).sort((a, b) => U.dist(p, a) - U.dist(p, b))[0];
           if (near && U.dist(p, near) < 6 && this.frameKill(near, others)) return this.planHunt(near);
         }
       }
@@ -5442,6 +5463,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         /* a dupla combinada na reunião (todo mundo ouviu): matar o próprio parceiro me entrega na hora; o esperto não mata */
         const pactWith = (q) => q && (g.publicPacts || []).some((pc) => (pc.from === g.meetings || pc.scope === 'game') && ((pc.a === p.id && pc.b === q.id) || (pc.b === p.id && pc.a === q.id)));
         let tgt = others.length === 1 ? others[0] : null;
+        if (tgt && p.shiftAs === tgt.id) tgt = null;
         const myPact = pactWith(tgt);
         if (myPact && L.lie >= 0.5) tgt = null;
         /* só age depois de ver a vítima isolada por um tempo, e nem sempre na primeira chance */
@@ -8790,6 +8812,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         '- Nada de repetição: ninguém repete o que já disse nem o que outro já disse com as mesmas palavras. Cada mensagem acrescenta algo (um fato, uma pergunta, uma dúvida, uma opinião, uma reação curta). Quem já contou onde estava não conta de novo, a não ser que perguntem.',
         '- Perguntar algo não é motivo para acusar ninguém. Só acuse quem as anotações do personagem dão motivo.',
         '- Cada jogador tem um nome e uma cor (ex.: "Léo" é o "Lima"). Nome e cor são a MESMA pessoa: nunca defenda alguém pela cor e acuse o mesmo pelo nome. Ninguém defende e acusa a mesma pessoa na mesma mensagem.',
+        '- Quem fala nunca se refere a si mesmo pelo próprio nome ou pela própria cor (quem é o verde não escreve "confirma, verde" nem "o verde estava comigo"): fala em primeira pessoa e, para pedir confirmação, chama a OUTRA pessoa.',
         '- As pessoas escrevem com erro de digitação ou por ditado de voz (nomes e salas trocados, palavras juntas). Entenda o sentido mais provável (ex.: "médica" = MedBay, "caio hino" = "Caio, hein", "eletrica" = Elétrica) e responda ao que a pessoa quis dizer, sem zoar o erro e sem responder "que X?" quando dá para entender.',
         '- Eles conversam entre si e com todos: chamam pelo nome ou pela cor ("o verde", "rafa"), respondem perguntas, cobram, desconfiam, defendem.',
         '- Só confirme onde alguém estava se as anotações dizem que o personagem VIU a pessoa lá pouco antes da reunião; ter visto no começo da rodada não confirma nada. Na dúvida, diga que não viu. Com metamorfo na partida, "vi fulano" pode ter sido o metamorfo disfarçado de fulano.',
@@ -8852,6 +8875,18 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       return mt.msgs.slice(-(n || 22)).map((m) => `${V.who(g, m.from)}: ${m.text}`).join('\n') || '(ninguém falou ainda)';
     },
 
+    /* a fala cita o próprio nome ou a própria cor de quem fala (fora "eu sou o verde" / "o verde sou eu")? */
+    selfRef(p, text) {
+      const n = ' ' + U.norm(text).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ') + ' ';
+      const own = [U.norm(p.name), U.norm(C.COLOR[p.color].name)].filter((w) => w && w.length >= 2);
+      for (const w of own) {
+        const re = new RegExp(' ' + w + ' ');
+        if (!re.test(n)) continue;
+        const ok = new RegExp('(eu )?(sou|era|to de|tou de) (o |a )?' + w + ' | (o |a )?' + w + ' (sou|era) eu | me chamo ' + w + ' ').test(n);
+        if (!ok) return true;
+      }
+      return false;
+    },
     persona(b) {
       const p = b.p;
       const pers = C.PERSONALITIES[p.personality] || C.PERSONALITIES.analitico;
@@ -9619,6 +9654,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         /* linha repetida descartada: a mesma pessoa dizendo quase a mesma coisa, ou cópia de outra fala longa */
         const dup = seenText.some((x) => (x.from === p.id ? similar(x.text, ln.text) >= 0.6 : !s.beats.length && words(ln.text).size >= 5 && similar(x.text, ln.text) >= 0.85));
         if (dup) continue;
+        /* o modelo trocou quem fala ("confirma, verde" dito pelo próprio verde): fica o texto do motor */
+        if (V.selfRef(p, ln.text)) {
+          if (s.beats.length) s.beats.forEach((x) => this.postRaw(x, delay + 0.4));
+          continue;
+        }
         seenText.push({ from: p.id, text: ln.text });
         let intents;
         if (!firstOf.has(p.id)) {
@@ -10021,6 +10061,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     knowNothing: ['{x}? sei não', 'não sei nada {xde}', '{x}? não vi nada'],
     iWasCrew: ['não, eu era tripulante', 'eu era inocente', 'não era eu não'],
     iWasImp: ['era eu sim kkk', 'é, era eu', 'fui eu kkk'],
+    selfFaced: ['quem me matou tava com a minha cara, foi o metamorfo', 'era alguém igual a mim... metamorfo', 'me matei? kkk não, foi o metamorfo com a minha cara'],
     wrongVote: ['não!! foi {k}', 'tão votando errado, foi {k}', 'não é esse, foi {k} que me matou', 'aaa vota em {kn}'],
     rightVote: ['isso, vota em {kn}', 'isso!! é {k}', 'vai, tira {kn}'],
     notEjected: ['ejetado? você foi morto, não ejetado', 'não, te mataram... ninguém votou em você', 'você morreu, não foi votação'],
@@ -10103,7 +10144,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     /* ---------- eventos do jogo ---------- */
     onKill(killer, victim, apparent, area) {
       const kv = this.k(victim.id);
-      kv.killer = apparent;
+      /* morto por alguém com a própria cara (metamorfo imitando a vítima): não diz "foi eu mesmo" */
+      kv.selfFaced = apparent === victim.id;
+      kv.killer = kv.selfFaced ? null : apparent;
       kv.area = area;
       for (const p of this.g.players) {
         if (p.alive || p === victim || !p.brain || p.isHuman) continue;
@@ -10158,7 +10201,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
       const others = this.ghostBots().filter((q) => q !== v);
       if (others.length && U.chance(0.55)) this.later(U.pick(others), U.rf(1.5, 4), { kind: 'greet', v: v.id });
-      if (U.chance(0.7)) this.later(v, U.rf(3, 6), { kind: kv.killer != null ? 'selfKiller' : 'selfUnknown', k: kv.killer, a: kv.area });
+      if (U.chance(0.7)) this.later(v, U.rf(3, 6), { kind: kv.selfFaced ? 'selfFaced' : kv.killer != null ? 'selfKiller' : 'selfUnknown', k: kv.killer, a: kv.area });
     }
 
     /* ---------- o jogador fala ---------- */
@@ -10401,6 +10444,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
               const mate = alive.find((q) => q.isImp && q !== p);
               return mate ? this.choose(LINES.mate, { x: mate.id }) : this.choose(LINES.iWasImp, {});
             }
+            if (kp.selfFaced) return this.choose(LINES.selfFaced, {});
             if (kp.killer != null) {
               if (!(g.players[kp.killer] && g.players[kp.killer].alive)) return this.choose(LINES.killerGone, { k: kp.killer });
               return this.choose(this.saidName(p, kp.killer) ? LINES.whoAgain : LINES.whoKnown, { k: kp.killer, a: kp.area });
@@ -10498,6 +10542,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         case 'wrongVote': return 'Os vivos estão votando em ' + this.name(g.meeting && g.meeting.saidLeading() ? g.meeting.saidLeading().id : null) + ', mas ' + p.name + ' sabe que foi ' + this.name(c.k) + '. Reage (os vivos não leem).';
         case 'rightVote': return 'Os vivos estão votando em ' + this.name(c.k) + ', que ' + p.name + ' sabe que é impostor. Torce.';
         case 'selfKiller': return p.name + ' acabou de morrer e conta quem o matou.';
+        case 'selfFaced': return p.name + ' acabou de morrer: quem matou estava com a cara dele(a) — foi o metamorfo.';
         case 'selfUnknown': return p.name + ' acabou de morrer sem ver quem foi.';
         case 'sawKill': return p.name + ' (fantasma) acabou de ver ' + this.name(c.k) + ' matar ' + this.name(c.v) + ' ' + this.room(c.a) + '.';
         case 'ejImp': case 'ejCrew': return p.name + ' acabou de ser ejetado e comenta.';
@@ -15825,16 +15870,27 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const nImp = g.players.filter((p) => p.isImp).length;
       const team = imp ? g.players.filter((p) => p.isImp) : g.players;
       const row = h('div', { class: 'reveal-row' });
-      team.forEach((p, i) => row.appendChild(h('div', { class: 'reveal-p', style: { animationDelay: 0.15 + i * 0.06 + 's' } }, h('span', { html: AU.Render.beanSVG(p.color, { size: p === hp ? 110 : 70, visor: p.visor }) }), h('span', { class: imp ? 'imp' : '' }, p.name))));
+      team.forEach((p, i) => row.appendChild(h('div', { class: 'reveal-p' + (p === hp ? ' me' : ''), style: { animationDelay: 0.15 + i * 0.06 + 's' } }, h('span', { html: AU.Render.beanSVG(p.color, { size: p === hp ? 110 : 70, visor: p.visor }) }), h('span', { class: imp ? 'imp' : '' }, p.name))));
       const sp = hp.special ? C.ROLES[hp.special] : null;
       root.append(h('div', { class: 'reveal ' + (imp ? 'imp' : 'crew') },
         h('div', { class: 'reveal-sub' }, imp ? (nImp > 1 ? 'Você e seu parceiro' : 'Elimine a tripulação sem ser descoberto') : `Há ${nImp} impostor${nImp > 1 ? 'es' : ''} entre nós`),
         h('div', { class: 'reveal-title' }, imp ? 'Impostor' : 'Tripulante'),
         sp ? h('div', { class: 'reveal-role' }, sp.name + ': ' + sp.desc) : null,
         row,
+        h('div', { class: 'reveal-draw' }, this.drawNote(g, nImp)),
         h('button', { class: 'btn primary', onclick: () => done() }, 'Começar')));
       AU.Audio.play('reveal');
       this._revealT = setTimeout(done, 6500);
+    },
+
+    /* como foi o sorteio desta partida (para dar para conferir que é justo) */
+    drawNote(g, nImp) {
+      const S = g.S, n = g.players.length, d = S.room.draw;
+      const pct = (x) => Math.round(x) + '%';
+      if (d === 'B') return 'Sorteio: você sempre impostor (configuração da sala).';
+      if (d === 'C') return 'Sorteio: você sempre tripulante (configuração da sala).';
+      if (d === 'D') return 'Sorteio personalizado: ' + pct(S.room.drawChance || 0) + ' de chance de você ser impostor.';
+      return 'Sorteio aleatório puro: cada um dos ' + n + ' tinha ' + pct((100 * nImp) / n) + ' de chance de ser impostor.';
     },
 
     /* ---------------- fim ---------------- */
