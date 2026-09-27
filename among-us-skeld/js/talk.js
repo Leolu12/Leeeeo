@@ -200,11 +200,11 @@
         case 'voteSkip': return d.other != null
           ? pick([`${w} votou ${x.R(d.other, 'no')} na hora de tirar ${x.R(d.imp, 'o')}, que era impostor... protegendo?`, `lembram? ${w} não votou ${x.R(d.imp, 'no')}, votou ${x.R(d.other, 'no')}`])
           : pick([`${w} pulou quando todo mundo votou ${x.R(d.imp, 'no')}, que era impostor`, `todo mundo foi ${x.R(d.imp, 'no')} e ${w} pulou... estranho`, `${w} tentou salvar ${x.R(d.imp, 'o')} pulando`]);
-        case 'pactVictim': return pick([`${w} tava em dupla com ${x.R(d.victim, 'o')}, né? se separaram onde?`, `${x.R(d.who)}, você não tava em dupla com ${x.R(d.victim, 'o')}? o que aconteceu?`, `${x.R(d.who)}, cadê a sua dupla? quando se separaram?`]);
+        case 'pactVictim': return pick([`${w} não tava em dupla com ${x.R(d.victim, 'o')}? onde vocês se separaram?`, `${x.R(d.who)}, você não tava em dupla com ${x.R(d.victim, 'o')}? o que aconteceu?`, `${x.R(d.who)}, cadê a sua dupla? quando se separaram?`]);
         case 'votePush': return pick([`${w} votou ${x.R(d.inn, 'no')}, que era inocente`, `${w} ajudou a tirar ${x.R(d.inn, 'o')}`]);
         case 'vote': return pick([`vota ${x.R(d.who, 'no')}`, `bora votar ${x.R(d.who, 'no')}`]);
-        case 'hunch': return pick([`${x.Rc(d.who, 'o')} está estranho`, `sei lá, acho que é ${w}`, `${x.Rc(d.who, 'o')} suspeito`, `meu instinto diz ${w}`]);
-        default: return pick([`${x.Rc(d.who, 'o')} suspeito`, `acho que é ${w}`]);
+        case 'hunch': return pick([`${x.Rc(d.who, 'o')} está estranho`, `sei lá, acho que é ${w}`, `${x.Rc(d.who, 'o')} está suspeito`, `meu instinto diz ${w}`]);
+        default: return pick([`${x.Rc(d.who, 'o')} está suspeito`, `acho que é ${w}`]);
       }
     },
     vouch: (d, x) => {
@@ -260,6 +260,7 @@
     notThere: (d, x) => pick([`eu nem passei ${x.inA(d.area)}`, `mentira, eu não estava ${x.inA(d.area)}`, `quê? eu estava ${x.inA(d.mine)}`]),
     wasThere: (d, x) => pick([`sim, eu estava ${x.inA(d.area)}`, `é, passei ${x.inA(d.area)}`]),
     deny: (d, x) => pick([`não fui eu`, d.area ? `o quê? eu estava ${x.inA(d.area)}` : `o quê?`, d.area ? `não, eu estava ${x.inA(d.area)}` : `não sou eu`, `não fui eu, juro`, `por que eu?`]),
+    denyThere: (d, x) => pick([`passei ${x.inA(d.area)} sim, mas não fui eu`, `tava ${x.inA(d.area)}, mas não vi corpo nenhum`, `sim, tava ${x.inA(d.area)}, e daí? não fui eu`, `tava lá sim, mas quando passei não tinha nada`]),
     denyStrong: (d, x) => pick([d.area ? `mentira! eu estava ${x.inA(d.area)}` : `mentira!`, `${x.R(d.accuser)} está mentindo${d.area ? ', eu estava ' + x.inA(d.area) : ''}`, `quem acusa assim é impostor`]),
     counter: (d, x) => pick([`está me acusando por quê? você que é suspeito, ${x.R(d.who)}`, `${x.R(d.who, 'o')} está tentando se livrar`, `quem acusa sem prova é impostor, vota ${x.R(d.who, 'no')}`]),
     askProof: (d, x) => pick([`prova?`, `você viu?`, `quem viu?`, `tem prova disso?`, `calma, sem prova não dá pra votar`, d.who != null ? `por que ${x.R(d.who, 'o')}?` : `por quê?`]),
@@ -285,10 +286,10 @@
     defendPartner: (d, x) => pick([`sei lá, ${x.R(d.who, 'o')} estava fazendo task`, `vocês estão votando sem prova`, `acho que não é ${x.R(d.who, 'o')}`]),
     whoSus: (d, x) => (d.who == null ? pick([`não sei, sem info`, `ninguém ainda`]) : pick([`acho que é ${x.R(d.who, 'o')}`, `${x.R(d.who, 'o')} pra mim`])),
     leaderVote: (d, x) => (d.who == null ? pick([`sem prova, todo mundo skip`, `ninguém tem certeza, skip`]) : pick([`vamos votar ${x.R(d.who, 'no')}, ninguém confirma ele`, `votem ${x.R(d.who, 'no')}`])),
-    huh: () => pick([`?`, `quê?`, `hã?`, `não entendi`]),
+    huh: () => pick([`como assim?`, `quê?`, `hã?`, `não entendi`]),
     offerVisual: (d, x) => pick([`tenho ${d.task ? x.task(d.task) : 'tarefa visual'}, posso fazer na frente de vocês`, `me segue na próxima que eu faço ${d.task ? x.task(d.task) : 'a visual'}`, `quem desconfiar me acompanha, eu provo com ${d.task ? x.task(d.task) : 'a visual'}`]),
     roleDup: (d, x) => pick([`só tem ${d.n} ${ROLE_TXT[d.role]} e ${x.R(d.who, 'o')} já disse que era`, `${ROLE_TXT[d.role]} de novo? ${x.R(d.who, 'o')} já falou que é`, `dois ${ROLE_TXT[d.role]}? só tem ${d.n} nessa partida, alguém tá mentindo`]),
-    askEng: (d, x) => pick([`vi ${x.R(d.who, 'o')} no duto ${d.area ? x.inA(d.area) : ''}... ${x.R(d.who)}, você é engenheiro?`.replace(/\s+/g, ' '), `${x.R(d.who)}, te vi saindo do duto. é engenheiro?`, `${x.R(d.who, 'o')} ventou ${d.area ? x.inA(d.area) : ''}, mas pode ser engenheiro, é?`.replace(/\s+/g, ' ')]),
+    askEng: (d, x) => pick([`vi ${x.R(d.who, 'o')} no duto ${d.area ? x.inA(d.area) : ''}... ${x.R(d.who)}, você é engenheiro?`.replace(/\s+/g, ' '), `${x.R(d.who)}, te vi saindo do duto. é engenheiro?`, `${x.R(d.who, 'o')} saiu do duto ${d.area ? x.inA(d.area) : ''}. se for engenheiro, fala`.replace(/\s+/g, ' ')]),
     engClaim: () => pick([`sou engenheiro, se alguém me viu no duto foi isso`, `aviso: sou engenheiro, uso duto`, `se alguém me viu ventando, sou engenheiro`]),
     /* combinado de andar junto (lead: 'me' = eu vou na frente, 'them' = eu sigo a pessoa) */
     pactOk: (d, x) => {
@@ -357,7 +358,7 @@
     [/\bsla\b/gi, 'sei lá'], [/\btlgd\b/gi, ''], [/\bt[aá] ligado\b/gi, ''], [/\bslk\b/gi, ''], [/\bpqp\b,?/gi, ''], [/\bmano\b,?/gi, ''], [/\bpô\b,?/gi, ''], [/\boxe\b,?/gi, ''], [/\bvéi\b,?/gi, ''], [/\bué\b,?/gi, ''],
     [/\bkk+\b/gi, ''], [/\brs\b/gi, ''], [/\bcams\b/gi, 'câmeras'], [/\bstack kill\b/gi, 'abate no meio do grupo'], [/\bcrew\b/gi, 'tripulação'],
     [/\btavam\b/gi, 'estavam'], [/\btava\b/gi, 'estava'], [/\btá\b/gi, 'está'], [/\btô\b/gi, 'estou'], [/\bpros\b/gi, 'para os'], [/\bpras\b/gi, 'para as'],
-    [/\bpro\b/gi, 'para o'], [/\bpra\b/gi, 'para'], [/\bfechou\b/gi, 'certo'], [/\bbora\b/gi, 'vamos'], [/\bpera\b/gi, 'espera'], [/\bné\b/gi, ''],
+    [/\bpro\b/gi, 'para o'], [/\bpra\b/gi, 'para'], [/\bfechou\b/gi, 'certo'], [/\bbora\b/gi, 'vamos'], [/\bpera\b/gi, 'espera'], [/,?\s*\bné(?=\s*[?!.,]|\s*$)/gi, ''], [/\s\bné\s/gi, ' '],
     [/\bagora pouco\b/gi, 'agora há pouco'], [/\b(\d+) ?s\b/g, '$1 segundos'], [/\btasks\b/gi, 'tarefas'], [/\btask\b/gi, 'tarefa'], [/\bcard\b/gi, 'cartão'],
     [/\bdo report\b/gi, 'de acharem o corpo'], [/\ba visual\b/gi, 'a tarefa visual'], [/\bpelo vitals\b/gi, 'pelos sinais vitais'], [/\bo vitals mostra\b/gi, 'os sinais vitais mostram'], [/\bno vitals\b/gi, 'nos sinais vitais'], [/\bvitals\b/gi, 'sinais vitais'], [/^\+1$/, 'concordo'],
   ];
@@ -435,7 +436,7 @@
   };
   const KIND_MOOD = {
     accuse: 'hot', panic: 'hot', knewBody: 'hot', claimClash: 'hot', contradictSeen: 'hot', hidBodyRoom: 'hot', atBody: 'hot', callReason: 'hot', reportInfo: 'hot', crisis: 'hot',
-    deny: 'deny', denyStrong: 'deny', notThere: 'deny', counter: 'deny', denyWith: 'deny',
+    deny: 'deny', denyStrong: 'deny', denyThere: 'deny', notThere: 'deny', counter: 'deny', denyWith: 'deny',
     topicAsk: 'ask', askProof: 'ask', topicDoubt: 'ask', huh: 'ask', askWhere: 'ask', askCaller: 'ask', topicWhat: 'ask', askConfirm: 'ask',
   };
   const RAIZ_LAUGH = new Set(['offtopic', 'deny', 'huh', 'agree', 'askProof', 'lost', 'ghost', 'topicDoubt', 'counter', 'callReason']);
@@ -462,7 +463,7 @@
       const words = s.split(/\s+/).length, greet = /^(oi|eai|e ai|salve|opa|fala|ol[aá]|boa (noite|tarde|dia))\b/.test(s);
       if (!mood && !greet && words >= 4 && opts.kind !== 'claimLoc' && U.chance(0.1)) s = pick(['tipo ', 'mano ']) + s;
       else if (!/\?$/.test(s) && !mood && !greet && words >= 4 && U.chance(0.14)) s += pick([' tlgd', ', tá ligado', ' tlgd']);
-      if (RAIZ_LAUGH.has(opts.kind) && !/k{3,}/i.test(s) && U.chance(0.3)) s += ' ' + pick(['kkkk', 'kkkkkk', 'KKKKK']);
+      if (RAIZ_LAUGH.has(opts.kind) && !/morreu|morto|corpo|matou/i.test(s) && !/k{3,}/i.test(s) && U.chance(0.3)) s += ' ' + pick(['kkkk', 'kkkkkk', 'KKKKK']);
       if (opts.strong && U.chance(0.4)) s = s.toUpperCase();
       if (U.chance(0.55)) s = stripAccents(s);
       s = s.replace(/[.,]$/, '');
@@ -473,7 +474,9 @@
       if (U.chance(0.25)) s = stripAccents(s);
       s = s.replace(/[.]$/, '');
     }
-    if ((pers.chaos || pers.offtopic) && U.chance(tone === 'raiz' ? 0.25 : 0.15) && !/k{3,}/i.test(s)) s += ' ' + pick(['kkk', 'kkkkk', 'KKKK']);
+    /* risada solta só em fala leve: nunca em morte, corpo, vitals, voto ou acusação */
+    const heavy = /morreu|morto|morta|corpo|vitals|sinais vitais|matou|matar|abate|votei|voto|impostor|mentindo|mentira/i.test(s);
+    if ((pers.chaos || pers.offtopic) && !heavy && U.chance(tone === 'raiz' ? 0.25 : 0.15) && !/k{3,}/i.test(s)) s += ' ' + pick(['kkk', 'kkkkk', 'KKKK']);
     if (pers.caps && opts.strong && U.chance(0.6)) s = s.toUpperCase() + '!!';
     if (opts.question && !/\?$/.test(s)) s += '?';
     if (pers.offtopic && U.chance(0.2)) s = s.replace(/\?$/, '??');

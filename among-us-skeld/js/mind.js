@@ -45,6 +45,7 @@
     this.offered = null;
     this.pactReq = null;
     this.pactAsked = null;
+    this.deniedTo = new Set();
     const body = mt.info.body;
     if (body && (this.mem.bodies.some((b) => b.id === body.id) || mt.info.caller === p.id)) {
       this.knowsBody = body.area;
@@ -156,6 +157,23 @@
     }
     return tog;
   };
+
+  /* tempo junto (visto com os próprios olhos) a partir de um instante */
+  B.togetherSince = function (from) {
+    const tog = {};
+    for (const s of this.mem.seen) {
+      if (s.t1 < from || s.via !== 'eyes') continue;
+      tog[s.who] = (tog[s.who] || 0) + (s.t1 - Math.max(s.t0, from));
+    }
+    return tog;
+  };
+  /* o trecho da rodada que o álibi cobre: os últimos ~45s antes da reunião */
+  B.claimWindow = function () {
+    return Math.max(this.graceT(), (this.mt ? this.mt.info.t : this.g.t) - 45);
+  };
+
+  /* fração da janela do abate vigiando alguém para ele contar como "não foi ele" */
+  B.watchCov = 0.9;
 
   B.bodyEvidence = function (bodyArea) {
     if (this.p.isImp || !this.ev) return;
@@ -297,6 +315,23 @@
         if (other === me || pr.t1 < g0 || tFound - pr.t1 > 25 || pr.n < 4) continue;
         if (pr.area !== bodyArea && !M.isNear(pr.area, bodyArea)) continue;
         add(other, pr.alone ? 14 : 7, 'withVictim', { area: pr.area, victim, t: pr.t1 });
+      }
+    }
+    /* fiquei vendo a pessoa quase o tempo todo desde que a vítima foi vista viva: não foi ela neste abate
+       (então "estava com a vítima" ou "perto do corpo" não é pista contra ela) */
+    const W0 = this.killWindow ? this.killWindow.t0 : lastV ? lastV.t1 : null;
+    if (W0 != null && tFound - W0 >= 4) {
+      const len = tFound - W0, cov = {};
+      for (const x of this.mem.seen) {
+        if (x.via !== 'eyes' || x.who === victim || x.who === me) continue;
+        const a = Math.max(W0, x.t0), b = Math.min(tFound, x.t1);
+        if (b > a) cov[x.who] = (cov[x.who] || 0) + (b - a);
+      }
+      for (const id of Object.keys(cov)) {
+        if (cov[id] / len < this.watchCov) continue;
+        if (this.ev[id]) this.ev[id] = this.ev[id].filter((e) => !['lastWith', 'withVictim', 'nearBody', 'fromBody', 'ventLink'].includes(e.reason));
+        const many = (this.g.S.rules.confirmEjects ? mt.impostorsLeft : this.g.S.room.impostors) > 1;
+        add(+id, many ? -14 : -24, 'alibi', { area: null, cover: Math.min(1, cov[id] / len), solo: !many });
       }
     }
     /* "ficou comigo e não me matou" não apaga "estava com a vítima / vinha do corpo": só prova que não me matou */
@@ -587,7 +622,8 @@
       const dur = s.t1 - Math.max(s.t0, from);
       const a = M.AREA[s.area];
       /* a sala onde estava na hora da reunião e a passagem pela sala do corpo contam mesmo se foram rápidas */
-      const r = placeOf(s, dur) || (a.kind === 'room' && (k === segs.length - 1 || (s.area === body && dur >= 0.5)) ? a.id : null);
+      /* onde estava na hora da reunião sempre entra (sala ou corredor); a passagem pela sala do corpo também */
+      const r = placeOf(s, dur) || (k === segs.length - 1 ? a.id : a.kind === 'room' && s.area === body && dur >= 0.5 ? a.id : null);
       if (!r) return;
       const i = out.indexOf(r);
       if (i >= 0) out.splice(i, 1);
@@ -625,14 +661,28 @@
     }
     return null;
   };
+  /* "com quem estava": só quem ficou junto no trecho que o álibi conta, nas salas que ele cita
+     (ter cruzado com alguém no começo da rodada não é "estava com") */
   B.companion = function (rooms) {
-    const tog = this.togetherMap();
-    let best = null, bt = 12;
+    const from = this.claimWindow();
+    const T = this.mt ? this.mt.info.t : this.g.t;
+    const endFrom = Math.max(from, T - 12);
+    const tog = this.togetherSince(from);
+    const last = rooms[rooms.length - 1];
+    let best = null, bt = 0;
     for (const id of Object.keys(tog)) {
       const q = this.g.players[+id];
-      if (!q || !q.alive) continue;
-      if (tog[id] > bt && this.mem.seen.some((s) => s.who === +id && s.t1 >= this.graceT() && rooms.includes(s.area))) {
-        bt = tog[id];
+      if (!q || !q.alive || tog[id] < 4) continue;
+      /* junto no fim (últimos ~12s) ou na última sala que ele conta: quem se separou antes não é "com quem estava" */
+      let atEnd = 0, inLast = 0;
+      for (const s of this.mem.seen) {
+        if (s.who !== +id || s.via !== 'eyes' || s.t1 < from) continue;
+        if (s.t1 >= endFrom) atEnd += s.t1 - Math.max(s.t0, endFrom);
+        if (last && s.area === last) inLast += s.t1 - Math.max(s.t0, from);
+      }
+      const sc = atEnd * 2 + inLast;
+      if ((atEnd >= 3 || inLast >= 4) && sc > bt) {
+        bt = sc;
         best = +id;
       }
     }
@@ -759,7 +809,9 @@
           const beside = inside || segs.some((x) => M.isNear(x.area, ba));
           /* viu alguém lá (mesmo que só quem reportou): não diz "não tinha ninguém" */
           const sawSomeone = this.mem.seen.some((x) => x.who !== p.id && x.t1 >= this.rs + 5 && x.via === 'eyes' && (x.area === ba || M.isNear(x.area, ba)) && mt.info.t - x.t1 <= 30);
-          if (!beside || sawSomeone || !U.chance(0.35)) return null;
+          /* alguém já foi colocado lá na conversa ("tava no corredor da elétrica"): "não vi ninguém" soaria contraditório */
+          const placed = mt.msgs.some((m) => m.intents.some((j) => (j.type === 'claimLoc' && (j.rooms || []).includes(ba)) || (j.area === ba && (j.type === 'accuse' || j.type === 'sawAt'))));
+          if (!beside || sawSomeone || placed || !U.chance(0.35)) return null;
           return msg(inside ? 'noOneNear' : 'noOneNearBy', { area: ba }, []);
         }
         let who = top.who;
@@ -957,12 +1009,55 @@
       mt.say(this, m, meta);
     }, { ttl: direct ? 20 : 9, raw: viaAI });
   };
+  /* Coerência de quem fala, na hora de postar: não repete a mesma defesa, não acusa quem ele mesmo inocentou, não repete
+     a mesma acusação, nega uma vez para cada acusador e não ataca quem já tem duas tarefas visuais confirmadas. */
+  B.vet = function (m, meta) {
+    const mt = this.mt, me = this.p.id, imp = this.p.isImp;
+    if (!mt || !m || !m.intents || !m.intents.length) return m;
+    const mine = mt.msgs.filter((x) => x.from === me);
+    const prev = (type, who) => [].concat(...mine.map((x) => x.intents.filter((j) => j.type === type && j.who === who)));
+    for (const it of m.intents) {
+      if (it.type === 'vouch' && it.who != null) {
+        const pv = prev('vouch', it.who).map((j) => j.reason);
+        /* já defendeu: só volta a falar se agora viu a visual (prova mais forte) */
+        if (pv.length && (it.reason !== 'visual' || pv.includes('visual'))) return null;
+        if (imp && prev('accuse', it.who).some((j) => j.reason !== 'vote')) return null;
+      }
+      if (it.type === 'accuse' && it.who != null && it.reason !== 'vote' && !STRONG[it.reason]) {
+        const pv = prev('vouch', it.who);
+        if (!imp && (this.hardCleared(it.who) || pv.some((j) => j.reason === 'visual' || j.reason === 'together'))) return null;
+        /* confirmou onde a pessoa estava e depois "acho que é ele" por palpite: não */
+        if (!imp && pv.length && ['hunch', 'sus', 'quiet', 'follow'].includes(it.reason)) return null;
+        if (imp && pv.length) return null;
+        if (prev('accuse', it.who).some((j) => j.reason === it.reason && (j.area || null) === (it.area || null))) return null;
+        const vis = mt.msgs.filter((x) => x.from !== it.who && x.from !== me && x.intents.some((j) => j.type === 'vouch' && j.who === it.who && j.reason === 'visual')).length;
+        if (vis >= 2 && (!imp || U.chance(0.5 + this.lvl.lie * 0.5))) return null;
+      }
+      if (it.type === 'agree' && it.who != null && !imp && this.hardCleared(it.who)) return null;
+      if (it.type === 'deny') {
+        const by = meta && meta.srcFrom != null ? meta.srcFrom : 'x';
+        this.deniedTo = this.deniedTo || new Set();
+        if (this.deniedTo.has(by) || this.deniedTo.size >= 2) return null;
+      }
+    }
+    if (m.intents.some((it) => it.type === 'deny')) this.deniedTo.add(meta && meta.srcFrom != null ? meta.srcFrom : 'x');
+    return m;
+  };
   B.addressTo = function (id, text) {
     const g = this.g, q = g.players[id];
     if (!q || !text) return text;
     const col = C.COLOR[q.color].name.toLowerCase();
     const n = U.norm(text);
     if (n.includes(U.norm(q.name)) || new RegExp('\\b' + U.norm(col) + '\\b').test(n)) return text;
+    /* a fala já chama alguém ("verde, você não disse..."): não põe um segundo nome na frente */
+    const lead = n.replace(/[^a-z0-9, ]/g, ' ').replace(/\s+/g, ' ').trim().match(/^((?:[a-z0-9]+ ){0,2}[a-z0-9]+),/);
+    if (lead) {
+      const ws = lead[1].split(' ');
+      for (let k = 0; k < ws.length; k++) {
+        const tail = ws.slice(k).join(' ');
+        if (g.players.some((x) => U.norm(x.name) === tail || U.norm(C.COLOR[x.color].name) === tail)) return text;
+      }
+    }
     const tone = g.S.bots.chatTone;
     const who = q.isHuman || U.chance(0.3) ? q.name : col;
     if (tone === 'limpo') return (who === col ? U.cap(col) : who) + ', ' + text.charAt(0).toLowerCase() + text.slice(1);
@@ -983,7 +1078,9 @@
     }
     /* versões de onde cada um estava: refaz a conta quando chega álibi, acusação com lugar ou confirmação */
     if (!p.isImp && msg.intents.some((it) => it.type === 'claimLoc' || it.type === 'vouch' || placeIntent(it))) this.updateClashes();
-    if (msg.fromHuman && !msg.intents.length && !(this.mt.dir && this.mt.dir.on()) && U.chance(0.06 + this.pers.talk * 0.06) && !this.replied.has('huh' + msg.id)) {
+    /* "hã?" só para mensagem curta ou embolada; frase clara sem pedido não precisa de resposta */
+    const garbled = msg.text && msg.text.trim().split(/\s+/).length <= 2 && !/^(k+|rs+|ss|sim|n|nao|não|ok|blz|beleza|oi|hmm+|\?+|!+)$/i.test(msg.text.trim());
+    if (msg.fromHuman && garbled && !msg.intents.length && !(this.mt.dir && this.mt.dir.on()) && U.chance(0.06 + this.pers.talk * 0.06) && !this.replied.has('huh' + msg.id)) {
       this.replied.add('huh' + msg.id);
       this.reply(1, () => ({ text: this.say('huh'), intents: [] }));
     }
@@ -1350,8 +1447,9 @@
     /* já provou ser tripulante: álibi que não bate é engano, não mentira (pergunta em vez de acusar) */
     const known = this.hardCleared(S);
     if (withIds.includes(me)) {
-      const tog = this.togetherMap()[S] || 0;
-      const iWasThere = known || rooms.some((r) => this.myStay(r) >= 3);
+      /* confirma o que viu no trecho que o álibi cobre; ter cruzado antes na rodada é só "não reparei" */
+      const tog = this.togetherSince(this.claimWindow())[S] || 0;
+      const iWasThere = known || rooms.some((r) => this.myStay(r) >= 3) || (this.togetherMap()[S] || 0) >= 3;
       if (tog >= 3) {
         this.bump(S, -10);
         this.reply(0.9, () => say('confirmWith', { who: S }, [{ type: 'vouch', who: S, reason: 'together' }]), true);
@@ -1536,6 +1634,13 @@
       if (this.accusedMe[S] > 1 || this.denies > 3) return;
       const mine = this.myRooms();
       const area = mine[mine.length - 1];
+      /* acusação pelo lugar onde eu mesmo disse que estava: "não, eu estava lá" se contradiz. Admite e nega o abate */
+      const there = !!(it.area && PLACE_REASONS.includes(it.reason) && mine.some((r) => r === it.area || M.isNear(r, it.area)));
+      if (there && !strong) {
+        this.bump(S, p.isImp ? 0 : 6);
+        this.reply(0.8, () => say('denyThere', { area: it.area }, [{ type: 'deny' }]), true);
+        return;
+      }
       if (it.reason === 'vent' && roleOn(g, 'engenheiro') && (p.special === 'engenheiro' || (p.isImp && U.chance(L.lie * 0.7)))) {
         /* engenheiro de verdade (ou impostor blefando) explica o duto */
         this.reply(0.7, () => say('roleClaim', { role: 'engenheiro' }, [{ type: 'deny' }, { type: 'roleClaim', role: 'engenheiro' }]), true);

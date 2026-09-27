@@ -263,6 +263,18 @@
       const p = this.p;
       return this.g.players.some((q) => q !== p && q.alive && !q.inVent && U.d2(q.x, q.y, p.x, p.y) < r);
     }
+    /* chegou ao painel e já tem alguém no mesmo lugar: dá um passo para o lado, sem sair do alcance (uma vez só) */
+    stepAside(pl, cx, cy, reach) {
+      if (pl.respot || !this.crowded(0.6)) return false;
+      pl.respot = true;
+      const p = this.p, s2 = this.standNear(cx, cy, 1.05);
+      if (U.d2(s2.x, s2.y, p.x, p.y) <= 0.35 || U.d2(s2.x, s2.y, cx, cy) > reach) return false;
+      pl.stage = 'go';
+      pl.x = s2.x;
+      pl.y = s2.y;
+      this.routeTo(s2.x, s2.y);
+      return true;
+    }
     /* Espaço pessoal: empurrãozinho para longe de quem está colado (sem virar colisão). */
     sepVec() {
       const p = this.p, g = this.g;
@@ -397,7 +409,7 @@
                 for (let i = 0; i < 4; i++) {
                   const a = Math.random() * Math.PI * 2, rr = Math.max(0.9, k * U.rf(0.55, 0.95));
                   const fx = tg.x + Math.cos(a) * rr, fy = tg.y + Math.sin(a) * rr;
-                  if (U.d2(fx, fy, this.p.x, this.p.y) > 0.7 && M.walkAt(fx, fy) && Nav.los(tg.x, tg.y, fx, fy)) {
+                  if (U.d2(fx, fy, this.p.x, this.p.y) > 0.7 && g.canStand(fx, fy) && Nav.los(tg.x, tg.y, fx, fy)) {
                     this.routeTo(fx, fy);
                     pl.shuffling = true;
                     break;
@@ -524,6 +536,7 @@
             pl.until = g.t;
             return;
           }
+          if (this.stepAside(pl, st.x, st.y, g.consts.USE_DIST - 0.3)) return;
           pl.until = g.t + dur;
           p.busy = { task: tk.id, station: st.id, until: pl.until };
           const vis = tk.def.visual;
@@ -576,6 +589,7 @@
       this.setPlan({
         type: 'fake', task: tk, ...this.standNear(st.x, st.y, 0.5),
         onArrive: (pl) => {
+          if (this.stepAside(pl, st.x, st.y, g.consts.USE_DIST - 0.3)) return;
           pl.until = g.t + dur;
           p.busy = { task: tk.id, station: st.id, until: pl.until, fake: true };
         },
@@ -621,7 +635,7 @@
           if (pl.pace && !this.plan) {
             for (let i = 0; i < 6; i++) {
               const x = M.EMERGENCY.x + U.rf(-4.5, 4.5), y = M.EMERGENCY.y + U.rf(-3, 4.5);
-              if (M.walkAt(x, y) && U.d2(x, y, p.x, p.y) > 1.5) {
+              if (g.canStand(x, y) && U.d2(x, y, p.x, p.y) > 1.5) {
                 this.setPlan({ type: 'wander', buttonWait: true, x, y, onArrive: (q) => (q.until = g.t + U.rf(0.3, 1)) });
                 break;
               }
@@ -638,6 +652,7 @@
       this.setPlan({
         type: 'fix', st, x: spot.x, y: spot.y,
         onArrive: (pl) => {
+          if (this.stepAside(pl, pos.x, pos.y, g.consts.USE_DIST - 0.3)) return;
           pl.until = g.t + (kind === 'reactor' ? 60 : kind === 'lights' ? U.rf(2, 4) : kind === 'comms' ? U.rf(3.5, 5.5) : U.rf(2.5, 4));
           p.busy = { fix: st, until: pl.until };
         },
@@ -663,6 +678,7 @@
       this.setPlan({
         type: 'cams', x: M.SECURITY.x, y: M.SECURITY.y + 0.6,
         onArrive: (pl) => {
+          if (this.stepAside(pl, M.SECURITY.x, M.SECURITY.y, g.consts.USE_DIST - 0.3)) return;
           pl.until = g.t + dur;
           p.onCams = true;
         },
@@ -1334,9 +1350,11 @@
           this.lostCount++;
           return this.planWander(U.pick(M.ROOMS).id, U.rf(1, 3));
         }
+        /* logo depois da reunião cada um escolhe mais à vontade: ninguém sai da mesa em fila para o mesmo lado */
+        const early = g.t - g.roundStart < 15;
         const dist = (tk) => {
           const s = g.stationOfTask(tk);
-          return U.d2(p.x, p.y, s.x, s.y) + U.rf(0, 8);
+          return U.d2(p.x, p.y, s.x, s.y) + U.rf(0, early ? 18 : 8);
         };
         /* depois da reunião: vigiar o suspeito ou andar com alguém de confiança, uma vez por rodada */
         if (this.watch && g.t < this.watch.until) {
@@ -1376,9 +1394,9 @@
         /* hábitos: visual primeiro (prova cedo), sozinho ou junto de quem está por perto */
         const vfirst = this.hab('visualPrimeiro') && g.S.rules.visualTasks;
         const visual = (tk) => (M.TASKS[tk.id] && M.TASKS[tk.id].visual && (this.prove || vfirst) ? (this.prove ? -400 : -60) : 0);
-        const social = this.hab('escolta') ? -1 : this.hab('solitario') ? 1 : 0;
+        /* todo mundo evita um pouco a tarefa onde já tem gente (escolta gosta, solitário foge) */
+        const social = this.hab('escolta') ? -1 : this.hab('solitario') ? 1.5 : 0.6;
         const nearby = (tk) => {
-          if (!social) return 0;
           const st = g.stationOfTask(tk);
           const n = Object.keys(this.lastSeenAt).filter((id) => +id !== p.id && g.t - this.lastSeenAt[id].t < 6 && U.d2(this.lastSeenAt[id].x, this.lastSeenAt[id].y, st.x, st.y) < 7).length;
           return social * Math.min(2, n) * 18;
@@ -2067,12 +2085,12 @@
          lado e sai no que fica perto do destino; também foge de perigo por ele. Evita ser visto (se alguém viu,
          avisa na reunião que é engenheiro) */
       /* planeja o atalho: um duto a poucos passos que leva para perto de onde vou */
-      if (p.special === 'engenheiro' && !p.inVent && p.abilityCd <= 0 && !p.isImp && !this.engHop && this.plan && !this.plan.dyn && this.plan.stage === 'go' && this.dest && this.seenNow.length <= 1) {
+      if (p.special === 'engenheiro' && !p.inVent && p.abilityCd <= 0 && !p.isImp && !this.engHop && this.plan && !this.plan.dyn && this.plan.stage === 'go' && this.dest && this.seenNow.length <= 2) {
         const dest = this.dest, walk = U.d2(p.x, p.y, dest.x, dest.y);
-        let best = null, bs = 10;
-        if (walk > 16) for (const V of M.VENTS) {
+        let best = null, bs = 6;
+        if (walk > 12) for (const V of M.VENTS) {
           const dv = U.d2(p.x, p.y, V.x, V.y);
-          if (dv > 7) continue;
+          if (dv > 9) continue;
           for (const id of V.links) {
             const L = M.VENT[id];
             const save = walk - (dv + U.d2(L.x, L.y, dest.x, dest.y));
@@ -2102,7 +2120,7 @@
               best = w;
             }
           }
-          const worth = danger || (best && walk > 14 && bd < walk - 8);
+          const worth = danger || (best && walk > 12 && bd < walk - 6);
           const seen = this.seenNow.length;
           if (best && worth && (seen === 0 || (danger && U.chance(0.6)) || U.chance(0.15)) && g.enterVent(p, v)) {
             if (seen) this.engSeen = t;
@@ -2492,9 +2510,30 @@
       if (!U.chance(0.55 + 0.45 * pers.att)) return;
       let who = apparent;
       if (U.chance((1 - pers.mem) * 0.08 * this.err)) who = this.confuse(who);
-      if (this.mem.event({ type: 'vent', t: g.t, who, area: v.area, dir, via }, 'vent:' + who + ':' + g.meetings)) {
-        const engineers = (g.S.roles.engenheiro || {}).n > 0;
-        if ((!engineers || pers.hunch > 0.2) && p.emergencyLeft > 0) this.wantButton = { reason: 'vent', who, area: v.area };
+      /* suspeita de antes do duto (o próprio duto já conta como forte em liveSusp) */
+      const before = this.liveSusp(who);
+      if (!this.mem.event({ type: 'vent', t: g.t, who, area: v.area, dir, via }, 'vent:' + who + ':' + g.meetings)) return;
+      /* todos sabem as funções da partida: com engenheiro possível, duto sozinho não prova nada. Guarda para
+         perguntar na reunião ("é engenheiro?") e só chama reunião se for estranho: corpo ali perto, alguém de quem já
+         desconfiava, ou a vaga de engenheiro já foi assumida por outra pessoa */
+      const ec = g.S.roles.engenheiro || {};
+      const eng = ec.n > 0 && (ec.chance == null || ec.chance > 0);
+      let weird = !eng;
+      if (eng) {
+        const bodyNear = this.mem.bodies.some((b) => g.t - b.t < 25 && (b.area === v.area || M.isNear(b.area, v.area)));
+        const claimed = ((g.roleClaims || {}).engenheiro || []).filter((id) => id !== who && g.players[id] && g.players[id].alive);
+        weird = bodyNear || before >= 45 || claimed.length >= (ec.n || 1);
+      }
+      if (!weird) {
+        this.fieldSus[who] = (this.fieldSus[who] || 0) + 6;
+        return;
+      }
+      /* flagrante: nem todo mundo corre para o botão; uns se afastam e guardam para a reunião */
+      const pBtn = (eng ? 0.55 : 0.45) + (pers.leader ? 0.25 : 0) + (pers.times ? 0.1 : 0) + (pers.panic ? 0.15 : 0) + (this.hab('botao') ? 0.2 : 0) - (pers.talk < 0.3 ? 0.15 : 0);
+      if (p.emergencyLeft > 0 && U.chance(pBtn)) this.wantButton = { reason: 'vent', who, area: v.area };
+      else {
+        this.fear = { who, t: g.t };
+        this.avoid = { who, until: g.t + 40 };
       }
     }
     onWitnessShift(realId, intoId, via) {

@@ -162,8 +162,11 @@
     return L;
   }
 
-  /* Linha de visão por DDA (Amanatides & Woo). Paredes e portas fechadas bloqueiam. */
+  /* Linha de visão por DDA (Amanatides & Woo). Paredes e portas fechadas bloqueiam; nos cantos em diagonal
+     quem bloqueia é a reta da parede desenhada, não a escadinha de tiles. */
   function los(x0, y0, x1, y1) {
+    const len = Math.hypot(x1 - x0, y1 - y0);
+    if (len > 1e-6 && M.chamferHit(x0, y0, (x1 - x0) / len, (y1 - y0) / len, len) < len) return false;
     let tx = Math.floor(x0), ty = Math.floor(y0);
     const ex = Math.floor(x1), ey = Math.floor(y1);
     const dx = x1 - x0, dy = y1 - y0;
@@ -181,7 +184,7 @@
         tmy += tdy;
         ty += sy;
       }
-      if (M.opaque(tx, ty)) return false;
+      if (M.opaqueRay(tx, ty)) return false;
     }
     return true;
   }
@@ -189,6 +192,7 @@
   /* Distância até a parede ao longo de um raio (para o polígono de visão). */
   function rayDist(x0, y0, ang, maxD) {
     const dx = Math.cos(ang), dy = Math.sin(ang);
+    maxD = Math.min(maxD, M.chamferHit(x0, y0, dx, dy, maxD));
     let tx = Math.floor(x0), ty = Math.floor(y0);
     const sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1;
     const tdx = dx !== 0 ? Math.abs(1 / dx) : Infinity;
@@ -206,7 +210,7 @@
         tmy += tdy;
         ty += sy;
       }
-      if (M.opaque(tx, ty)) return Math.min(t, maxD);
+      if (M.opaqueRay(tx, ty)) return Math.min(t, maxD);
     }
     return maxD;
   }

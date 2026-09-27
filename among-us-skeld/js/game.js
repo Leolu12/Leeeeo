@@ -282,7 +282,7 @@
     canStand(x, y, ghost) {
       if (ghost) return x > 0.5 && y > 0.5 && x < M.W - 0.5 && y < M.H - 0.5;
       const r = 0.3;
-      return M.walkAt(x - r, y - r) && M.walkAt(x + r, y - r) && M.walkAt(x - r, y + r) && M.walkAt(x + r, y + r);
+      return M.walkAt(x - r, y - r) && M.walkAt(x + r, y - r) && M.walkAt(x - r, y + r) && M.walkAt(x + r, y + r) && M.chamferGap(x, y) >= r;
     }
     moveEntity(p, vx, vy, dt) {
       const ghost = !p.alive;
@@ -290,6 +290,19 @@
       let moved = false;
       if (this.canStand(nx, p.y, ghost)) { p.x = nx; moved = true; }
       if (this.canStand(p.x, ny, ghost)) { p.y = ny; moved = true; }
+      /* encostado numa parede diagonal: desliza ao longo dela em vez de travar */
+      if (!moved && !ghost && (vx || vy)) {
+        for (const [tx, ty] of [[Math.SQRT1_2, Math.SQRT1_2], [Math.SQRT1_2, -Math.SQRT1_2]]) {
+          const k = (vx * tx + vy * ty) * dt;
+          if (Math.abs(k) < 1e-4) continue;
+          if (this.canStand(p.x + tx * k, p.y + ty * k, ghost)) {
+            p.x += tx * k;
+            p.y += ty * k;
+            moved = true;
+            break;
+          }
+        }
+      }
       if (Math.abs(vx) > 0.01) p.facing = vx < 0 ? -1 : 1;
       p.moving = moved && (Math.abs(vx) + Math.abs(vy) > 0.01);
       if (p.moving) p.walkT += dt;

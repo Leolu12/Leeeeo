@@ -218,6 +218,58 @@
   };
   M.walkAt = (x, y) => M.isWalk(Math.floor(x), Math.floor(y));
   M.opaque = (tx, ty) => !M.isWalk(tx, ty);
+
+  /* Cantos em diagonal: a parede desenhada é uma reta lisa (du + dv = k + 0.5), não a escadinha de tiles.
+     Visão e colisão usam essa mesma reta, para a luz e o personagem pararem onde a parede aparece. */
+  const CH = [];
+  const cutTile = new Uint8Array(W * H);
+  ROOMS.forEach((r) => {
+    if (!r.cut) return;
+    const [x, y, w, h] = r.rect;
+    for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) if (inCut(r, xx, yy)) cutTile[yy * W + xx] = 1;
+    for (const key of ['tl', 'tr', 'bl', 'br']) {
+      const k = r.cut[key];
+      if (!k) continue;
+      const a = k + 0.5;
+      const right = key[1] === 'r', bottom = key[0] === 'b';
+      const sx = right ? -1 : 1, sy = bottom ? -1 : 1;
+      const ox = right ? x + w : x, oy = bottom ? y + h : y;
+      /* f(p) = (sx*(px-ox) + sy*(py-oy) - a) / √2: distância até a parede, positiva do lado de dentro */
+      CH.push({ room: r, rect: r.rect, sx, sy, ox, oy, a, x1: ox + sx * a, y1: oy, x2: ox, y2: oy + sy * a });
+    }
+  });
+  const chF = (c, px, py) => (c.sx * (px - c.ox) + c.sy * (py - c.oy) - c.a) * Math.SQRT1_2;
+  const inRect = (rc, px, py) => px >= rc[0] && py >= rc[1] && px <= rc[0] + rc[2] && py <= rc[1] + rc[3];
+  M.CHAMFERS = CH;
+  M.isCutTile = (tx, ty) => tx >= 0 && ty >= 0 && tx < W && ty < H && cutTile[ty * W + tx] === 1;
+  /* para raios de visão: tile de canto diagonal não bloqueia (quem bloqueia é a reta da parede) */
+  M.opaqueRay = (tx, ty) => !M.isWalk(tx, ty) && !M.isCutTile(tx, ty);
+  /* folga até a parede diagonal mais próxima (Infinity longe de cantos) */
+  M.chamferGap = (px, py) => {
+    let best = Infinity;
+    for (const c of CH) if (inRect(c.rect, px, py)) best = Math.min(best, chF(c, px, py));
+    return best;
+  };
+  /* o raio (x0,y0)->(dx,dy) atravessa alguma parede diagonal antes de maxT? devolve a distância */
+  M.chamferHit = (x0, y0, dx, dy, maxT) => {
+    let best = Infinity;
+    for (const c of CH) {
+      const rc = c.rect;
+      const bx0 = Math.min(x0, x0 + dx * maxT), bx1 = Math.max(x0, x0 + dx * maxT), by0 = Math.min(y0, y0 + dy * maxT), by1 = Math.max(y0, y0 + dy * maxT);
+      if (bx1 < rc[0] - 1 || bx0 > rc[0] + rc[2] + 1 || by1 < rc[1] - 1 || by0 > rc[1] + rc[3] + 1) continue;
+      const f0 = chF(c, x0, y0);
+      const df = (c.sx * dx + c.sy * dy) * Math.SQRT1_2;
+      if (f0 < -0.05 || df >= 0) continue;
+      const t = f0 / -df;
+      if (t < 0 || t > maxT || t >= best) continue;
+      /* só vale dentro do trecho desenhado da parede */
+      const hx = x0 + dx * t, hy = y0 + dy * t;
+      const u = ((hx - c.x1) * (c.x2 - c.x1) + (hy - c.y1) * (c.y2 - c.y1)) / ((c.x2 - c.x1) ** 2 + (c.y2 - c.y1) ** 2);
+      if (u < -0.02 || u > 1.02) continue;
+      best = t;
+    }
+    return best;
+  };
   M.areaAt = (x, y) => areaAtTile(Math.floor(x), Math.floor(y)) || M.nearestArea(x, y);
   M.nearestArea = (x, y) => {
     let best = null, bd = 1e9;
@@ -263,7 +315,7 @@
       const py = y + 1 + Math.random() * Math.max(0.1, h - 2);
       /* com folga para o corpo do personagem (nada de ponto espremido no canto diagonal) */
       const r = 0.4;
-      if (M.walkAt(px, py) && M.walkAt(px - r, py - r) && M.walkAt(px + r, py - r) && M.walkAt(px - r, py + r) && M.walkAt(px + r, py + r)) return { x: px, y: py };
+      if (M.walkAt(px, py) && M.walkAt(px - r, py - r) && M.walkAt(px + r, py - r) && M.walkAt(px - r, py + r) && M.walkAt(px + r, py + r) && M.chamferGap(px, py) >= r) return { x: px, y: py };
     }
     return { x: a.cx, y: a.cy };
   };

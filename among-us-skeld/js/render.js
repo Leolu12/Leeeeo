@@ -405,6 +405,9 @@
       /* jogadores */
       const list = g.players.slice().sort((a, b) => a.y - b.y);
       const hDead = h && !h.alive;
+      const fogOn = !!(h && h.alive);
+      const labels = [];
+      let mine = null;
       for (const p of list) {
         if (p.inVent) continue;
         let alpha = 1;
@@ -434,22 +437,18 @@
           ctx.arc(sp.x, sp.y - ppt * 0.1, ppt * 0.75, 0, Math.PI * 2);
           ctx.stroke();
         }
-        drawBean(ctx, sp.x, sp.y, ppt * 1.1, ap.color, { facing: p.facing, moving: p.moving, walk: p.walkT, ghost: !p.alive, alpha, hat: ap.hat, visor: ap.visor });
+        const bean = { facing: p.facing, moving: p.moving, walk: p.walkT, ghost: !p.alive, alpha, hat: ap.hat, visor: ap.visor };
+        /* o próprio personagem é desenhado por cima da névoa: encostado na parede ele não fica meio apagado */
+        if (p === h && h.alive && fogOn) mine = { sp, color: ap.color, bean };
+        else drawBean(ctx, sp.x, sp.y, ppt * 1.1, ap.color, bean);
         if (p.visual && p.visual.type === 'scan' && p.alive) {
           const yy = sp.y - ppt * 0.6 + ((t * 1.6) % 1) * ppt * 1.1;
           ctx.fillStyle = 'rgba(80,255,160,0.55)';
           ctx.fillRect(sp.x - ppt * 0.45, yy, ppt * 0.9, ppt * 0.08);
         }
         const partner = h && h.isImp && p.isImp;
-        ctx.font = `700 ${Math.max(11, ppt * 0.42)}px "Nunito", system-ui, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-        ctx.globalAlpha = alpha;
-        ctx.strokeText(ap.name, sp.x, sp.y - ppt * 0.95);
-        ctx.fillStyle = partner ? '#ff5a5a' : '#ffffff';
-        ctx.fillText(ap.name, sp.x, sp.y - ppt * 0.95);
-        ctx.globalAlpha = 1;
+        /* nomes depois da névoa: o nome fica acima da cabeça e às vezes cai sobre a parede escura */
+        labels.push({ name: ap.name, x: sp.x, y: sp.y - ppt * 0.95, alpha, color: partner ? '#ff5a5a' : '#ffffff' });
       }
       /* efeitos */
       for (const f of g.fx) {
@@ -488,7 +487,26 @@
         ctx.restore();
       }
       /* névoa de visão */
-      if (h && h.alive) this.drawFog(g, h, S, ppt);
+      if (fogOn) this.drawFog(g, h, S, ppt);
+      if (mine) {
+        drawBean(ctx, mine.sp.x, mine.sp.y, ppt * 1.1, mine.color, mine.bean);
+        if (h.visual && h.visual.type === 'scan') {
+          const yy = mine.sp.y - ppt * 0.6 + ((t * 1.6) % 1) * ppt * 1.1;
+          ctx.fillStyle = 'rgba(80,255,160,0.55)';
+          ctx.fillRect(mine.sp.x - ppt * 0.45, yy, ppt * 0.9, ppt * 0.08);
+        }
+      }
+      ctx.font = `700 ${Math.max(11, ppt * 0.42)}px "Nunito", system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      for (const l of labels) {
+        ctx.globalAlpha = l.alpha;
+        ctx.strokeText(l.name, l.x, l.y);
+        ctx.fillStyle = l.color;
+        ctx.fillText(l.name, l.x, l.y);
+      }
+      ctx.globalAlpha = 1;
       /* sabotagem crítica: vinheta vermelha */
       if (g.sabCritical()) {
         const a = 0.18 + Math.sin(t * 6) * 0.12;

@@ -80,7 +80,7 @@
     defensor: { formal: 3, neutro: 3, informal: 1 }, cetico: { neutro: 4, formal: 2, informal: 2 }, seguidor: { informal: 4, neutro: 2, giria: 1 },
     inexperiente: { informal: 3, neutro: 3, giria: 1 },
   };
-  const QUIRKS = ['às vezes começa com "então"', 'usa "tipo" de vez em quando', 'costuma perguntar de volta', 'usa "pera" quando quer falar', 'termina frase com "?" mesmo afirmando', 'fala "hmm" quando duvida', 'chama os outros pela cor', 'chama os outros pelo nome', 'usa "sério?" quando duvida', 'responde com uma palavra quando concorda', 'escreve "ss" para sim e "n" para não', 'usa "ué" quando se surpreende', 'às vezes manda "?" sozinho', 'usa "blz" e "fechou"', 'escreve "rs" em vez de kkk'];
+  const QUIRKS = ['às vezes começa com "então"', 'usa "tipo" de vez em quando', 'costuma perguntar de volta', 'usa "pera" quando quer falar', 'fala "hmm" quando duvida', 'chama os outros pela cor', 'chama os outros pelo nome', 'usa "sério?" quando duvida', 'responde com uma palavra quando concorda', 'escreve "ss" para sim e "n" para não', 'usa "ué" quando se surpreende', 'usa "blz" e "fechou"', 'escreve "rs" em vez de kkk'];
 
   const REASON = {
     kill: 'viu matando', vent: 'viu usando o duto', shift: 'viu mudando de aparência', vanish: 'viu ficar invisível',
@@ -149,8 +149,10 @@
         '- Cada personagem tem personalidade e JEITO DE ESCREVER próprios (estão descritos): siga exatamente. ' + ({ limpo: 'Todos escrevem de forma clara, mas cada um com suas palavras.', casual: 'Uns escrevem certinho, outros abreviam; gíria pesada ninguém usa.', raiz: 'Todo mundo escreve solto e com gíria, mas cada um com as suas (não repita a mesma gíria em todo mundo).' }[g.S.bots.chatTone] || ''),
         '- Nada de repetição: ninguém repete o que já disse nem o que outro já disse com as mesmas palavras. Cada mensagem acrescenta algo (um fato, uma pergunta, uma dúvida, uma opinião, uma reação curta). Quem já contou onde estava não conta de novo, a não ser que perguntem.',
         '- Perguntar algo não é motivo para acusar ninguém. Só acuse quem as anotações do personagem dão motivo.',
-        '- Cada jogador tem um nome e uma cor (ex.: "Léo" é o "Lima"). Nome e cor são a MESMA pessoa: nunca defenda alguém pela cor e acuse o mesmo pelo nome. Ninguém defende e acusa a mesma pessoa na mesma mensagem.',
-        '- Quem fala nunca se refere a si mesmo pelo próprio nome ou pela própria cor (quem é o verde não escreve "confirma, verde" nem "o verde estava comigo"): fala em primeira pessoa e, para pedir confirmação, chama a OUTRA pessoa.',
+        '- Pontuação: "?" só em pergunta de verdade. Acusação, opinião, aviso e confirmação terminam sem "?" ("o azul tá suspeito", nunca "o azul suspeito?"; "vi o verde na elétrica", nunca "vi o verde na elétrica?").',
+        '- Cada jogador tem um nome e uma cor (ex.: ' + V.pairEx(g) + '). Nome e cor são a MESMA pessoa: nunca defenda alguém pela cor e acuse o mesmo pelo nome. Ninguém defende e acusa a mesma pessoa na mesma mensagem.',
+        '- Quem fala nunca se refere a si mesmo pelo próprio nome ou pela própria cor (quem é o verde não escreve "confirma, verde" nem "o verde estava comigo"): fala em primeira pessoa e, para pedir confirmação, chama a OUTRA pessoa. Se alguém disse que estava com quem fala, ele responde por si ("tava comigo sim", "comigo não").',
+        '- Quem é chamado na mensagem é "você" até o fim dela: "Rafa, você estava onde?" nunca vira "Rafa, eu vi você com o Rafa".',
         '- As pessoas escrevem com erro de digitação ou por ditado de voz (nomes e salas trocados, palavras juntas). Entenda o sentido mais provável (ex.: "médica" = MedBay, "caio hino" = "Caio, hein", "eletrica" = Elétrica) e responda ao que a pessoa quis dizer, sem zoar o erro e sem responder "que X?" quando dá para entender.',
         '- Eles conversam entre si e com todos: chamam pelo nome ou pela cor ("o verde", "rafa"), respondem perguntas, cobram, desconfiam, defendem.',
         '- Só confirme onde alguém estava se as anotações dizem que o personagem VIU a pessoa lá pouco antes da reunião; ter visto no começo da rodada não confirma nada. Na dúvida, diga que não viu. Com metamorfo na partida, "vi fulano" pode ter sido o metamorfo disfarçado de fulano.',
@@ -213,6 +215,36 @@
       return mt.msgs.slice(-(n || 22)).map((m) => `${V.who(g, m.from)}: ${m.text}`).join('\n') || '(ninguém falou ainda)';
     },
 
+    unquestion(text, beats) {
+      const t = String(text || '').trim();
+      if (!/\?+$/.test(t)) return t;
+      const types = [].concat(...beats.map((x) => x.intents || [])).map((i) => i.type);
+      if (!types.length || !types.every((k) => ['accuse', 'vouch', 'agree', 'skip', 'claimLoc', 'sawAt', 'bodyArea', 'reportInfo', 'roleClaim'].includes(k))) return t;
+      if (beats.some((x) => /\?/.test(x.text || ''))) return t;
+      const n = ' ' + U.norm(t).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ') + ' ';
+      if (/ (quem|onde|qual|quais|que|q|por que|porque|pq|cade|como|quando|sera|ne|hein|confirma|alguem|viu|mesmo|serio|certeza|prova|ta|ok|ne|e ai|beleza|blz|ja) /.test(n)) return t;
+      return t.replace(/\s*\?+$/, '');
+    },
+    /* exemplo de nome = cor tirado da própria partida (um nome fixo podia coincidir com um jogador de verdade) */
+    pairEx(g) {
+      const q = g.players.find((x) => !x.isHuman) || g.players[0];
+      return q ? '"' + q.name + '" é o(a) "' + C.COLOR[q.color].name + '"' : '"Bia" é a "Rosa"';
+    },
+    /* fala esquisita: cita a si mesmo, ou chama alguém e depois fala dele na 3ª pessoa ("Rafa, vi você com o Rafa") */
+    badRef(p, text, g) {
+      if (V.selfRef(p, text)) return true;
+      return g ? V.echoAddr(g, text) : false;
+    },
+    echoAddr(g, text) {
+      const n = U.norm(String(text)).replace(/[^a-z0-9, ]/g, ' ').replace(/\s+/g, ' ').trim();
+      const m = n.match(/^([a-z0-9 ]{2,24}),(.*)$/);
+      if (!m) return false;
+      const head = m[1].trim().replace(/^(o|a|ei|oi|e ai|fala) /, '');
+      const q = g.players.find((x) => U.norm(x.name) === head || U.norm(C.COLOR[x.color].name) === head);
+      if (!q) return false;
+      const rest = ' ' + m[2].replace(/,/g, ' ').replace(/\s+/g, ' ') + ' ';
+      return [U.norm(q.name), U.norm(C.COLOR[q.color].name)].some((w) => w.length >= 2 && rest.includes(' ' + w + ' '));
+    },
     /* a fala cita o próprio nome ou a própria cor de quem fala (fora "eu sou o verde" / "o verde sou eu")? */
     selfRef(p, text) {
       const n = ' ' + U.norm(text).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ') + ' ';
@@ -278,7 +310,7 @@
       opts = opts || {};
       const g = b.g, p = b.p, mt = b.mt, info = mt.info;
       const out = [];
-      const nm = (id) => V.who(g, id);
+      const nm = (id) => (id === p.id ? 'você mesmo(a)' : V.who(g, id));
       const al = b.getAlibi();
       out.push('Onde esteve: ' + al.rooms.map(V.area).join(' → ') + (al.task ? ', fazendo ' + M.TASKS[al.task].name : '') + (al.with != null ? ', junto com ' + nm(al.with) : '') + '.');
       if (b.pact && g.players[b.pact.who]) out.push('Estava em dupla combinada com ' + nm(b.pact.who) + (g.players[b.pact.who].alive ? '.' : ' (que morreu).'));
@@ -454,7 +486,7 @@
       const b = s.b, id = b.p.id;
       const said = V.said(mt, id);
       const pend = V.pending(mt, id);
-      const lines = ['### ' + (i + 1) + '. ' + V.persona(b), 'Só ' + b.p.name + ' sabe:'];
+      const lines = ['### ' + (i + 1) + '. ' + V.persona(b), '(' + b.p.name + ' é o(a) ' + C.COLOR[b.p.color].name + ': quando alguém no chat fala "' + b.p.name + '" ou "' + C.COLOR[b.p.color].name + '", está falando DELE(A). Ele(a) fala de si só em primeira pessoa.)', 'Só ' + b.p.name + ' sabe:'];
       V.notes(b).forEach((l) => lines.push('- ' + l));
       lines.push(said.length ? 'Já disse nesta reunião (não repita): ' + said.join(' / ') : 'Ainda não falou nesta reunião.');
       const cob = pend.accused.concat(pend.asked).slice(0, 2);
@@ -993,10 +1025,12 @@
         const dup = seenText.some((x) => (x.from === p.id ? similar(x.text, ln.text) >= 0.6 : !s.beats.length && words(ln.text).size >= 5 && similar(x.text, ln.text) >= 0.85));
         if (dup) continue;
         /* o modelo trocou quem fala ("confirma, verde" dito pelo próprio verde): fica o texto do motor */
-        if (V.selfRef(p, ln.text)) {
+        if (V.badRef(p, ln.text, mt.g)) {
           if (s.beats.length) s.beats.forEach((x) => this.postRaw(x, delay + 0.4));
           continue;
         }
+        /* afirmação escrita como pergunta ("o azul suspeito?"): o motor queria afirmar, tira o "?" */
+        if (s.beats.length) ln.text = V.unquestion(ln.text, s.beats);
         seenText.push({ from: p.id, text: ln.text });
         let intents;
         if (!firstOf.has(p.id)) {

@@ -80,6 +80,10 @@
     say(brain, m, meta) {
       if (!m || !m.text || this.closed) return;
       meta = meta || {};
+      if (brain && brain.vet) {
+        m = brain.vet(m, meta);
+        if (!m) return;
+      }
       if (this.dir && this.dir.accepts(meta)) this.dir.enqueue(brain, m, meta);
       else this.post(brain.p, m.text, m.intents || []);
     }
