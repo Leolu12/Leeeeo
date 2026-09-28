@@ -5,9 +5,9 @@
 (function () {
   'use strict';
   const AU = window.AU;
-  let ctx = null, bus = null, enabled = true, alarmT = null, amb = null, ambKind = null, lastStep = 0;
+  let ctx = null, bus = null, enabled = true, alarmT = null, lastStep = 0;
   /* volume geral (0 a 1), ambiente das salas ligado ou não, e o ambiente pedido pelo jogo (para religar depois) */
-  let volume = 1, ambOn = true, wantAmb = null;
+  let volume = 1, ambOn = true;
   const MASTER = 0.42;
 
   /* ---------- cadeia de saída: sfx + envio para reverb curto → compressor → master ---------- */
@@ -253,6 +253,7 @@
   /* ganho de cada som, para equilibrar: eventos grandes perto de -12 dB, médios -18 dB, sutis -28 dB */
   const GAIN = { click: 2, chat: 2, type: 6, stepMetal: 1.8, stepTile: 2.2, stepCarpet: 2.2, vent: 2.6, ventMove: 6, laser: 3, lever: 2, alarm: 1.6, spark: 1.4, pour: 1.6, doorOpen: 1.5, ok: 1.3, vote: 1.2 };
   const route = (c, b, name, dest) => {
+    dest = dest || b.sfx;
     const k = GAIN[name];
     if (!k) return dest;
     const g = c.createGain();
@@ -260,13 +261,40 @@
     g.connect(dest);
     return g;
   };
-  /* som que vem de um ponto do mapa: mais baixo longe, do lado certo, e abafado quando há parede no meio */
+  /* ---------- som 3D ----------
+     O ouvinte fica no jogador olhando para o alto da tela: o que está acima no mapa soa à frente, abaixo soa atrás,
+     à direita soa à direita. No computador usa HRTF (com fone dá para perceber frente e trás); no celular, o
+     panorama mais leve. A distância e a parede são tratadas à parte (ganho e filtro), o panner só dá a direção. */
+  const HRTF = typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(pointer: coarse)').matches;
+  function panner3d(c) {
+    const p = c.createPanner();
+    p.panningModel = HRTF ? 'HRTF' : 'equalpower';
+    p.distanceModel = 'linear';
+    p.rolloffFactor = 0;
+    return p;
+  }
+  function place(p, dx, dy, now) {
+    /* 1 tile = 1 metro; um pouco acima do chão, para nada ficar exatamente "dentro da cabeça" */
+    const x = dx, y = 0.8, z = dy;
+    if (p.positionX) {
+      if (now == null) {
+        p.positionX.value = x;
+        p.positionY.value = y;
+        p.positionZ.value = z;
+      } else {
+        p.positionX.setTargetAtTime(x, now, 0.12);
+        p.positionY.setTargetAtTime(y, now, 0.12);
+        p.positionZ.setTargetAtTime(z, now, 0.12);
+      }
+    } else p.setPosition(x, y, z);
+  }
+  /* som que vem de um ponto do mapa: at = { gain, dx, dy (tiles a partir do jogador), muffle (parede no meio) } */
   function spatial(c, b, at) {
     let node = b.sfx;
     if (!at) return node;
-    if (at.pan && c.createStereoPanner) {
-      const p = c.createStereoPanner();
-      p.pan.value = Math.max(-1, Math.min(1, at.pan));
+    if (at.dx != null) {
+      const p = panner3d(c);
+      place(p, at.dx, at.dy || 0);
       p.connect(node);
       node = p;
     }
@@ -299,11 +327,11 @@
     comms: { hum: 62, lp: 500, vol: 0.04, beep: 1760 },
     quiet: { hum: 52, lp: 300, vol: 0.04 },
   };
-  function startAmb(c, kind) {
+  function startAmb(c, kind, dest) {
     const k = AMB[kind] || AMB.corridor;
     const out = c.createGain();
     out.gain.value = 0.0001;
-    out.connect(bus.ambBus);
+    out.connect(dest || bus.ambBus);
     const nodes = [];
     const hum = c.createOscillator();
     hum.type = 'sine';
@@ -394,6 +422,138 @@
   const SURF = { cafeteria: 'tile', medbay: 'tile', o2: 'tile', navigation: 'tile', admin: 'carpet', comms: 'carpet', security: 'carpet' };
   const AMB_OF = { upperEngine: 'engine', lowerEngine: 'engine', reactor: 'reactor', electrical: 'electrical', cafeteria: 'cafeteria', medbay: 'medbay', o2: 'o2', comms: 'comms', admin: 'quiet', security: 'quiet', navigation: 'quiet', weapons: 'quiet', shields: 'electrical', storage: 'corridor' };
 
+  /* ---------- ambiente em 3D ----------
+     Cada sala com máquina é uma fonte de som no mapa: dentro dela o som envolve (vem do meio da sala); fora, vem
+     do ponto da sala mais perto de você, some com a distância e sai abafado se não há caminho de visão até lá
+     (parede, porta fechada). Por baixo, o zumbido baixo da nave, sempre. Só as 4 fontes mais fortes tocam. */
+  const EMIT = [
+    { area: 'reactor', kind: 'reactor', range: 12, vol: 1.1 },
+    { area: 'upperEngine', kind: 'engine', range: 11, vol: 1 },
+    { area: 'lowerEngine', kind: 'engine', range: 11, vol: 1 },
+    { area: 'electrical', kind: 'electrical', range: 7, vol: 1 },
+    { area: 'shields', kind: 'electrical', range: 6, vol: 0.7 },
+    { area: 'medbay', kind: 'medbay', range: 7, vol: 1 },
+    { area: 'comms', kind: 'comms', range: 7, vol: 1 },
+    { area: 'o2', kind: 'o2', range: 7, vol: 1 },
+    { area: 'cafeteria', kind: 'cafeteria', range: 8, vol: 1 },
+  ];
+  const MAX_EMIT = 4;
+  let bed = null, scene = null;
+  const live = new Map();
+  function stopAll() {
+    if (bed) bed.stop();
+    bed = null;
+    for (const e of live.values()) e.stop();
+    live.clear();
+  }
+  function startEmitter(c, def) {
+    const g = c.createGain();
+    g.gain.value = 0;
+    const lp = c.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 16000;
+    const pn = panner3d(c);
+    g.connect(lp);
+    lp.connect(pn);
+    pn.connect(bus.ambBus);
+    const src = startAmb(c, def.kind, g);
+    return {
+      g, lp, pn, quietT: 0,
+      stop() {
+        src.stop();
+        setTimeout(() => {
+          try { pn.disconnect(); } catch (e) { /* já solto */ }
+        }, 1300);
+      },
+    };
+  }
+  /* o que cada fonte faz com o jogador em (lx, ly) */
+  function hear(def, sc) {
+    const M = AU.Map, a = M && M.AREA[def.area];
+    if (!a || !a.rect) return null;
+    const [rx, ry, rw, rh] = a.rect;
+    const cx = rx + rw / 2, cy = ry + rh / 2;
+    const lx = sc.x, ly = sc.y;
+    const nx = Math.max(rx, Math.min(rx + rw, lx)), ny = Math.max(ry, Math.min(ry + rh, ly));
+    const out = Math.hypot(lx - nx, ly - ny);
+    if (out > def.range) return null;
+    let gain = def.vol * (out <= 0 ? 1 : Math.pow(1 - out / def.range, 1.6));
+    let dx, dy, muffle = false;
+    if (out <= 0) {
+      /* dentro da sala: vem do meio dela, sem puxar demais para um lado */
+      dx = (cx - lx) * 0.45;
+      dy = (cy - ly) * 0.45;
+    } else {
+      dx = nx - lx + (cx - nx) * 0.15;
+      dy = ny - ly + (cy - ny) * 0.15;
+      /* linha até um ponto logo dentro da sala (pela porta aberta, por exemplo) */
+      const k = Math.min(0.9, 0.9 / Math.max(0.01, Math.hypot(cx - nx, cy - ny)));
+      const px = nx + (cx - nx) * k, py = ny + (cy - ny) * k;
+      if (sc.los && !sc.los(lx, ly, px, py)) muffle = true;
+    }
+    if (sc.inVent) muffle = true;
+    if (muffle) gain *= 0.45;
+    if (!sc.alive) gain *= 0.7;
+    return { gain, dx, dy, muffle };
+  }
+  function refresh() {
+    if (!scene || !enabled || !ambOn) {
+      stopAll();
+      return;
+    }
+    const c = ensure();
+    if (!c) return;
+    const now = c.currentTime;
+    /* zumbido de fundo (fantasma ouve a nave mais distante) */
+    const bedKind = scene.alive ? 'corridor' : 'quiet';
+    if (bed && bed.kind !== bedKind) {
+      bed.stop();
+      bed = null;
+    }
+    if (!bed) {
+      try {
+        bed = startAmb(c, bedKind);
+        bed.kind = bedKind;
+      } catch (e) {
+        bed = null;
+      }
+    }
+    const want = [];
+    for (const def of EMIT) {
+      const h = hear(def, scene);
+      if (h && h.gain > 0.015) want.push({ def, h });
+    }
+    want.sort((a, b) => b.h.gain - a.h.gain);
+    const keep = new Set(want.slice(0, MAX_EMIT).map((w) => w.def));
+    for (const w of want) {
+      if (!keep.has(w.def)) continue;
+      let e = live.get(w.def);
+      if (!e) {
+        try {
+          e = startEmitter(c, w.def);
+        } catch (err) {
+          continue;
+        }
+        live.set(w.def, e);
+        place(e.pn, w.h.dx, w.h.dy);
+      } else place(e.pn, w.h.dx, w.h.dy, now);
+      e.quietT = 0;
+      e.on = true;
+      e.g.gain.setTargetAtTime(w.h.gain, now, 0.25);
+      e.lp.frequency.setTargetAtTime(w.h.muffle ? 480 : 16000, now, 0.2);
+    }
+    /* fontes que saíram do alcance: baixam e, depois de um tempo quietas, são desligadas */
+    for (const [def, e] of live) {
+      if (keep.has(def)) continue;
+      e.on = false;
+      e.g.gain.setTargetAtTime(0, now, 0.3);
+      if ((e.quietT += 1) > 15) {
+        e.stop();
+        live.delete(def);
+      }
+    }
+  }
+
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', () => {
       if (!ctx) return;
@@ -425,30 +585,21 @@
       lastStep = now;
       AU.Audio.play(surface === 'tile' ? 'stepTile' : surface === 'carpet' ? 'stepCarpet' : 'stepMetal');
     },
-    /* ambiente da sala atual (null desliga) */
+    /* Ambiente 3D: o jogo chama várias vezes por segundo com a posição do jogador.
+       sc = { x, y, alive, inVent, los(x0, y0, x1, y1) }; null desliga (reunião, menus). */
+    listen(sc) {
+      scene = sc || null;
+      refresh();
+    },
+    /* compatibilidade: ambience(null) desliga o ambiente */
     ambience(kind) {
-      wantAmb = kind;
-      const eff = enabled && ambOn ? kind : null;
-      if (eff === ambKind) return;
-      ambKind = eff;
-      if (amb) {
-        amb.stop();
-        amb = null;
-      }
-      if (!eff) return;
-      const c = ensure();
-      if (!c) return;
-      try {
-        amb = startAmb(c, eff);
-      } catch (e) {
-        amb = null;
-      }
+      if (kind == null) AU.Audio.listen(null);
     },
     unlock() { ensure(); },
     setEnabled(v) {
       enabled = !!v;
       if (!enabled) AU.Audio.alarm(false);
-      AU.Audio.ambience(wantAmb);
+      refresh();
     },
     get enabled() { return enabled; },
     /* volume geral, de 0 a 1 */
@@ -460,11 +611,14 @@
     /* som ambiente das salas (motores, reator, bipes) ligado ou não, sem mexer nos efeitos */
     setAmbienceOn(on) {
       ambOn = !!on;
-      AU.Audio.ambience(wantAmb);
+      refresh();
     },
     get ambienceOn() { return ambOn; },
-    /* ambiente tocando agora (null = nenhum) */
-    get ambiencePlaying() { return ambKind; },
+    /* ambiente tocando agora: fontes ativas (null = nenhum) */
+    get ambiencePlaying() {
+      if (!bed && !live.size) return null;
+      return [...live].filter(([, e]) => e.on).map(([d]) => d.area).join(',') || 'fundo';
+    },
     alarm(on) {
       if (on && !alarmT && enabled) {
         if (!ensure()) return;

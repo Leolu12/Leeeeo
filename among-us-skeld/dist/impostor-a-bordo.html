@@ -2069,9 +2069,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
 (function () {
   'use strict';
   const AU = window.AU;
-  let ctx = null, bus = null, enabled = true, alarmT = null, amb = null, ambKind = null, lastStep = 0;
+  let ctx = null, bus = null, enabled = true, alarmT = null, lastStep = 0;
   /* volume geral (0 a 1), ambiente das salas ligado ou não, e o ambiente pedido pelo jogo (para religar depois) */
-  let volume = 1, ambOn = true, wantAmb = null;
+  let volume = 1, ambOn = true;
   const MASTER = 0.42;
 
   /* ---------- cadeia de saída: sfx + envio para reverb curto → compressor → master ---------- */
@@ -2317,6 +2317,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   /* ganho de cada som, para equilibrar: eventos grandes perto de -12 dB, médios -18 dB, sutis -28 dB */
   const GAIN = { click: 2, chat: 2, type: 6, stepMetal: 1.8, stepTile: 2.2, stepCarpet: 2.2, vent: 2.6, ventMove: 6, laser: 3, lever: 2, alarm: 1.6, spark: 1.4, pour: 1.6, doorOpen: 1.5, ok: 1.3, vote: 1.2 };
   const route = (c, b, name, dest) => {
+    dest = dest || b.sfx;
     const k = GAIN[name];
     if (!k) return dest;
     const g = c.createGain();
@@ -2324,13 +2325,40 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     g.connect(dest);
     return g;
   };
-  /* som que vem de um ponto do mapa: mais baixo longe, do lado certo, e abafado quando há parede no meio */
+  /* ---------- som 3D ----------
+     O ouvinte fica no jogador olhando para o alto da tela: o que está acima no mapa soa à frente, abaixo soa atrás,
+     à direita soa à direita. No computador usa HRTF (com fone dá para perceber frente e trás); no celular, o
+     panorama mais leve. A distância e a parede são tratadas à parte (ganho e filtro), o panner só dá a direção. */
+  const HRTF = typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(pointer: coarse)').matches;
+  function panner3d(c) {
+    const p = c.createPanner();
+    p.panningModel = HRTF ? 'HRTF' : 'equalpower';
+    p.distanceModel = 'linear';
+    p.rolloffFactor = 0;
+    return p;
+  }
+  function place(p, dx, dy, now) {
+    /* 1 tile = 1 metro; um pouco acima do chão, para nada ficar exatamente "dentro da cabeça" */
+    const x = dx, y = 0.8, z = dy;
+    if (p.positionX) {
+      if (now == null) {
+        p.positionX.value = x;
+        p.positionY.value = y;
+        p.positionZ.value = z;
+      } else {
+        p.positionX.setTargetAtTime(x, now, 0.12);
+        p.positionY.setTargetAtTime(y, now, 0.12);
+        p.positionZ.setTargetAtTime(z, now, 0.12);
+      }
+    } else p.setPosition(x, y, z);
+  }
+  /* som que vem de um ponto do mapa: at = { gain, dx, dy (tiles a partir do jogador), muffle (parede no meio) } */
   function spatial(c, b, at) {
     let node = b.sfx;
     if (!at) return node;
-    if (at.pan && c.createStereoPanner) {
-      const p = c.createStereoPanner();
-      p.pan.value = Math.max(-1, Math.min(1, at.pan));
+    if (at.dx != null) {
+      const p = panner3d(c);
+      place(p, at.dx, at.dy || 0);
       p.connect(node);
       node = p;
     }
@@ -2363,11 +2391,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     comms: { hum: 62, lp: 500, vol: 0.04, beep: 1760 },
     quiet: { hum: 52, lp: 300, vol: 0.04 },
   };
-  function startAmb(c, kind) {
+  function startAmb(c, kind, dest) {
     const k = AMB[kind] || AMB.corridor;
     const out = c.createGain();
     out.gain.value = 0.0001;
-    out.connect(bus.ambBus);
+    out.connect(dest || bus.ambBus);
     const nodes = [];
     const hum = c.createOscillator();
     hum.type = 'sine';
@@ -2458,6 +2486,138 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   const SURF = { cafeteria: 'tile', medbay: 'tile', o2: 'tile', navigation: 'tile', admin: 'carpet', comms: 'carpet', security: 'carpet' };
   const AMB_OF = { upperEngine: 'engine', lowerEngine: 'engine', reactor: 'reactor', electrical: 'electrical', cafeteria: 'cafeteria', medbay: 'medbay', o2: 'o2', comms: 'comms', admin: 'quiet', security: 'quiet', navigation: 'quiet', weapons: 'quiet', shields: 'electrical', storage: 'corridor' };
 
+  /* ---------- ambiente em 3D ----------
+     Cada sala com máquina é uma fonte de som no mapa: dentro dela o som envolve (vem do meio da sala); fora, vem
+     do ponto da sala mais perto de você, some com a distância e sai abafado se não há caminho de visão até lá
+     (parede, porta fechada). Por baixo, o zumbido baixo da nave, sempre. Só as 4 fontes mais fortes tocam. */
+  const EMIT = [
+    { area: 'reactor', kind: 'reactor', range: 12, vol: 1.1 },
+    { area: 'upperEngine', kind: 'engine', range: 11, vol: 1 },
+    { area: 'lowerEngine', kind: 'engine', range: 11, vol: 1 },
+    { area: 'electrical', kind: 'electrical', range: 7, vol: 1 },
+    { area: 'shields', kind: 'electrical', range: 6, vol: 0.7 },
+    { area: 'medbay', kind: 'medbay', range: 7, vol: 1 },
+    { area: 'comms', kind: 'comms', range: 7, vol: 1 },
+    { area: 'o2', kind: 'o2', range: 7, vol: 1 },
+    { area: 'cafeteria', kind: 'cafeteria', range: 8, vol: 1 },
+  ];
+  const MAX_EMIT = 4;
+  let bed = null, scene = null;
+  const live = new Map();
+  function stopAll() {
+    if (bed) bed.stop();
+    bed = null;
+    for (const e of live.values()) e.stop();
+    live.clear();
+  }
+  function startEmitter(c, def) {
+    const g = c.createGain();
+    g.gain.value = 0;
+    const lp = c.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 16000;
+    const pn = panner3d(c);
+    g.connect(lp);
+    lp.connect(pn);
+    pn.connect(bus.ambBus);
+    const src = startAmb(c, def.kind, g);
+    return {
+      g, lp, pn, quietT: 0,
+      stop() {
+        src.stop();
+        setTimeout(() => {
+          try { pn.disconnect(); } catch (e) { /* já solto */ }
+        }, 1300);
+      },
+    };
+  }
+  /* o que cada fonte faz com o jogador em (lx, ly) */
+  function hear(def, sc) {
+    const M = AU.Map, a = M && M.AREA[def.area];
+    if (!a || !a.rect) return null;
+    const [rx, ry, rw, rh] = a.rect;
+    const cx = rx + rw / 2, cy = ry + rh / 2;
+    const lx = sc.x, ly = sc.y;
+    const nx = Math.max(rx, Math.min(rx + rw, lx)), ny = Math.max(ry, Math.min(ry + rh, ly));
+    const out = Math.hypot(lx - nx, ly - ny);
+    if (out > def.range) return null;
+    let gain = def.vol * (out <= 0 ? 1 : Math.pow(1 - out / def.range, 1.6));
+    let dx, dy, muffle = false;
+    if (out <= 0) {
+      /* dentro da sala: vem do meio dela, sem puxar demais para um lado */
+      dx = (cx - lx) * 0.45;
+      dy = (cy - ly) * 0.45;
+    } else {
+      dx = nx - lx + (cx - nx) * 0.15;
+      dy = ny - ly + (cy - ny) * 0.15;
+      /* linha até um ponto logo dentro da sala (pela porta aberta, por exemplo) */
+      const k = Math.min(0.9, 0.9 / Math.max(0.01, Math.hypot(cx - nx, cy - ny)));
+      const px = nx + (cx - nx) * k, py = ny + (cy - ny) * k;
+      if (sc.los && !sc.los(lx, ly, px, py)) muffle = true;
+    }
+    if (sc.inVent) muffle = true;
+    if (muffle) gain *= 0.45;
+    if (!sc.alive) gain *= 0.7;
+    return { gain, dx, dy, muffle };
+  }
+  function refresh() {
+    if (!scene || !enabled || !ambOn) {
+      stopAll();
+      return;
+    }
+    const c = ensure();
+    if (!c) return;
+    const now = c.currentTime;
+    /* zumbido de fundo (fantasma ouve a nave mais distante) */
+    const bedKind = scene.alive ? 'corridor' : 'quiet';
+    if (bed && bed.kind !== bedKind) {
+      bed.stop();
+      bed = null;
+    }
+    if (!bed) {
+      try {
+        bed = startAmb(c, bedKind);
+        bed.kind = bedKind;
+      } catch (e) {
+        bed = null;
+      }
+    }
+    const want = [];
+    for (const def of EMIT) {
+      const h = hear(def, scene);
+      if (h && h.gain > 0.015) want.push({ def, h });
+    }
+    want.sort((a, b) => b.h.gain - a.h.gain);
+    const keep = new Set(want.slice(0, MAX_EMIT).map((w) => w.def));
+    for (const w of want) {
+      if (!keep.has(w.def)) continue;
+      let e = live.get(w.def);
+      if (!e) {
+        try {
+          e = startEmitter(c, w.def);
+        } catch (err) {
+          continue;
+        }
+        live.set(w.def, e);
+        place(e.pn, w.h.dx, w.h.dy);
+      } else place(e.pn, w.h.dx, w.h.dy, now);
+      e.quietT = 0;
+      e.on = true;
+      e.g.gain.setTargetAtTime(w.h.gain, now, 0.25);
+      e.lp.frequency.setTargetAtTime(w.h.muffle ? 480 : 16000, now, 0.2);
+    }
+    /* fontes que saíram do alcance: baixam e, depois de um tempo quietas, são desligadas */
+    for (const [def, e] of live) {
+      if (keep.has(def)) continue;
+      e.on = false;
+      e.g.gain.setTargetAtTime(0, now, 0.3);
+      if ((e.quietT += 1) > 15) {
+        e.stop();
+        live.delete(def);
+      }
+    }
+  }
+
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', () => {
       if (!ctx) return;
@@ -2489,30 +2649,21 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       lastStep = now;
       AU.Audio.play(surface === 'tile' ? 'stepTile' : surface === 'carpet' ? 'stepCarpet' : 'stepMetal');
     },
-    /* ambiente da sala atual (null desliga) */
+    /* Ambiente 3D: o jogo chama várias vezes por segundo com a posição do jogador.
+       sc = { x, y, alive, inVent, los(x0, y0, x1, y1) }; null desliga (reunião, menus). */
+    listen(sc) {
+      scene = sc || null;
+      refresh();
+    },
+    /* compatibilidade: ambience(null) desliga o ambiente */
     ambience(kind) {
-      wantAmb = kind;
-      const eff = enabled && ambOn ? kind : null;
-      if (eff === ambKind) return;
-      ambKind = eff;
-      if (amb) {
-        amb.stop();
-        amb = null;
-      }
-      if (!eff) return;
-      const c = ensure();
-      if (!c) return;
-      try {
-        amb = startAmb(c, eff);
-      } catch (e) {
-        amb = null;
-      }
+      if (kind == null) AU.Audio.listen(null);
     },
     unlock() { ensure(); },
     setEnabled(v) {
       enabled = !!v;
       if (!enabled) AU.Audio.alarm(false);
-      AU.Audio.ambience(wantAmb);
+      refresh();
     },
     get enabled() { return enabled; },
     /* volume geral, de 0 a 1 */
@@ -2524,11 +2675,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     /* som ambiente das salas (motores, reator, bipes) ligado ou não, sem mexer nos efeitos */
     setAmbienceOn(on) {
       ambOn = !!on;
-      AU.Audio.ambience(wantAmb);
+      refresh();
     },
     get ambienceOn() { return ambOn; },
-    /* ambiente tocando agora (null = nenhum) */
-    get ambiencePlaying() { return ambKind; },
+    /* ambiente tocando agora: fontes ativas (null = nenhum) */
+    get ambiencePlaying() {
+      if (!bed && !live.size) return null;
+      return [...live].filter(([, e]) => e.on).map(([d]) => d.area).join(',') || 'fundo';
+    },
     alarm(on) {
       if (on && !alarmT && enabled) {
         if (!ensure()) return;
@@ -3922,7 +4076,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (sight && !clear) return;
       if (!clear && d > HEAR / 2) return;
       const gain = (1 - 0.7 * U.clamp((d - 2) / (HEAR - 2), 0, 1)) * (clear ? 1 : 0.55);
-      AU.Audio.play(name, 0, { gain, pan: U.clamp((x - h.x) / HEAR, -1, 1) * 0.75, muffle: !clear });
+      AU.Audio.play(name, 0, { gain, dx: x - h.x, dy: y - h.y, muffle: !clear });
     }
     /* som das portas de uma sala, vindo da porta mais perto do jogador */
     doorSfx(name, room) {
@@ -4060,11 +4214,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         this.trailT = 0.5;
         this.hTrail = (this.hTrail || []).concat({ x: this.human.x, y: this.human.y, t }).slice(-6);
       }
-      /* ambiente sonoro da sala onde o jogador está */
+      /* ambiente sonoro em 3D em volta do jogador (máquinas das salas por perto, abafadas atrás de parede) */
       if (!this.headless && this.human && (this.ambT = (this.ambT || 0) - dt) <= 0) {
-        this.ambT = 0.5;
+        this.ambT = 0.1;
         const h = this.human;
-        AU.Audio.ambience(h.alive ? AU.Audio.ambienceOf((M.areaAt(h.x, h.y) || {}).id) : 'quiet');
+        AU.Audio.listen({ x: h.x, y: h.y, alive: h.alive, inVent: !!h.inVent, los: Nav.los });
       }
       for (const p of this.players) {
         p.killCd = Math.max(0, p.killCd - dt);
@@ -13735,15 +13889,28 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     for (const d of M.DOORS) {
       const [x, y, w, h] = d.rect;
       const horiz = w > h;
-      /* soleira com faixa de perigo e trilho da porta */
+      /* Vão da porta: só a soleira de metal com o trilho no meio (discreto, para a porta aberta parecer aberta —
+         a faixa de perigo agora fica nas folhas, que só aparecem fechadas) e os batentes onde as folhas se recolhem,
+         com uma tira de perigo na face. */
+      const rail = (rx, ry, rw, rh) => {
+        c.fillStyle = 'rgba(170,182,210,0.13)';
+        c.fillRect(rx * P, ry * P, rw * P, rh * P);
+        c.fillStyle = 'rgba(8,10,16,0.5)';
+        if (horiz) c.fillRect(rx * P, (ry + rh / 2 - 0.035) * P, rw * P, 0.07 * P);
+        else c.fillRect((rx + rw / 2 - 0.035) * P, ry * P, 0.07 * P, rh * P);
+      };
       if (horiz) {
-        D.hazard(x, y + 0.3, w, 0.4, 0.8);
-        D.box(x - 0.25, y - 0.15, 0.3, h + 0.3, '#59647e', OUT, 0.06);
-        D.box(x + w - 0.05, y - 0.15, 0.3, h + 0.3, '#59647e', OUT, 0.06);
+        rail(x, y + 0.3, w, 0.4);
+        D.box(x - 0.3, y - 0.18, 0.36, h + 0.36, '#59647e', OUT, 0.06);
+        D.box(x + w - 0.06, y - 0.18, 0.36, h + 0.36, '#59647e', OUT, 0.06);
+        D.hazard(x - 0.22, y + 0.12, 0.2, h - 0.24, 0.85);
+        D.hazard(x + w + 0.02, y + 0.12, 0.2, h - 0.24, 0.85);
       } else {
-        D.hazard(x + 0.3, y, 0.4, h, 0.8);
-        D.box(x - 0.15, y - 0.25, w + 0.3, 0.3, '#59647e', OUT, 0.06);
-        D.box(x - 0.15, y + h - 0.05, w + 0.3, 0.3, '#59647e', OUT, 0.06);
+        rail(x + 0.3, y, 0.4, h);
+        D.box(x - 0.18, y - 0.3, w + 0.36, 0.36, '#59647e', OUT, 0.06);
+        D.box(x - 0.18, y + h - 0.06, w + 0.36, 0.36, '#59647e', OUT, 0.06);
+        D.hazard(x + 0.12, y - 0.22, w - 0.24, 0.2, 0.85);
+        D.hazard(x + 0.12, y + h + 0.02, w - 0.24, 0.2, 0.85);
       }
     }
   }
@@ -15688,6 +15855,88 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     prefetch(tx0, ty0, tx1, ty1, ppt);
   }
 
+  /* ---------- portas ----------
+     Aberta: vão livre, só o trilho no chão (mapa estático) e a ponta de cada folha recolhida no batente.
+     Fechada: duas folhas de metal que deslizam das laterais até o meio, com a faixa de perigo por cima e a luz
+     vermelha piscando no encontro. (Antes a faixa ficava pintada no chão do vão e a porta aberta parecia fechada.) */
+  function hazardBand(ctx, x, y, w, h, horiz, anchor, s) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    ctx.fillStyle = '#f0c93a';
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#17181d';
+    ctx.beginPath();
+    /* listras presas à borda de encontro da folha: andam junto com ela */
+    const th = horiz ? h : w, from = (horiz ? x : y) - th, to = (horiz ? x + w : y + h) + th;
+    for (let u = anchor - Math.ceil((anchor - from) / (2 * s)) * 2 * s; u < to; u += 2 * s) {
+      if (horiz) {
+        ctx.moveTo(u, y + h);
+        ctx.lineTo(u + s, y + h);
+        ctx.lineTo(u + s + h, y);
+        ctx.lineTo(u + h, y);
+      } else {
+        ctx.moveTo(x, u);
+        ctx.lineTo(x, u + s);
+        ctx.lineTo(x + w, u + s + w);
+        ctx.lineTo(x + w, u + w);
+      }
+      ctx.closePath();
+    }
+    ctx.fill();
+    ctx.restore();
+  }
+  function drawDoors(ctx, S, ppt, t, g) {
+    const lw = Math.max(1.5, ppt * 0.05);
+    for (const d of M.DOORS) {
+      const prog = d.animT != null ? Math.min(1, Math.max(0, (g.t - d.animT) / 0.35)) : 1;
+      const amt = d.closed ? prog : 1 - prog;
+      const [x, y, w, hh] = d.rect;
+      const p = S(x, y);
+      const horiz = w > hh;
+      const L = (horiz ? w : hh) * ppt, T = (horiz ? hh : w) * ppt;
+      /* folha recolhida: só a ponta aparece, colada no batente */
+      const half = Math.max(ppt * 0.1, (L / 2) * amt);
+      const inset = amt <= 0.01 ? T * 0.14 : 0;
+      for (const side of [0, 1]) {
+        const a0 = side ? L - half : 0;
+        const rx = horiz ? p.x + a0 : p.x + inset, ry = horiz ? p.y + inset : p.y + a0;
+        const rw = horiz ? half : T - inset * 2, rh = horiz ? T - inset * 2 : half;
+        ctx.fillStyle = '#7a8499';
+        ctx.fillRect(rx, ry, rw, rh);
+        ctx.fillStyle = 'rgba(255,255,255,0.16)';
+        if (horiz) ctx.fillRect(rx, ry, rw, T * 0.16);
+        else ctx.fillRect(rx, ry, T * 0.16, rh);
+        const inner = horiz ? (side ? rx : rx + rw) : side ? ry : ry + rh;
+        if (amt > 0.01) {
+          /* faixa de perigo ao longo da folha: só existe com a porta fechando ou fechada */
+          const bt = T * 0.36, off = (T - bt) / 2;
+          if (horiz) hazardBand(ctx, rx, ry + off, rw, bt, true, inner, ppt * 0.16);
+          else hazardBand(ctx, rx + off, ry, bt, rh, false, inner, ppt * 0.16);
+        }
+        /* borda de encontro (amarela) */
+        ctx.fillStyle = '#f0c93a';
+        const ew = Math.min(half, ppt * 0.07);
+        if (horiz) ctx.fillRect(side ? rx : rx + rw - ew, ry, ew, rh);
+        else ctx.fillRect(rx, side ? ry : ry + rh - ew, rw, ew);
+        ctx.strokeStyle = '#0b0d12';
+        ctx.lineWidth = lw;
+        ctx.strokeRect(rx, ry, rw, rh);
+      }
+      if (d.closed && amt > 0.95) {
+        ctx.fillStyle = Math.sin(t * 6) > 0 ? '#ff3b3b' : '#7a1010';
+        const cx = p.x + (horiz ? L / 2 : T / 2), cy = p.y + (horiz ? T / 2 : L / 2);
+        ctx.beginPath();
+        ctx.arc(cx, cy, ppt * 0.13, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#0b0d12';
+        ctx.lineWidth = lw * 0.8;
+        ctx.stroke();
+      }
+    }
+  }
+
   /* ---------- fundo estrelado ---------- */
   const stars = [];
   for (let i = 0; i < 260; i++) stars.push({ x: Math.random(), y: Math.random(), z: Math.random() * 0.8 + 0.2 });
@@ -15777,42 +16026,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           ctx.stroke();
         }
       }
-      /* portas: duas folhas deslizando das laterais até o meio */
-      for (const d of M.DOORS) {
-        const prog = d.animT != null ? Math.min(1, Math.max(0, (g.t - d.animT) / 0.35)) : 1;
-        const amt = d.closed ? prog : 1 - prog;
-        if (amt <= 0.01) continue;
-        const [x, y, w, hh] = d.rect;
-        const p = S(x, y);
-        const horiz = w > hh;
-        const L = (horiz ? w : hh) * ppt, T = (horiz ? hh : w) * ppt;
-        const half = (L / 2) * amt;
-        for (const side of [0, 1]) {
-          const a0 = side ? L - half : 0;
-          const rx = horiz ? p.x + a0 : p.x, ry = horiz ? p.y : p.y + a0;
-          const rw = horiz ? half : T, rh = horiz ? T : half;
-          ctx.fillStyle = '#8791a5';
-          ctx.fillRect(rx, ry, rw, rh);
-          ctx.fillStyle = 'rgba(255,255,255,0.18)';
-          if (horiz) ctx.fillRect(rx, ry, rw, T * 0.18);
-          else ctx.fillRect(rx, ry, T * 0.18, rh);
-          /* faixa de perigo na borda que encontra a outra folha */
-          ctx.fillStyle = '#f0c93a';
-          const ew = Math.min(half, ppt * 0.22);
-          if (horiz) ctx.fillRect(side ? rx : rx + rw - ew, ry, ew, rh);
-          else ctx.fillRect(rx, side ? ry : ry + rh - ew, rw, ew);
-          ctx.strokeStyle = '#0b0d12';
-          ctx.lineWidth = Math.max(1.5, ppt * 0.05);
-          ctx.strokeRect(rx, ry, rw, rh);
-        }
-        if (d.closed && amt > 0.95) {
-          ctx.fillStyle = Math.sin(t * 6) > 0 ? '#ff3b3b' : '#7a1010';
-          const cx = p.x + (horiz ? L / 2 : T / 2), cy = p.y + (horiz ? T / 2 : L / 2);
-          ctx.beginPath();
-          ctx.arc(cx, cy, ppt * 0.12, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
+      drawDoors(ctx, S, ppt, t, g);
       /* câmeras: luz vermelha quando alguém assiste */
       if (g.anyoneOnCams()) {
         for (const cam of M.CAMS) {
@@ -16227,6 +16441,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(staticCanvas, x0 * PX, y0 * PX, 16 * PX, (canvas.height / ppt) * PX, 0, 0, canvas.width, canvas.height);
       const S = (x, y) => ({ x: (x - x0) * ppt, y: (y - y0) * ppt });
+      /* portas fechadas também aparecem na câmera */
+      drawDoors(ctx, S, ppt, t, g);
       for (const b of g.bodies) {
         if (b.gone || U.d2(b.x, b.y, cam.x, cam.y) > M.CAM_R || !Nav.los(cam.x, cam.y, b.x, b.y)) continue;
         const p = S(b.x, b.y);

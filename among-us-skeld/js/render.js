@@ -433,6 +433,88 @@
     prefetch(tx0, ty0, tx1, ty1, ppt);
   }
 
+  /* ---------- portas ----------
+     Aberta: vão livre, só o trilho no chão (mapa estático) e a ponta de cada folha recolhida no batente.
+     Fechada: duas folhas de metal que deslizam das laterais até o meio, com a faixa de perigo por cima e a luz
+     vermelha piscando no encontro. (Antes a faixa ficava pintada no chão do vão e a porta aberta parecia fechada.) */
+  function hazardBand(ctx, x, y, w, h, horiz, anchor, s) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    ctx.fillStyle = '#f0c93a';
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#17181d';
+    ctx.beginPath();
+    /* listras presas à borda de encontro da folha: andam junto com ela */
+    const th = horiz ? h : w, from = (horiz ? x : y) - th, to = (horiz ? x + w : y + h) + th;
+    for (let u = anchor - Math.ceil((anchor - from) / (2 * s)) * 2 * s; u < to; u += 2 * s) {
+      if (horiz) {
+        ctx.moveTo(u, y + h);
+        ctx.lineTo(u + s, y + h);
+        ctx.lineTo(u + s + h, y);
+        ctx.lineTo(u + h, y);
+      } else {
+        ctx.moveTo(x, u);
+        ctx.lineTo(x, u + s);
+        ctx.lineTo(x + w, u + s + w);
+        ctx.lineTo(x + w, u + w);
+      }
+      ctx.closePath();
+    }
+    ctx.fill();
+    ctx.restore();
+  }
+  function drawDoors(ctx, S, ppt, t, g) {
+    const lw = Math.max(1.5, ppt * 0.05);
+    for (const d of M.DOORS) {
+      const prog = d.animT != null ? Math.min(1, Math.max(0, (g.t - d.animT) / 0.35)) : 1;
+      const amt = d.closed ? prog : 1 - prog;
+      const [x, y, w, hh] = d.rect;
+      const p = S(x, y);
+      const horiz = w > hh;
+      const L = (horiz ? w : hh) * ppt, T = (horiz ? hh : w) * ppt;
+      /* folha recolhida: só a ponta aparece, colada no batente */
+      const half = Math.max(ppt * 0.1, (L / 2) * amt);
+      const inset = amt <= 0.01 ? T * 0.14 : 0;
+      for (const side of [0, 1]) {
+        const a0 = side ? L - half : 0;
+        const rx = horiz ? p.x + a0 : p.x + inset, ry = horiz ? p.y + inset : p.y + a0;
+        const rw = horiz ? half : T - inset * 2, rh = horiz ? T - inset * 2 : half;
+        ctx.fillStyle = '#7a8499';
+        ctx.fillRect(rx, ry, rw, rh);
+        ctx.fillStyle = 'rgba(255,255,255,0.16)';
+        if (horiz) ctx.fillRect(rx, ry, rw, T * 0.16);
+        else ctx.fillRect(rx, ry, T * 0.16, rh);
+        const inner = horiz ? (side ? rx : rx + rw) : side ? ry : ry + rh;
+        if (amt > 0.01) {
+          /* faixa de perigo ao longo da folha: só existe com a porta fechando ou fechada */
+          const bt = T * 0.36, off = (T - bt) / 2;
+          if (horiz) hazardBand(ctx, rx, ry + off, rw, bt, true, inner, ppt * 0.16);
+          else hazardBand(ctx, rx + off, ry, bt, rh, false, inner, ppt * 0.16);
+        }
+        /* borda de encontro (amarela) */
+        ctx.fillStyle = '#f0c93a';
+        const ew = Math.min(half, ppt * 0.07);
+        if (horiz) ctx.fillRect(side ? rx : rx + rw - ew, ry, ew, rh);
+        else ctx.fillRect(rx, side ? ry : ry + rh - ew, rw, ew);
+        ctx.strokeStyle = '#0b0d12';
+        ctx.lineWidth = lw;
+        ctx.strokeRect(rx, ry, rw, rh);
+      }
+      if (d.closed && amt > 0.95) {
+        ctx.fillStyle = Math.sin(t * 6) > 0 ? '#ff3b3b' : '#7a1010';
+        const cx = p.x + (horiz ? L / 2 : T / 2), cy = p.y + (horiz ? T / 2 : L / 2);
+        ctx.beginPath();
+        ctx.arc(cx, cy, ppt * 0.13, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#0b0d12';
+        ctx.lineWidth = lw * 0.8;
+        ctx.stroke();
+      }
+    }
+  }
+
   /* ---------- fundo estrelado ---------- */
   const stars = [];
   for (let i = 0; i < 260; i++) stars.push({ x: Math.random(), y: Math.random(), z: Math.random() * 0.8 + 0.2 });
@@ -522,42 +604,7 @@
           ctx.stroke();
         }
       }
-      /* portas: duas folhas deslizando das laterais até o meio */
-      for (const d of M.DOORS) {
-        const prog = d.animT != null ? Math.min(1, Math.max(0, (g.t - d.animT) / 0.35)) : 1;
-        const amt = d.closed ? prog : 1 - prog;
-        if (amt <= 0.01) continue;
-        const [x, y, w, hh] = d.rect;
-        const p = S(x, y);
-        const horiz = w > hh;
-        const L = (horiz ? w : hh) * ppt, T = (horiz ? hh : w) * ppt;
-        const half = (L / 2) * amt;
-        for (const side of [0, 1]) {
-          const a0 = side ? L - half : 0;
-          const rx = horiz ? p.x + a0 : p.x, ry = horiz ? p.y : p.y + a0;
-          const rw = horiz ? half : T, rh = horiz ? T : half;
-          ctx.fillStyle = '#8791a5';
-          ctx.fillRect(rx, ry, rw, rh);
-          ctx.fillStyle = 'rgba(255,255,255,0.18)';
-          if (horiz) ctx.fillRect(rx, ry, rw, T * 0.18);
-          else ctx.fillRect(rx, ry, T * 0.18, rh);
-          /* faixa de perigo na borda que encontra a outra folha */
-          ctx.fillStyle = '#f0c93a';
-          const ew = Math.min(half, ppt * 0.22);
-          if (horiz) ctx.fillRect(side ? rx : rx + rw - ew, ry, ew, rh);
-          else ctx.fillRect(rx, side ? ry : ry + rh - ew, rw, ew);
-          ctx.strokeStyle = '#0b0d12';
-          ctx.lineWidth = Math.max(1.5, ppt * 0.05);
-          ctx.strokeRect(rx, ry, rw, rh);
-        }
-        if (d.closed && amt > 0.95) {
-          ctx.fillStyle = Math.sin(t * 6) > 0 ? '#ff3b3b' : '#7a1010';
-          const cx = p.x + (horiz ? L / 2 : T / 2), cy = p.y + (horiz ? T / 2 : L / 2);
-          ctx.beginPath();
-          ctx.arc(cx, cy, ppt * 0.12, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
+      drawDoors(ctx, S, ppt, t, g);
       /* câmeras: luz vermelha quando alguém assiste */
       if (g.anyoneOnCams()) {
         for (const cam of M.CAMS) {
@@ -972,6 +1019,8 @@
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(staticCanvas, x0 * PX, y0 * PX, 16 * PX, (canvas.height / ppt) * PX, 0, 0, canvas.width, canvas.height);
       const S = (x, y) => ({ x: (x - x0) * ppt, y: (y - y0) * ppt });
+      /* portas fechadas também aparecem na câmera */
+      drawDoors(ctx, S, ppt, t, g);
       for (const b of g.bodies) {
         if (b.gone || U.d2(b.x, b.y, cam.x, cam.y) > M.CAM_R || !Nav.los(cam.x, cam.y, b.x, b.y)) continue;
         const p = S(b.x, b.y);

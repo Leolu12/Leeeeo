@@ -691,15 +691,28 @@
     for (const d of M.DOORS) {
       const [x, y, w, h] = d.rect;
       const horiz = w > h;
-      /* soleira com faixa de perigo e trilho da porta */
+      /* Vão da porta: só a soleira de metal com o trilho no meio (discreto, para a porta aberta parecer aberta —
+         a faixa de perigo agora fica nas folhas, que só aparecem fechadas) e os batentes onde as folhas se recolhem,
+         com uma tira de perigo na face. */
+      const rail = (rx, ry, rw, rh) => {
+        c.fillStyle = 'rgba(170,182,210,0.13)';
+        c.fillRect(rx * P, ry * P, rw * P, rh * P);
+        c.fillStyle = 'rgba(8,10,16,0.5)';
+        if (horiz) c.fillRect(rx * P, (ry + rh / 2 - 0.035) * P, rw * P, 0.07 * P);
+        else c.fillRect((rx + rw / 2 - 0.035) * P, ry * P, 0.07 * P, rh * P);
+      };
       if (horiz) {
-        D.hazard(x, y + 0.3, w, 0.4, 0.8);
-        D.box(x - 0.25, y - 0.15, 0.3, h + 0.3, '#59647e', OUT, 0.06);
-        D.box(x + w - 0.05, y - 0.15, 0.3, h + 0.3, '#59647e', OUT, 0.06);
+        rail(x, y + 0.3, w, 0.4);
+        D.box(x - 0.3, y - 0.18, 0.36, h + 0.36, '#59647e', OUT, 0.06);
+        D.box(x + w - 0.06, y - 0.18, 0.36, h + 0.36, '#59647e', OUT, 0.06);
+        D.hazard(x - 0.22, y + 0.12, 0.2, h - 0.24, 0.85);
+        D.hazard(x + w + 0.02, y + 0.12, 0.2, h - 0.24, 0.85);
       } else {
-        D.hazard(x + 0.3, y, 0.4, h, 0.8);
-        D.box(x - 0.15, y - 0.25, w + 0.3, 0.3, '#59647e', OUT, 0.06);
-        D.box(x - 0.15, y + h - 0.05, w + 0.3, 0.3, '#59647e', OUT, 0.06);
+        rail(x + 0.3, y, 0.4, h);
+        D.box(x - 0.18, y - 0.3, w + 0.36, 0.36, '#59647e', OUT, 0.06);
+        D.box(x - 0.18, y + h - 0.06, w + 0.36, 0.36, '#59647e', OUT, 0.06);
+        D.hazard(x + 0.12, y - 0.22, w - 0.24, 0.2, 0.85);
+        D.hazard(x + 0.12, y + h + 0.02, w - 0.24, 0.2, 0.85);
       }
     }
   }

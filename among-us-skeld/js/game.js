@@ -234,7 +234,7 @@
       if (sight && !clear) return;
       if (!clear && d > HEAR / 2) return;
       const gain = (1 - 0.7 * U.clamp((d - 2) / (HEAR - 2), 0, 1)) * (clear ? 1 : 0.55);
-      AU.Audio.play(name, 0, { gain, pan: U.clamp((x - h.x) / HEAR, -1, 1) * 0.75, muffle: !clear });
+      AU.Audio.play(name, 0, { gain, dx: x - h.x, dy: y - h.y, muffle: !clear });
     }
     /* som das portas de uma sala, vindo da porta mais perto do jogador */
     doorSfx(name, room) {
@@ -372,11 +372,11 @@
         this.trailT = 0.5;
         this.hTrail = (this.hTrail || []).concat({ x: this.human.x, y: this.human.y, t }).slice(-6);
       }
-      /* ambiente sonoro da sala onde o jogador está */
+      /* ambiente sonoro em 3D em volta do jogador (máquinas das salas por perto, abafadas atrás de parede) */
       if (!this.headless && this.human && (this.ambT = (this.ambT || 0) - dt) <= 0) {
-        this.ambT = 0.5;
+        this.ambT = 0.1;
         const h = this.human;
-        AU.Audio.ambience(h.alive ? AU.Audio.ambienceOf((M.areaAt(h.x, h.y) || {}).id) : 'quiet');
+        AU.Audio.listen({ x: h.x, y: h.y, alive: h.alive, inVent: !!h.inVent, los: Nav.los });
       }
       for (const p of this.players) {
         p.killCd = Math.max(0, p.killCd - dt);
