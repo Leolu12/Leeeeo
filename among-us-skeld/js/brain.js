@@ -2624,10 +2624,19 @@
     onDoors() {
       if (this.dest) this.routeTo(this.dest.x, this.dest.y);
     }
+    canHelpFix() {
+      if (!this.p.alive || this.p.inVent) return false;
+      return !(this.plan && (this.plan.type === 'report' || this.plan.type === 'button' || this.plan.type === 'flee'));
+    }
     assignFix(st) {
-      if (this.fix || !this.p.alive) return;
-      if (this.plan && (this.plan.type === 'report' || this.plan.type === 'button')) return;
+      if (this.fix || !this.canHelpFix()) return;
       this.fix = st;
+    }
+    /* troca de painel (o outro lado ficou vazio): larga o que estava segurando e vai */
+    reassignFix(st) {
+      this.fix = st;
+      if (this.plan && this.plan.type === 'fix') this.plan = null;
+      if (this.p.busy && this.p.busy.fix) this.p.busy = null;
     }
     onMeetingEnd(result) {
       if (this.mEnd) this.mEnd(result);

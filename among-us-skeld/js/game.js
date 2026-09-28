@@ -307,7 +307,17 @@
       }
       if (Math.abs(vx) > 0.01) p.facing = vx < 0 ? -1 : 1;
       p.moving = moved && (Math.abs(vx) + Math.abs(vy) > 0.01);
-      if (p.moving) p.walkT += dt;
+      if (p.moving) {
+        p.walkT += dt;
+        /* passos do jogador, no ritmo da passada e com o som do piso */
+        if (p.isHuman && p.alive && !this.headless) {
+          const k = Math.floor((p.walkT * 11) / Math.PI);
+          if (k !== p.stepK) {
+            p.stepK = k;
+            AU.Audio.step(AU.Audio.surfaceOf((M.areaAt(p.x, p.y) || {}).id));
+          }
+        }
+      }
       return moved;
     }
 
@@ -321,6 +331,17 @@
       }
       this.t += dt;
       const t = this.t;
+      /* rastro curto do jogador: os bots percebem para onde ele está indo (ex.: qual lado do reator) */
+      if (this.human && (this.trailT = (this.trailT || 0) - dt) <= 0) {
+        this.trailT = 0.5;
+        this.hTrail = (this.hTrail || []).concat({ x: this.human.x, y: this.human.y, t }).slice(-6);
+      }
+      /* ambiente sonoro da sala onde o jogador está */
+      if (!this.headless && this.human && (this.ambT = (this.ambT || 0) - dt) <= 0) {
+        this.ambT = 0.5;
+        const h = this.human;
+        AU.Audio.ambience(h.alive ? AU.Audio.ambienceOf((M.areaAt(h.x, h.y) || {}).id) : 'quiet');
+      }
       for (const p of this.players) {
         p.killCd = Math.max(0, p.killCd - dt);
         p.abilityCd = Math.max(0, p.abilityCd - dt);
@@ -340,6 +361,8 @@
           this.doorUntil[room] = 0;
           M.setDoorsClosed(room, false);
           this.markDoors(room);
+          const h = this.human;
+          if (h && U.d2(h.x, h.y, M.AREA[room].cx, M.AREA[room].cy) < 16) this.sfx('doorOpen');
         }
       }
       if (this.sab) {
@@ -359,7 +382,7 @@
         }
         this.dispatchT -= dt;
         if (this.dispatchT <= 0) {
-          this.dispatchT = 3;
+          this.dispatchT = this.sab && (this.sab.type === 'reactor' || this.sab.type === 'o2') ? 1 : 3;
           this.dispatchFix();
         }
       }
@@ -530,7 +553,7 @@
       this.log({ type: 'kill', killer: k.id, victim: v.id, area: area.id, apparent, witnesses: wit.map((w) => w.p.id) });
       const h = this.human;
       if (v.isHuman) {
-        this.sfx('kill');
+        this.sfx('dead');
         this.say('onHumanKilled', k, this.players[apparent]);
       } else if (k.isHuman) {
         this.sfx('kill');
@@ -589,6 +612,7 @@
     startMeeting(info) {
       this.phase = 'meeting';
       this.say('closeOverlays');
+      if (!this.headless) AU.Audio.ambience(null);
       if (this.sabCritical()) {
         this.log({ type: 'sabFix', sab: this.sab.type, by: null, meeting: true });
         this.sab = null;
@@ -680,7 +704,7 @@
       this.log({ type: 'sabotage', sab: type, by: p.id });
       for (const q of this.players) if (q.brain) q.brain.onSabotage(s);
       this.say('onSabotage', s);
-      this.sfx('sabotage');
+      this.sfx(type === 'lights' ? 'lightsOff' : 'sabotage');
       if (type === 'reactor' || type === 'o2') {
         if (!this.headless) AU.Audio.alarm(true);
       }
@@ -693,6 +717,7 @@
       this.sab = null;
       this.sabCd = this.S.rules.sabCooldown != null ? this.S.rules.sabCooldown : 30;
       AU.Audio.alarm(false);
+      this.sfx('fixed');
       for (const q of this.players) if (q.brain) q.brain.onSabFixed(s);
       this.say('onSabFixed', s);
     }
@@ -732,10 +757,99 @@
       if (s.type === 'o2') return ['o2A', 'o2B'].filter((k) => !s.done[k.slice(-1)]);
       return [];
     }
+    /* para qual painel o jogador está indo: parado ao lado dele, ou se aproximando depressa nos últimos ~2 s */
+    humanHeading(need) {
+      const h = this.human;
+      if (!h || !h.alive || h.brain || h.inVent) return null;
+      const tr = this.hTrail || [];
+      const old = tr.length >= 4 ? tr[tr.length - 4] : null;
+      let best = null;
+      for (const k of need) {
+        const pos = M.SAB_STATIONS[k];
+        const d = Math.sqrt(U.d2(h.x, h.y, pos.x, pos.y));
+        if (d < 2.5) return { k, d: 0 };
+        if (!old || d > 40) continue;
+        const ap = Math.sqrt(U.d2(old.x, old.y, pos.x, pos.y)) - d;
+        if (ap > 2 && (!best || ap > best.ap + 0.5 || (Math.abs(ap - best.ap) <= 0.5 && d < best.d))) best = { k, d, ap };
+      }
+      return best;
+    }
+    /* Reator e O2 têm dois painéis: a tripulação se divide como gente faz. A cada segundo escolhe, entre todas as
+       combinações, a que deixa os dois lados cobertos mais cedo, contando quem já está segurando, quem já está a
+       caminho e para onde o jogador está indo; um lado vazio puxa quem estiver sobrando do outro. Um pouco de
+       inércia evita que alguém fique indo e voltando. */
+    dispatchSplit(s, need) {
+      const crew = this.players.filter((p) => p.alive && p.brain && !p.isImp && !p.inVent);
+      const eta = (p, k) => {
+        const pos = M.SAB_STATIONS[k];
+        const d = Math.sqrt(U.d2(p.x, p.y, pos.x, pos.y));
+        return d < 1.8 ? 0 : d * 1.3;
+      };
+      const target = 2;
+      const H = crew.filter((p) => need.includes(p.brain.fix));
+      const hum = this.humanHeading(need);
+      const free = crew.filter((p) => !p.brain.fix && p.brain.canHelpFix());
+      const want = () => {
+        let n = target * need.length - (hum ? 1 : 0);
+        /* painel ainda muito longe de todo mundo: chama reforço */
+        for (const k of need) {
+          const bestK = Math.min(hum && hum.k === k ? hum.d * 1.3 : 1e9, ...H.map((p) => eta(p, k)));
+          if (bestK > 55) n++;
+        }
+        return Math.min(n, need.length * 2);
+      };
+      while (H.length < want() && free.length) {
+        free.sort((a, b) => Math.min(...need.map((k) => eta(a, k))) - Math.min(...need.map((k) => eta(b, k))));
+        H.push(free.shift());
+      }
+      if (!H.length) return;
+      const nS = need.length, n = H.length;
+      let best = null;
+      for (let mask = 0; mask < Math.pow(nS, n); mask++) {
+        const pick = [];
+        let m = mask;
+        for (let i = 0; i < n; i++) {
+          pick.push(need[m % nS]);
+          m = Math.floor(m / nS);
+        }
+        let cover = 0, sum = 0, changes = 0;
+        const cnt = need.map(() => 0);
+        for (let si = 0; si < nS; si++) {
+          const k = need[si];
+          let mn = hum && hum.k === k ? hum.d * 1.3 : 1e9;
+          if (hum && hum.k === k) cnt[si]++;
+          for (let i = 0; i < n; i++) {
+            if (pick[i] !== k) continue;
+            cnt[si]++;
+            const e = eta(H[i], k);
+            sum += e;
+            mn = Math.min(mn, e);
+          }
+          cover = Math.max(cover, mn);
+        }
+        for (let i = 0; i < n; i++) if (H[i].brain.fix && H[i].brain.fix !== pick[i]) changes++;
+        const score = cover + 0.15 * sum + 3 * (Math.max(...cnt) - Math.min(...cnt)) + 6 * changes;
+        if (!best || score < best.score) best = { score, pick };
+      }
+      H.forEach((p, i) => {
+        if (p.brain.fix !== best.pick[i]) p.brain.reassignFix(best.pick[i]);
+      });
+      /* lado que já tem gente de sobra (contando o jogador): quem está mais longe volta ao que fazia */
+      for (const k of need) {
+        const mine = H.filter((p) => p.brain.fix === k).sort((a, b) => eta(b, k) - eta(a, k));
+        let extra = mine.length + (hum && hum.k === k ? 1 : 0) - target;
+        for (const p of mine) {
+          if (extra <= 0) break;
+          p.brain.reassignFix(null);
+          extra--;
+        }
+      }
+    }
     dispatchFix() {
       const s = this.sab;
       if (!s) return;
       const need = this.sabStationsNeeded();
+      if ((s.type === 'reactor' || s.type === 'o2') && need.length) return this.dispatchSplit(s, need);
       const want = s.type === 'lights' ? 2 : s.type === 'comms' ? 1 : 2;
       for (const st of need) {
         const pos = M.SAB_STATIONS[st];
@@ -832,7 +946,7 @@
       p.inVent = vid;
       p.x = v.x;
       p.y = v.y;
-      if (p.isHuman) this.sfx('vent');
+      if (p.isHuman) this.sfx('ventMove');
       return true;
     }
     exitVent(p) {
@@ -1000,6 +1114,7 @@
       if (tp.total > 0 && tp.done >= tp.total) return this.end('crew', 'Todas as tarefas foram concluídas.');
     }
     end(winner, reason) {
+      if (!this.headless) AU.Audio.ambience(null);
       if (this.phase === 'ended') return;
       this.phase = 'ended';
       this.winner = winner;

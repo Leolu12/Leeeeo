@@ -98,9 +98,14 @@ Dentro do claude.ai a página roda sem acesso à internet, por isso lá só o Cl
 - A configuração fica salva no navegador.
 
 **Na nave**
-- The Skeld com 14 salas (com cantos em diagonal — a visão, a colisão e o desenho da parede seguem a mesma diagonal lisa, e você desliza encostado nela; pisos próprios e móveis: mesas da Cafeteria, macas da MedBay, turbinas dos motores, núcleo do Reator, janelas da Navegação), corredores, portas, 13 dutos interligados, 4 câmeras, o mapa do Admin e o botão de emergência.
+- The Skeld com 14 salas (com cantos em diagonal — a visão, a colisão e o desenho da parede seguem a mesma diagonal lisa, e você desliza encostado nela), corredores, portas, 13 dutos interligados, 4 câmeras, o mapa do Admin e o botão de emergência.
+- Salas redesenhadas com móveis e consoles de cada uma (turbinas e tanques dos motores, núcleo pulsante do Reator, mesas e máquinas de venda da Cafeteria, macas e scanner da MedBay, gerador de escudos, caixotes e compactador do Depósito, painel de estrelas da Navegação e muito mais), com luzes e telas animadas.
+- **Móveis sólidos**: não dá para atravessar o botão, as mesas, os motores, as macas nem os consoles; você desliza encostado neles, e os bots desviam pelo mesmo mapa de colisão.
+- **Animações** no estilo do original: entrar e sair do duto (tampa abre e o personagem afunda ou salta), portas deslizando, respingo do abate e o corpo cortado com o osso, passada com as pernas alternando, cena da sua morte (o impostor ataca com faca ou língua) e aberturas animadas de "Reunião de emergência" e "Corpo reportado".
+- Tarefas visuais que os outros veem acontecer: coluna de luz e faixa do scan, lasers saindo dos canhões pela janela de Armas, colmeia dos escudos acendendo e o lixo despencando no compactador.
+- **Sons** sintetizados sem arquivos: passos que mudam com o piso (metal, azulejo, carpete), ambiente próprio de cada sala (motores, reator, elétrica, MedBay…), duto, abate, portas, sirene de crise, buzina de emergência, sirene de corpo reportado e sons dos painéis de tarefa.
 - Visão com linha de visada: paredes e portas bloqueiam, e as luzes apagadas reduzem a visão da tripulação.
-- 17 tarefas interativas:
+- 17 tarefas interativas, com painéis de metal desenhados à mão (rebites, faixas de perigo, telas de fósforo) e física onde faz sentido — no lixo, a alavanca abre o alçapão e o lixo despenca de verdade:
   - Passar cartão, fiação, calibrar distribuidor, traçar rota e estabilizar direção.
   - Filtro de O2, desviar energia, escudos, coletores e ligar reator (sequência).
   - Alinhar motores, abastecer, amostra (espera de 60s), scan e download/upload.
@@ -108,7 +113,7 @@ Dentro do claude.ai a página roda sem acesso à internet, por isso lá só o Cl
 - Tarefas visuais que os outros enxergam: scan, escudos, asteroides e lixo.
 - Sabotagens com painel de conserto:
   - Luzes: interruptores.
-  - Reator: dois scanners segurados ao mesmo tempo.
+  - Reator: dois scanners segurados ao mesmo tempo. Os bots se dividem entre os dois lados como gente: contam quem já está segurando, quem está a caminho e para onde você está indo, e quem sobra de um lado corre para o lado vazio.
   - O2: código nos dois teclados.
   - Comunicações: sintonia.
   - Portas.
@@ -206,9 +211,12 @@ js/voice.js       diretor da reunião: o que cada bot sabe, falas e votos pela I
 js/tactics.js     estrategista: ações no mapa decididas pela IA
 js/ghosts.js      chat dos fantasmas: o que cada morto sabe e as falas deles
 js/lobby.js       chat do lobby antes da partida
-js/meeting.js     fluxo e interface da reunião, quadro de álibis e histórico
-js/decor.js       desenho estático das salas: pisos, paredes, móveis e consoles
-js/render.js      desenho dos tripulantes, efeitos e névoa
+js/meeting.js     fluxo e interface da reunião (tablet), quadro de álibis e histórico
+js/props.js       móveis sólidos e consoles: colisão, grade de navegação e posição dos consoles
+js/audio.js       sons sintetizados: passos por piso, ambiente de cada sala e efeitos
+js/decor.js       desenho das salas: pisos, paredes, móveis, consoles e partes animadas
+js/render.js      desenho dos tripulantes, efeitos, tarefas visuais e névoa
+js/scenes.js      cenas de tela cheia: a sua morte e as aberturas das reuniões
 js/minigames.js   tarefas e consertos de sabotagem
 js/hud.js         HUD, mapa, câmeras, Admin, vitais e joystick
 js/menu.js        título, criação, lobby, revelação e relatório final

@@ -899,6 +899,7 @@
       const iv = setInterval(() => {
         i++;
         t1.textContent = full.slice(0, i);
+        if (i % 2 === 0 && full[i - 1] !== ' ') AU.Audio.play('type');
         if (i >= full.length) {
           clearInterval(iv);
           t2.textContent = line2;

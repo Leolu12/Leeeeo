@@ -45,7 +45,10 @@
       for (const k of ['title', 'create', 'lobby', 'reveal', 'game', 'end']) this.el[k].hidden = k !== name;
       if (name === 'title') AU.Menu.title(this.el.title);
       if (name === 'create') AU.Menu.create(this.el.create);
-      if (name !== 'game') AU.Audio.alarm(false);
+      if (name !== 'game') {
+        AU.Audio.alarm(false);
+        AU.Audio.ambience(null);
+      }
     },
 
     toLobby(fresh) {

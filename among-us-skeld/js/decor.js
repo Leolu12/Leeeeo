@@ -1193,7 +1193,7 @@
     }
   }
   function drums(D, pr) {
-    const [x, y, w, h] = pr.rect;
+    const [x, y, , h] = pr.rect;
     [[x + 0.55, y + h - 0.3, '#b8452f'], [x + 1.6, y + h - 0.55, '#c9a227'], [x + 1.05, y + h - 1.05, '#b8452f']].forEach(([cx, cy, col]) => {
       D.cyl(cx, cy, 0.5, 0.75, col, lighten(col, 0.2));
       D.ellipse(cx, cy - 0.75, 0.15, 0.07, '#2a2a2a', null);
@@ -1398,7 +1398,7 @@
     else if (a.side === 'left') [fx, fy, fw, fh] = [x - 0.7, y, w + 0.7, h];
     else [fx, fy, fw, fh] = [x, y, w + 0.7, h];
     const vert = a.side === 'left' || a.side === 'right';
-    const cx = fx + fw / 2, cy = fy + fh / 2;
+    const cx = fx + fw / 2;
     const body = (col, dark) => {
       D.rshadow(fx, fy, fw, fh, 0.22);
       D.box(fx, fy, fw, fh, col || '#3a4254', OUT, 0.1);

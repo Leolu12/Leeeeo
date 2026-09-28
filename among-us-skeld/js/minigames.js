@@ -470,7 +470,7 @@
           const j = ly.findIndex((y) => Math.abs(y - p.y) < 26);
           if (j >= 0 && perm[j] === drag.i && !conn.includes(j)) {
             conn[drag.i] = j;
-            AU.Audio.play('click');
+            AU.Audio.play('spark');
             if (conn.every((c) => c != null)) api.done(800);
           }
         }
@@ -1192,7 +1192,7 @@
     }
     root.appendChild(h('div', { class: 'mg-dev center' }, lights, h('div', { class: 'mg-row' }, disp, inp)));
     let seq = [U.rint(0, 8)];
-    let round = 1, showT = 0, showI = 0, input = [], phase = 'show';
+    let round = 1, showT = 0, input = [], phase = 'show';
     function press(i) {
       if (phase !== 'input' || api.finished) return;
       icells[i].classList.add('lit');
@@ -1222,7 +1222,6 @@
     function restart() {
       phase = 'show';
       showT = -0.6;
-      showI = 0;
       input = [];
       dots.forEach((d, i) => d.classList.toggle('on', i < round - 1));
     }
@@ -1241,7 +1240,6 @@
           return;
         }
         if (showT % 0.55 < 0.4) dcells[seq[idx]].classList.add('lit');
-        showI = idx;
       },
     };
   };
@@ -1347,7 +1345,7 @@
     const gauge = h('div', { class: 'mg-gauge' }, h('div', { class: 'fill' }));
     const pct = h('div', { class: 'mg-mono' }, '0%');
     const btn = h('button', { class: 'mg-btn big' }, engine ? 'Segure para abastecer o motor' : 'Segure para encher o galão');
-    let holding = false, v = 0;
+    let holding = false, v = 0, glug = 0;
     const down = (e) => {
       e.preventDefault();
       holding = true;
@@ -1357,11 +1355,15 @@
     btn.addEventListener('pointerup', up);
     btn.addEventListener('pointerleave', up);
     btn.addEventListener('pointercancel', up);
-    root.appendChild(h('div', { class: 'mg-dev center', style: { paddingTop: '36px' } }, h('div', { class: 'mg-can' + (engine ? ' eng' : '') }, gauge), h('div', { class: 'mg-screen' }, pct), btn));
+    root.appendChild(h('div', { class: 'mg-dev mg-fuel' }, h('div', { class: 'mg-can' + (engine ? ' eng' : '') }, gauge), h('div', { class: 'mg-fuel-side' }, h('div', { class: 'mg-screen' }, pct), btn)));
     api.msg(engine ? 'Despeje o combustível no motor.' : 'Encha o galão de combustível.');
     return {
       tick(dt) {
         if (holding && !api.finished) v = Math.min(1, v + dt / 3.2);
+        if (holding && v < 1 && (glug -= dt) <= 0) {
+          glug = 0.45;
+          AU.Audio.play('pour');
+        }
         gauge.classList.toggle('filling', holding && v < 1);
         gauge.firstChild.style.height = v * 100 + '%';
         pct.textContent = Math.round(v * 100) + '%';
@@ -1466,11 +1468,15 @@
     const bar = h('div', { class: 'mg-bar' }, h('div', { class: 'fill' }));
     root.appendChild(h('div', { class: 'mg-dev center' }, h('div', { class: 'mg-scanbox' }, h('div', { class: 'mg-scanbean', html: AU.Render.beanSVG(p.color, { size: 100, visor: p.visor, hat: p.hat }) }), h('i', { class: 'mg-scanline' })), bar, h('div', { class: 'mg-screen' }, info)));
     const lines = ['ID: ' + p.name, 'Cor: ' + AU.C.COLOR[p.color].name, 'Altura: 1,07 m', 'Massa: 42 kg', 'Tipo sanguíneo: O-', 'Status: tripulante'];
-    let v = 0;
+    let v = 0, hum = 0;
     api.msg('Fique na plataforma até o escaneamento terminar.');
     return {
       tick(dt) {
         if (api.finished) return;
+        if ((hum -= dt) <= 0) {
+          hum = 1;
+          AU.Audio.play('scan');
+        }
         v = Math.min(1, v + dt / 10);
         if (ctx.g.S.rules.visualTasks) p.visual = { type: 'scan', until: ctx.g.t + 0.4 };
         bar.firstChild.style.width = v * 100 + '%';
@@ -1499,12 +1505,13 @@
       aim.x = p.x;
       aim.y = p.y;
       shots.push({ x: p.x, y: p.y, t: 0.16 });
+      AU.Audio.play('laser');
       const r = rocks.find((a) => U.d2(a.x, a.y, p.x, p.y) < a.r + 6);
       if (r) {
         rocks.splice(rocks.indexOf(r), 1);
         booms.push({ x: r.x, y: r.y, r: r.r, t: 0, parts: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({ a: (i / 8) * Math.PI * 2 + U.rf(-0.3, 0.3), v: U.rf(40, 110), s: U.rf(3, 7) })) });
         hits++;
-        AU.Audio.play('click');
+        AU.Audio.play('boom');
         if (hits >= 20) api.done(700);
       }
       return false;
@@ -1881,7 +1888,8 @@
         open = U.clamp(open + (down ? dt * 4 : -dt * 3), 0, 1);
         if (down && !clunk) {
           clunk = true;
-          AU.Audio.play('door');
+          AU.Audio.play('lever');
+          AU.Audio.play('dump', 0.12);
         }
         if (!down) clunk = false;
         if (down) {
@@ -2084,16 +2092,18 @@
     K.on(
       (p) => {
         if (U.d2(p.x, p.y, knob.x, knob.y) > 50) return false;
-        drag = { a0: Math.atan2(p.y - knob.y, p.x - knob.x), ang0: ang };
+        drag = { last: Math.atan2(p.y - knob.y, p.x - knob.x) };
         return true;
       },
       (p) => {
         if (!drag) return;
+        /* giro acumulado a cada movimento: dá para girar mais de meia volta sem soltar */
         const a = Math.atan2(p.y - knob.y, p.x - knob.x);
-        let d = a - drag.a0;
+        let d = a - drag.last;
         if (d > Math.PI) d -= Math.PI * 2;
         if (d < -Math.PI) d += Math.PI * 2;
-        ang = U.clamp(drag.ang0 + d, -2.6, 2.6);
+        drag.last = a;
+        ang = U.clamp(ang + d, -2.6, 2.6);
       },
       () => {
         drag = null;
