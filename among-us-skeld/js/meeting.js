@@ -644,6 +644,7 @@
         b.setAttribute('aria-selected', on ? 'true' : 'false');
       });
       if (k === 'board') this.renderBoard();
+      if (k === 'players' && this.paintMyMap) requestAnimationFrame(() => this.paintMyMap && this.paintMyMap());
       if (k === 'chat' && this.pinned) this.scrollBottom();
     }
     renderBoard() {
@@ -919,9 +920,12 @@
       const A = M.AREA[pos.area];
       const box = h('div', { class: 'mt-map' },
         h('div', { class: 'mt-map-h' }, '🗺 Onde você estava', h('span', {}, A ? A.name : '')), cv);
-      try {
+      const col = C.COLOR[hp.color].hex;
+      /* redesenha quando aparece na tela: o tamanho do texto depende do tamanho real do mapa */
+      const paint = () => {
+        if (!cv.isConnected) return;
         const { ctx, sx, sy } = AU.HUD.drawMapBase(cv);
-        const x = pos.x * sx, y = pos.y * sy, col = C.COLOR[hp.color].hex;
+        const x = pos.x * sx, y = pos.y * sy;
         ctx.fillStyle = 'rgba(255,255,255,0.18)';
         ctx.beginPath();
         ctx.arc(x, y, 26, 0, Math.PI * 2);
@@ -938,9 +942,15 @@
         ctx.strokeStyle = '#10151f';
         ctx.lineWidth = 2.5;
         ctx.stroke();
-      } catch (e) {
-        return null;
-      }
+      };
+      this.paintMyMap = () => {
+        try {
+          paint();
+        } catch (e) {
+          /* mapa é só um enfeite */
+        }
+      };
+      requestAnimationFrame(() => this.paintMyMap && this.paintMyMap());
       return box;
     }
 
@@ -953,6 +963,7 @@
       /* o navegador às vezes ainda guarda o último campo de texto: corta a ligação com a partida */
       this.mt = null;
       this.g = null;
+      this.paintMyMap = null;
     }
   }
 
