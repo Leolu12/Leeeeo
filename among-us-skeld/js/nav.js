@@ -93,7 +93,16 @@
     pts.reverse();
     if (pts.length) {
       pts[pts.length - 1] = { x: tx, y: ty };
-      if (!ok(Math.floor(tx), Math.floor(ty))) pts[pts.length - 1] = { x: t[0] + 0.5, y: t[1] + 0.5 };
+      if (!ok(Math.floor(tx), Math.floor(ty))) {
+        /* o destino cai numa célula marcada como bloqueada (encostada num móvel ou na parede), mas o ponto em si é
+           livre: vai até o centro da célula livre e dali, em linha reta, até o ponto exato */
+        const cc = { x: t[0] + 0.5, y: t[1] + 0.5 };
+        pts[pts.length - 1] = cc;
+        if (!ghost && fineLine(cc.x, cc.y, tx, ty)) pts.push({ x: tx, y: ty });
+      }
+    } else if (Math.hypot(tx - sx, ty - sy) > 0.05 && (ghost || fineLine(sx, sy, tx, ty))) {
+      /* início e destino na mesma célula (ou o destino é o vizinho bloqueado dela): passo direto */
+      pts.push({ x: tx, y: ty });
     }
     const out = smooth({ x: sx, y: sy }, pts, ghost);
     return opts && opts.lane ? laneShift({ x: sx, y: sy }, out, opts.lane, ghost) : out;
@@ -125,12 +134,26 @@
     return out;
   }
 
+  /* Linha contínua que o corpo do personagem percorre de verdade (mesma regra de "ficar de pé" do jogo). */
+  function standAt(x, y) {
+    const r = 0.3;
+    return M.walkAt(x - r, y - r) && M.walkAt(x + r, y - r) && M.walkAt(x - r, y + r) && M.walkAt(x + r, y + r) && M.chamferGap(x, y) >= r && M.propGap(x, y) >= r;
+  }
+  function fineLine(ax, ay, bx, by) {
+    const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 0.15));
+    for (let i = 1; i <= n; i++) if (!standAt(ax + ((bx - ax) * i) / n, ay + ((by - ay) * i) / n)) return false;
+    return true;
+  }
+
   function clearLine(ax, ay, bx, by, ghost) {
-    const ok = ghost ? M.isFloor : M.isPass;
+    /* piso pela grade; móveis e cantos em diagonal pela forma de verdade (a célula inteira marcada como bloqueada
+       perto de um móvel faria o bot voltar ao centro da célula antes de seguir) */
+    const ok = ghost ? M.isFloor : M.isWalk;
     const d = Math.hypot(bx - ax, by - ay);
     const n = Math.max(1, Math.ceil(d / 0.25));
     const r = 0.32;
-    for (let i = 0; i <= n; i++) {
+    /* o ponto de partida é onde o personagem já está: não precisa ser conferido */
+    for (let i = 1; i <= n; i++) {
       const x = ax + ((bx - ax) * i) / n, y = ay + ((by - ay) * i) / n;
       if (!ok(Math.floor(x - r), Math.floor(y - r)) || !ok(Math.floor(x + r), Math.floor(y - r)) ||
           !ok(Math.floor(x - r), Math.floor(y + r)) || !ok(Math.floor(x + r), Math.floor(y + r))) return false;
