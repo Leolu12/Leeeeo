@@ -573,7 +573,7 @@
       k.lastKillT = t;
       k.busy = null;
       const wit = this.witnesses([{ x: kx, y: ky }, { x: v.x, y: v.y }], [k.id, v.id]);
-      for (const w of wit) if (w.p.brain) w.p.brain.onWitnessKill(apparent, v.id, area.id, w.via, body);
+      for (const w of wit) if (w.p.brain) w.p.brain.onWitnessKill(apparent, v.id, area.id, w.via, body, k);
       if (k.brain) k.brain.onKilled(v, body, wit);
       /* double kill: parceiro impostor por perto aproveita e mata uma testemunha */
       if (!this.S.house.noDoubleKill) {

@@ -247,10 +247,11 @@
         const b = bots.find((p) => p.brain.pers.skeptic || p.brain.pers.leader) || null;
         if (b) this.say(b.brain, { text: T.line('quiet', { who: h0.id }, g, b.brain), intents: [{ type: 'quiet', who: h0.id }] }, { kind: 'quiet', important: true });
       }
-      if (h0 && h0.alive && this.askedHumanAt != null && !this.humanClaimed && !this.hasClaimed(h0.id) && !this.flags.unanswered && t - this.askedHumanAt > 18) {
+      /* perguntaram e o jogador não respondeu: gente digita devagar (no celular, mais ainda), então dá tempo e pesa pouco */
+      if (h0 && h0.alive && this.askedHumanAt != null && !this.humanClaimed && !this.hasClaimed(h0.id) && !this.flags.unanswered && t - this.askedHumanAt > 28) {
         this.flags.unanswered = true;
         const b = g.players[this.askedHumanBy];
-        if (b && b.alive && b.brain) b.brain.bump(h0.id, 10);
+        if (b && b.alive && b.brain) b.brain.bump(h0.id, 5);
       }
     }
 
@@ -541,7 +542,7 @@
         const r = it.who != null ? rows[it.who] : null;
         if (!r || it.who === m.from) continue;
         if (it.type === 'vouch') {
-          r.pro.set(m.from, it.reason === 'visual' ? 'visual' : it.reason === 'together' ? 'estava junto' : 'confirma');
+          r.pro.set(m.from, it.reason === 'visual' ? 'visual' : it.reason === 'together' ? 'estava junto' : it.reason === 'twin' ? 'viu dois iguais' : 'confirma');
           if (it.reason === 'visual') r.visual = true;
         } else if (it.type === 'accuse' && it.reason === 'lie') r.contra.set(m.from, 'contesta o álibi');
         else if (it.type === 'accuse') r.acc.set(m.from, REASON_TXT[it.reason] || 'suspeito');

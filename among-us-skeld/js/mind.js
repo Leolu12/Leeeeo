@@ -71,7 +71,7 @@
     const first = (mt.info.caller === p.id ? U.rf(0.8, 1.8) : humanCalled ? U.rf(8, 14) : U.rf(2.5, 8)) * mt.pace;
     mt.schedule(first, this, () => this.nextAgenda(), { agenda: true });
   };
-  const PRECOMPOSE = new Set(['reportInfo', 'reportDetail', 'callReason', 'organize', 'accuse', 'panic', 'claimLoc', 'vouch', 'vitals', 'tracker', 'camsInfo', 'adminInfo', 'offtopic', 'lost', 'frame']);
+  const PRECOMPOSE = new Set(['reportInfo', 'reportDetail', 'callReason', 'organize', 'accuse', 'panic', 'claimLoc', 'vouch', 'vitals', 'tracker', 'camsInfo', 'adminInfo', 'offtopic', 'lost', 'frame', 'twin']);
 
   /* ---------- evidências (tripulante) ---------- */
   B.evidence = function () {
@@ -83,7 +83,21 @@
     };
     const engineers = (g.S.roles.engenheiro || {}).n > 0;
     const visDone = new Set();
+    const twinDone = new Set();
     for (const e of this.mem.events) {
+      /* vi dois iguais: o dono da cara não é o metamorfo; com um impostor só em jogo, ele e quem estava à vista nessa
+         hora são tripulantes com certeza */
+      if (e.type === 'twin') {
+        if (!e.self && !twinDone.has(e.who)) {
+          twinDone.add(e.who);
+          add(e.who, e.solo ? -60 : -14, 'twin', { area: e.a1, area2: e.a2, past: e.t < rs, solo: e.solo, t: e.t });
+        }
+        if (e.solo) for (const id of e.with || []) if (!twinDone.has('w' + id)) {
+          twinDone.add('w' + id);
+          add(id, -30, 'twinWith', { area: e.a1, past: e.t < rs, t: e.t });
+        }
+        continue;
+      }
       /* memória da partida inteira: tarefa visual vista em qualquer rodada inocenta; o que viu de grave antes continua valendo */
       if ((e.type === 'visual' || e.type === 'escortVisual') && g.S.rules.visualTasks && !visDone.has(e.who)) {
         visDone.add(e.who);
@@ -94,18 +108,18 @@
          cara de alguém): prova forte, mas não certeza */
       const kw = roleOn(g, 'metamorfo') ? 0.6 : 1;
       if (e.t < rs) {
-        if (e.type === 'kill') add(e.who, 90 * kw, 'kill', { area: e.area, victim: e.victim, past: true });
-        else if (e.type === 'vent') add(e.who, engineers ? 40 : 75, 'vent', { area: e.area, past: true });
+        if (e.type === 'kill') add(e.who, 90 * kw, 'kill', { area: e.area, victim: e.victim, past: true, t: e.t });
+        else if (e.type === 'vent') add(e.who, engineers ? 40 : 75, 'vent', { area: e.area, past: true, t: e.t });
         else if (e.type === 'shift' || e.type === 'vanish') add(e.who, 80, e.type, { area: e.area, past: true });
         continue;
       }
-      if (e.type === 'kill') add(e.who, 100 * kw, 'kill', { area: e.area, victim: e.victim });
-      else if (e.type === 'vent') add(e.who, engineers ? 50 : 88, 'vent', { area: e.area });
+      if (e.type === 'kill') add(e.who, 100 * kw, 'kill', { area: e.area, victim: e.victim, t: e.t });
+      else if (e.type === 'vent') add(e.who, engineers ? 50 : 88, 'vent', { area: e.area, t: e.t });
       else if (e.type === 'shift') add(e.who, 100, 'shift', { area: e.area });
       else if (e.type === 'vanish') add(e.who, 95, 'vanish', { area: e.area });
-      else if (e.type === 'noscan') add(e.who, 32, 'noscan', { area: e.area });
-      else if (e.type === 'fakeTask') add(e.who, 34, 'fakeTask', { area: e.area });
-      else if (e.type === 'follow') add(e.who, 6, 'follow', { area: e.area });
+      else if (e.type === 'noscan') add(e.who, 32, 'noscan', { area: e.area, t: e.t });
+      else if (e.type === 'fakeTask') add(e.who, 34, 'fakeTask', { area: e.area, t: e.t });
+      else if (e.type === 'follow') add(e.who, 6, 'follow', { area: e.area, t: e.t });
     }
     /* mentiras que ele mesmo pegou em reuniões anteriores; e quem já ficou sozinho com ele sem matar */
     for (const id of Object.keys(this.mem.lies || {})) if (this.mem.lies[id] > 0) add(+id, Math.min(30, 12 * this.mem.lies[id]), 'lie', { past: true });
@@ -131,7 +145,28 @@
     this.ev = ev;
     if (this.knowsBody) this.bodyEvidence(this.knowsBody);
     this.dropWeakOnCleared();
+    this.twinDiscount();
     this.recalc();
+  };
+  /* O que "o X" fez perto da hora em que eu vi dois X (o disfarce dura no máximo o tempo da habilidade, para trás e
+     para frente) pode ter sido o metamorfo com a cara dele: a pista contra o X perde quase toda a força. */
+  B.twinDiscount = function () {
+    if (!this.ev) return;
+    const dur = this.g.ro('metamorfo', 'dur', 30) + 2;
+    const cut = (id, e, any) => {
+      for (const x of this.ev[id] || []) {
+        if (x.w <= 0 || x.twinCut || (!any && (x.t == null || Math.abs(x.t - e.t) > dur))) continue;
+        x.twinCut = true;
+        x.w *= any ? 0.1 : 0.25;
+      }
+    };
+    for (const e of this.mem.events) {
+      if (e.type !== 'twin') continue;
+      /* com um impostor só, o metamorfo era o único: o dono da cara (e quem estava à vista) nunca foi impostor, então
+         tudo o que "eles" fizeram de suspeito foi o disfarce */
+      if (!e.self) cut(e.who, e, !!e.solo);
+      if (e.solo) for (const id of e.with || []) cut(id, e, true);
+    }
   };
   /* Quem já provou ser tripulante não leva acusação fraca (seguiu, perto do corpo, estranho...): o bot lembra. */
   B.dropWeakOnCleared = function () {
@@ -217,8 +252,8 @@
         .filter((s) => s.who !== victim && s.who !== me && s.area === lastV.area && s.t1 >= lastV.t0 - 3 && s.t0 <= lastV.t1 + 3)
         .map((s) => s.who))];
       if (recentV) {
-        if (ids.length === 1) add(ids[0], 18, 'lastWith', { area: lastV.area, victim });
-        else ids.forEach((id) => add(id, 6, 'lastWith', { area: lastV.area, victim }));
+        if (ids.length === 1) add(ids[0], 18, 'lastWith', { area: lastV.area, victim, t: lastV.t1 });
+        else ids.forEach((id) => add(id, 6, 'lastWith', { area: lastV.area, victim, t: lastV.t1 }));
       }
     }
     /* ---------- janela do abate ----------
@@ -303,7 +338,7 @@
         const r = M.AREA[s.area];
         if (!r || r.kind !== 'room' || s.x0 == null || Math.hypot(s.x0 - r.cx, s.y0 - r.cy) > Math.min(r.rect[2], r.rect[3]) * 0.45) continue;
         if (this.myStay(s.area) < 6) continue;
-        add(s.who, 8, 'ventLink', { area: s.area, bodyArea });
+        add(s.who, 8, 'ventLink', { area: s.area, bodyArea, t: s.t0 });
       }
     }
     /* quem foi visto andando colado na vítima pouco antes */
@@ -340,6 +375,7 @@
       if (!list.some((e) => ['lastWith', 'withVictim', 'fromBody'].includes(e.reason) || (e.reason === 'nearBody' && e.w >= 15))) continue;
       for (const e of list) if ((e.reason === 'together' || e.reason === 'spared') && e.w < -4) e.w = -4;
     }
+    this.twinDiscount();
     this.recalc();
   };
 
@@ -440,7 +476,8 @@
     if (pers.leader && info.caller !== p.id) items.push({ k: 'organize' });
     if (!p.isImp) {
       const strong = [];
-      for (const id of Object.keys(this.ev)) for (const e of this.ev[id]) if (STRONG[e.reason] && !(info.kind === 'emergency' && info.caller === p.id && this.wantButton && this.wantButton.who === +id)) {
+      /* flagrante perto da hora em que vi dois iguais pode ter sido o disfarce: não acuso, conto os dois (item 'twin') */
+      for (const id of Object.keys(this.ev)) for (const e of this.ev[id]) if (STRONG[e.reason] && !e.twinCut && !(info.kind === 'emergency' && info.caller === p.id && this.wantButton && this.wantButton.who === +id)) {
         /* viu no duto alguém que já provou ser tripulante, e tem engenheiro na partida: pergunta em vez de acusar */
         /* com engenheiro na partida, quase todo mundo que se vê no duto é ele: pergunta antes (acusa direto só quem já era suspeito) */
         if (e.reason === 'vent' && roleOn(g, 'engenheiro') && (this.carry[+id] || 0) < 25) strong.push({ k: 'askEng', who: +id, area: e.area });
@@ -454,6 +491,14 @@
         if (i >= 0) items.splice(i, 1);
       }
       items.push(...strong);
+      /* vi dois iguais nesta rodada (ou alguém com a minha cara): conta. Se chamei a reunião por isso, já contei. */
+      const called = info.kind === 'emergency' && info.caller === p.id && this.wantButton && /^twin/.test(this.wantButton.reason) ? this.wantButton : null;
+      const tw = this.mem.events.filter((e) => e.type === 'twin' && e.t >= this.rs && !(called && called.who === e.who));
+      for (const e of tw) {
+        /* o abate (ou duto) com a cara de alguém já diz tudo: não repete o "vi dois" simples da mesma pessoa */
+        if (e.kill == null && !e.vent && tw.some((x) => x !== e && x.who === e.who && (x.kill != null || x.vent))) continue;
+        items.push({ k: 'twin', e });
+      }
       items.push({ k: 'claimLoc' });
       if (p.special === 'cientista' && Object.keys(this.mem.vitals).length) items.push({ k: 'vitals' });
       items.push({ k: 'bodyIntel' });
@@ -461,6 +506,7 @@
       if (info.kind === 'report' && U.chance(info.caller === p.id ? 0.5 : 0.75)) items.push({ k: 'window', late: true });
       for (const id of Object.keys(this.ev)) for (const e of this.ev[id]) {
         if (e.reason === 'visual' && g.players[+id].alive) items.push({ k: 'vouch', who: +id, reason: 'visual', task: e.task });
+        if (e.twinCut) continue;
         if (e.reason === 'noscan') items.push({ k: 'accuse', who: +id, reason: 'noscan' });
         if (e.reason === 'fakeTask') items.push({ k: 'accuse', who: +id, reason: 'fakeTask', area: e.area });
         if (e.reason === 'fastReport') items.push({ k: 'accuse', who: +id, reason: 'fastReport', ago: e.ago, victim: e.victim, late: true });
@@ -510,9 +556,10 @@
     if (pers.lost && this.lostCount > 0 && U.chance(0.5)) items.push({ k: 'lost' });
     if (g.human && g.human.alive && g.human !== p && (pers.leader || pers.skeptic || pers.offtopic) && U.chance(0.5)) items.push({ k: 'askHuman', late: true });
     if ((pers.leader || pers.skeptic) && U.chance(0.7)) items.push({ k: 'leaderVote', late: true });
-    const firstPri = items.filter((it) => ['reportInfo', 'reportDetail', 'callReason', 'organize', 'engClaim', 'askEng'].includes(it.k) || (it.k === 'accuse' && (STRONG[it.reason] || it.reason === 'tracker')));
+    const firstPri = items.filter((it) => ['reportInfo', 'reportDetail', 'callReason', 'organize', 'engClaim', 'askEng'].includes(it.k) || (it.k === 'accuse' && (STRONG[it.reason] || it.reason === 'tracker')) ||
+      (it.k === 'twin' && (it.e.kill != null || it.e.self)));
     const rest = items.filter((it) => !firstPri.includes(it));
-    const keep = rest.filter((it) => it.k === 'claimLoc' || it.k === 'bodyIntel' || it.k === 'window' || it.k === 'crisis' || it.k === 'summary' || (it.k === 'vouch' && it.reason === 'visual') || U.chance(0.35 + pers.talk * 0.6));
+    const keep = rest.filter((it) => it.k === 'claimLoc' || it.k === 'bodyIntel' || it.k === 'window' || it.k === 'crisis' || it.k === 'summary' || it.k === 'twin' || (it.k === 'vouch' && it.reason === 'visual') || U.chance(0.35 + pers.talk * 0.6));
     return firstPri.concat(keep.filter((it) => !it.late), keep.filter((it) => it.late));
   };
 
@@ -529,7 +576,7 @@
       }
       const msg = it.pre || this.compose(it);
       if (msg) {
-        const important = ['reportInfo', 'callReason', 'claimLoc'].includes(it.k) || (it.k === 'accuse' && STRONG[it.reason]);
+        const important = ['reportInfo', 'callReason', 'claimLoc', 'twin'].includes(it.k) || (it.k === 'accuse' && STRONG[it.reason]);
         if (!important) {
           if (this.budget <= 0) continue;
           this.budget--;
@@ -568,12 +615,31 @@
   };
   /* Distância andando entre duas áreas (em tiles), para saber se dava tempo de ir de uma à outra. */
   const TRAVEL = {};
+  /* Ponto de referência de cada área: o lugar livre mais perto do centro. Fixo, para a conta de "dava tempo de ir de
+     lá até o corpo?" ser a mesma em toda sessão (com um ponto sorteado, o primeiro sorteio valia para o resto da
+     sessão: um ponto no canto de uma sala grande deixava as contas de álibi tortas em todas as partidas). */
+  const ANCHOR = {};
+  const anchorOf = (a) => {
+    if (ANCHOR[a]) return ANCHOR[a];
+    const A = M.AREA[a];
+    const ok = (x, y) => M.walkAt(x, y) && M.walkAt(x - 0.4, y - 0.4) && M.walkAt(x + 0.4, y - 0.4) && M.walkAt(x - 0.4, y + 0.4) && M.walkAt(x + 0.4, y + 0.4) &&
+      M.chamferGap(x, y) >= 0.4 && (!M.propGap || M.propGap(x, y) >= 0.4) && M.areaAt(x, y).id === a;
+    for (let r = 0; r <= 14; r += 0.5) {
+      const n = Math.max(1, Math.round(r * 8));
+      for (let k = 0; k < n; k++) {
+        const x = A.cx + Math.cos((k / n) * Math.PI * 2) * r, y = A.cy + Math.sin((k / n) * Math.PI * 2) * r;
+        if (ok(x, y)) return (ANCHOR[a] = { x, y });
+      }
+    }
+    return (ANCHOR[a] = M.randomPointIn(a));
+  };
   const travel = (a, b) => {
     if (!a || !b || a === b) return 0;
     const k = a < b ? a + '|' + b : b + '|' + a;
     if (TRAVEL[k] != null) return TRAVEL[k];
     const A = M.AREA[a], Bb = M.AREA[b];
-    const pa = M.randomPointIn(a), pb = M.randomPointIn(b);
+    if (!A || !Bb) return 0;
+    const pa = anchorOf(a), pb = anchorOf(b);
     const path = AU.Nav.find(pa.x, pa.y, pb.x, pb.y, false);
     let d = 0, px = pa.x, py = pa.y;
     if (path && path.length) {
@@ -739,7 +805,7 @@
           return msg('reportWhy', { task: this.fakeTask, area: b.area }, []);
         }
         const mb = this.mem.bodies.find((x) => x.id === b.id);
-        const near = mb ? mb.near.filter((id) => id !== p.id && g.players[id].alive) : [];
+        const near = mb ? mb.near.filter((id) => id !== p.id && g.players[id].alive && !this.twinDoubt(id, mb.t)) : [];
         if (near.length) return msg('sawNearBody', { who: near[0], area: b.area, bodyArea: b.area }, [{ type: 'accuse', who: near[0], reason: 'nearBody', area: b.area }]);
         /* ninguém em volta na hora, mas quem reporta também conta quem viu antes (vindo de lá, com a vítima...) */
         const bi = this.compose({ k: 'bodyIntel', reporter: true });
@@ -753,10 +819,30 @@
         }
         const intents = w.who != null && (STRONG[w.reason] || w.reason === 'fakeTask' || w.reason === 'noscan') ? [{ type: 'accuse', who: w.who, reason: w.reason, area: w.area, victim: w.victim, strong: !!STRONG[w.reason] }] : [];
         if (w.reason === 'vitals') intents.push({ type: 'roleClaim', role: 'cientista' });
+        /* chamei porque vi o metamorfo com a cara de alguém (matando, ou com a minha cara) */
+        if (w.reason === 'twinKill' || w.reason === 'twinSelf') {
+          if (w.who !== p.id && g.players[w.who] && g.players[w.who].alive) intents.push({ type: 'vouch', who: w.who, reason: 'twin' });
+          intents.push({ type: 'roleTheory', role: 'metamorfo', who: w.who });
+          return msg('callReason', Object.assign({}, w, { self: w.who === p.id }), intents, { strong: true });
+        }
         return msg('callReason', w, intents, { strong: intents.some((i) => i.strong) });
       }
       case 'organize':
         return msg('organize', {}, [{ type: 'askAll' }]);
+      case 'twin': {
+        /* "vi dois X ao mesmo tempo" / "tinha alguém com a MINHA cara": conta onde, o que o falso fez (se viu), e o que
+           isso prova (o X de verdade não é o metamorfo; com um impostor só, é inocente) */
+        const e = it.e, X = e.who, q = g.players[X];
+        if (!q || mt.flags['twin' + p.id + ':' + X + ':' + (e.kill != null ? e.kill : '')]) return null;
+        mt.flags['twin' + p.id + ':' + X + ':' + (e.kill != null ? e.kill : '')] = true;
+        /* o que "o X" fez de suspeito nessa hora, na minha frente, fica explicado (o abate/duto do disfarce) */
+        const dur = g.ro('metamorfo', 'dur', 30) + 2;
+        const did = e.self ? null : this.mem.events.find((x) => (x.type === 'kill' || x.type === 'vent') && x.who === X && Math.abs(x.t - e.t) <= dur);
+        const d = { who: X, self: e.self, a1: e.a1, a2: e.a2, cams: e.via === 'cams', solo: !!e.solo && q.alive, victim: e.kill != null ? e.kill : did && did.type === 'kill' ? did.victim : null, vent: e.vent || (did && did.type === 'vent' ? did.area : null), seenKill: e.kill != null, doubt: !!did, real: e.real };
+        const intents = [{ type: 'roleTheory', role: 'metamorfo', who: X }];
+        if (!e.self && q.alive) intents.unshift({ type: 'vouch', who: X, reason: 'twin' });
+        return msg(e.self ? 'twinSelf' : 'twinSaw', d, intents, { strong: e.kill != null });
+      }
       case 'accuse': {
         const q = g.players[it.who];
         if (!q || !q.alive) return null;
@@ -878,9 +964,12 @@
         return msg('adminInfo', { area, n: a.counts[area] }, []);
       }
       case 'hunch': {
-        const ids = g.players.filter((q) => q.alive && q !== p).map((q) => q.id);
+        /* palpite, mas sobre quem tem ALGUMA coisa contra (o que viu, o que ouviu), nunca sorteado; o jogador só entra
+           com pista de verdade (palpite solto contra ele parece perseguição) */
+        const real = (id) => (this.susp[id] || 0) - (this.noise[id] || 0);
+        const ids = g.players.filter((q) => q.alive && q !== p && !this.hardCleared(q.id) && real(q.id) >= (q.isHuman ? 18 : 6)).map((q) => q.id);
         ids.sort((a, b) => (this.susp[b] || 0) - (this.susp[a] || 0));
-        const who = U.chance(0.6) ? ids[0] : U.pick(ids);
+        const who = ids[0];
         if (who == null) return null;
         return msg('accuse', { who, reason: 'hunch' }, [{ type: 'accuse', who, reason: 'hunch' }]);
       }
@@ -907,7 +996,7 @@
         mt.flags.summaryDone = true;
         const cleared = mt.alive.filter((id) => id !== p.id && (this.hardCleared(id) || this.clearedByVisual(id))).slice(0, 3);
         const top = this.topSuspect();
-        const strongTop = top && top.s >= this.pers.thr * 0.8;
+        const strongTop = top && top.s >= this.pers.thr * 0.8 && this.fairOn(top.id);
         const SAY = { 'viu matando': 'eu vi matando', 'viu no duto': 'eu vi no duto', 'viu mudando de forma': 'eu vi se transformando', 'viu sumindo': 'eu vi sumindo', 'o álibi não bate com o que viu': 'o álibi não bate com o que eu vi', 'acusaram com prova no chat': 'tem acusação com prova', 'a maioria está votando nele': 'a maioria tá nele' };
         const why0 = strongTop ? this.voteReason(top.id) : null;
         const why = why0 ? SAY[why0] || why0 : null;
@@ -961,7 +1050,7 @@
           const t2 = this.impTarget();
           return msg('leaderVote', { who: t2 }, t2 != null ? [{ type: 'accuse', who: t2, reason: 'vote' }] : [{ type: 'skip' }]);
         }
-        if (top && top.s >= this.pers.thr) return msg('leaderVote', { who: top.id }, [{ type: 'accuse', who: top.id, reason: 'vote' }]);
+        if (top && top.s >= this.pers.thr && this.fairOn(top.id)) return msg('leaderVote', { who: top.id }, [{ type: 'accuse', who: top.id, reason: 'vote' }]);
         return msg('leaderVote', { who: null }, [{ type: 'skip' }]);
       }
       default:
@@ -1097,7 +1186,8 @@
       case 'reportInfo':
       case 'bodyArea': {
         /* sabia onde era o corpo antes de alguém contar (e não foi quem reportou): deslize */
-        if (it.type === 'bodyArea' && !msg.bodyKnown && mt.info.kind === 'report' && S !== mt.info.caller && !p.isImp && !(this.ev[S] || []).some((e) => e.reason === 'visual')) {
+        /* só se acertou a sala (chutar errado não é saber) */
+        if (it.type === 'bodyArea' && !msg.bodyKnown && mt.info.kind === 'report' && S !== mt.info.caller && !p.isImp && mt.info.body && it.area === mt.info.body.area && !(this.ev[S] || []).some((e) => e.reason === 'visual')) {
           this.bump(S, 28, 'own');
           if (!mt.flags['knew' + S] && (pers.times || pers.skeptic || U.chance(0.4))) {
             mt.flags['knew' + S] = true;
@@ -1180,7 +1270,7 @@
           this.replied.add('who' + msg.id);
           this.reply(1.2, () => {
             const top = p.isImp ? { id: this.impTarget(), s: 50 } : this.topSuspect();
-            const who = top && top.id != null && top.s >= this.pers.thr * 0.6 ? top.id : null;
+            const who = top && top.id != null && top.s >= this.pers.thr * 0.6 && (p.isImp || this.fairOn(top.id)) ? top.id : null;
             return say('whoSus', { who }, who != null ? [{ type: 'accuse', who, reason: 'sus' }] : []);
           });
         }
@@ -1213,6 +1303,25 @@
       case 'quiet':
         if (it.who !== me) this.bump(it.who, 3, 'social');
         break;
+      case 'explainTask': {
+        /* "desisti da tarefa / não consegui": quem viu a barra parada acredita em parte (o cético, menos) */
+        if (p.isImp || S === me) break;
+        let had = false;
+        for (const e of (this.ev && this.ev[S]) || []) if ((e.reason === 'fakeTask' || e.reason === 'noscan') && !e.explained) {
+          e.explained = true;
+          e.w *= pers.skeptic ? 0.6 : 0.4;
+          had = true;
+        }
+        if (had) {
+          this.chatClaim[S] = (this.chatClaim[S] || 0) * 0.6;
+          this.recalc();
+          if (!this.replied.has('expl' + S) && U.chance(0.4)) {
+            this.replied.add('expl' + S);
+            this.reply(1, () => say(pers.skeptic ? 'askProof' : 'ack', { who: S }, []));
+          }
+        }
+        break;
+      }
       case 'pact': {
         /* "vamos ficar juntos" / "fica comigo" / "eu te sigo": aceito se confio (o impostor aceita pelo álibi) */
         if (S === me || msg.intents.some((x) => x.type === 'offerVisual')) break;
@@ -1500,8 +1609,18 @@
        num lugar tão longe que não daria para chegar na sala que disse */
     const full = this.claimFull && this.claimFull[S];
     const omit = [];
+    /* disse uma sala só e eu vi a pessoa lá pouco antes: ela contou onde estava (fazendo tarefa), não onde parou na
+       hora da reunião — gente conta assim. Ter sido vista saindo de lá depois não é mentira (só o corpo pede pergunta) */
+    const sawInClaim = !full && matches.some((m) => T0 - m.t1 <= 45);
     const mism = seen.filter((s) => {
       if (s.t1 - s.t0 < 1.2 || matches.some((m) => m.t1 > s.t1)) return false;
+      if (sawInClaim) {
+        /* exceção: visto há segundos perto do corpo, longe demais para ter voltado à sala que disse — isso esconde */
+        const nearBody = bodyA && (s.area === bodyA || M.isNear(s.area, bodyA)) && T0 - s.t1 <= 35;
+        if (nearBody && recentBad(s)) return true;
+        if (nearBody) omit.push(s);
+        return false;
+      }
       if (recentBad(s)) return true;
       if (matchR(s.area)) return false;
       const dt = T0 - s.t1;
@@ -1541,7 +1660,9 @@
         const bw = (rel ? 28 : 18) * (shift ? 0.6 : 1);
         this.bump(S, bw);
         this.contraBump[S] = (this.contraBump[S] || 0) + bw;
-        if (!shift) this.mem.lies[S] = (this.mem.lies[S] || 0) + 1;
+        /* mentira "guardada" para as próximas reuniões só quando é clara: escondeu que passou no corpo, ou contou o
+           caminho todo e não bate (um desencontro de sala sozinho pode ser só jeito de contar) */
+        if (!shift && (rel || full)) this.mem.lies[S] = (this.mem.lies[S] || 0) + 1;
         this.reply(1, () => say(shift ? 'shiftDoubt' : rel ? 'hidBodyRoom' : 'contradictSeen', { who: S, area: s.area, claimed: rooms[rooms.length - 1] }, [{ type: 'accuse', who: S, reason: 'lie', area: s.area }]));
       }
     }
@@ -1653,6 +1774,13 @@
         this.reply(0.8, () => say('offerVisual', { task }, [{ type: 'deny' }, { type: 'offerVisual' }]), true);
         return;
       }
+      /* eu mesmo vi alguém com a minha cara nesta rodada: sei que o metamorfo andou por aí disfarçado de mim */
+      const selfTwin = !p.isImp ? this.mem.events.find((e) => e.type === 'twin' && e.self && e.t >= this.rs) : null;
+      if (selfTwin && (strong || it.area || PLACE_REASONS.includes(it.reason) || it.reason === 'lie')) {
+        this.bump(S, strong ? 4 : 2);
+        this.reply(0.8, () => say('twinSelfDeny', { area: selfTwin.a1, mine: area }, [{ type: 'deny' }, { type: 'roleTheory', role: 'metamorfo', who: me }]), true);
+        return;
+      }
       /* com metamorfo na partida: me "viram" num lugar onde eu não estava (ou matando, e eu sei que não matei) —
          quem acusa pode estar sendo honesto e ter visto o disfarce. Explico em vez de chamar de mentiroso. */
       if (!p.isImp && roleOn(g, 'metamorfo') && (strong || (it.area && (PLACE_REASONS.includes(it.reason) || it.reason === 'lie')))) {
@@ -1756,8 +1884,18 @@
       this.falseAcc[S] = (this.falseAcc[S] || 0) + 1;
     }
     const myVisual = myEv.some((e) => e.reason === 'visual');
-    const iSawStrong = myEv.some((e) => STRONG[e.reason]);
-    if (myVisual && !g.S.house.noVisualHardClear) {
+    const iSawStrong = myEv.some((e) => STRONG[e.reason] && !e.twinCut);
+    /* eu vi dois T2 ao mesmo tempo: o que "o T2" fez nessa hora pode ter sido o metamorfo (com um impostor só, o T2 é
+       inocente de qualquer jeito) */
+    const twinE = myEv.find((e) => e.reason === 'twin' && (!e.past || e.solo));
+    const twinFits = twinE && (twinE.solo || ['kill', 'vent', 'fakeTask', 'noscan', 'follow', 'lie'].concat(PLACE_REASONS).includes(it.reason));
+    if (twinFits && !iSawStrong && !(myVisual && !g.S.house.noVisualHardClear)) {
+      belief *= twinE.solo ? 0.1 : 0.4;
+      if (!this.replied.has('twinD' + T2)) {
+        this.replied.add('twinD' + T2);
+        this.reply(0.9, () => say('twinDefend', { who: T2, area: twinE.area, area2: twinE.area2, solo: !!twinE.solo, strong: !!strong }, [{ type: 'vouch', who: T2, reason: 'twin' }, { type: 'roleTheory', role: 'metamorfo', who: T2 }]), true);
+      }
+    } else if (myVisual && !g.S.house.noVisualHardClear) {
       belief *= 0.12;
       this.bump(S, strong ? 25 : 6);
       this.falseAcc = this.falseAcc || {};
@@ -1918,12 +2056,14 @@
     const myEv = (this.ev && this.ev[T2]) || [];
     /* Metamorfo: eu "vi o X" perto do corpo, mas alguém de confiança estava com ele → era o disfarce.
        Tira a culpa do X e aperta quem não tem ninguém confirmando onde estava. */
-    const bodyE = myEv.find((e) => ['kill', 'nearBody', 'lastWith', 'withVictim', 'fromBody'].includes(e.reason));
-    if (bodyE && roleOn(this.g, 'metamorfo') && (it.reason === 'together' || it.reason === 'visual') && this.trust(S) >= 0.5 && S !== T2 && !this.replied.has('disg' + T2)) {
+    /* "vi dois X ao mesmo tempo": o que eu vi "o X" fazendo (até duto, tarefa falsa) pode ter sido o disfarce */
+    const twin = it.reason === 'twin';
+    const bodyE = myEv.find((e) => ['kill', 'nearBody', 'lastWith', 'withVictim', 'fromBody'].concat(twin ? ['vent', 'fakeTask', 'noscan', 'follow'] : []).includes(e.reason));
+    if (bodyE && roleOn(this.g, 'metamorfo') && (it.reason === 'together' || it.reason === 'visual' || twin) && this.trust(S) >= 0.5 && S !== T2 && !this.replied.has('disg' + T2)) {
       this.replied.add('disg' + T2);
       this.ev[T2] = myEv.filter((e) => e !== bodyE);
       this.bump(T2, -Math.min(45, bodyE.w), 'own');
-      this.reply(1, () => say('shiftTheory', { who: T2, by: S, area: bodyE.area }, [{ type: 'vouch', who: T2, reason: 'claim' }]), true);
+      this.reply(1, () => say(twin ? 'twinAgree' : 'shiftTheory', { who: T2, by: S, area: bodyE.area }, [{ type: 'vouch', who: T2, reason: 'claim' }]), true);
       const vouched = (id) => mt.msgs.some((m) => m.from !== id && m.intents.some((x) => x.type === 'vouch' && x.who === id));
       const open = mt.alive.filter((id) => id !== me && id !== T2 && !this.hardCleared(id) && !vouched(id));
       for (const id of open) this.bump(id, 7, 'social');
@@ -1940,14 +2080,14 @@
       }
       return;
     }
-    let w = it.reason === 'visual' ? 30 : it.reason === 'together' ? 16 : 9;
+    let w = it.reason === 'visual' ? 30 : twin ? 22 : it.reason === 'together' ? 16 : 9;
     /* dupla que só se confirma entre si (ninguém mais confirma nenhum dos dois) pode ser a dupla de impostores */
     const vouchedBy = (id) => mt.msgs.filter((m) => m.from !== id && m.intents.some((x) => x.type === 'vouch' && x.who === id)).map((m) => m.from);
     const byS = vouchedBy(S);
     if (it.reason !== 'visual' && !this.hardCleared(S) && byS.length && byS.every((id) => id === T2) && vouchedBy(T2).every((id) => id === S)) w *= 0.5;
     this.bump(T2, -w * this.trust(S), it.reason === 'visual' ? 'claim' : 'social');
     /* com metamorfo na partida, "estava comigo" contra "vi matando" sugere disfarce: a acusação forte pesa menos */
-    if (roleOn(this.g, 'metamorfo') && (it.reason === 'together' || it.reason === 'visual') && this.trust(S) >= 0.6 &&
+    if (roleOn(this.g, 'metamorfo') && (it.reason === 'together' || it.reason === 'visual' || twin) && this.trust(S) >= 0.6 &&
         mt.msgs.some((m) => m.from !== S && m.intents.some((x) => x.type === 'accuse' && x.who === T2 && STRONG[x.reason]))) {
       this.bump(T2, -30 * this.trust(S), 'claim');
     }
@@ -2091,8 +2231,15 @@
         if (pool[0].s > -20) return pool[0].id;
       }
     }
-    if (pers.hunch > 0.3 && top.s >= thr * 0.6 && (!chatBlind || grounded(top.id)) && U.chance(0.45)) return top.id;
+    if (pers.hunch > 0.3 && top.s >= thr * 0.6 && (!chatBlind || grounded(top.id)) && this.fairOn(top.id) && U.chance(0.45)) return top.id;
     return 'skip';
+  };
+  /* Contra o jogador, palpite não basta: acusar ou votar nele "por instinto" parece perseguição. Precisa de alguma
+     pista de verdade (o que o bot viu, o que ouviu com motivo), não só do "santo que não bateu" (noise). */
+  B.fairOn = function (id) {
+    const q = this.g.players[id];
+    if (!q || !q.isHuman) return true;
+    return (this.susp[id] || 0) - ((this.noise && this.noise[id]) || 0) >= 18;
   };
 
   /* Quantos impostores ainda estão vivos. Com ejeção confirmada é público. Sem confirmação, o tripulante estima pelo

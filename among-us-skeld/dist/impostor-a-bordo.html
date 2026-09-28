@@ -2759,6 +2759,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const col = C.COLOR[q.color].name.toLowerCase();
       return ({ o: 'o ', com: 'com o ', de: 'do ', no: 'no ' }[form] || '') + col;
     };
+    /* "dois vermelhos", "dois azuis", "dois marrons", "dois corais" */
+    x.Pl = (pid) => {
+      const q = g.players[pid];
+      if (!q) return 'iguais';
+      const c = C.COLOR[q.color].name.toLowerCase();
+      return /l$/.test(c) ? c.slice(0, -1) + 'is' : /m$/.test(c) ? c.slice(0, -1) + 'ns' : c + 's';
+    };
     /* nome da sala conforme o tom: limpo = nome oficial ("na Elétrica"); casual = nome comum em português
        ("na elétrica", "na cafeteria", "no depósito"); raiz = apelido de jogador ("na elec", "no café", "no storage") */
     const tone = g && g.S && g.S.bots ? g.S.bots.chatTone : 'casual';
@@ -2827,9 +2834,16 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         case 'kill': return pick([`${w} matou ${x.R(d.victim, 'o')} ${x.inA(d.area)}`, `vi ${w} matando ${x.R(d.victim, 'o')}`, `EU VI! ${w} matou`]);
         case 'shift': return pick([`${w} se transformou em outra pessoa na minha frente`, `vi ${w} mudando de cor, é metamorfo`]);
         case 'vanish': return pick([`${w} sumiu do nada ${x.inA(d.area)}`, `${w} ficou invisível, é impostor`]);
-        case 'fakeTask': return pick([`chamei porque ${w} fingiu tarefa ${d.area ? x.inA(d.area) : ''}: terminou e a barra não subiu`.replace(/\s+:/, ':'), `${w} tá fingindo task, vi ${d.area ? x.inA(d.area) : 'agora'} e a barra não mexeu`]);
+        case 'fakeTask': return pick([`chamei porque ${w} ficou um tempão na tarefa ${d.area ? x.inA(d.area) : ''}, saiu e a barra não subiu`.replace(/\s+,/, ','), `${w} tá fingindo task? vi ${d.area ? x.inA(d.area) : 'agora'}, ficou lá o tempo todo e a barra não mexeu`]);
         case 'noscan': return pick([`chamei porque ${x.Rc(d.who, 'o')} ficou parado no scanner e não escaneou`, `${w} fingiu o scan, eu vi`]);
         case 'vitals': return pick([`sou cientista: ${d.victim != null ? x.R(d.victim, 'o') : 'alguém'} morreu e ninguém achou o corpo`, `o vitals mostra ${d.victim != null ? x.Rc(d.victim, 'o') : 'alguém'} morto, chamei pra avisar`]);
+        /* o metamorfo com a cara de alguém (ou a minha) */
+        case 'twinKill': {
+          const V = d.victim != null ? x.R(d.victim, 'o') : 'alguém';
+          if (d.self) return pick([`alguém com a MINHA cara matou ${V} ${x.inA(d.area)}! não fui eu, era o metamorfo`, `chamei porque o metamorfo tá disfarçado de mim: matou ${V} ${x.inA(d.area)}`, `EU VI: o metamorfo com a minha cara matou ${V}`]);
+          return pick([`o metamorfo matou ${V} com a cara ${x.R(d.who, 'de')}! ${w} de verdade tava ali, eu vi os dois`, `vi ${w} matando ${V}, mas tinha outro ${x.Rc(d.who)} ali do lado. era o metamorfo disfarçado`, `tinha dois ${x.Pl(d.who)} ${x.inA(d.area)} e um deles matou ${V}. era o metamorfo`]);
+        }
+        case 'twinSelf': return pick([`chamei porque vi alguém com a minha cara ${x.inA(d.area)}. é o metamorfo`, `gente, o metamorfo tá disfarçado de mim, vi ele ${x.inA(d.area)}`, `tinha um ${x.Rc(x.sp && x.sp.p ? x.sp.p.id : -1)} igual a mim ${x.inA(d.area)}. cuidado, é o metamorfo`]);
         case 'sus': return pick([`${x.Rc(d.who, 'o')} tá muito estranho, chamei por isso`, `precisava falar: ${x.Rc(d.who, 'o')} tá sus demais`, `apertei porque ${x.Rc(d.who, 'o')} tá estranho`]);
         case 'chaos': return pick([`foi mal, apertei sem querer kkk`, `só queria ver quem está vivo`, `reunião surpresa kkkk`, `alguém tem info?`]);
         default: return pick([`alguém tem info?`, `chamei pra gente conversar`]);
@@ -2902,7 +2916,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         case 'shift': return pick([`${w} é metamorfo, vi se transformando`, `${w} mudou de aparência na minha frente`]);
         case 'vanish': return pick([`${w} ficou invisível do nada, é impostor`, `vi ${w} sumir no ar`]);
         case 'noscan': return pick([`${x.Rc(d.who, 'o')} ficou parado no scanner e não escaneou`, `${w} fingiu o scan`]);
-        case 'fakeTask': return pick([`vi ${w} terminar a tarefa ${d.area ? x.inA(d.area) : ''} e a barra não subiu`.replace(/\s+/g, ' '), `${w} fingiu tarefa, a barra não mexeu`, `${w} fez tarefa na minha frente e a barra ficou parada`]);
+        case 'fakeTask': return pick([`vi ${w} parado na tarefa ${d.area ? x.inA(d.area) : ''} o tempo todo, saiu e a barra não subiu`.replace(/\s+/g, ' '), `${w} ficou na tarefa na minha frente e a barra não mexeu`, `${w} fez tarefa na minha frente e a barra ficou parada`]);
         case 'fastReport': return pick([
           `${w} reportou rápido demais, ${d.victim != null ? x.Rc(d.victim, 'o') + ' tava vivo' : 'a vítima tava viva'} uns ${d.ago || 10}s antes`,
           `self report? ${w} achou o corpo logo depois de ${d.victim != null ? x.Rc(d.victim, 'o') : 'a vítima'} ser ${d.victim != null ? 'visto' : 'vista'}`,
@@ -2929,13 +2943,16 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const w = x.R(d.who, 'o');
       if (d.reason === 'visual') return pick([`${w} é safe, vi fazendo ${x.vis(d.task)}`, `vi ${w} fazendo ${x.vis(d.task)}, é inocente`, `confio ${x.R(d.who, 'no')}, vi a visual`]);
       if (d.reason === 'together') return pick([`${w} estava comigo`, `${w} estava comigo ${d.area ? x.inA(d.area) : ''}`.trim(), `pode tirar ${w}, estava comigo`]);
+      if (d.reason === 'twin') return pick([`${x.Rc(d.who, 'o')} não é o metamorfo, vi dois ${x.Pl(d.who)} ao mesmo tempo`, `vi ${w} e o metamorfo com a cara dele juntos`]);
       return pick([`vi ${w} fazendo task ${d.area ? x.inA(d.area) : ''}`.trim(), `pra mim ${w} é inocente`]);
     },
     alsoVouch: (d, x) => pick([`também vi, ${x.R(d.who, 'o')} é safe`, `confirmo, vi ${x.R(d.who, 'o')} fazendo ${x.vis(d.task)} também`, `+1, eu também vi a visual ${x.R(d.who, 'de')}`, `verdade, vi também`]),
     confirm: (d, x) => pick([`confirmo, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`, `verdade, ${x.R(d.who, 'o')} estava ${x.inA(d.area)}`, `é, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`]),
     confirmWith: (d, x) => pick([`sim, ${x.R(d.who, 'o')} estava comigo`, `confirmo, estava comigo`, `verdade, estava comigo`]),
     denyWith: (d, x) => pick([`comigo? não`, `${x.R(d.who, 'o')} não estava comigo não`, `mentira, não estava comigo`]),
-    fromBody: (d, x) => pick([`vi ${x.R(d.who, 'o')} vindo lá do lado ${x.deA(d.bodyArea)}`, `${x.R(d.who, 'o')} tava vindo da direção ${x.deA(d.bodyArea)}`, `quando eu passei ${x.inA(d.area)}, ${x.R(d.who, 'o')} vinha lá ${x.deA(d.bodyArea)}`]),
+    fromBody: (d, x) => (d.area === d.bodyArea
+      ? pick([`vi ${x.R(d.who, 'o')} saindo ${x.deA(d.bodyArea)}`, `${x.R(d.who, 'o')} tava saindo ${x.deA(d.bodyArea)} pouco antes`])
+      : pick([`vi ${x.R(d.who, 'o')} vindo lá do lado ${x.deA(d.bodyArea)}`, `${x.R(d.who, 'o')} tava vindo da direção ${x.deA(d.bodyArea)}`, `quando eu passei ${x.inA(d.area)}, ${x.R(d.who, 'o')} vinha lá ${x.deA(d.bodyArea)}`])),
     atBody: (d, x) => pick([`pera, ${x.R(d.who)} disse que tava ${x.inA(d.area)}... foi lá o corpo`, `${x.R(d.who)}, você tava ${x.inA(d.area)}? e não viu o corpo?`, `${x.inA(d.area)} é onde tava o corpo, ${x.R(d.who)}`]),
     knewBody: (d, x) => pick([`como ${x.R(d.who, 'o')} sabe onde tava o corpo? ninguém falou ainda`, `ué ${x.R(d.who)}, ninguém disse onde era o corpo`, `${x.R(d.who, 'o')} sabia do corpo antes de falarem... sus`]),
     contradictStay: (d, x) => pick([`eu fiquei ${x.inA(d.area)} um tempão e não vi ${x.R(d.who, 'o')}`, `${x.R(d.who)}, eu estava ${x.inA(d.area)} e você não passou lá`]),
@@ -2968,6 +2985,44 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     claimClash: (d, x) => pick([`${x.R(d.who, 'o')} disse que tava ${x.inA(d.claimed)}, mas ${d.by != null ? x.R(d.by, 'o') + ' viu ele' : 'viram ele'} ${x.inA(d.area)}`, `pera, ${x.R(d.who)} falou ${x.inA(d.claimed)}... e ${d.by != null ? x.R(d.by, 'o') : 'ele'} ${d.by != null ? 'viu' : 'foi visto'} ${x.inA(d.area)}? não bate`, `${x.R(d.who)}, você não disse que tava ${x.inA(d.claimed)}? como te viram ${x.inA(d.area)}?`]),
     sawAgo: (d, x) => pick([`vi ${x.R(d.who, 'o')} ${x.inA(d.area)}, mas faz uns ${d.ago}s`, `${x.R(d.who, 'o')} tava ${x.inA(d.area)} uns ${d.ago}s antes, depois não vi mais`]),
     shiftDoubt: (d, x) => pick([`vi alguém igual a você ${x.inA(d.area)}, ${x.R(d.who)}... ou você mente, ou era o metamorfo com a sua cara`, `${x.R(d.who)}, te vi ${x.inA(d.area)}, não ${x.inA(d.claimed)}. se não era você, era o metamorfo disfarçado`]),
+    /* vi dois iguais ao mesmo tempo (um era o metamorfo) */
+    twinSaw: (d, x) => {
+      /* com "dois verdes" na frase, fala "o verde" (nome no meio confunde) */
+      const w = x.Rc(d.who, 'o'), pl = x.Pl(d.who);
+      const two = d.a2 && d.a2 !== d.a1;
+      const place = two ? `um ${x.inA(d.a1)} e outro ${x.inA(d.a2)}` : x.inA(d.a1);
+      const cams = d.cams ? pick([' (um pelas câmeras)', ', um deles nas cams']) : '';
+      const V = d.victim != null ? x.R(d.victim, 'o') : null;
+      const tail = d.solo ? pick([`, então ${w} é inocente`, `. ${w} é safe, o metamorfo era o outro`]) : pick(['', `. ${w} de verdade não é o metamorfo`]);
+      if (d.seenKill && V) return pick([
+        `vi ${w} matando ${V}, mas ${w} de verdade tava ${two ? x.inA(d.a2) : 'ali do lado'}. era o metamorfo com a cara ${x.R(d.who, 'de')}`,
+        `${w} NÃO matou ${V}: eu vi dois ${pl} ao mesmo tempo, um matando e o outro ${two ? x.inA(d.a2) : 'do lado'}. era o metamorfo`,
+      ]);
+      if (d.doubt) return pick([
+        `vi ${w} ${V ? 'matando ' + V : 'no duto'}, mas perto disso eu vi dois ${pl} ao mesmo tempo${cams}... pode ter sido o metamorfo`,
+        `cuidado: eu vi ${w} ${V ? 'matar ' + V : 'ventar'}, só que também vi dois ${pl} juntos ${place}. o metamorfo tava com a cara ${x.R(d.who, 'de')}`,
+      ]);
+      return pick([
+        `vi dois ${pl} ao mesmo tempo ${place}${cams}, um era o metamorfo${tail}`,
+        `tinha dois ${pl} ${place}${cams}. o metamorfo tava com a cara ${x.R(d.who, 'de')}${tail}`,
+        two ? `vi ${w} em dois lugares ao mesmo tempo: ${x.inA(d.a1)} e ${x.inA(d.a2)}${cams}. um era o metamorfo${tail}` : `apareceram dois ${pl} na minha frente ${x.inA(d.a1)}, um era o metamorfo${tail}`,
+      ]);
+    },
+    twinSelf: (d, x) => {
+      const V = d.victim != null ? x.R(d.victim, 'o') : null;
+      const me = x.Rc(x.sp && x.sp.p ? x.sp.p.id : -1);
+      if (V) return pick([`alguém com a MINHA cara matou ${V} ${x.inA(d.a1)}. não fui eu, era o metamorfo`, `eu vi o metamorfo disfarçado de mim matando ${V}`]);
+      if (d.vent) return pick([`vi alguém igual a mim entrando no duto ${x.inA(d.vent)}. é o metamorfo, não sou eu`, `tinha um ${me} igual a mim ventando ${x.inA(d.vent)}, é o metamorfo`]);
+      return pick([`vi alguém com a minha cara ${x.inA(d.a1)}! era o metamorfo`, `gente, tinha um ${me} igual a mim ${x.inA(d.a1)}. o metamorfo tá usando a minha cara`, `eu me vi ${x.inA(d.a1)}, sério. era o metamorfo disfarçado de mim`]);
+    },
+    twinDefend: (d, x) => {
+      const w = x.Rc(d.who, 'o'), pl = x.Pl(d.who);
+      const place = d.area2 && d.area2 !== d.area ? `, um ${x.inA(d.area)} e outro ${x.inA(d.area2)}` : d.area ? ' ' + x.inA(d.area) : '';
+      if (d.solo) return pick([`não é ${w}: eu vi dois ${pl} ao mesmo tempo${place}, e só tem um impostor. ${w} é inocente`, `${w} é inocente, vi o metamorfo com a cara dele do lado dele`]);
+      return pick([`pode ter sido o metamorfo: eu vi dois ${pl} ao mesmo tempo${place}`, `calma, eu vi ${w} em dois lugares ao mesmo tempo. um era o metamorfo`, `o metamorfo tava com a cara ${x.R(d.who, 'de')}, eu vi dois ${pl} juntos`]);
+    },
+    twinSelfDeny: (d, x) => pick([`não fui eu! vi alguém com a minha cara ${x.inA(d.area)}, é o metamorfo`, `eu mesmo vi o metamorfo disfarçado de mim ${x.inA(d.area)}, foi ele`, `tem alguém usando a minha cara, eu vi ${x.inA(d.area)}. não era eu`]),
+    twinAgree: (d, x) => pick([`então quem eu vi ${x.inA(d.area)} era o metamorfo com a cara ${x.R(d.who, 'de')}`, `faz sentido, ${x.R(d.who, 'o')} que eu vi ${x.inA(d.area)} devia ser o metamorfo`, `hmm, então não era ${x.R(d.who)} ${x.inA(d.area)}, era o metamorfo`]),
     shiftTheory: (d, x) => pick([`se ${x.R(d.who, 'o')} tava com ${x.R(d.by, 'o')}, quem eu vi ${x.inA(d.area)} era o metamorfo disfarçado`, `então era o metamorfo com a cara ${x.R(d.who, 'de')}`, `hmm, o metamorfo tava disfarçado ${x.R(d.who, 'de')}, não era ${x.R(d.who)} de verdade`]),
     hidBodyRoom: (d, x) => pick([`mas eu te vi ${x.inA(d.area)}, ${x.R(d.who)}, bem onde tava o corpo`, `${x.R(d.who)}, você tava ${x.inA(d.area)} e não falou isso`, `estranho, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}, perto do corpo, e agora diz ${x.inA(d.claimed)}`]),
     askPassed: (d, x) => pick([`${x.R(d.who)}, te vi ${x.inA(d.area)} antes, você passou por lá?`, `${x.R(d.who)}, você passou ${x.inA(d.area)}? te vi por lá`, `peraí ${x.R(d.who)}, você não passou ${x.inA(d.area)} também?`]),
@@ -3153,11 +3208,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     ask: ['ué ', 'pera ', 'mano ', 'oxe '],
   };
   const KIND_MOOD = {
-    accuse: 'hot', panic: 'hot', knewBody: 'hot', claimClash: 'hot', contradictSeen: 'hot', hidBodyRoom: 'hot', atBody: 'hot', callReason: 'hot', reportInfo: 'hot', crisis: 'hot',
-    deny: 'deny', denyStrong: 'deny', denyThere: 'deny', notThere: 'deny', counter: 'deny', denyWith: 'deny',
+    accuse: 'hot', panic: 'hot', knewBody: 'hot', claimClash: 'hot', contradictSeen: 'hot', hidBodyRoom: 'hot', atBody: 'hot', callReason: 'hot', reportInfo: 'hot', crisis: 'hot', twinSaw: 'hot', twinSelf: 'hot',
+    deny: 'deny', denyStrong: 'deny', denyThere: 'deny', notThere: 'deny', counter: 'deny', denyWith: 'deny', twinSelfDeny: 'deny',
     topicAsk: 'ask', askProof: 'ask', topicDoubt: 'ask', huh: 'ask', askWhere: 'ask', askCaller: 'ask', topicWhat: 'ask', askConfirm: 'ask',
   };
   const RAIZ_LAUGH = new Set(['offtopic', 'deny', 'huh', 'agree', 'askProof', 'lost', 'ghost', 'topicDoubt', 'counter', 'callReason']);
+  /* falas sobre morte, vítima, flagrante ou acusação com prova: nunca com risada */
+  const SERIOUS = new Set(['reportInfo', 'reportDetail', 'sawNearBody', 'lastWithVictim', 'withVictim', 'fromBody', 'sawVictimAlive', 'passedNoBody', 'noOneNear', 'noOneNearBy', 'accuse', 'panic', 'knewBody', 'hidBodyRoom', 'atBody', 'vitals', 'crisis', 'twinSaw', 'twinSelf', 'twinDefend', 'twinSelfDeny', 'twinAgree', 'shiftTheory', 'contradictSeen', 'claimClash']);
 
   function style(text, g, brain, opts) {
     opts = opts || {};
@@ -3181,7 +3238,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const words = s.split(/\s+/).length, greet = /^(oi|eai|e ai|salve|opa|fala|ol[aá]|boa (noite|tarde|dia))\b/.test(s);
       if (!mood && !greet && words >= 4 && opts.kind !== 'claimLoc' && U.chance(0.1)) s = pick(['tipo ', 'mano ']) + s;
       else if (!/\?$/.test(s) && !mood && !greet && words >= 4 && U.chance(0.14)) s += pick([' tlgd', ', tá ligado', ' tlgd']);
-      if (RAIZ_LAUGH.has(opts.kind) && !/morreu|morto|corpo|matou/i.test(s) && !/k{3,}/i.test(s) && U.chance(0.3)) s += ' ' + pick(['kkkk', 'kkkkkk', 'KKKKK']);
+      if (RAIZ_LAUGH.has(opts.kind) && !SERIOUS.has(opts.kind) && !/morreu|morto|corpo|matou|metamorfo/i.test(s) && !/k{3,}/i.test(s) && U.chance(0.3)) s += ' ' + pick(['kkkk', 'kkkkkk', 'KKKKK']);
       if (opts.strong && U.chance(0.4)) s = s.toUpperCase();
       if (U.chance(0.55)) s = stripAccents(s);
       s = s.replace(/[.,]$/, '');
@@ -3194,7 +3251,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     }
     /* risada solta só em fala leve: nunca em morte, corpo, vitals, voto ou acusação */
     const heavy = /morreu|morto|morta|corpo|vitals|sinais vitais|matou|matar|abate|votei|voto|impostor|mentindo|mentira/i.test(s);
-    if ((pers.chaos || pers.offtopic) && !heavy && U.chance(tone === 'raiz' ? 0.25 : 0.15) && !/k{3,}/i.test(s)) s += ' ' + pick(['kkk', 'kkkkk', 'KKKK']);
+    if ((pers.chaos || pers.offtopic) && !heavy && !SERIOUS.has(opts.kind) && U.chance(tone === 'raiz' ? 0.25 : 0.15) && !/k{3,}/i.test(s)) s += ' ' + pick(['kkk', 'kkkkk', 'KKKK']);
     if (pers.caps && opts.strong && U.chance(0.6)) s = s.toUpperCase() + '!!';
     if (opts.question && !/\?$/.test(s)) s += '?';
     if (pers.offtopic && U.chance(0.2)) s = s.replace(/\?$/, '??');
@@ -3312,6 +3369,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     /* "sumiu" também é "não vi mais": só vale como habilidade se foi na frente de alguém / do nada / invisível */
     vanishSeen: /\b(invisivel|do nada|na minha frente|na frente|do meu lado)\b|\bvi\b.*\b(sumir|desaparecer|sumindo|desaparecendo)\b/,
     follow: /\b(seguindo|me seguiu|me segue|seguiu|atras de mim|na minha cola|colad[oa] em mim)\b/,
+    /* explicação de tarefa largada no meio: "desisti da task", "não consegui terminar", "errei os fios" */
+    gaveUp: /\b(desisti|nao consegui|n consegui|nao deu tempo|errei|fechei a (task|tarefa)|sai da (task|tarefa)|larguei|nao terminei|n terminei|nao acabei|n acabei)\b/,
+    /* dois iguais ao mesmo tempo: "vi dois vermelhos", "tinha duas rosas iguais", "o verde em dois lugares", "alguém com a minha cara" */
+    twin: /\b(vi|tinha|tem|havia|apareceu|apareceram|eram)\s+(dois|duas|2)\b|\b(dois|duas|2)\b(?:\s+\S+){0,2}\s+(iguais|igual|ao mesmo tempo|de uma vez)\b|\bem dois lugares\b|\bcom a (minha|mesma) cara\b|\bigual a mim\b/,
     selfrep: /\b(self ?report\w*|reportou (muito )?rapido|achou (o corpo )?(muito )?rapido)\b/,
     hypo: /\b(pode|podia|talvez|sera|acho|deve|devia|se for|caso|quem sabe|pode ter)\b/,
     offer: /\b(me segue|me sigam|me segue[m]?|me acompanh\w*|posso provar|vou provar|pra provar|para provar|provo|fac\w* (o |a )?(scan|visual|escaneamento|asteroide\w*|escudo\w*|lixo) na frente|na frente de voces|mostro (a )?visual)\b/,
@@ -3343,6 +3404,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     const all = { players: findAll(n, table, 'pid'), rooms: findAll(n, ROOM_ALIASES, 'area') };
 
     if (RX.deny.test(n)) intents.push({ type: 'deny' });
+    if (RX.gaveUp.test(n)) intents.push({ type: 'explainTask' });
     if (RX.offer.test(n) || (RX.offerTask.test(n) && !/\b(fiz|fez|fizeram|fazendo|tava|estava)\b/.test(n))) intents.push({ type: 'offerVisual' });
     if ((/^ (fechou|fechado|beleza|blz|ok|okay|pode ser|sim|claro|tranquilo|combinado|firmeza|show|demorou|s)\b/.test(n) || /^ (bora|vamo|vamos|pode)( sim| ja| entao)? $/.test(n)) && n.trim().split(' ').length <= 5 && !RX.pact.test(n) && !RX.vote.test(n) && !RX.sus.test(n) && !RX.skip.test(n)) intents.push({ type: 'yes', to: ctx.addressed != null ? ctx.addressed : null });
     if (RX.pact.test(n) && !RX.pactNo.test(n)) {
@@ -3385,6 +3447,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
       if (others.length) {
         const who = others[0];
+        /* "vi dois vermelhos ao mesmo tempo": o vermelho de verdade não é o metamorfo */
+        if (has('twin') && !has('hypo')) {
+          intents.push({ type: 'vouch', who, reason: 'twin' });
+          intents.push({ type: 'roleTheory', role: 'metamorfo', who });
+          continue;
+        }
         if (has('kill')) intents.push({ type: 'accuse', who, reason: 'kill', area, strong: true });
         else if (has('vent')) intents.push({ type: 'accuse', who, reason: 'vent', area, strong: true });
         else if (has('shift') && !has('hypo')) intents.push({ type: 'accuse', who, reason: 'shift', area, strong: true });
@@ -3403,6 +3471,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
       if (has('visual') && selfNamed) {
         intents.push({ type: 'deny' });
+        continue;
+      }
+      /* "tinha alguém com a minha cara" / "vi dois iguais" sem dizer quem */
+      if (has('twin') && !has('hypo')) {
+        intents.push({ type: 'roleTheory', role: 'metamorfo', who: /\b(minha cara|igual a mim)\b/.test(c) ? me : null });
         continue;
       }
       /* "me segue que eu faço os escudos" / "vou fazer o lixo na frente de vocês": é o que vai fazer, não onde estava */
@@ -4415,7 +4488,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       k.lastKillT = t;
       k.busy = null;
       const wit = this.witnesses([{ x: kx, y: ky }, { x: v.x, y: v.y }], [k.id, v.id]);
-      for (const w of wit) if (w.p.brain) w.p.brain.onWitnessKill(apparent, v.id, area.id, w.via, body);
+      for (const w of wit) if (w.p.brain) w.p.brain.onWitnessKill(apparent, v.id, area.id, w.via, body, k);
       if (k.brain) k.brain.onKilled(v, body, wit);
       /* double kill: parceiro impostor por perto aproveita e mata uma testemunha */
       if (!this.S.house.noDoubleKill) {
@@ -5026,6 +5099,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   /* Estações onde a tarefa SEMPRE termina de uma vez (etapa única/última): se alguém "termina" ali na sua frente
      e a barra de tarefas não sobe, a tarefa era falsa. Calculado a partir das definições das tarefas. */
   let FINAL_ST = null;
+  /* quanto tempo a última etapa leva em cada estação (o mínimo que alguém fica parado ali para terminar) */
+  const FINAL_DUR = {};
   function finalStations() {
     if (FINAL_ST) return FINAL_ST;
     const info = {};
@@ -5034,8 +5109,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const steps = def.steps();
         steps.forEach((st, i) => {
           const o = (info[st] = info[st] || { fin: false, mid: false });
-          if (i === steps.length - 1) o.fin = true;
-          else o.mid = true;
+          if (i === steps.length - 1) {
+            o.fin = true;
+            FINAL_DUR[st] = Math.max(FINAL_DUR[st] || 0, (def.dur && def.dur[i]) || 3);
+          } else o.mid = true;
         });
       }
     }
@@ -5164,6 +5241,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.lastSeenAt = {};
       this.followWatch = {};
       this.tailWatch = {};
+      this.twinWatch = {};
+      this.twinAlert = null;
       this.fieldSus = {};
       this.scanWatch = {};
       this.wantButton = null;
@@ -5989,6 +6068,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       return !!((c && c.who === id && g.t < c.until) || (pa && pa.who === id && pa.lead === 'me'));
     }
     hardCleared(id) {
+      if (this.twinCleared(id)) return true;
       if (this.g.S.house.noVisualHardClear || !this.g.S.rules.visualTasks) return false;
       return this.mem.events.some((e) => (e.type === 'visual' || e.type === 'escortVisual') && e.who === id);
     }
@@ -5999,6 +6079,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       let strong = false;
       for (const e of this.mem.events) {
         if (e.who !== id) continue;
+        /* "vi o X matando / no duto", mas perto da hora em que eu vi dois X: pode ter sido o disfarce */
+        if ((e.type === 'kill' || e.type === 'vent') && this.twinDoubt(id, e.t)) {
+          if (e.t >= rs) s += 30;
+          continue;
+        }
         /* o que viu de grave em rodadas anteriores continua valendo */
         if (e.type === 'kill' || e.type === 'shift' || e.type === 'vanish') {
           s = Math.max(s, e.t < rs ? 90 : 100);
@@ -6223,7 +6308,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       let s = 0;
       for (const e of this.mem.events) {
         if (e.who !== id || e.t < this.g.roundStart) continue;
-        if (e.type === 'kill' || e.type === 'shift' || e.type === 'vanish') s = Math.max(s, 100);
+        if ((e.type === 'kill' || e.type === 'vent') && this.twinDoubt(id, e.t)) s = Math.max(s, 50);
+        else if (e.type === 'kill' || e.type === 'shift' || e.type === 'vanish') s = Math.max(s, 100);
         else if (e.type === 'vent') s = Math.max(s, 85);
       }
       return Math.max(s, (this.carry[id] || 0) > 70 ? this.carry[id] : 0);
@@ -6279,7 +6365,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (p.emergencyLeft <= 0) this.wantButton = null;
         else if (!g.sabCritical()) {
           /* motivo que não é flagrante: termina a tarefa que já está fazendo antes de correr para o botão */
-          const urgent = ['kill', 'vent', 'shift', 'vanish'].includes(this.wantButton.reason);
+          const urgent = ['kill', 'vent', 'shift', 'vanish', 'twinKill'].includes(this.wantButton.reason);
           const finishing = !urgent && this.plan && this.plan.type === 'task' && p.busy && p.busy.until - g.t < 8;
           if (!finishing) {
             if (!this.plan || (this.plan.type !== 'button' && !this.plan.buttonWait)) this.planButton();
@@ -7537,11 +7623,22 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (via === 'eyes') {
         this.seenNow = seen;
         this.bodiesNow = bodies.slice();
+        /* tarefa que parecia falsa: a pessoa não voltou para ela em uns segundos — agora sim guarda (e quem tem
+           iniciativa chama reunião) */
+        if (this.fakePending) for (const id of Object.keys(this.fakePending)) {
+          const f = this.fakePending[id];
+          if (t < f.at) continue;
+          delete this.fakePending[id];
+          if (this.hardCleared(+id) || !U.chance(0.4 + pers.att * 0.5)) continue;
+          if (mem.event({ type: 'fakeTask', t: f.t, who: +id, area: f.area, station: f.station }, 'fakeTask:' + id + ':' + g.meetings)) this.maybeButton('fakeTask', +id, f.area);
+        }
       } else {
         for (const b of bodies) if (!this.bodiesNow.includes(b)) this.bodiesNow.push(b);
       }
       for (const q of seen) {
         const aid = g.appearId(q);
+        /* alguém com a MINHA cara não é "eu visto em algum lugar": é o metamorfo (twinCheck cuida disso) */
+        if (aid === p.id) continue;
         const area = M.areaAt(q.x, q.y).id;
         this.lastSeenAt[aid] = { t, x: q.x, y: q.y, area };
         const l = mem.last[aid];
@@ -7593,16 +7690,21 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           }
           if (this.followWatch[aid] >= 7) {
             this.followWatch[aid] = 0;
-            /* quem já provou ser tripulante (tarefa visual) andando atrás é só companhia */
-            if (!this.hardCleared(aid) && mem.event({ type: 'follow', t, who: aid, area }, 'follow:' + aid + ':' + g.meetings) && pers.panic) {
+            /* quem já provou ser tripulante (tarefa visual) andando atrás é só companhia; e quem ficou a sós comigo
+               um bom tempo e não fez nada teve a chance: seguir assim é escolta, não caça */
+            const hadChance = ((this.aloneWith || {})[aid] || 0) >= 4;
+            if (!this.hardCleared(aid) && !hadChance && mem.event({ type: 'follow', t, who: aid, area }, 'follow:' + aid + ':' + g.meetings) && pers.panic) {
               this.fear = { who: aid, t };
               this.planFlee(q);
             }
           }
-          /* viu terminar uma tarefa de etapa única e a barra não subiu = tarefa falsa (só com a barra sempre visível) */
+          /* viu alguém parado numa tarefa de etapa única pelo tempo que ela leva, sair, e a barra não subir = tarefa
+             falsa (só com a barra sempre visível). Não conclui na hora: quem erra a tarefa ou desiste e tenta de novo
+             volta a abrir (gente de verdade faz isso), então espera uns segundos antes de guardar. */
           this.taskWatch = this.taskWatch || {};
           const tw = this.taskWatch[aid];
           if (q.busy && q.busy.station && !q.moving) {
+            if (this.fakePending && this.fakePending[aid] && this.fakePending[aid].station === q.busy.station) delete this.fakePending[aid];
             if (!tw || tw.station !== q.busy.station) this.taskWatch[aid] = { station: q.busy.station, t0: t, done0: g.taskProgress().done, sab0: g.sab };
             else tw.last = t;
           } else if (tw) {
@@ -7610,8 +7712,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
             /* só vale se viu a pessoa sair da tarefa agora (não quando reaparece depois), e sem sabotagem nova no meio
                (quem larga a tarefa para consertar o reator não está fingindo) */
             const sawStop = t - (tw.last || tw.t0) < 0.8;
-            if (sawStop && !this.hardCleared(aid) && !(g.sab && g.sab !== tw.sab0) && t - tw.t0 >= 2.5 && g.S.rules.taskBar === 'sempre' && !g.commsDown() && finalStations().has(tw.station) && g.taskProgress().done === tw.done0 && U.chance(0.4 + pers.att * 0.5)) {
-              if (mem.event({ type: 'fakeTask', t, who: aid, area, station: tw.station }, 'fakeTask:' + aid + ':' + g.meetings)) this.maybeButton('fakeTask', aid, area);
+            const fin = finalStations().has(tw.station);
+            const need = Math.max(2.5, (FINAL_DUR[tw.station] || 3) * 0.75);
+            const watched = (tw.last || tw.t0) - tw.t0;
+            if (sawStop && fin && watched >= need && !this.hardCleared(aid) && !(g.sab && g.sab !== tw.sab0) && g.S.rules.taskBar === 'sempre' && !g.commsDown() && g.taskProgress().done === tw.done0) {
+              (this.fakePending = this.fakePending || {})[aid] = { station: tw.station, t, at: t + U.rf(2.5, 4), area };
             }
           }
           /* parado numa tarefa visual sem a animação aparecer = tarefa falsa */
@@ -7624,7 +7729,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           } else if (this.scanWatch[aid]) this.scanWatch[aid] = 0;
         }
       }
-      for (const b of bodies) mem.bodySeen(b, t, seen.map((q) => g.appearId(q)), via);
+      if (!p.isImp) this.twinCheck(seen, via);
+      for (const b of bodies) mem.bodySeen(b, t, seen.map((q) => g.appearId(q)).filter((id) => id !== p.id), via);
       /* quem anda junto de quem (base para "o X estava seguindo o Y") */
       if (via === 'eyes' && seen.length >= 2 && seen.length <= 4) {
         for (let i = 0; i < seen.length; i++) for (let j = i + 1; j < seen.length; j++) {
@@ -7648,6 +7754,84 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.trackT = g.t;
       this.mem.track.push({ who: q.id, area: M.areaAt(q.x, q.y).id, t: g.t });
     }
+    /* Dois iguais ao mesmo tempo, ou alguém com a MINHA cara: um deles é o metamorfo disfarçado. Não é na hora:
+       precisa reparar (atenção, luz, estar ocupado numa tarefa, ser pela câmera, muita gente em volta), ver os dois
+       por um tempinho seguido, e os dois separados o bastante para não parecerem um só. */
+    twinCheck(seen, via) {
+      const g = this.g, p = this.p, t = g.t, pers = this.pers;
+      /* sem ninguém disfarçado não existem dois iguais (só poupa a conta; a percepção é pelo que se vê) */
+      if (!p.alive || !g.players.some((q) => q.shiftAs != null)) return;
+      const pool = via === 'eyes' ? seen : this.seenNow.concat(seen);
+      const hit = new Map();
+      for (const q of seen) {
+        const a = g.appearId(q);
+        if (hit.has(a) || this.mem.keys.has('twin:' + a + ':' + g.meetings)) continue;
+        const twin = a === p.id ? p : pool.find((o) => o !== q && g.appearId(o) === a && U.dist(o, q) >= 1.2);
+        if (twin) hit.set(a, [q, twin]);
+      }
+      const dark = g.lightLevel < 0.6;
+      for (const [a, pair] of hit) {
+        const k = (0.35 + pers.att * 0.5) * (dark ? 0.6 : 1) * (p.busy ? 0.45 : 1) * (via === 'cams' ? 0.6 : 1) * (a === p.id ? 1.6 : 1) *
+          (pool.length > 5 ? 0.7 : 1) / (0.75 + 0.25 * this.err);
+        const w = this.twinWatch[a] && t - this.twinWatch[a].t <= 1 ? this.twinWatch[a] : (this.twinWatch[a] = { v: 0, t });
+        w.t = t;
+        w.v += 0.2 * k;
+        if (w.v >= 1) {
+          delete this.twinWatch[a];
+          this.onTwin(a, pair, via);
+        }
+      }
+    }
+    /* Reparou nos dois iguais. Qual é o falso não dá para saber (a não ser que um esteja na tarefa visual, que o
+       metamorfo não faz), mas dá para saber que o de verdade NÃO é o metamorfo, que quem estava à vista nessa hora
+       também não, e que o metamorfo está ali agora com essa cara. Estranha (para e olha) e fica com o pé atrás: não
+       fica a sós com ninguém dessa cara por um tempo. */
+    onTwin(a, pair, via, extra) {
+      const g = this.g, p = this.p, t = g.t, pers = this.pers;
+      const self = a === p.id;
+      const ar = (q) => M.areaAt(q.x, q.y).id;
+      const vis = !self && g.S.rules.visualTasks ? pair.find((q) => q && q.visual) : null;
+      const withIds = [...new Set(this.seenNow.map((q) => g.appearId(q)).filter((id) => id !== a && id !== p.id))];
+      const e = Object.assign({ type: 'twin', t, who: a, self, a1: ar(pair[0]), a2: pair[1] ? ar(pair[1]) : ar(pair[0]), via, real: vis ? ar(vis) : null, with: withIds, solo: this.impsAliveKnown() <= 1 }, extra || {});
+      if (!this.mem.event(e, extra && extra.key ? extra.key : 'twin:' + a + ':' + g.meetings)) return false;
+      this.mem.twinN = (this.mem.twinN || 0) + 1;
+      this.twinAlert = { who: a, t, until: t + g.ro('metamorfo', 'dur', 30), self };
+      if (!this.avoid || t >= this.avoid.until) this.avoid = { who: a, until: t + U.rf(18, 28) };
+      if (extra) return true;
+      const busyPlan = this.plan && ['report', 'flee', 'fix', 'button', 'wiggle', 'pause'].includes(this.plan.type);
+      /* com a MINHA cara: aquilo é o metamorfo, do meu lado, e ele sabe que eu sei — parar para olhar é pedir para
+         morrer. Sai de perto (a fuga puxa para a Cafeteria, onde tem gente e o botão); o mais decidido vai avisar. */
+      if (self) {
+        if (p.emergencyLeft > 0 && !this.wantButton && U.chance(0.12 + (pers.leader ? 0.15 : 0) + (pers.panic ? 0.1 : 0) + (this.hab('botao') ? 0.15 : 0))) this.wantButton = { reason: 'twinSelf', who: p.id, area: e.a1 };
+        else if (pair[0] && !busyPlan && !this.shock) {
+          this.fear = { who: p.id, t };
+          this.planFlee(pair[0]);
+        }
+        return true;
+      }
+      /* dois iguais: estranha e para um instante para olhar — só com mais gente por perto (a sós com os dois, um deles é
+         o metamorfo: melhor seguir andando) */
+      const crowd = this.seenNow.filter((q) => q.alive && g.appearId(q) !== a).length;
+      if (via === 'eyes' && crowd >= 1 && !p.busy && !busyPlan && !this.shock) this.setPlan({ type: 'pause', stage: 'do', until: t + U.rf(0.6, 1.2) });
+      return true;
+    }
+    /* quantos impostores podem estar vivos, só pelo que é certo: o total da partida menos os ejetados confirmados */
+    impsAliveKnown() {
+      const g = this.g;
+      return g.S.room.impostors - (g.S.rules.confirmEjects ? g.players.filter((q) => q.ejected && q.isImp).length : 0);
+    }
+    /* viu dois iguais com um impostor só em jogo: o metamorfo era o terceiro, então o de verdade e quem estava à vista
+       nessa hora são tripulantes, com certeza */
+    twinCleared(id) {
+      if (!this.mem.twinN) return false;
+      return this.mem.events.some((e) => e.type === 'twin' && e.solo && ((e.who === id && !e.self) || (e.with || []).includes(id)));
+    }
+    /* o que "o X" fez perto da hora em que eu vi dois X pode ter sido o metamorfo com a cara dele */
+    twinDoubt(id, t) {
+      if (!this.mem.twinN) return false;
+      const dur = this.g.ro('metamorfo', 'dur', 30) + 2;
+      return this.mem.events.some((e) => e.type === 'twin' && !e.self && e.who === id && Math.abs(e.t - t) <= dur);
+    }
     /* pegou alguém fingindo tarefa: quem tem iniciativa chama reunião na hora (a prova não espera o próximo corpo) */
     maybeButton(reason, who, area) {
       const p = this.p, pers = this.pers;
@@ -7657,13 +7841,27 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const pr = 0.35 + (pers.leader ? 0.3 : 0) + (pers.times ? 0.15 : 0) + (pers.skeptic ? 0.1 : 0) - (pers.talk < 0.3 ? 0.15 : 0) + (this.hab('botao') ? 0.25 : 0);
       if (U.chance(pr)) this.wantButton = { reason, who, area };
     }
-    onWitnessKill(apparent, victimId, area, via, body) {
-      const g = this.g, pers = this.pers;
-      if (this.p.isImp) {
+    onWitnessKill(apparent, victimId, area, via, body, killer) {
+      const g = this.g, p = this.p, pers = this.pers;
+      if (p.isImp) {
         this.mem.event({ type: 'partnerKill', t: g.t, who: apparent, victim: victimId, area });
         return;
       }
       if (!U.chance(0.9 + 0.1 * pers.att)) return;
+      /* o assassino tinha a MINHA cara, ou tinha a cara de alguém que eu estou vendo em outro lugar agora mesmo: era o
+         metamorfo. Não acuso o dono da cara; guardo como "dois iguais", com o abate, e vou avisar. */
+      const other = killer && apparent !== p.id ? this.seenNow.find((q) => q !== killer && q.alive && g.appearId(q) === apparent && U.dist(q, killer) >= 1.2) : null;
+      if (killer && (apparent === p.id || (other && U.chance(0.55 + pers.att * 0.4)))) {
+        this.onTwin(apparent, [killer, other || p], via, { kill: victimId, key: 'twinKill:' + victimId });
+        this.wantButton = { reason: 'twinKill', who: apparent, victim: victimId, area };
+        if (via === 'eyes') {
+          const shock = U.rf(1.0, 2.3) * (pers.panic ? 1.4 : 1) * (pers.leader || pers.times ? 0.8 : 1);
+          this.shock = { until: g.t + shock, killer: null, body: body ? body.id : null };
+          this.setPlan({ type: 'pause', stage: 'do', until: g.t + shock * 0.6 });
+        }
+        if (pers.panic) this.planFlee(killer);
+        return;
+      }
       let who = apparent;
       if (U.chance((1 - pers.mem) * 0.1 * this.err)) who = this.confuse(who);
       this.mem.event({ type: 'kill', t: g.t, who, victim: victimId, area, via }, 'kill:' + victimId);
@@ -7683,6 +7881,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const g = this.g, p = this.p, pers = this.pers;
       if (p.isImp) return;
       if (!U.chance(0.55 + 0.45 * pers.att)) return;
+      /* alguém com a minha cara entrando/saindo do duto: o metamorfo (e impostor, porque ventou) */
+      if (apparent === p.id) {
+        this.onTwin(p.id, [{ x: v.x, y: v.y }, p], via, { vent: v.area, key: 'twinVent:' + g.meetings });
+        return;
+      }
       let who = apparent;
       if (U.chance((1 - pers.mem) * 0.08 * this.err)) who = this.confuse(who);
       /* suspeita de antes do duto (o próprio duto já conta como forte em liveSusp) */
@@ -7725,10 +7928,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (p.isImp || !q || !p.alive) return;
       const d = U.dist(p, q);
       const dark = g.lightLevel < 0.6;
-      const pNotice = (0.3 + pers.att * 0.45) * (d < 3.5 ? 1 : d < 6 ? 0.7 : 0.45) * (p.busy ? 0.5 : 1) * (dark ? 0.6 : 1) * (via === 'cams' ? 0.45 : 1) * (kind === 'vanish' ? 0.85 : 1);
+      /* já de olho em quem tem essa cara (vi dois iguais há pouco, ou era a minha cara): repara bem mais */
+      const al = this.twinAlert;
+      const watching = kind === 'shift' && intoId != null && (intoId === p.id || (al && g.t < al.until && al.who === intoId));
+      const pNotice = Math.min(0.95, (0.3 + pers.att * 0.45) * (d < 3.5 ? 1 : d < 6 ? 0.7 : 0.45) * (p.busy ? 0.5 : 1) * (dark ? 0.6 : 1) * (via === 'cams' ? 0.45 : 1) * (kind === 'vanish' ? 0.85 : 1) * (watching ? 1.7 : 1));
       if (!U.chance(pNotice)) return;
       const area = M.areaAt(q.x, q.y).id;
-      const sure = via === 'eyes' && d < 4.5 && !dark && U.chance(0.5 + pers.att * 0.35);
+      const sure = via === 'eyes' && d < 4.5 && !dark && U.chance(0.5 + pers.att * 0.35 + (watching ? 0.25 : 0));
       if (!sure) {
         let who = realId;
         if (U.chance((1 - pers.att) * 0.5)) who = this.confuse(realId);
@@ -7817,8 +8023,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.engVent = null;
       this.followWatch = {};
       this.tailWatch = {};
+      this.twinWatch = {};
+      this.twinAlert = null;
       this.scanWatch = {};
       this.taskWatch = {};
+      this.fakePending = null;
       this.aloneWith = {};
       this.seenNow = [];
       this.bodiesNow = [];
@@ -7923,7 +8132,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     const first = (mt.info.caller === p.id ? U.rf(0.8, 1.8) : humanCalled ? U.rf(8, 14) : U.rf(2.5, 8)) * mt.pace;
     mt.schedule(first, this, () => this.nextAgenda(), { agenda: true });
   };
-  const PRECOMPOSE = new Set(['reportInfo', 'reportDetail', 'callReason', 'organize', 'accuse', 'panic', 'claimLoc', 'vouch', 'vitals', 'tracker', 'camsInfo', 'adminInfo', 'offtopic', 'lost', 'frame']);
+  const PRECOMPOSE = new Set(['reportInfo', 'reportDetail', 'callReason', 'organize', 'accuse', 'panic', 'claimLoc', 'vouch', 'vitals', 'tracker', 'camsInfo', 'adminInfo', 'offtopic', 'lost', 'frame', 'twin']);
 
   /* ---------- evidências (tripulante) ---------- */
   B.evidence = function () {
@@ -7935,7 +8144,21 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     };
     const engineers = (g.S.roles.engenheiro || {}).n > 0;
     const visDone = new Set();
+    const twinDone = new Set();
     for (const e of this.mem.events) {
+      /* vi dois iguais: o dono da cara não é o metamorfo; com um impostor só em jogo, ele e quem estava à vista nessa
+         hora são tripulantes com certeza */
+      if (e.type === 'twin') {
+        if (!e.self && !twinDone.has(e.who)) {
+          twinDone.add(e.who);
+          add(e.who, e.solo ? -60 : -14, 'twin', { area: e.a1, area2: e.a2, past: e.t < rs, solo: e.solo, t: e.t });
+        }
+        if (e.solo) for (const id of e.with || []) if (!twinDone.has('w' + id)) {
+          twinDone.add('w' + id);
+          add(id, -30, 'twinWith', { area: e.a1, past: e.t < rs, t: e.t });
+        }
+        continue;
+      }
       /* memória da partida inteira: tarefa visual vista em qualquer rodada inocenta; o que viu de grave antes continua valendo */
       if ((e.type === 'visual' || e.type === 'escortVisual') && g.S.rules.visualTasks && !visDone.has(e.who)) {
         visDone.add(e.who);
@@ -7946,18 +8169,18 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
          cara de alguém): prova forte, mas não certeza */
       const kw = roleOn(g, 'metamorfo') ? 0.6 : 1;
       if (e.t < rs) {
-        if (e.type === 'kill') add(e.who, 90 * kw, 'kill', { area: e.area, victim: e.victim, past: true });
-        else if (e.type === 'vent') add(e.who, engineers ? 40 : 75, 'vent', { area: e.area, past: true });
+        if (e.type === 'kill') add(e.who, 90 * kw, 'kill', { area: e.area, victim: e.victim, past: true, t: e.t });
+        else if (e.type === 'vent') add(e.who, engineers ? 40 : 75, 'vent', { area: e.area, past: true, t: e.t });
         else if (e.type === 'shift' || e.type === 'vanish') add(e.who, 80, e.type, { area: e.area, past: true });
         continue;
       }
-      if (e.type === 'kill') add(e.who, 100 * kw, 'kill', { area: e.area, victim: e.victim });
-      else if (e.type === 'vent') add(e.who, engineers ? 50 : 88, 'vent', { area: e.area });
+      if (e.type === 'kill') add(e.who, 100 * kw, 'kill', { area: e.area, victim: e.victim, t: e.t });
+      else if (e.type === 'vent') add(e.who, engineers ? 50 : 88, 'vent', { area: e.area, t: e.t });
       else if (e.type === 'shift') add(e.who, 100, 'shift', { area: e.area });
       else if (e.type === 'vanish') add(e.who, 95, 'vanish', { area: e.area });
-      else if (e.type === 'noscan') add(e.who, 32, 'noscan', { area: e.area });
-      else if (e.type === 'fakeTask') add(e.who, 34, 'fakeTask', { area: e.area });
-      else if (e.type === 'follow') add(e.who, 6, 'follow', { area: e.area });
+      else if (e.type === 'noscan') add(e.who, 32, 'noscan', { area: e.area, t: e.t });
+      else if (e.type === 'fakeTask') add(e.who, 34, 'fakeTask', { area: e.area, t: e.t });
+      else if (e.type === 'follow') add(e.who, 6, 'follow', { area: e.area, t: e.t });
     }
     /* mentiras que ele mesmo pegou em reuniões anteriores; e quem já ficou sozinho com ele sem matar */
     for (const id of Object.keys(this.mem.lies || {})) if (this.mem.lies[id] > 0) add(+id, Math.min(30, 12 * this.mem.lies[id]), 'lie', { past: true });
@@ -7983,7 +8206,28 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     this.ev = ev;
     if (this.knowsBody) this.bodyEvidence(this.knowsBody);
     this.dropWeakOnCleared();
+    this.twinDiscount();
     this.recalc();
+  };
+  /* O que "o X" fez perto da hora em que eu vi dois X (o disfarce dura no máximo o tempo da habilidade, para trás e
+     para frente) pode ter sido o metamorfo com a cara dele: a pista contra o X perde quase toda a força. */
+  B.twinDiscount = function () {
+    if (!this.ev) return;
+    const dur = this.g.ro('metamorfo', 'dur', 30) + 2;
+    const cut = (id, e, any) => {
+      for (const x of this.ev[id] || []) {
+        if (x.w <= 0 || x.twinCut || (!any && (x.t == null || Math.abs(x.t - e.t) > dur))) continue;
+        x.twinCut = true;
+        x.w *= any ? 0.1 : 0.25;
+      }
+    };
+    for (const e of this.mem.events) {
+      if (e.type !== 'twin') continue;
+      /* com um impostor só, o metamorfo era o único: o dono da cara (e quem estava à vista) nunca foi impostor, então
+         tudo o que "eles" fizeram de suspeito foi o disfarce */
+      if (!e.self) cut(e.who, e, !!e.solo);
+      if (e.solo) for (const id of e.with || []) cut(id, e, true);
+    }
   };
   /* Quem já provou ser tripulante não leva acusação fraca (seguiu, perto do corpo, estranho...): o bot lembra. */
   B.dropWeakOnCleared = function () {
@@ -8069,8 +8313,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         .filter((s) => s.who !== victim && s.who !== me && s.area === lastV.area && s.t1 >= lastV.t0 - 3 && s.t0 <= lastV.t1 + 3)
         .map((s) => s.who))];
       if (recentV) {
-        if (ids.length === 1) add(ids[0], 18, 'lastWith', { area: lastV.area, victim });
-        else ids.forEach((id) => add(id, 6, 'lastWith', { area: lastV.area, victim }));
+        if (ids.length === 1) add(ids[0], 18, 'lastWith', { area: lastV.area, victim, t: lastV.t1 });
+        else ids.forEach((id) => add(id, 6, 'lastWith', { area: lastV.area, victim, t: lastV.t1 }));
       }
     }
     /* ---------- janela do abate ----------
@@ -8155,7 +8399,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const r = M.AREA[s.area];
         if (!r || r.kind !== 'room' || s.x0 == null || Math.hypot(s.x0 - r.cx, s.y0 - r.cy) > Math.min(r.rect[2], r.rect[3]) * 0.45) continue;
         if (this.myStay(s.area) < 6) continue;
-        add(s.who, 8, 'ventLink', { area: s.area, bodyArea });
+        add(s.who, 8, 'ventLink', { area: s.area, bodyArea, t: s.t0 });
       }
     }
     /* quem foi visto andando colado na vítima pouco antes */
@@ -8192,6 +8436,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (!list.some((e) => ['lastWith', 'withVictim', 'fromBody'].includes(e.reason) || (e.reason === 'nearBody' && e.w >= 15))) continue;
       for (const e of list) if ((e.reason === 'together' || e.reason === 'spared') && e.w < -4) e.w = -4;
     }
+    this.twinDiscount();
     this.recalc();
   };
 
@@ -8292,7 +8537,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     if (pers.leader && info.caller !== p.id) items.push({ k: 'organize' });
     if (!p.isImp) {
       const strong = [];
-      for (const id of Object.keys(this.ev)) for (const e of this.ev[id]) if (STRONG[e.reason] && !(info.kind === 'emergency' && info.caller === p.id && this.wantButton && this.wantButton.who === +id)) {
+      /* flagrante perto da hora em que vi dois iguais pode ter sido o disfarce: não acuso, conto os dois (item 'twin') */
+      for (const id of Object.keys(this.ev)) for (const e of this.ev[id]) if (STRONG[e.reason] && !e.twinCut && !(info.kind === 'emergency' && info.caller === p.id && this.wantButton && this.wantButton.who === +id)) {
         /* viu no duto alguém que já provou ser tripulante, e tem engenheiro na partida: pergunta em vez de acusar */
         /* com engenheiro na partida, quase todo mundo que se vê no duto é ele: pergunta antes (acusa direto só quem já era suspeito) */
         if (e.reason === 'vent' && roleOn(g, 'engenheiro') && (this.carry[+id] || 0) < 25) strong.push({ k: 'askEng', who: +id, area: e.area });
@@ -8306,6 +8552,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (i >= 0) items.splice(i, 1);
       }
       items.push(...strong);
+      /* vi dois iguais nesta rodada (ou alguém com a minha cara): conta. Se chamei a reunião por isso, já contei. */
+      const called = info.kind === 'emergency' && info.caller === p.id && this.wantButton && /^twin/.test(this.wantButton.reason) ? this.wantButton : null;
+      const tw = this.mem.events.filter((e) => e.type === 'twin' && e.t >= this.rs && !(called && called.who === e.who));
+      for (const e of tw) {
+        /* o abate (ou duto) com a cara de alguém já diz tudo: não repete o "vi dois" simples da mesma pessoa */
+        if (e.kill == null && !e.vent && tw.some((x) => x !== e && x.who === e.who && (x.kill != null || x.vent))) continue;
+        items.push({ k: 'twin', e });
+      }
       items.push({ k: 'claimLoc' });
       if (p.special === 'cientista' && Object.keys(this.mem.vitals).length) items.push({ k: 'vitals' });
       items.push({ k: 'bodyIntel' });
@@ -8313,6 +8567,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (info.kind === 'report' && U.chance(info.caller === p.id ? 0.5 : 0.75)) items.push({ k: 'window', late: true });
       for (const id of Object.keys(this.ev)) for (const e of this.ev[id]) {
         if (e.reason === 'visual' && g.players[+id].alive) items.push({ k: 'vouch', who: +id, reason: 'visual', task: e.task });
+        if (e.twinCut) continue;
         if (e.reason === 'noscan') items.push({ k: 'accuse', who: +id, reason: 'noscan' });
         if (e.reason === 'fakeTask') items.push({ k: 'accuse', who: +id, reason: 'fakeTask', area: e.area });
         if (e.reason === 'fastReport') items.push({ k: 'accuse', who: +id, reason: 'fastReport', ago: e.ago, victim: e.victim, late: true });
@@ -8362,9 +8617,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     if (pers.lost && this.lostCount > 0 && U.chance(0.5)) items.push({ k: 'lost' });
     if (g.human && g.human.alive && g.human !== p && (pers.leader || pers.skeptic || pers.offtopic) && U.chance(0.5)) items.push({ k: 'askHuman', late: true });
     if ((pers.leader || pers.skeptic) && U.chance(0.7)) items.push({ k: 'leaderVote', late: true });
-    const firstPri = items.filter((it) => ['reportInfo', 'reportDetail', 'callReason', 'organize', 'engClaim', 'askEng'].includes(it.k) || (it.k === 'accuse' && (STRONG[it.reason] || it.reason === 'tracker')));
+    const firstPri = items.filter((it) => ['reportInfo', 'reportDetail', 'callReason', 'organize', 'engClaim', 'askEng'].includes(it.k) || (it.k === 'accuse' && (STRONG[it.reason] || it.reason === 'tracker')) ||
+      (it.k === 'twin' && (it.e.kill != null || it.e.self)));
     const rest = items.filter((it) => !firstPri.includes(it));
-    const keep = rest.filter((it) => it.k === 'claimLoc' || it.k === 'bodyIntel' || it.k === 'window' || it.k === 'crisis' || it.k === 'summary' || (it.k === 'vouch' && it.reason === 'visual') || U.chance(0.35 + pers.talk * 0.6));
+    const keep = rest.filter((it) => it.k === 'claimLoc' || it.k === 'bodyIntel' || it.k === 'window' || it.k === 'crisis' || it.k === 'summary' || it.k === 'twin' || (it.k === 'vouch' && it.reason === 'visual') || U.chance(0.35 + pers.talk * 0.6));
     return firstPri.concat(keep.filter((it) => !it.late), keep.filter((it) => it.late));
   };
 
@@ -8381,7 +8637,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
       const msg = it.pre || this.compose(it);
       if (msg) {
-        const important = ['reportInfo', 'callReason', 'claimLoc'].includes(it.k) || (it.k === 'accuse' && STRONG[it.reason]);
+        const important = ['reportInfo', 'callReason', 'claimLoc', 'twin'].includes(it.k) || (it.k === 'accuse' && STRONG[it.reason]);
         if (!important) {
           if (this.budget <= 0) continue;
           this.budget--;
@@ -8420,12 +8676,31 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   };
   /* Distância andando entre duas áreas (em tiles), para saber se dava tempo de ir de uma à outra. */
   const TRAVEL = {};
+  /* Ponto de referência de cada área: o lugar livre mais perto do centro. Fixo, para a conta de "dava tempo de ir de
+     lá até o corpo?" ser a mesma em toda sessão (com um ponto sorteado, o primeiro sorteio valia para o resto da
+     sessão: um ponto no canto de uma sala grande deixava as contas de álibi tortas em todas as partidas). */
+  const ANCHOR = {};
+  const anchorOf = (a) => {
+    if (ANCHOR[a]) return ANCHOR[a];
+    const A = M.AREA[a];
+    const ok = (x, y) => M.walkAt(x, y) && M.walkAt(x - 0.4, y - 0.4) && M.walkAt(x + 0.4, y - 0.4) && M.walkAt(x - 0.4, y + 0.4) && M.walkAt(x + 0.4, y + 0.4) &&
+      M.chamferGap(x, y) >= 0.4 && (!M.propGap || M.propGap(x, y) >= 0.4) && M.areaAt(x, y).id === a;
+    for (let r = 0; r <= 14; r += 0.5) {
+      const n = Math.max(1, Math.round(r * 8));
+      for (let k = 0; k < n; k++) {
+        const x = A.cx + Math.cos((k / n) * Math.PI * 2) * r, y = A.cy + Math.sin((k / n) * Math.PI * 2) * r;
+        if (ok(x, y)) return (ANCHOR[a] = { x, y });
+      }
+    }
+    return (ANCHOR[a] = M.randomPointIn(a));
+  };
   const travel = (a, b) => {
     if (!a || !b || a === b) return 0;
     const k = a < b ? a + '|' + b : b + '|' + a;
     if (TRAVEL[k] != null) return TRAVEL[k];
     const A = M.AREA[a], Bb = M.AREA[b];
-    const pa = M.randomPointIn(a), pb = M.randomPointIn(b);
+    if (!A || !Bb) return 0;
+    const pa = anchorOf(a), pb = anchorOf(b);
     const path = AU.Nav.find(pa.x, pa.y, pb.x, pb.y, false);
     let d = 0, px = pa.x, py = pa.y;
     if (path && path.length) {
@@ -8591,7 +8866,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           return msg('reportWhy', { task: this.fakeTask, area: b.area }, []);
         }
         const mb = this.mem.bodies.find((x) => x.id === b.id);
-        const near = mb ? mb.near.filter((id) => id !== p.id && g.players[id].alive) : [];
+        const near = mb ? mb.near.filter((id) => id !== p.id && g.players[id].alive && !this.twinDoubt(id, mb.t)) : [];
         if (near.length) return msg('sawNearBody', { who: near[0], area: b.area, bodyArea: b.area }, [{ type: 'accuse', who: near[0], reason: 'nearBody', area: b.area }]);
         /* ninguém em volta na hora, mas quem reporta também conta quem viu antes (vindo de lá, com a vítima...) */
         const bi = this.compose({ k: 'bodyIntel', reporter: true });
@@ -8605,10 +8880,30 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         }
         const intents = w.who != null && (STRONG[w.reason] || w.reason === 'fakeTask' || w.reason === 'noscan') ? [{ type: 'accuse', who: w.who, reason: w.reason, area: w.area, victim: w.victim, strong: !!STRONG[w.reason] }] : [];
         if (w.reason === 'vitals') intents.push({ type: 'roleClaim', role: 'cientista' });
+        /* chamei porque vi o metamorfo com a cara de alguém (matando, ou com a minha cara) */
+        if (w.reason === 'twinKill' || w.reason === 'twinSelf') {
+          if (w.who !== p.id && g.players[w.who] && g.players[w.who].alive) intents.push({ type: 'vouch', who: w.who, reason: 'twin' });
+          intents.push({ type: 'roleTheory', role: 'metamorfo', who: w.who });
+          return msg('callReason', Object.assign({}, w, { self: w.who === p.id }), intents, { strong: true });
+        }
         return msg('callReason', w, intents, { strong: intents.some((i) => i.strong) });
       }
       case 'organize':
         return msg('organize', {}, [{ type: 'askAll' }]);
+      case 'twin': {
+        /* "vi dois X ao mesmo tempo" / "tinha alguém com a MINHA cara": conta onde, o que o falso fez (se viu), e o que
+           isso prova (o X de verdade não é o metamorfo; com um impostor só, é inocente) */
+        const e = it.e, X = e.who, q = g.players[X];
+        if (!q || mt.flags['twin' + p.id + ':' + X + ':' + (e.kill != null ? e.kill : '')]) return null;
+        mt.flags['twin' + p.id + ':' + X + ':' + (e.kill != null ? e.kill : '')] = true;
+        /* o que "o X" fez de suspeito nessa hora, na minha frente, fica explicado (o abate/duto do disfarce) */
+        const dur = g.ro('metamorfo', 'dur', 30) + 2;
+        const did = e.self ? null : this.mem.events.find((x) => (x.type === 'kill' || x.type === 'vent') && x.who === X && Math.abs(x.t - e.t) <= dur);
+        const d = { who: X, self: e.self, a1: e.a1, a2: e.a2, cams: e.via === 'cams', solo: !!e.solo && q.alive, victim: e.kill != null ? e.kill : did && did.type === 'kill' ? did.victim : null, vent: e.vent || (did && did.type === 'vent' ? did.area : null), seenKill: e.kill != null, doubt: !!did, real: e.real };
+        const intents = [{ type: 'roleTheory', role: 'metamorfo', who: X }];
+        if (!e.self && q.alive) intents.unshift({ type: 'vouch', who: X, reason: 'twin' });
+        return msg(e.self ? 'twinSelf' : 'twinSaw', d, intents, { strong: e.kill != null });
+      }
       case 'accuse': {
         const q = g.players[it.who];
         if (!q || !q.alive) return null;
@@ -8730,9 +9025,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         return msg('adminInfo', { area, n: a.counts[area] }, []);
       }
       case 'hunch': {
-        const ids = g.players.filter((q) => q.alive && q !== p).map((q) => q.id);
+        /* palpite, mas sobre quem tem ALGUMA coisa contra (o que viu, o que ouviu), nunca sorteado; o jogador só entra
+           com pista de verdade (palpite solto contra ele parece perseguição) */
+        const real = (id) => (this.susp[id] || 0) - (this.noise[id] || 0);
+        const ids = g.players.filter((q) => q.alive && q !== p && !this.hardCleared(q.id) && real(q.id) >= (q.isHuman ? 18 : 6)).map((q) => q.id);
         ids.sort((a, b) => (this.susp[b] || 0) - (this.susp[a] || 0));
-        const who = U.chance(0.6) ? ids[0] : U.pick(ids);
+        const who = ids[0];
         if (who == null) return null;
         return msg('accuse', { who, reason: 'hunch' }, [{ type: 'accuse', who, reason: 'hunch' }]);
       }
@@ -8759,7 +9057,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         mt.flags.summaryDone = true;
         const cleared = mt.alive.filter((id) => id !== p.id && (this.hardCleared(id) || this.clearedByVisual(id))).slice(0, 3);
         const top = this.topSuspect();
-        const strongTop = top && top.s >= this.pers.thr * 0.8;
+        const strongTop = top && top.s >= this.pers.thr * 0.8 && this.fairOn(top.id);
         const SAY = { 'viu matando': 'eu vi matando', 'viu no duto': 'eu vi no duto', 'viu mudando de forma': 'eu vi se transformando', 'viu sumindo': 'eu vi sumindo', 'o álibi não bate com o que viu': 'o álibi não bate com o que eu vi', 'acusaram com prova no chat': 'tem acusação com prova', 'a maioria está votando nele': 'a maioria tá nele' };
         const why0 = strongTop ? this.voteReason(top.id) : null;
         const why = why0 ? SAY[why0] || why0 : null;
@@ -8813,7 +9111,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           const t2 = this.impTarget();
           return msg('leaderVote', { who: t2 }, t2 != null ? [{ type: 'accuse', who: t2, reason: 'vote' }] : [{ type: 'skip' }]);
         }
-        if (top && top.s >= this.pers.thr) return msg('leaderVote', { who: top.id }, [{ type: 'accuse', who: top.id, reason: 'vote' }]);
+        if (top && top.s >= this.pers.thr && this.fairOn(top.id)) return msg('leaderVote', { who: top.id }, [{ type: 'accuse', who: top.id, reason: 'vote' }]);
         return msg('leaderVote', { who: null }, [{ type: 'skip' }]);
       }
       default:
@@ -8949,7 +9247,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       case 'reportInfo':
       case 'bodyArea': {
         /* sabia onde era o corpo antes de alguém contar (e não foi quem reportou): deslize */
-        if (it.type === 'bodyArea' && !msg.bodyKnown && mt.info.kind === 'report' && S !== mt.info.caller && !p.isImp && !(this.ev[S] || []).some((e) => e.reason === 'visual')) {
+        /* só se acertou a sala (chutar errado não é saber) */
+        if (it.type === 'bodyArea' && !msg.bodyKnown && mt.info.kind === 'report' && S !== mt.info.caller && !p.isImp && mt.info.body && it.area === mt.info.body.area && !(this.ev[S] || []).some((e) => e.reason === 'visual')) {
           this.bump(S, 28, 'own');
           if (!mt.flags['knew' + S] && (pers.times || pers.skeptic || U.chance(0.4))) {
             mt.flags['knew' + S] = true;
@@ -9032,7 +9331,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           this.replied.add('who' + msg.id);
           this.reply(1.2, () => {
             const top = p.isImp ? { id: this.impTarget(), s: 50 } : this.topSuspect();
-            const who = top && top.id != null && top.s >= this.pers.thr * 0.6 ? top.id : null;
+            const who = top && top.id != null && top.s >= this.pers.thr * 0.6 && (p.isImp || this.fairOn(top.id)) ? top.id : null;
             return say('whoSus', { who }, who != null ? [{ type: 'accuse', who, reason: 'sus' }] : []);
           });
         }
@@ -9065,6 +9364,25 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       case 'quiet':
         if (it.who !== me) this.bump(it.who, 3, 'social');
         break;
+      case 'explainTask': {
+        /* "desisti da tarefa / não consegui": quem viu a barra parada acredita em parte (o cético, menos) */
+        if (p.isImp || S === me) break;
+        let had = false;
+        for (const e of (this.ev && this.ev[S]) || []) if ((e.reason === 'fakeTask' || e.reason === 'noscan') && !e.explained) {
+          e.explained = true;
+          e.w *= pers.skeptic ? 0.6 : 0.4;
+          had = true;
+        }
+        if (had) {
+          this.chatClaim[S] = (this.chatClaim[S] || 0) * 0.6;
+          this.recalc();
+          if (!this.replied.has('expl' + S) && U.chance(0.4)) {
+            this.replied.add('expl' + S);
+            this.reply(1, () => say(pers.skeptic ? 'askProof' : 'ack', { who: S }, []));
+          }
+        }
+        break;
+      }
       case 'pact': {
         /* "vamos ficar juntos" / "fica comigo" / "eu te sigo": aceito se confio (o impostor aceita pelo álibi) */
         if (S === me || msg.intents.some((x) => x.type === 'offerVisual')) break;
@@ -9352,8 +9670,18 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
        num lugar tão longe que não daria para chegar na sala que disse */
     const full = this.claimFull && this.claimFull[S];
     const omit = [];
+    /* disse uma sala só e eu vi a pessoa lá pouco antes: ela contou onde estava (fazendo tarefa), não onde parou na
+       hora da reunião — gente conta assim. Ter sido vista saindo de lá depois não é mentira (só o corpo pede pergunta) */
+    const sawInClaim = !full && matches.some((m) => T0 - m.t1 <= 45);
     const mism = seen.filter((s) => {
       if (s.t1 - s.t0 < 1.2 || matches.some((m) => m.t1 > s.t1)) return false;
+      if (sawInClaim) {
+        /* exceção: visto há segundos perto do corpo, longe demais para ter voltado à sala que disse — isso esconde */
+        const nearBody = bodyA && (s.area === bodyA || M.isNear(s.area, bodyA)) && T0 - s.t1 <= 35;
+        if (nearBody && recentBad(s)) return true;
+        if (nearBody) omit.push(s);
+        return false;
+      }
       if (recentBad(s)) return true;
       if (matchR(s.area)) return false;
       const dt = T0 - s.t1;
@@ -9393,7 +9721,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const bw = (rel ? 28 : 18) * (shift ? 0.6 : 1);
         this.bump(S, bw);
         this.contraBump[S] = (this.contraBump[S] || 0) + bw;
-        if (!shift) this.mem.lies[S] = (this.mem.lies[S] || 0) + 1;
+        /* mentira "guardada" para as próximas reuniões só quando é clara: escondeu que passou no corpo, ou contou o
+           caminho todo e não bate (um desencontro de sala sozinho pode ser só jeito de contar) */
+        if (!shift && (rel || full)) this.mem.lies[S] = (this.mem.lies[S] || 0) + 1;
         this.reply(1, () => say(shift ? 'shiftDoubt' : rel ? 'hidBodyRoom' : 'contradictSeen', { who: S, area: s.area, claimed: rooms[rooms.length - 1] }, [{ type: 'accuse', who: S, reason: 'lie', area: s.area }]));
       }
     }
@@ -9505,6 +9835,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         this.reply(0.8, () => say('offerVisual', { task }, [{ type: 'deny' }, { type: 'offerVisual' }]), true);
         return;
       }
+      /* eu mesmo vi alguém com a minha cara nesta rodada: sei que o metamorfo andou por aí disfarçado de mim */
+      const selfTwin = !p.isImp ? this.mem.events.find((e) => e.type === 'twin' && e.self && e.t >= this.rs) : null;
+      if (selfTwin && (strong || it.area || PLACE_REASONS.includes(it.reason) || it.reason === 'lie')) {
+        this.bump(S, strong ? 4 : 2);
+        this.reply(0.8, () => say('twinSelfDeny', { area: selfTwin.a1, mine: area }, [{ type: 'deny' }, { type: 'roleTheory', role: 'metamorfo', who: me }]), true);
+        return;
+      }
       /* com metamorfo na partida: me "viram" num lugar onde eu não estava (ou matando, e eu sei que não matei) —
          quem acusa pode estar sendo honesto e ter visto o disfarce. Explico em vez de chamar de mentiroso. */
       if (!p.isImp && roleOn(g, 'metamorfo') && (strong || (it.area && (PLACE_REASONS.includes(it.reason) || it.reason === 'lie')))) {
@@ -9608,8 +9945,18 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.falseAcc[S] = (this.falseAcc[S] || 0) + 1;
     }
     const myVisual = myEv.some((e) => e.reason === 'visual');
-    const iSawStrong = myEv.some((e) => STRONG[e.reason]);
-    if (myVisual && !g.S.house.noVisualHardClear) {
+    const iSawStrong = myEv.some((e) => STRONG[e.reason] && !e.twinCut);
+    /* eu vi dois T2 ao mesmo tempo: o que "o T2" fez nessa hora pode ter sido o metamorfo (com um impostor só, o T2 é
+       inocente de qualquer jeito) */
+    const twinE = myEv.find((e) => e.reason === 'twin' && (!e.past || e.solo));
+    const twinFits = twinE && (twinE.solo || ['kill', 'vent', 'fakeTask', 'noscan', 'follow', 'lie'].concat(PLACE_REASONS).includes(it.reason));
+    if (twinFits && !iSawStrong && !(myVisual && !g.S.house.noVisualHardClear)) {
+      belief *= twinE.solo ? 0.1 : 0.4;
+      if (!this.replied.has('twinD' + T2)) {
+        this.replied.add('twinD' + T2);
+        this.reply(0.9, () => say('twinDefend', { who: T2, area: twinE.area, area2: twinE.area2, solo: !!twinE.solo, strong: !!strong }, [{ type: 'vouch', who: T2, reason: 'twin' }, { type: 'roleTheory', role: 'metamorfo', who: T2 }]), true);
+      }
+    } else if (myVisual && !g.S.house.noVisualHardClear) {
       belief *= 0.12;
       this.bump(S, strong ? 25 : 6);
       this.falseAcc = this.falseAcc || {};
@@ -9770,12 +10117,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     const myEv = (this.ev && this.ev[T2]) || [];
     /* Metamorfo: eu "vi o X" perto do corpo, mas alguém de confiança estava com ele → era o disfarce.
        Tira a culpa do X e aperta quem não tem ninguém confirmando onde estava. */
-    const bodyE = myEv.find((e) => ['kill', 'nearBody', 'lastWith', 'withVictim', 'fromBody'].includes(e.reason));
-    if (bodyE && roleOn(this.g, 'metamorfo') && (it.reason === 'together' || it.reason === 'visual') && this.trust(S) >= 0.5 && S !== T2 && !this.replied.has('disg' + T2)) {
+    /* "vi dois X ao mesmo tempo": o que eu vi "o X" fazendo (até duto, tarefa falsa) pode ter sido o disfarce */
+    const twin = it.reason === 'twin';
+    const bodyE = myEv.find((e) => ['kill', 'nearBody', 'lastWith', 'withVictim', 'fromBody'].concat(twin ? ['vent', 'fakeTask', 'noscan', 'follow'] : []).includes(e.reason));
+    if (bodyE && roleOn(this.g, 'metamorfo') && (it.reason === 'together' || it.reason === 'visual' || twin) && this.trust(S) >= 0.5 && S !== T2 && !this.replied.has('disg' + T2)) {
       this.replied.add('disg' + T2);
       this.ev[T2] = myEv.filter((e) => e !== bodyE);
       this.bump(T2, -Math.min(45, bodyE.w), 'own');
-      this.reply(1, () => say('shiftTheory', { who: T2, by: S, area: bodyE.area }, [{ type: 'vouch', who: T2, reason: 'claim' }]), true);
+      this.reply(1, () => say(twin ? 'twinAgree' : 'shiftTheory', { who: T2, by: S, area: bodyE.area }, [{ type: 'vouch', who: T2, reason: 'claim' }]), true);
       const vouched = (id) => mt.msgs.some((m) => m.from !== id && m.intents.some((x) => x.type === 'vouch' && x.who === id));
       const open = mt.alive.filter((id) => id !== me && id !== T2 && !this.hardCleared(id) && !vouched(id));
       for (const id of open) this.bump(id, 7, 'social');
@@ -9792,14 +10141,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
       return;
     }
-    let w = it.reason === 'visual' ? 30 : it.reason === 'together' ? 16 : 9;
+    let w = it.reason === 'visual' ? 30 : twin ? 22 : it.reason === 'together' ? 16 : 9;
     /* dupla que só se confirma entre si (ninguém mais confirma nenhum dos dois) pode ser a dupla de impostores */
     const vouchedBy = (id) => mt.msgs.filter((m) => m.from !== id && m.intents.some((x) => x.type === 'vouch' && x.who === id)).map((m) => m.from);
     const byS = vouchedBy(S);
     if (it.reason !== 'visual' && !this.hardCleared(S) && byS.length && byS.every((id) => id === T2) && vouchedBy(T2).every((id) => id === S)) w *= 0.5;
     this.bump(T2, -w * this.trust(S), it.reason === 'visual' ? 'claim' : 'social');
     /* com metamorfo na partida, "estava comigo" contra "vi matando" sugere disfarce: a acusação forte pesa menos */
-    if (roleOn(this.g, 'metamorfo') && (it.reason === 'together' || it.reason === 'visual') && this.trust(S) >= 0.6 &&
+    if (roleOn(this.g, 'metamorfo') && (it.reason === 'together' || it.reason === 'visual' || twin) && this.trust(S) >= 0.6 &&
         mt.msgs.some((m) => m.from !== S && m.intents.some((x) => x.type === 'accuse' && x.who === T2 && STRONG[x.reason]))) {
       this.bump(T2, -30 * this.trust(S), 'claim');
     }
@@ -9943,8 +10292,15 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (pool[0].s > -20) return pool[0].id;
       }
     }
-    if (pers.hunch > 0.3 && top.s >= thr * 0.6 && (!chatBlind || grounded(top.id)) && U.chance(0.45)) return top.id;
+    if (pers.hunch > 0.3 && top.s >= thr * 0.6 && (!chatBlind || grounded(top.id)) && this.fairOn(top.id) && U.chance(0.45)) return top.id;
     return 'skip';
+  };
+  /* Contra o jogador, palpite não basta: acusar ou votar nele "por instinto" parece perseguição. Precisa de alguma
+     pista de verdade (o que o bot viu, o que ouviu com motivo), não só do "santo que não bateu" (noise). */
+  B.fairOn = function (id) {
+    const q = this.g.players[id];
+    if (!q || !q.isHuman) return true;
+    return (this.susp[id] || 0) - ((this.noise && this.noise[id]) || 0) >= 18;
   };
 
   /* Quantos impostores ainda estão vivos. Com ejeção confirmada é público. Sem confirmação, o tripulante estima pelo
@@ -10181,7 +10537,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     lastWith: 'estava com a vítima pouco antes', fromBody: 'vinha da direção do corpo', lie: 'mentiu ou o álibi não bate', tracker: 'o rastreador mostrou',
     sus: 'está suspeito', hunch: 'pressentimento', claim: 'contaram no chat', vote: 'vai votar nele', fastReport: 'reportou o corpo pouco depois da vítima ser vista viva (possível self report)',
   };
-  const VOUCH = { visual: 'viu fazendo tarefa visual (inocente)', together: 'estava junto', claim: 'confirma o que ele disse' };
+  const VOUCH = { visual: 'viu fazendo tarefa visual (inocente)', together: 'estava junto', claim: 'confirma o que ele disse', twin: 'viu dois dele ao mesmo tempo: o outro era o metamorfo' };
 
   const V = {
     active(mt) {
@@ -10419,14 +10775,24 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         else out.push('Não sabe onde estava o corpo de ' + nm(info.body.pid) + '.');
       }
       if (!p.isImp) {
+        /* dois iguais ao mesmo tempo: vem antes do resto (as anotações são cortadas no fim) */
+        for (const e of b.mem.events) {
+          if (e.type !== 'twin' || (e.t < info.roundStart && !e.solo) || !g.players[e.who]) continue;
+          const where = V.area(e.a1) + (e.a2 && e.a2 !== e.a1 ? ' e em ' + V.area(e.a2) : '') + (e.via === 'cams' ? ' (um deles pelas câmeras)' : '');
+          const when = e.t < info.roundStart ? ' numa rodada anterior' : '';
+          if (e.self) out.push('Viu alguém com a SUA cara em ' + V.area(e.a1) + when + (e.kill != null ? ', MATANDO ' + nm(e.kill) : e.vent ? ', entrando no duto' : '') + ': era o metamorfo disfarçado de você. Você sabe que não foi você.');
+          else out.push('Viu DOIS ' + nm(e.who) + ' ao mesmo tempo em ' + where + when + (e.kill != null ? '; um deles MATOU ' + nm(e.kill) + ' enquanto o outro estava à vista' : '') + ': um era o metamorfo com a cara ' + (e.who === p.id ? 'sua' : 'de ' + nm(e.who)) + '. ' + nm(e.who) + ' de verdade NÃO é o metamorfo' + (e.solo ? ' e, como só pode haver um impostor vivo, é inocente com certeza' : '') + '; o que "' + nm(e.who) + '" fez de suspeito perto dessa hora pode ter sido o disfarce.');
+          if (e.solo && (e.with || []).length) out.push('Quem você via nessa hora (' + e.with.filter((id) => g.players[id]).map(nm).join(', ') + ') também não era o metamorfo: são inocentes.');
+        }
         const strongTxt = { kill: 'matando alguém', vent: 'entrando ou saindo de um duto', shift: 'mudando de aparência', vanish: 'ficando invisível' };
         for (const id of Object.keys(b.ev || {})) {
           for (const e of b.ev[id]) {
-            if (strongTxt[e.reason]) out.push('VIU ' + nm(+id) + ' ' + strongTxt[e.reason] + (e.area ? ' em ' + V.area(e.area) : '') + (e.past ? ' numa rodada anterior (e ele continua vivo)' : '') + '. Tem certeza absoluta.');
+            if (strongTxt[e.reason] && e.twinCut) out.push('Viu "' + nm(+id) + '" ' + strongTxt[e.reason] + (e.area ? ' em ' + V.area(e.area) : '') + ', mas perto da hora em que viu dois ' + nm(+id) + ': pode ter sido o metamorfo disfarçado.');
+            else if (strongTxt[e.reason]) out.push('VIU ' + nm(+id) + ' ' + strongTxt[e.reason] + (e.area ? ' em ' + V.area(e.area) : '') + (e.past ? ' numa rodada anterior (e ele continua vivo)' : '') + '. Tem certeza absoluta.');
             if (e.reason === 'visual') out.push('Viu ' + nm(+id) + ' fazendo ' + (M.VISUAL_NAMES[e.task] || 'uma tarefa visual') + (e.past ? ' numa rodada anterior' : '') + ': é tripulante com certeza, lembra disso e NUNCA acusa ' + nm(+id) + ' por coisa fraca (seguir, estar perto, jeito estranho).');
             if (e.reason === 'lie' && e.past) out.push('Já pegou ' + nm(+id) + ' mentindo sobre onde estava numa reunião anterior.');
             if (e.reason === 'spared') out.push('Já ficou sozinho com ' + nm(+id) + ' (' + Math.round(e.secs) + 's no total) e não morreu.');
-            if (e.reason === 'fakeTask') out.push('Viu ' + nm(+id) + ' terminar uma tarefa' + (e.area ? ' em ' + V.area(e.area) : '') + ' e a barra de tarefas NÃO subiu: a tarefa era falsa.');
+            if (e.reason === 'fakeTask') out.push('Viu ' + nm(+id) + ' parado numa tarefa' + (e.area ? ' em ' + V.area(e.area) : '') + ' pelo tempo que ela leva, sair, e a barra de tarefas NÃO subiu: tarefa falsa (ou largou no meio)' + (e.explained ? '; ' + nm(+id) + ' disse que desistiu da tarefa.' : '.'));
             if (e.reason === 'noscan') out.push('Viu ' + nm(+id) + ' parado ' + ({ scan: 'no scanner da MedBay', asteroids: 'na arma de asteroides', shields: 'no painel dos escudos' }[e.task] || 'numa tarefa visual') + ' sem a animação aparecer (tarefa falsa).');
             if (e.reason === 'ventLink') out.push('Viu ' + nm(+id) + ' aparecer em ' + V.area(e.area) + ', que tem duto ligado a ' + V.area(e.bodyArea) + ' (onde estava o corpo), pouco antes.');
             if (e.reason === 'withVictim' || e.reason === 'lastWith') out.push('Viu ' + nm(+id) + ' junto da vítima pouco antes' + (e.area ? ', em ' + V.area(e.area) : '') + '.');
@@ -10618,6 +10984,32 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       return out;
     },
 
+    /* A fala escrita pelo modelo acusa alguém que o bot não acusaria (ou conta um flagrante que ele não viu)? Então o
+       texto não sai: a intenção já era descartada, mas a frase ficava na tela ("o jogador tá quieto, sus"). O
+       impostor pode apontar qualquer tripulante (é o jogo dele), mas não inventa flagrante que o motor não mandou. */
+    unbacked(b, text, intents, mt) {
+      const g = b.g, p = b.p;
+      const n = ' ' + U.norm(text) + ' ';
+      /* negação por perto ("não acho que é o verde", "não é impostor"): a leitura simples erra, deixa passar */
+      if (/ (nao|n|nunca|nem) /.test(n)) return false;
+      for (const it of T.parse(text, g, { self: p.id, addressed: mt.lastSpeaker })) {
+        if ((it.type !== 'accuse' && it.type !== 'agree') || it.who == null || it.who === p.id || !g.players[it.who]) continue;
+        const planned = intents.some((j) => (j.type === 'accuse' || j.type === 'agree') && j.who === it.who);
+        if (it.type === 'accuse' && STRONGS[it.reason] && !intents.some((j) => j.type === 'accuse' && j.who === it.who && STRONGS[j.reason])) {
+          const saw = !p.isImp && ((b.ev && b.ev[it.who]) || []).some((e) => e.reason === it.reason && !e.twinCut);
+          if (!saw) return true;
+        }
+        if (planned) continue;
+        if (p.isImp) {
+          if (g.players[it.who].isImp) return true;
+          continue;
+        }
+        const s = b.susp[it.who] || 0;
+        if (s < 18 || (b.fairOn && !b.fairOn(it.who))) return true;
+      }
+      return false;
+    },
+
     /* Intenções de uma fala livre: só as que batem com o que o bot sabe (o modelo não decide o jogo). */
     validIntents(b, text, motive, mt) {
       const g = b.g, p = b.p, id = p.id;
@@ -10630,7 +11022,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
             if (p.isImp ? !g.players[it.who].isImp : (b.susp[it.who] || 0) >= 18) out.push(Object.assign({}, it, { strong: false, reason: STRONGS[it.reason] ? 'sus' : it.reason }));
             break;
           case 'vouch':
-            if (p.isImp || (b.susp[it.who] || 0) <= -8) out.push(it);
+            /* "vi dois X" só vale de quem viu mesmo; senão, no máximo uma defesa comum */
+            if (it.reason === 'twin' && !p.isImp && !b.mem.events.some((e) => e.type === 'twin' && !e.self && e.who === it.who)) {
+              if ((b.susp[it.who] || 0) <= -8) out.push(Object.assign({}, it, { reason: 'claim' }));
+            } else if (p.isImp || (b.susp[it.who] || 0) <= -8) out.push(it);
             break;
           case 'claimLoc': {
             const al = b.getAlibi();
@@ -11150,6 +11545,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const confirming = /\b(verdade|confirmo|confirma|tava mesmo|estava mesmo|isso ai|e isso|eh isso)\b/.test(U.norm(ln.text));
         const parsedPro = new Set(T.parse(ln.text, g, { self: p.id }).filter((i) => i.type === 'vouch' || (confirming && i.type === 'sawAt')).map((i) => i.who));
         if ([...contra].some((w) => pro.has(w) || parsedPro.has(w))) {
+          if (s.beats.length) s.beats.forEach((x) => this.postRaw(x, delay + 0.4));
+          continue;
+        }
+        /* acusação sem base no que o bot sabe: fica o texto do motor (se tinha) */
+        if (V.unbacked(b, ln.text, intents, mt)) {
+          this.unbackedDrops = (this.unbackedDrops || 0) + 1;
           if (s.beats.length) s.beats.forEach((x) => this.postRaw(x, delay + 0.4));
           continue;
         }
@@ -12590,10 +12991,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const b = bots.find((p) => p.brain.pers.skeptic || p.brain.pers.leader) || null;
         if (b) this.say(b.brain, { text: T.line('quiet', { who: h0.id }, g, b.brain), intents: [{ type: 'quiet', who: h0.id }] }, { kind: 'quiet', important: true });
       }
-      if (h0 && h0.alive && this.askedHumanAt != null && !this.humanClaimed && !this.hasClaimed(h0.id) && !this.flags.unanswered && t - this.askedHumanAt > 18) {
+      /* perguntaram e o jogador não respondeu: gente digita devagar (no celular, mais ainda), então dá tempo e pesa pouco */
+      if (h0 && h0.alive && this.askedHumanAt != null && !this.humanClaimed && !this.hasClaimed(h0.id) && !this.flags.unanswered && t - this.askedHumanAt > 28) {
         this.flags.unanswered = true;
         const b = g.players[this.askedHumanBy];
-        if (b && b.alive && b.brain) b.brain.bump(h0.id, 10);
+        if (b && b.alive && b.brain) b.brain.bump(h0.id, 5);
       }
     }
 
@@ -12884,7 +13286,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const r = it.who != null ? rows[it.who] : null;
         if (!r || it.who === m.from) continue;
         if (it.type === 'vouch') {
-          r.pro.set(m.from, it.reason === 'visual' ? 'visual' : it.reason === 'together' ? 'estava junto' : 'confirma');
+          r.pro.set(m.from, it.reason === 'visual' ? 'visual' : it.reason === 'together' ? 'estava junto' : it.reason === 'twin' ? 'viu dois iguais' : 'confirma');
           if (it.reason === 'visual') r.visual = true;
         } else if (it.type === 'accuse' && it.reason === 'lie') r.contra.set(m.from, 'contesta o álibi');
         else if (it.type === 'accuse') r.acc.set(m.from, REASON_TXT[it.reason] || 'suspeito');

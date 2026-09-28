@@ -9,6 +9,8 @@
   /* Estações onde a tarefa SEMPRE termina de uma vez (etapa única/última): se alguém "termina" ali na sua frente
      e a barra de tarefas não sobe, a tarefa era falsa. Calculado a partir das definições das tarefas. */
   let FINAL_ST = null;
+  /* quanto tempo a última etapa leva em cada estação (o mínimo que alguém fica parado ali para terminar) */
+  const FINAL_DUR = {};
   function finalStations() {
     if (FINAL_ST) return FINAL_ST;
     const info = {};
@@ -17,8 +19,10 @@
         const steps = def.steps();
         steps.forEach((st, i) => {
           const o = (info[st] = info[st] || { fin: false, mid: false });
-          if (i === steps.length - 1) o.fin = true;
-          else o.mid = true;
+          if (i === steps.length - 1) {
+            o.fin = true;
+            FINAL_DUR[st] = Math.max(FINAL_DUR[st] || 0, (def.dur && def.dur[i]) || 3);
+          } else o.mid = true;
         });
       }
     }
@@ -147,6 +151,8 @@
       this.lastSeenAt = {};
       this.followWatch = {};
       this.tailWatch = {};
+      this.twinWatch = {};
+      this.twinAlert = null;
       this.fieldSus = {};
       this.scanWatch = {};
       this.wantButton = null;
@@ -972,6 +978,7 @@
       return !!((c && c.who === id && g.t < c.until) || (pa && pa.who === id && pa.lead === 'me'));
     }
     hardCleared(id) {
+      if (this.twinCleared(id)) return true;
       if (this.g.S.house.noVisualHardClear || !this.g.S.rules.visualTasks) return false;
       return this.mem.events.some((e) => (e.type === 'visual' || e.type === 'escortVisual') && e.who === id);
     }
@@ -982,6 +989,11 @@
       let strong = false;
       for (const e of this.mem.events) {
         if (e.who !== id) continue;
+        /* "vi o X matando / no duto", mas perto da hora em que eu vi dois X: pode ter sido o disfarce */
+        if ((e.type === 'kill' || e.type === 'vent') && this.twinDoubt(id, e.t)) {
+          if (e.t >= rs) s += 30;
+          continue;
+        }
         /* o que viu de grave em rodadas anteriores continua valendo */
         if (e.type === 'kill' || e.type === 'shift' || e.type === 'vanish') {
           s = Math.max(s, e.t < rs ? 90 : 100);
@@ -1206,7 +1218,8 @@
       let s = 0;
       for (const e of this.mem.events) {
         if (e.who !== id || e.t < this.g.roundStart) continue;
-        if (e.type === 'kill' || e.type === 'shift' || e.type === 'vanish') s = Math.max(s, 100);
+        if ((e.type === 'kill' || e.type === 'vent') && this.twinDoubt(id, e.t)) s = Math.max(s, 50);
+        else if (e.type === 'kill' || e.type === 'shift' || e.type === 'vanish') s = Math.max(s, 100);
         else if (e.type === 'vent') s = Math.max(s, 85);
       }
       return Math.max(s, (this.carry[id] || 0) > 70 ? this.carry[id] : 0);
@@ -1262,7 +1275,7 @@
         if (p.emergencyLeft <= 0) this.wantButton = null;
         else if (!g.sabCritical()) {
           /* motivo que não é flagrante: termina a tarefa que já está fazendo antes de correr para o botão */
-          const urgent = ['kill', 'vent', 'shift', 'vanish'].includes(this.wantButton.reason);
+          const urgent = ['kill', 'vent', 'shift', 'vanish', 'twinKill'].includes(this.wantButton.reason);
           const finishing = !urgent && this.plan && this.plan.type === 'task' && p.busy && p.busy.until - g.t < 8;
           if (!finishing) {
             if (!this.plan || (this.plan.type !== 'button' && !this.plan.buttonWait)) this.planButton();
@@ -2520,11 +2533,22 @@
       if (via === 'eyes') {
         this.seenNow = seen;
         this.bodiesNow = bodies.slice();
+        /* tarefa que parecia falsa: a pessoa não voltou para ela em uns segundos — agora sim guarda (e quem tem
+           iniciativa chama reunião) */
+        if (this.fakePending) for (const id of Object.keys(this.fakePending)) {
+          const f = this.fakePending[id];
+          if (t < f.at) continue;
+          delete this.fakePending[id];
+          if (this.hardCleared(+id) || !U.chance(0.4 + pers.att * 0.5)) continue;
+          if (mem.event({ type: 'fakeTask', t: f.t, who: +id, area: f.area, station: f.station }, 'fakeTask:' + id + ':' + g.meetings)) this.maybeButton('fakeTask', +id, f.area);
+        }
       } else {
         for (const b of bodies) if (!this.bodiesNow.includes(b)) this.bodiesNow.push(b);
       }
       for (const q of seen) {
         const aid = g.appearId(q);
+        /* alguém com a MINHA cara não é "eu visto em algum lugar": é o metamorfo (twinCheck cuida disso) */
+        if (aid === p.id) continue;
         const area = M.areaAt(q.x, q.y).id;
         this.lastSeenAt[aid] = { t, x: q.x, y: q.y, area };
         const l = mem.last[aid];
@@ -2576,16 +2600,21 @@
           }
           if (this.followWatch[aid] >= 7) {
             this.followWatch[aid] = 0;
-            /* quem já provou ser tripulante (tarefa visual) andando atrás é só companhia */
-            if (!this.hardCleared(aid) && mem.event({ type: 'follow', t, who: aid, area }, 'follow:' + aid + ':' + g.meetings) && pers.panic) {
+            /* quem já provou ser tripulante (tarefa visual) andando atrás é só companhia; e quem ficou a sós comigo
+               um bom tempo e não fez nada teve a chance: seguir assim é escolta, não caça */
+            const hadChance = ((this.aloneWith || {})[aid] || 0) >= 4;
+            if (!this.hardCleared(aid) && !hadChance && mem.event({ type: 'follow', t, who: aid, area }, 'follow:' + aid + ':' + g.meetings) && pers.panic) {
               this.fear = { who: aid, t };
               this.planFlee(q);
             }
           }
-          /* viu terminar uma tarefa de etapa única e a barra não subiu = tarefa falsa (só com a barra sempre visível) */
+          /* viu alguém parado numa tarefa de etapa única pelo tempo que ela leva, sair, e a barra não subir = tarefa
+             falsa (só com a barra sempre visível). Não conclui na hora: quem erra a tarefa ou desiste e tenta de novo
+             volta a abrir (gente de verdade faz isso), então espera uns segundos antes de guardar. */
           this.taskWatch = this.taskWatch || {};
           const tw = this.taskWatch[aid];
           if (q.busy && q.busy.station && !q.moving) {
+            if (this.fakePending && this.fakePending[aid] && this.fakePending[aid].station === q.busy.station) delete this.fakePending[aid];
             if (!tw || tw.station !== q.busy.station) this.taskWatch[aid] = { station: q.busy.station, t0: t, done0: g.taskProgress().done, sab0: g.sab };
             else tw.last = t;
           } else if (tw) {
@@ -2593,8 +2622,11 @@
             /* só vale se viu a pessoa sair da tarefa agora (não quando reaparece depois), e sem sabotagem nova no meio
                (quem larga a tarefa para consertar o reator não está fingindo) */
             const sawStop = t - (tw.last || tw.t0) < 0.8;
-            if (sawStop && !this.hardCleared(aid) && !(g.sab && g.sab !== tw.sab0) && t - tw.t0 >= 2.5 && g.S.rules.taskBar === 'sempre' && !g.commsDown() && finalStations().has(tw.station) && g.taskProgress().done === tw.done0 && U.chance(0.4 + pers.att * 0.5)) {
-              if (mem.event({ type: 'fakeTask', t, who: aid, area, station: tw.station }, 'fakeTask:' + aid + ':' + g.meetings)) this.maybeButton('fakeTask', aid, area);
+            const fin = finalStations().has(tw.station);
+            const need = Math.max(2.5, (FINAL_DUR[tw.station] || 3) * 0.75);
+            const watched = (tw.last || tw.t0) - tw.t0;
+            if (sawStop && fin && watched >= need && !this.hardCleared(aid) && !(g.sab && g.sab !== tw.sab0) && g.S.rules.taskBar === 'sempre' && !g.commsDown() && g.taskProgress().done === tw.done0) {
+              (this.fakePending = this.fakePending || {})[aid] = { station: tw.station, t, at: t + U.rf(2.5, 4), area };
             }
           }
           /* parado numa tarefa visual sem a animação aparecer = tarefa falsa */
@@ -2607,7 +2639,8 @@
           } else if (this.scanWatch[aid]) this.scanWatch[aid] = 0;
         }
       }
-      for (const b of bodies) mem.bodySeen(b, t, seen.map((q) => g.appearId(q)), via);
+      if (!p.isImp) this.twinCheck(seen, via);
+      for (const b of bodies) mem.bodySeen(b, t, seen.map((q) => g.appearId(q)).filter((id) => id !== p.id), via);
       /* quem anda junto de quem (base para "o X estava seguindo o Y") */
       if (via === 'eyes' && seen.length >= 2 && seen.length <= 4) {
         for (let i = 0; i < seen.length; i++) for (let j = i + 1; j < seen.length; j++) {
@@ -2631,6 +2664,84 @@
       this.trackT = g.t;
       this.mem.track.push({ who: q.id, area: M.areaAt(q.x, q.y).id, t: g.t });
     }
+    /* Dois iguais ao mesmo tempo, ou alguém com a MINHA cara: um deles é o metamorfo disfarçado. Não é na hora:
+       precisa reparar (atenção, luz, estar ocupado numa tarefa, ser pela câmera, muita gente em volta), ver os dois
+       por um tempinho seguido, e os dois separados o bastante para não parecerem um só. */
+    twinCheck(seen, via) {
+      const g = this.g, p = this.p, t = g.t, pers = this.pers;
+      /* sem ninguém disfarçado não existem dois iguais (só poupa a conta; a percepção é pelo que se vê) */
+      if (!p.alive || !g.players.some((q) => q.shiftAs != null)) return;
+      const pool = via === 'eyes' ? seen : this.seenNow.concat(seen);
+      const hit = new Map();
+      for (const q of seen) {
+        const a = g.appearId(q);
+        if (hit.has(a) || this.mem.keys.has('twin:' + a + ':' + g.meetings)) continue;
+        const twin = a === p.id ? p : pool.find((o) => o !== q && g.appearId(o) === a && U.dist(o, q) >= 1.2);
+        if (twin) hit.set(a, [q, twin]);
+      }
+      const dark = g.lightLevel < 0.6;
+      for (const [a, pair] of hit) {
+        const k = (0.35 + pers.att * 0.5) * (dark ? 0.6 : 1) * (p.busy ? 0.45 : 1) * (via === 'cams' ? 0.6 : 1) * (a === p.id ? 1.6 : 1) *
+          (pool.length > 5 ? 0.7 : 1) / (0.75 + 0.25 * this.err);
+        const w = this.twinWatch[a] && t - this.twinWatch[a].t <= 1 ? this.twinWatch[a] : (this.twinWatch[a] = { v: 0, t });
+        w.t = t;
+        w.v += 0.2 * k;
+        if (w.v >= 1) {
+          delete this.twinWatch[a];
+          this.onTwin(a, pair, via);
+        }
+      }
+    }
+    /* Reparou nos dois iguais. Qual é o falso não dá para saber (a não ser que um esteja na tarefa visual, que o
+       metamorfo não faz), mas dá para saber que o de verdade NÃO é o metamorfo, que quem estava à vista nessa hora
+       também não, e que o metamorfo está ali agora com essa cara. Estranha (para e olha) e fica com o pé atrás: não
+       fica a sós com ninguém dessa cara por um tempo. */
+    onTwin(a, pair, via, extra) {
+      const g = this.g, p = this.p, t = g.t, pers = this.pers;
+      const self = a === p.id;
+      const ar = (q) => M.areaAt(q.x, q.y).id;
+      const vis = !self && g.S.rules.visualTasks ? pair.find((q) => q && q.visual) : null;
+      const withIds = [...new Set(this.seenNow.map((q) => g.appearId(q)).filter((id) => id !== a && id !== p.id))];
+      const e = Object.assign({ type: 'twin', t, who: a, self, a1: ar(pair[0]), a2: pair[1] ? ar(pair[1]) : ar(pair[0]), via, real: vis ? ar(vis) : null, with: withIds, solo: this.impsAliveKnown() <= 1 }, extra || {});
+      if (!this.mem.event(e, extra && extra.key ? extra.key : 'twin:' + a + ':' + g.meetings)) return false;
+      this.mem.twinN = (this.mem.twinN || 0) + 1;
+      this.twinAlert = { who: a, t, until: t + g.ro('metamorfo', 'dur', 30), self };
+      if (!this.avoid || t >= this.avoid.until) this.avoid = { who: a, until: t + U.rf(18, 28) };
+      if (extra) return true;
+      const busyPlan = this.plan && ['report', 'flee', 'fix', 'button', 'wiggle', 'pause'].includes(this.plan.type);
+      /* com a MINHA cara: aquilo é o metamorfo, do meu lado, e ele sabe que eu sei — parar para olhar é pedir para
+         morrer. Sai de perto (a fuga puxa para a Cafeteria, onde tem gente e o botão); o mais decidido vai avisar. */
+      if (self) {
+        if (p.emergencyLeft > 0 && !this.wantButton && U.chance(0.12 + (pers.leader ? 0.15 : 0) + (pers.panic ? 0.1 : 0) + (this.hab('botao') ? 0.15 : 0))) this.wantButton = { reason: 'twinSelf', who: p.id, area: e.a1 };
+        else if (pair[0] && !busyPlan && !this.shock) {
+          this.fear = { who: p.id, t };
+          this.planFlee(pair[0]);
+        }
+        return true;
+      }
+      /* dois iguais: estranha e para um instante para olhar — só com mais gente por perto (a sós com os dois, um deles é
+         o metamorfo: melhor seguir andando) */
+      const crowd = this.seenNow.filter((q) => q.alive && g.appearId(q) !== a).length;
+      if (via === 'eyes' && crowd >= 1 && !p.busy && !busyPlan && !this.shock) this.setPlan({ type: 'pause', stage: 'do', until: t + U.rf(0.6, 1.2) });
+      return true;
+    }
+    /* quantos impostores podem estar vivos, só pelo que é certo: o total da partida menos os ejetados confirmados */
+    impsAliveKnown() {
+      const g = this.g;
+      return g.S.room.impostors - (g.S.rules.confirmEjects ? g.players.filter((q) => q.ejected && q.isImp).length : 0);
+    }
+    /* viu dois iguais com um impostor só em jogo: o metamorfo era o terceiro, então o de verdade e quem estava à vista
+       nessa hora são tripulantes, com certeza */
+    twinCleared(id) {
+      if (!this.mem.twinN) return false;
+      return this.mem.events.some((e) => e.type === 'twin' && e.solo && ((e.who === id && !e.self) || (e.with || []).includes(id)));
+    }
+    /* o que "o X" fez perto da hora em que eu vi dois X pode ter sido o metamorfo com a cara dele */
+    twinDoubt(id, t) {
+      if (!this.mem.twinN) return false;
+      const dur = this.g.ro('metamorfo', 'dur', 30) + 2;
+      return this.mem.events.some((e) => e.type === 'twin' && !e.self && e.who === id && Math.abs(e.t - t) <= dur);
+    }
     /* pegou alguém fingindo tarefa: quem tem iniciativa chama reunião na hora (a prova não espera o próximo corpo) */
     maybeButton(reason, who, area) {
       const p = this.p, pers = this.pers;
@@ -2640,13 +2751,27 @@
       const pr = 0.35 + (pers.leader ? 0.3 : 0) + (pers.times ? 0.15 : 0) + (pers.skeptic ? 0.1 : 0) - (pers.talk < 0.3 ? 0.15 : 0) + (this.hab('botao') ? 0.25 : 0);
       if (U.chance(pr)) this.wantButton = { reason, who, area };
     }
-    onWitnessKill(apparent, victimId, area, via, body) {
-      const g = this.g, pers = this.pers;
-      if (this.p.isImp) {
+    onWitnessKill(apparent, victimId, area, via, body, killer) {
+      const g = this.g, p = this.p, pers = this.pers;
+      if (p.isImp) {
         this.mem.event({ type: 'partnerKill', t: g.t, who: apparent, victim: victimId, area });
         return;
       }
       if (!U.chance(0.9 + 0.1 * pers.att)) return;
+      /* o assassino tinha a MINHA cara, ou tinha a cara de alguém que eu estou vendo em outro lugar agora mesmo: era o
+         metamorfo. Não acuso o dono da cara; guardo como "dois iguais", com o abate, e vou avisar. */
+      const other = killer && apparent !== p.id ? this.seenNow.find((q) => q !== killer && q.alive && g.appearId(q) === apparent && U.dist(q, killer) >= 1.2) : null;
+      if (killer && (apparent === p.id || (other && U.chance(0.55 + pers.att * 0.4)))) {
+        this.onTwin(apparent, [killer, other || p], via, { kill: victimId, key: 'twinKill:' + victimId });
+        this.wantButton = { reason: 'twinKill', who: apparent, victim: victimId, area };
+        if (via === 'eyes') {
+          const shock = U.rf(1.0, 2.3) * (pers.panic ? 1.4 : 1) * (pers.leader || pers.times ? 0.8 : 1);
+          this.shock = { until: g.t + shock, killer: null, body: body ? body.id : null };
+          this.setPlan({ type: 'pause', stage: 'do', until: g.t + shock * 0.6 });
+        }
+        if (pers.panic) this.planFlee(killer);
+        return;
+      }
       let who = apparent;
       if (U.chance((1 - pers.mem) * 0.1 * this.err)) who = this.confuse(who);
       this.mem.event({ type: 'kill', t: g.t, who, victim: victimId, area, via }, 'kill:' + victimId);
@@ -2666,6 +2791,11 @@
       const g = this.g, p = this.p, pers = this.pers;
       if (p.isImp) return;
       if (!U.chance(0.55 + 0.45 * pers.att)) return;
+      /* alguém com a minha cara entrando/saindo do duto: o metamorfo (e impostor, porque ventou) */
+      if (apparent === p.id) {
+        this.onTwin(p.id, [{ x: v.x, y: v.y }, p], via, { vent: v.area, key: 'twinVent:' + g.meetings });
+        return;
+      }
       let who = apparent;
       if (U.chance((1 - pers.mem) * 0.08 * this.err)) who = this.confuse(who);
       /* suspeita de antes do duto (o próprio duto já conta como forte em liveSusp) */
@@ -2708,10 +2838,13 @@
       if (p.isImp || !q || !p.alive) return;
       const d = U.dist(p, q);
       const dark = g.lightLevel < 0.6;
-      const pNotice = (0.3 + pers.att * 0.45) * (d < 3.5 ? 1 : d < 6 ? 0.7 : 0.45) * (p.busy ? 0.5 : 1) * (dark ? 0.6 : 1) * (via === 'cams' ? 0.45 : 1) * (kind === 'vanish' ? 0.85 : 1);
+      /* já de olho em quem tem essa cara (vi dois iguais há pouco, ou era a minha cara): repara bem mais */
+      const al = this.twinAlert;
+      const watching = kind === 'shift' && intoId != null && (intoId === p.id || (al && g.t < al.until && al.who === intoId));
+      const pNotice = Math.min(0.95, (0.3 + pers.att * 0.45) * (d < 3.5 ? 1 : d < 6 ? 0.7 : 0.45) * (p.busy ? 0.5 : 1) * (dark ? 0.6 : 1) * (via === 'cams' ? 0.45 : 1) * (kind === 'vanish' ? 0.85 : 1) * (watching ? 1.7 : 1));
       if (!U.chance(pNotice)) return;
       const area = M.areaAt(q.x, q.y).id;
-      const sure = via === 'eyes' && d < 4.5 && !dark && U.chance(0.5 + pers.att * 0.35);
+      const sure = via === 'eyes' && d < 4.5 && !dark && U.chance(0.5 + pers.att * 0.35 + (watching ? 0.25 : 0));
       if (!sure) {
         let who = realId;
         if (U.chance((1 - pers.att) * 0.5)) who = this.confuse(realId);
@@ -2800,8 +2933,11 @@
       this.engVent = null;
       this.followWatch = {};
       this.tailWatch = {};
+      this.twinWatch = {};
+      this.twinAlert = null;
       this.scanWatch = {};
       this.taskWatch = {};
+      this.fakePending = null;
       this.aloneWith = {};
       this.seenNow = [];
       this.bodiesNow = [];

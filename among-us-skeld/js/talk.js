@@ -41,6 +41,13 @@
       const col = C.COLOR[q.color].name.toLowerCase();
       return ({ o: 'o ', com: 'com o ', de: 'do ', no: 'no ' }[form] || '') + col;
     };
+    /* "dois vermelhos", "dois azuis", "dois marrons", "dois corais" */
+    x.Pl = (pid) => {
+      const q = g.players[pid];
+      if (!q) return 'iguais';
+      const c = C.COLOR[q.color].name.toLowerCase();
+      return /l$/.test(c) ? c.slice(0, -1) + 'is' : /m$/.test(c) ? c.slice(0, -1) + 'ns' : c + 's';
+    };
     /* nome da sala conforme o tom: limpo = nome oficial ("na Elétrica"); casual = nome comum em português
        ("na elétrica", "na cafeteria", "no depósito"); raiz = apelido de jogador ("na elec", "no café", "no storage") */
     const tone = g && g.S && g.S.bots ? g.S.bots.chatTone : 'casual';
@@ -109,9 +116,16 @@
         case 'kill': return pick([`${w} matou ${x.R(d.victim, 'o')} ${x.inA(d.area)}`, `vi ${w} matando ${x.R(d.victim, 'o')}`, `EU VI! ${w} matou`]);
         case 'shift': return pick([`${w} se transformou em outra pessoa na minha frente`, `vi ${w} mudando de cor, é metamorfo`]);
         case 'vanish': return pick([`${w} sumiu do nada ${x.inA(d.area)}`, `${w} ficou invisível, é impostor`]);
-        case 'fakeTask': return pick([`chamei porque ${w} fingiu tarefa ${d.area ? x.inA(d.area) : ''}: terminou e a barra não subiu`.replace(/\s+:/, ':'), `${w} tá fingindo task, vi ${d.area ? x.inA(d.area) : 'agora'} e a barra não mexeu`]);
+        case 'fakeTask': return pick([`chamei porque ${w} ficou um tempão na tarefa ${d.area ? x.inA(d.area) : ''}, saiu e a barra não subiu`.replace(/\s+,/, ','), `${w} tá fingindo task? vi ${d.area ? x.inA(d.area) : 'agora'}, ficou lá o tempo todo e a barra não mexeu`]);
         case 'noscan': return pick([`chamei porque ${x.Rc(d.who, 'o')} ficou parado no scanner e não escaneou`, `${w} fingiu o scan, eu vi`]);
         case 'vitals': return pick([`sou cientista: ${d.victim != null ? x.R(d.victim, 'o') : 'alguém'} morreu e ninguém achou o corpo`, `o vitals mostra ${d.victim != null ? x.Rc(d.victim, 'o') : 'alguém'} morto, chamei pra avisar`]);
+        /* o metamorfo com a cara de alguém (ou a minha) */
+        case 'twinKill': {
+          const V = d.victim != null ? x.R(d.victim, 'o') : 'alguém';
+          if (d.self) return pick([`alguém com a MINHA cara matou ${V} ${x.inA(d.area)}! não fui eu, era o metamorfo`, `chamei porque o metamorfo tá disfarçado de mim: matou ${V} ${x.inA(d.area)}`, `EU VI: o metamorfo com a minha cara matou ${V}`]);
+          return pick([`o metamorfo matou ${V} com a cara ${x.R(d.who, 'de')}! ${w} de verdade tava ali, eu vi os dois`, `vi ${w} matando ${V}, mas tinha outro ${x.Rc(d.who)} ali do lado. era o metamorfo disfarçado`, `tinha dois ${x.Pl(d.who)} ${x.inA(d.area)} e um deles matou ${V}. era o metamorfo`]);
+        }
+        case 'twinSelf': return pick([`chamei porque vi alguém com a minha cara ${x.inA(d.area)}. é o metamorfo`, `gente, o metamorfo tá disfarçado de mim, vi ele ${x.inA(d.area)}`, `tinha um ${x.Rc(x.sp && x.sp.p ? x.sp.p.id : -1)} igual a mim ${x.inA(d.area)}. cuidado, é o metamorfo`]);
         case 'sus': return pick([`${x.Rc(d.who, 'o')} tá muito estranho, chamei por isso`, `precisava falar: ${x.Rc(d.who, 'o')} tá sus demais`, `apertei porque ${x.Rc(d.who, 'o')} tá estranho`]);
         case 'chaos': return pick([`foi mal, apertei sem querer kkk`, `só queria ver quem está vivo`, `reunião surpresa kkkk`, `alguém tem info?`]);
         default: return pick([`alguém tem info?`, `chamei pra gente conversar`]);
@@ -184,7 +198,7 @@
         case 'shift': return pick([`${w} é metamorfo, vi se transformando`, `${w} mudou de aparência na minha frente`]);
         case 'vanish': return pick([`${w} ficou invisível do nada, é impostor`, `vi ${w} sumir no ar`]);
         case 'noscan': return pick([`${x.Rc(d.who, 'o')} ficou parado no scanner e não escaneou`, `${w} fingiu o scan`]);
-        case 'fakeTask': return pick([`vi ${w} terminar a tarefa ${d.area ? x.inA(d.area) : ''} e a barra não subiu`.replace(/\s+/g, ' '), `${w} fingiu tarefa, a barra não mexeu`, `${w} fez tarefa na minha frente e a barra ficou parada`]);
+        case 'fakeTask': return pick([`vi ${w} parado na tarefa ${d.area ? x.inA(d.area) : ''} o tempo todo, saiu e a barra não subiu`.replace(/\s+/g, ' '), `${w} ficou na tarefa na minha frente e a barra não mexeu`, `${w} fez tarefa na minha frente e a barra ficou parada`]);
         case 'fastReport': return pick([
           `${w} reportou rápido demais, ${d.victim != null ? x.Rc(d.victim, 'o') + ' tava vivo' : 'a vítima tava viva'} uns ${d.ago || 10}s antes`,
           `self report? ${w} achou o corpo logo depois de ${d.victim != null ? x.Rc(d.victim, 'o') : 'a vítima'} ser ${d.victim != null ? 'visto' : 'vista'}`,
@@ -211,13 +225,16 @@
       const w = x.R(d.who, 'o');
       if (d.reason === 'visual') return pick([`${w} é safe, vi fazendo ${x.vis(d.task)}`, `vi ${w} fazendo ${x.vis(d.task)}, é inocente`, `confio ${x.R(d.who, 'no')}, vi a visual`]);
       if (d.reason === 'together') return pick([`${w} estava comigo`, `${w} estava comigo ${d.area ? x.inA(d.area) : ''}`.trim(), `pode tirar ${w}, estava comigo`]);
+      if (d.reason === 'twin') return pick([`${x.Rc(d.who, 'o')} não é o metamorfo, vi dois ${x.Pl(d.who)} ao mesmo tempo`, `vi ${w} e o metamorfo com a cara dele juntos`]);
       return pick([`vi ${w} fazendo task ${d.area ? x.inA(d.area) : ''}`.trim(), `pra mim ${w} é inocente`]);
     },
     alsoVouch: (d, x) => pick([`também vi, ${x.R(d.who, 'o')} é safe`, `confirmo, vi ${x.R(d.who, 'o')} fazendo ${x.vis(d.task)} também`, `+1, eu também vi a visual ${x.R(d.who, 'de')}`, `verdade, vi também`]),
     confirm: (d, x) => pick([`confirmo, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`, `verdade, ${x.R(d.who, 'o')} estava ${x.inA(d.area)}`, `é, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}`]),
     confirmWith: (d, x) => pick([`sim, ${x.R(d.who, 'o')} estava comigo`, `confirmo, estava comigo`, `verdade, estava comigo`]),
     denyWith: (d, x) => pick([`comigo? não`, `${x.R(d.who, 'o')} não estava comigo não`, `mentira, não estava comigo`]),
-    fromBody: (d, x) => pick([`vi ${x.R(d.who, 'o')} vindo lá do lado ${x.deA(d.bodyArea)}`, `${x.R(d.who, 'o')} tava vindo da direção ${x.deA(d.bodyArea)}`, `quando eu passei ${x.inA(d.area)}, ${x.R(d.who, 'o')} vinha lá ${x.deA(d.bodyArea)}`]),
+    fromBody: (d, x) => (d.area === d.bodyArea
+      ? pick([`vi ${x.R(d.who, 'o')} saindo ${x.deA(d.bodyArea)}`, `${x.R(d.who, 'o')} tava saindo ${x.deA(d.bodyArea)} pouco antes`])
+      : pick([`vi ${x.R(d.who, 'o')} vindo lá do lado ${x.deA(d.bodyArea)}`, `${x.R(d.who, 'o')} tava vindo da direção ${x.deA(d.bodyArea)}`, `quando eu passei ${x.inA(d.area)}, ${x.R(d.who, 'o')} vinha lá ${x.deA(d.bodyArea)}`])),
     atBody: (d, x) => pick([`pera, ${x.R(d.who)} disse que tava ${x.inA(d.area)}... foi lá o corpo`, `${x.R(d.who)}, você tava ${x.inA(d.area)}? e não viu o corpo?`, `${x.inA(d.area)} é onde tava o corpo, ${x.R(d.who)}`]),
     knewBody: (d, x) => pick([`como ${x.R(d.who, 'o')} sabe onde tava o corpo? ninguém falou ainda`, `ué ${x.R(d.who)}, ninguém disse onde era o corpo`, `${x.R(d.who, 'o')} sabia do corpo antes de falarem... sus`]),
     contradictStay: (d, x) => pick([`eu fiquei ${x.inA(d.area)} um tempão e não vi ${x.R(d.who, 'o')}`, `${x.R(d.who)}, eu estava ${x.inA(d.area)} e você não passou lá`]),
@@ -250,6 +267,44 @@
     claimClash: (d, x) => pick([`${x.R(d.who, 'o')} disse que tava ${x.inA(d.claimed)}, mas ${d.by != null ? x.R(d.by, 'o') + ' viu ele' : 'viram ele'} ${x.inA(d.area)}`, `pera, ${x.R(d.who)} falou ${x.inA(d.claimed)}... e ${d.by != null ? x.R(d.by, 'o') : 'ele'} ${d.by != null ? 'viu' : 'foi visto'} ${x.inA(d.area)}? não bate`, `${x.R(d.who)}, você não disse que tava ${x.inA(d.claimed)}? como te viram ${x.inA(d.area)}?`]),
     sawAgo: (d, x) => pick([`vi ${x.R(d.who, 'o')} ${x.inA(d.area)}, mas faz uns ${d.ago}s`, `${x.R(d.who, 'o')} tava ${x.inA(d.area)} uns ${d.ago}s antes, depois não vi mais`]),
     shiftDoubt: (d, x) => pick([`vi alguém igual a você ${x.inA(d.area)}, ${x.R(d.who)}... ou você mente, ou era o metamorfo com a sua cara`, `${x.R(d.who)}, te vi ${x.inA(d.area)}, não ${x.inA(d.claimed)}. se não era você, era o metamorfo disfarçado`]),
+    /* vi dois iguais ao mesmo tempo (um era o metamorfo) */
+    twinSaw: (d, x) => {
+      /* com "dois verdes" na frase, fala "o verde" (nome no meio confunde) */
+      const w = x.Rc(d.who, 'o'), pl = x.Pl(d.who);
+      const two = d.a2 && d.a2 !== d.a1;
+      const place = two ? `um ${x.inA(d.a1)} e outro ${x.inA(d.a2)}` : x.inA(d.a1);
+      const cams = d.cams ? pick([' (um pelas câmeras)', ', um deles nas cams']) : '';
+      const V = d.victim != null ? x.R(d.victim, 'o') : null;
+      const tail = d.solo ? pick([`, então ${w} é inocente`, `. ${w} é safe, o metamorfo era o outro`]) : pick(['', `. ${w} de verdade não é o metamorfo`]);
+      if (d.seenKill && V) return pick([
+        `vi ${w} matando ${V}, mas ${w} de verdade tava ${two ? x.inA(d.a2) : 'ali do lado'}. era o metamorfo com a cara ${x.R(d.who, 'de')}`,
+        `${w} NÃO matou ${V}: eu vi dois ${pl} ao mesmo tempo, um matando e o outro ${two ? x.inA(d.a2) : 'do lado'}. era o metamorfo`,
+      ]);
+      if (d.doubt) return pick([
+        `vi ${w} ${V ? 'matando ' + V : 'no duto'}, mas perto disso eu vi dois ${pl} ao mesmo tempo${cams}... pode ter sido o metamorfo`,
+        `cuidado: eu vi ${w} ${V ? 'matar ' + V : 'ventar'}, só que também vi dois ${pl} juntos ${place}. o metamorfo tava com a cara ${x.R(d.who, 'de')}`,
+      ]);
+      return pick([
+        `vi dois ${pl} ao mesmo tempo ${place}${cams}, um era o metamorfo${tail}`,
+        `tinha dois ${pl} ${place}${cams}. o metamorfo tava com a cara ${x.R(d.who, 'de')}${tail}`,
+        two ? `vi ${w} em dois lugares ao mesmo tempo: ${x.inA(d.a1)} e ${x.inA(d.a2)}${cams}. um era o metamorfo${tail}` : `apareceram dois ${pl} na minha frente ${x.inA(d.a1)}, um era o metamorfo${tail}`,
+      ]);
+    },
+    twinSelf: (d, x) => {
+      const V = d.victim != null ? x.R(d.victim, 'o') : null;
+      const me = x.Rc(x.sp && x.sp.p ? x.sp.p.id : -1);
+      if (V) return pick([`alguém com a MINHA cara matou ${V} ${x.inA(d.a1)}. não fui eu, era o metamorfo`, `eu vi o metamorfo disfarçado de mim matando ${V}`]);
+      if (d.vent) return pick([`vi alguém igual a mim entrando no duto ${x.inA(d.vent)}. é o metamorfo, não sou eu`, `tinha um ${me} igual a mim ventando ${x.inA(d.vent)}, é o metamorfo`]);
+      return pick([`vi alguém com a minha cara ${x.inA(d.a1)}! era o metamorfo`, `gente, tinha um ${me} igual a mim ${x.inA(d.a1)}. o metamorfo tá usando a minha cara`, `eu me vi ${x.inA(d.a1)}, sério. era o metamorfo disfarçado de mim`]);
+    },
+    twinDefend: (d, x) => {
+      const w = x.Rc(d.who, 'o'), pl = x.Pl(d.who);
+      const place = d.area2 && d.area2 !== d.area ? `, um ${x.inA(d.area)} e outro ${x.inA(d.area2)}` : d.area ? ' ' + x.inA(d.area) : '';
+      if (d.solo) return pick([`não é ${w}: eu vi dois ${pl} ao mesmo tempo${place}, e só tem um impostor. ${w} é inocente`, `${w} é inocente, vi o metamorfo com a cara dele do lado dele`]);
+      return pick([`pode ter sido o metamorfo: eu vi dois ${pl} ao mesmo tempo${place}`, `calma, eu vi ${w} em dois lugares ao mesmo tempo. um era o metamorfo`, `o metamorfo tava com a cara ${x.R(d.who, 'de')}, eu vi dois ${pl} juntos`]);
+    },
+    twinSelfDeny: (d, x) => pick([`não fui eu! vi alguém com a minha cara ${x.inA(d.area)}, é o metamorfo`, `eu mesmo vi o metamorfo disfarçado de mim ${x.inA(d.area)}, foi ele`, `tem alguém usando a minha cara, eu vi ${x.inA(d.area)}. não era eu`]),
+    twinAgree: (d, x) => pick([`então quem eu vi ${x.inA(d.area)} era o metamorfo com a cara ${x.R(d.who, 'de')}`, `faz sentido, ${x.R(d.who, 'o')} que eu vi ${x.inA(d.area)} devia ser o metamorfo`, `hmm, então não era ${x.R(d.who)} ${x.inA(d.area)}, era o metamorfo`]),
     shiftTheory: (d, x) => pick([`se ${x.R(d.who, 'o')} tava com ${x.R(d.by, 'o')}, quem eu vi ${x.inA(d.area)} era o metamorfo disfarçado`, `então era o metamorfo com a cara ${x.R(d.who, 'de')}`, `hmm, o metamorfo tava disfarçado ${x.R(d.who, 'de')}, não era ${x.R(d.who)} de verdade`]),
     hidBodyRoom: (d, x) => pick([`mas eu te vi ${x.inA(d.area)}, ${x.R(d.who)}, bem onde tava o corpo`, `${x.R(d.who)}, você tava ${x.inA(d.area)} e não falou isso`, `estranho, vi ${x.R(d.who, 'o')} ${x.inA(d.area)}, perto do corpo, e agora diz ${x.inA(d.claimed)}`]),
     askPassed: (d, x) => pick([`${x.R(d.who)}, te vi ${x.inA(d.area)} antes, você passou por lá?`, `${x.R(d.who)}, você passou ${x.inA(d.area)}? te vi por lá`, `peraí ${x.R(d.who)}, você não passou ${x.inA(d.area)} também?`]),
@@ -435,11 +490,13 @@
     ask: ['ué ', 'pera ', 'mano ', 'oxe '],
   };
   const KIND_MOOD = {
-    accuse: 'hot', panic: 'hot', knewBody: 'hot', claimClash: 'hot', contradictSeen: 'hot', hidBodyRoom: 'hot', atBody: 'hot', callReason: 'hot', reportInfo: 'hot', crisis: 'hot',
-    deny: 'deny', denyStrong: 'deny', denyThere: 'deny', notThere: 'deny', counter: 'deny', denyWith: 'deny',
+    accuse: 'hot', panic: 'hot', knewBody: 'hot', claimClash: 'hot', contradictSeen: 'hot', hidBodyRoom: 'hot', atBody: 'hot', callReason: 'hot', reportInfo: 'hot', crisis: 'hot', twinSaw: 'hot', twinSelf: 'hot',
+    deny: 'deny', denyStrong: 'deny', denyThere: 'deny', notThere: 'deny', counter: 'deny', denyWith: 'deny', twinSelfDeny: 'deny',
     topicAsk: 'ask', askProof: 'ask', topicDoubt: 'ask', huh: 'ask', askWhere: 'ask', askCaller: 'ask', topicWhat: 'ask', askConfirm: 'ask',
   };
   const RAIZ_LAUGH = new Set(['offtopic', 'deny', 'huh', 'agree', 'askProof', 'lost', 'ghost', 'topicDoubt', 'counter', 'callReason']);
+  /* falas sobre morte, vítima, flagrante ou acusação com prova: nunca com risada */
+  const SERIOUS = new Set(['reportInfo', 'reportDetail', 'sawNearBody', 'lastWithVictim', 'withVictim', 'fromBody', 'sawVictimAlive', 'passedNoBody', 'noOneNear', 'noOneNearBy', 'accuse', 'panic', 'knewBody', 'hidBodyRoom', 'atBody', 'vitals', 'crisis', 'twinSaw', 'twinSelf', 'twinDefend', 'twinSelfDeny', 'twinAgree', 'shiftTheory', 'contradictSeen', 'claimClash']);
 
   function style(text, g, brain, opts) {
     opts = opts || {};
@@ -463,7 +520,7 @@
       const words = s.split(/\s+/).length, greet = /^(oi|eai|e ai|salve|opa|fala|ol[aá]|boa (noite|tarde|dia))\b/.test(s);
       if (!mood && !greet && words >= 4 && opts.kind !== 'claimLoc' && U.chance(0.1)) s = pick(['tipo ', 'mano ']) + s;
       else if (!/\?$/.test(s) && !mood && !greet && words >= 4 && U.chance(0.14)) s += pick([' tlgd', ', tá ligado', ' tlgd']);
-      if (RAIZ_LAUGH.has(opts.kind) && !/morreu|morto|corpo|matou/i.test(s) && !/k{3,}/i.test(s) && U.chance(0.3)) s += ' ' + pick(['kkkk', 'kkkkkk', 'KKKKK']);
+      if (RAIZ_LAUGH.has(opts.kind) && !SERIOUS.has(opts.kind) && !/morreu|morto|corpo|matou|metamorfo/i.test(s) && !/k{3,}/i.test(s) && U.chance(0.3)) s += ' ' + pick(['kkkk', 'kkkkkk', 'KKKKK']);
       if (opts.strong && U.chance(0.4)) s = s.toUpperCase();
       if (U.chance(0.55)) s = stripAccents(s);
       s = s.replace(/[.,]$/, '');
@@ -476,7 +533,7 @@
     }
     /* risada solta só em fala leve: nunca em morte, corpo, vitals, voto ou acusação */
     const heavy = /morreu|morto|morta|corpo|vitals|sinais vitais|matou|matar|abate|votei|voto|impostor|mentindo|mentira/i.test(s);
-    if ((pers.chaos || pers.offtopic) && !heavy && U.chance(tone === 'raiz' ? 0.25 : 0.15) && !/k{3,}/i.test(s)) s += ' ' + pick(['kkk', 'kkkkk', 'KKKK']);
+    if ((pers.chaos || pers.offtopic) && !heavy && !SERIOUS.has(opts.kind) && U.chance(tone === 'raiz' ? 0.25 : 0.15) && !/k{3,}/i.test(s)) s += ' ' + pick(['kkk', 'kkkkk', 'KKKK']);
     if (pers.caps && opts.strong && U.chance(0.6)) s = s.toUpperCase() + '!!';
     if (opts.question && !/\?$/.test(s)) s += '?';
     if (pers.offtopic && U.chance(0.2)) s = s.replace(/\?$/, '??');
@@ -594,6 +651,10 @@
     /* "sumiu" também é "não vi mais": só vale como habilidade se foi na frente de alguém / do nada / invisível */
     vanishSeen: /\b(invisivel|do nada|na minha frente|na frente|do meu lado)\b|\bvi\b.*\b(sumir|desaparecer|sumindo|desaparecendo)\b/,
     follow: /\b(seguindo|me seguiu|me segue|seguiu|atras de mim|na minha cola|colad[oa] em mim)\b/,
+    /* explicação de tarefa largada no meio: "desisti da task", "não consegui terminar", "errei os fios" */
+    gaveUp: /\b(desisti|nao consegui|n consegui|nao deu tempo|errei|fechei a (task|tarefa)|sai da (task|tarefa)|larguei|nao terminei|n terminei|nao acabei|n acabei)\b/,
+    /* dois iguais ao mesmo tempo: "vi dois vermelhos", "tinha duas rosas iguais", "o verde em dois lugares", "alguém com a minha cara" */
+    twin: /\b(vi|tinha|tem|havia|apareceu|apareceram|eram)\s+(dois|duas|2)\b|\b(dois|duas|2)\b(?:\s+\S+){0,2}\s+(iguais|igual|ao mesmo tempo|de uma vez)\b|\bem dois lugares\b|\bcom a (minha|mesma) cara\b|\bigual a mim\b/,
     selfrep: /\b(self ?report\w*|reportou (muito )?rapido|achou (o corpo )?(muito )?rapido)\b/,
     hypo: /\b(pode|podia|talvez|sera|acho|deve|devia|se for|caso|quem sabe|pode ter)\b/,
     offer: /\b(me segue|me sigam|me segue[m]?|me acompanh\w*|posso provar|vou provar|pra provar|para provar|provo|fac\w* (o |a )?(scan|visual|escaneamento|asteroide\w*|escudo\w*|lixo) na frente|na frente de voces|mostro (a )?visual)\b/,
@@ -625,6 +686,7 @@
     const all = { players: findAll(n, table, 'pid'), rooms: findAll(n, ROOM_ALIASES, 'area') };
 
     if (RX.deny.test(n)) intents.push({ type: 'deny' });
+    if (RX.gaveUp.test(n)) intents.push({ type: 'explainTask' });
     if (RX.offer.test(n) || (RX.offerTask.test(n) && !/\b(fiz|fez|fizeram|fazendo|tava|estava)\b/.test(n))) intents.push({ type: 'offerVisual' });
     if ((/^ (fechou|fechado|beleza|blz|ok|okay|pode ser|sim|claro|tranquilo|combinado|firmeza|show|demorou|s)\b/.test(n) || /^ (bora|vamo|vamos|pode)( sim| ja| entao)? $/.test(n)) && n.trim().split(' ').length <= 5 && !RX.pact.test(n) && !RX.vote.test(n) && !RX.sus.test(n) && !RX.skip.test(n)) intents.push({ type: 'yes', to: ctx.addressed != null ? ctx.addressed : null });
     if (RX.pact.test(n) && !RX.pactNo.test(n)) {
@@ -667,6 +729,12 @@
       }
       if (others.length) {
         const who = others[0];
+        /* "vi dois vermelhos ao mesmo tempo": o vermelho de verdade não é o metamorfo */
+        if (has('twin') && !has('hypo')) {
+          intents.push({ type: 'vouch', who, reason: 'twin' });
+          intents.push({ type: 'roleTheory', role: 'metamorfo', who });
+          continue;
+        }
         if (has('kill')) intents.push({ type: 'accuse', who, reason: 'kill', area, strong: true });
         else if (has('vent')) intents.push({ type: 'accuse', who, reason: 'vent', area, strong: true });
         else if (has('shift') && !has('hypo')) intents.push({ type: 'accuse', who, reason: 'shift', area, strong: true });
@@ -685,6 +753,11 @@
       }
       if (has('visual') && selfNamed) {
         intents.push({ type: 'deny' });
+        continue;
+      }
+      /* "tinha alguém com a minha cara" / "vi dois iguais" sem dizer quem */
+      if (has('twin') && !has('hypo')) {
+        intents.push({ type: 'roleTheory', role: 'metamorfo', who: /\b(minha cara|igual a mim)\b/.test(c) ? me : null });
         continue;
       }
       /* "me segue que eu faço os escudos" / "vou fazer o lixo na frente de vocês": é o que vai fazer, não onde estava */

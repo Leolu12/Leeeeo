@@ -88,7 +88,7 @@
     lastWith: 'estava com a vítima pouco antes', fromBody: 'vinha da direção do corpo', lie: 'mentiu ou o álibi não bate', tracker: 'o rastreador mostrou',
     sus: 'está suspeito', hunch: 'pressentimento', claim: 'contaram no chat', vote: 'vai votar nele', fastReport: 'reportou o corpo pouco depois da vítima ser vista viva (possível self report)',
   };
-  const VOUCH = { visual: 'viu fazendo tarefa visual (inocente)', together: 'estava junto', claim: 'confirma o que ele disse' };
+  const VOUCH = { visual: 'viu fazendo tarefa visual (inocente)', together: 'estava junto', claim: 'confirma o que ele disse', twin: 'viu dois dele ao mesmo tempo: o outro era o metamorfo' };
 
   const V = {
     active(mt) {
@@ -326,14 +326,24 @@
         else out.push('Não sabe onde estava o corpo de ' + nm(info.body.pid) + '.');
       }
       if (!p.isImp) {
+        /* dois iguais ao mesmo tempo: vem antes do resto (as anotações são cortadas no fim) */
+        for (const e of b.mem.events) {
+          if (e.type !== 'twin' || (e.t < info.roundStart && !e.solo) || !g.players[e.who]) continue;
+          const where = V.area(e.a1) + (e.a2 && e.a2 !== e.a1 ? ' e em ' + V.area(e.a2) : '') + (e.via === 'cams' ? ' (um deles pelas câmeras)' : '');
+          const when = e.t < info.roundStart ? ' numa rodada anterior' : '';
+          if (e.self) out.push('Viu alguém com a SUA cara em ' + V.area(e.a1) + when + (e.kill != null ? ', MATANDO ' + nm(e.kill) : e.vent ? ', entrando no duto' : '') + ': era o metamorfo disfarçado de você. Você sabe que não foi você.');
+          else out.push('Viu DOIS ' + nm(e.who) + ' ao mesmo tempo em ' + where + when + (e.kill != null ? '; um deles MATOU ' + nm(e.kill) + ' enquanto o outro estava à vista' : '') + ': um era o metamorfo com a cara ' + (e.who === p.id ? 'sua' : 'de ' + nm(e.who)) + '. ' + nm(e.who) + ' de verdade NÃO é o metamorfo' + (e.solo ? ' e, como só pode haver um impostor vivo, é inocente com certeza' : '') + '; o que "' + nm(e.who) + '" fez de suspeito perto dessa hora pode ter sido o disfarce.');
+          if (e.solo && (e.with || []).length) out.push('Quem você via nessa hora (' + e.with.filter((id) => g.players[id]).map(nm).join(', ') + ') também não era o metamorfo: são inocentes.');
+        }
         const strongTxt = { kill: 'matando alguém', vent: 'entrando ou saindo de um duto', shift: 'mudando de aparência', vanish: 'ficando invisível' };
         for (const id of Object.keys(b.ev || {})) {
           for (const e of b.ev[id]) {
-            if (strongTxt[e.reason]) out.push('VIU ' + nm(+id) + ' ' + strongTxt[e.reason] + (e.area ? ' em ' + V.area(e.area) : '') + (e.past ? ' numa rodada anterior (e ele continua vivo)' : '') + '. Tem certeza absoluta.');
+            if (strongTxt[e.reason] && e.twinCut) out.push('Viu "' + nm(+id) + '" ' + strongTxt[e.reason] + (e.area ? ' em ' + V.area(e.area) : '') + ', mas perto da hora em que viu dois ' + nm(+id) + ': pode ter sido o metamorfo disfarçado.');
+            else if (strongTxt[e.reason]) out.push('VIU ' + nm(+id) + ' ' + strongTxt[e.reason] + (e.area ? ' em ' + V.area(e.area) : '') + (e.past ? ' numa rodada anterior (e ele continua vivo)' : '') + '. Tem certeza absoluta.');
             if (e.reason === 'visual') out.push('Viu ' + nm(+id) + ' fazendo ' + (M.VISUAL_NAMES[e.task] || 'uma tarefa visual') + (e.past ? ' numa rodada anterior' : '') + ': é tripulante com certeza, lembra disso e NUNCA acusa ' + nm(+id) + ' por coisa fraca (seguir, estar perto, jeito estranho).');
             if (e.reason === 'lie' && e.past) out.push('Já pegou ' + nm(+id) + ' mentindo sobre onde estava numa reunião anterior.');
             if (e.reason === 'spared') out.push('Já ficou sozinho com ' + nm(+id) + ' (' + Math.round(e.secs) + 's no total) e não morreu.');
-            if (e.reason === 'fakeTask') out.push('Viu ' + nm(+id) + ' terminar uma tarefa' + (e.area ? ' em ' + V.area(e.area) : '') + ' e a barra de tarefas NÃO subiu: a tarefa era falsa.');
+            if (e.reason === 'fakeTask') out.push('Viu ' + nm(+id) + ' parado numa tarefa' + (e.area ? ' em ' + V.area(e.area) : '') + ' pelo tempo que ela leva, sair, e a barra de tarefas NÃO subiu: tarefa falsa (ou largou no meio)' + (e.explained ? '; ' + nm(+id) + ' disse que desistiu da tarefa.' : '.'));
             if (e.reason === 'noscan') out.push('Viu ' + nm(+id) + ' parado ' + ({ scan: 'no scanner da MedBay', asteroids: 'na arma de asteroides', shields: 'no painel dos escudos' }[e.task] || 'numa tarefa visual') + ' sem a animação aparecer (tarefa falsa).');
             if (e.reason === 'ventLink') out.push('Viu ' + nm(+id) + ' aparecer em ' + V.area(e.area) + ', que tem duto ligado a ' + V.area(e.bodyArea) + ' (onde estava o corpo), pouco antes.');
             if (e.reason === 'withVictim' || e.reason === 'lastWith') out.push('Viu ' + nm(+id) + ' junto da vítima pouco antes' + (e.area ? ', em ' + V.area(e.area) : '') + '.');
@@ -525,6 +535,32 @@
       return out;
     },
 
+    /* A fala escrita pelo modelo acusa alguém que o bot não acusaria (ou conta um flagrante que ele não viu)? Então o
+       texto não sai: a intenção já era descartada, mas a frase ficava na tela ("o jogador tá quieto, sus"). O
+       impostor pode apontar qualquer tripulante (é o jogo dele), mas não inventa flagrante que o motor não mandou. */
+    unbacked(b, text, intents, mt) {
+      const g = b.g, p = b.p;
+      const n = ' ' + U.norm(text) + ' ';
+      /* negação por perto ("não acho que é o verde", "não é impostor"): a leitura simples erra, deixa passar */
+      if (/ (nao|n|nunca|nem) /.test(n)) return false;
+      for (const it of T.parse(text, g, { self: p.id, addressed: mt.lastSpeaker })) {
+        if ((it.type !== 'accuse' && it.type !== 'agree') || it.who == null || it.who === p.id || !g.players[it.who]) continue;
+        const planned = intents.some((j) => (j.type === 'accuse' || j.type === 'agree') && j.who === it.who);
+        if (it.type === 'accuse' && STRONGS[it.reason] && !intents.some((j) => j.type === 'accuse' && j.who === it.who && STRONGS[j.reason])) {
+          const saw = !p.isImp && ((b.ev && b.ev[it.who]) || []).some((e) => e.reason === it.reason && !e.twinCut);
+          if (!saw) return true;
+        }
+        if (planned) continue;
+        if (p.isImp) {
+          if (g.players[it.who].isImp) return true;
+          continue;
+        }
+        const s = b.susp[it.who] || 0;
+        if (s < 18 || (b.fairOn && !b.fairOn(it.who))) return true;
+      }
+      return false;
+    },
+
     /* Intenções de uma fala livre: só as que batem com o que o bot sabe (o modelo não decide o jogo). */
     validIntents(b, text, motive, mt) {
       const g = b.g, p = b.p, id = p.id;
@@ -537,7 +573,10 @@
             if (p.isImp ? !g.players[it.who].isImp : (b.susp[it.who] || 0) >= 18) out.push(Object.assign({}, it, { strong: false, reason: STRONGS[it.reason] ? 'sus' : it.reason }));
             break;
           case 'vouch':
-            if (p.isImp || (b.susp[it.who] || 0) <= -8) out.push(it);
+            /* "vi dois X" só vale de quem viu mesmo; senão, no máximo uma defesa comum */
+            if (it.reason === 'twin' && !p.isImp && !b.mem.events.some((e) => e.type === 'twin' && !e.self && e.who === it.who)) {
+              if ((b.susp[it.who] || 0) <= -8) out.push(Object.assign({}, it, { reason: 'claim' }));
+            } else if (p.isImp || (b.susp[it.who] || 0) <= -8) out.push(it);
             break;
           case 'claimLoc': {
             const al = b.getAlibi();
@@ -1057,6 +1096,12 @@
         const confirming = /\b(verdade|confirmo|confirma|tava mesmo|estava mesmo|isso ai|e isso|eh isso)\b/.test(U.norm(ln.text));
         const parsedPro = new Set(T.parse(ln.text, g, { self: p.id }).filter((i) => i.type === 'vouch' || (confirming && i.type === 'sawAt')).map((i) => i.who));
         if ([...contra].some((w) => pro.has(w) || parsedPro.has(w))) {
+          if (s.beats.length) s.beats.forEach((x) => this.postRaw(x, delay + 0.4));
+          continue;
+        }
+        /* acusação sem base no que o bot sabe: fica o texto do motor (se tinha) */
+        if (V.unbacked(b, ln.text, intents, mt)) {
+          this.unbackedDrops = (this.unbackedDrops || 0) + 1;
           if (s.beats.length) s.beats.forEach((x) => this.postRaw(x, delay + 0.4));
           continue;
         }
