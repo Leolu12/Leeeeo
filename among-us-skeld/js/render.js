@@ -336,6 +336,49 @@
     return staticCanvas;
   }
 
+  const FOG = 'rgba(3,5,12,0.88)';
+
+  /* ---------- cache de ladrilhos do mapa ----------
+     O mapa estático é grande; redimensioná-lo inteiro para a tela a cada quadro custa caro em aparelhos sem placa de
+     vídeo. Ele é cortado em ladrilhos já na escala da tela (com 1 px de sobra em volta, para não aparecer costura),
+     gerados sob demanda e guardados; a cada quadro só copia os ladrilhos visíveis 1:1. */
+  const TILE = 384;
+  const tiles = { ppt: 0, map: new Map(), max: 32 };
+  function mapTile(tx, ty, ppt) {
+    if (tiles.ppt !== ppt) {
+      tiles.map.clear();
+      tiles.ppt = ppt;
+    }
+    const key = tx + ',' + ty;
+    let c = tiles.map.get(key);
+    if (c) {
+      tiles.map.delete(key);
+      tiles.map.set(key, c);
+      return c;
+    }
+    c = document.createElement('canvas');
+    c.width = TILE + 2;
+    c.height = TILE + 2;
+    const cx = c.getContext('2d');
+    cx.imageSmoothingEnabled = true;
+    const k = PX / ppt;
+    const sx = (tx * TILE - 1) * k, sy = (ty * TILE - 1) * k, sw = (TILE + 2) * k;
+    /* recorta a origem nos limites do mapa (fora dele fica transparente e aparece o fundo estrelado) */
+    const cx0 = Math.max(0, sx), cy0 = Math.max(0, sy), cx1 = Math.min(staticCanvas.width, sx + sw), cy1 = Math.min(staticCanvas.height, sy + sw);
+    if (cx1 > cx0 && cy1 > cy0) cx.drawImage(staticCanvas, cx0, cy0, cx1 - cx0, cy1 - cy0, (cx0 - sx) / k, (cy0 - sy) / k, (cx1 - cx0) / k, (cy1 - cy0) / k);
+    tiles.map.set(key, c);
+    while (tiles.map.size > tiles.max) tiles.map.delete(tiles.map.keys().next().value);
+    return c;
+  }
+  function blitMap(ctx, cv, px0, py0, ppt) {
+    const tx0 = Math.floor(px0 / TILE), ty0 = Math.floor(py0 / TILE);
+    const tx1 = Math.floor((px0 + cv.width - 1) / TILE), ty1 = Math.floor((py0 + cv.height - 1) / TILE);
+    tiles.max = Math.max(24, (tx1 - tx0 + 2) * (ty1 - ty0 + 2) * 2);
+    for (let ty = ty0; ty <= ty1; ty++) {
+      for (let tx = tx0; tx <= tx1; tx++) ctx.drawImage(mapTile(tx, ty, ppt), 1, 1, TILE, TILE, tx * TILE - px0, ty * TILE - py0, TILE, TILE);
+    }
+  }
+
   /* ---------- fundo estrelado ---------- */
   const stars = [];
   for (let i = 0; i < 260; i++) stars.push({ x: Math.random(), y: Math.random(), z: Math.random() * 0.8 + 0.2 });
@@ -345,15 +388,11 @@
     PX, drawBean, beanSVG, drawPet, rr,
     canvas: null,
     ctx: null,
-    fog: null,
-    fogCtx: null,
     ppt: 32,
     cam: { x: 69, y: 14 },
     setup(canvas) {
       this.canvas = canvas;
       this.ctx = canvas.getContext('2d');
-      this.fog = document.createElement('canvas');
-      this.fogCtx = this.fog.getContext('2d');
       if (!staticCanvas) prerender();
       this.resize();
     },
@@ -364,8 +403,6 @@
       const w = c.clientWidth || window.innerWidth, h = c.clientHeight || window.innerHeight;
       c.width = Math.round(w * dpr);
       c.height = Math.round(h * dpr);
-      this.fog.width = c.width;
-      this.fog.height = c.height;
       this.dpr = dpr;
       this.ppt = Math.max(16, Math.min(c.height / 19, c.width / 17));
     },
@@ -398,9 +435,11 @@
         ctx.fillRect(sx, sy, s.z * 2, s.z * 2);
       }
       const vw = cv.width / ppt, vh = cv.height / ppt;
-      const x0 = this.cam.x - vw / 2, y0 = this.cam.y - vh / 2;
+      /* câmera alinhada ao pixel: mapa e personagens andam juntos, sem tremer */
+      const px0 = Math.round((this.cam.x - vw / 2) * ppt), py0 = Math.round((this.cam.y - vh / 2) * ppt);
+      const x0 = px0 / ppt, y0 = py0 / ppt;
       ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(staticCanvas, x0 * PX, y0 * PX, vw * PX, vh * PX, 0, 0, cv.width, cv.height);
+      blitMap(ctx, cv, px0, py0, ppt);
       const S = (x, y) => ({ x: (x - x0) * ppt, y: (y - y0) * ppt });
       /* máquinas, telas, luzes e plantas animadas (só o que está na tela) */
       if (AU.Decor.drawLive) AU.Decor.drawLive(ctx, S, ppt, t, g, x0, y0, vw, vh);
@@ -792,30 +831,43 @@
       }
       ctx.restore();
     },
+    /* névoa de visão desenhada direto na tela: uma pintura escura com um furo no formato do que se vê e, dentro do
+       furo, só o degradê da borda (antes era uma tela à parte copiada por cima, com quatro passadas de tela cheia) */
     drawFog(g, h, S, ppt) {
-      const fc = this.fogCtx, cv = this.canvas;
+      const ctx = this.ctx, cv = this.canvas;
       const r = g.visionOf(h);
-      fc.globalCompositeOperation = 'source-over';
-      fc.clearRect(0, 0, cv.width, cv.height);
-      fc.fillStyle = 'rgba(3,5,12,0.88)';
-      fc.fillRect(0, 0, cv.width, cv.height);
-      fc.globalCompositeOperation = 'destination-out';
       const eye = h.inVent ? M.VENT[h.inVent] : h;
       const poly = Nav.visPoly(eye.x, eye.y, r, 240);
       const c0 = S(eye.x, eye.y);
-      const grd = fc.createRadialGradient(c0.x, c0.y, r * ppt * 0.6, c0.x, c0.y, r * ppt);
-      grd.addColorStop(0, 'rgba(0,0,0,1)');
-      grd.addColorStop(1, 'rgba(0,0,0,0)');
-      fc.fillStyle = grd;
-      fc.beginPath();
+      const hole = new Path2D();
       poly.forEach((pt, i) => {
         const s = S(pt.x, pt.y);
-        if (i) fc.lineTo(s.x, s.y);
-        else fc.moveTo(s.x, s.y);
+        if (i) hole.lineTo(s.x, s.y);
+        else hole.moveTo(s.x, s.y);
       });
-      fc.closePath();
-      fc.fill();
-      this.ctx.drawImage(this.fog, 0, 0);
+      hole.closePath();
+      const R = r * ppt;
+      /* fora do quadrado da visão: faixas simples; o furo só é recortado dentro do quadrado */
+      const W = cv.width, H = cv.height;
+      const bx0 = U.clamp(Math.floor(c0.x - R - 2), 0, W), by0 = U.clamp(Math.floor(c0.y - R - 2), 0, H);
+      const bx1 = U.clamp(Math.ceil(c0.x + R + 2), 0, W), by1 = U.clamp(Math.ceil(c0.y + R + 2), 0, H);
+      ctx.save();
+      ctx.fillStyle = FOG;
+      if (by0 > 0) ctx.fillRect(0, 0, W, by0);
+      if (by1 < H) ctx.fillRect(0, by1, W, H - by1);
+      if (bx0 > 0) ctx.fillRect(0, by0, bx0, by1 - by0);
+      if (bx1 < W) ctx.fillRect(bx1, by0, W - bx1, by1 - by0);
+      const all = new Path2D();
+      all.rect(bx0, by0, bx1 - bx0, by1 - by0);
+      all.addPath(hole);
+      ctx.fill(all, 'evenodd');
+      ctx.clip(hole);
+      const grd = ctx.createRadialGradient(c0.x, c0.y, R * 0.6, c0.x, c0.y, R);
+      grd.addColorStop(0, 'rgba(3,5,12,0)');
+      grd.addColorStop(1, FOG);
+      ctx.fillStyle = grd;
+      ctx.fillRect(c0.x - R - 2, c0.y - R - 2, R * 2 + 4, R * 2 + 4);
+      ctx.restore();
     },
     drawArrows(g, t, S, ppt) {
       const ctx = this.ctx, cv = this.canvas, h = g.human;
