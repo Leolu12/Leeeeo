@@ -179,7 +179,7 @@
     hardcore: {
       name: 'Hardcore',
       desc: 'Visão reduzida, votos anônimos, sem barra de tarefas, bots falham mais e impostores implacáveis.',
-      apply: { rules: { crewVision: 0.7, confirmEjects: false, anonymousVotes: true, taskBar: 'nunca', visualTasks: false, killCooldown: 35 }, bots: { impostorLevel: 'implacavel', humanError: 'alto' } },
+      apply: { rules: { crewVision: 0.7, confirmEjects: false, anonymousVotes: true, taskBar: 'nunca', visualTasks: false, killCooldown: 40 }, bots: { impostorLevel: 'implacavel', humanError: 'alto' } },
     },
     caos: {
       name: 'Caos',
