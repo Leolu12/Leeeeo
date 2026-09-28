@@ -103,7 +103,7 @@ Dentro do claude.ai a página roda sem acesso à internet, por isso lá só o Cl
 - **Móveis sólidos**: não dá para atravessar o botão, as mesas, os motores, as macas nem os consoles; você desliza encostado neles, e os bots desviam pelo mesmo mapa de colisão.
 - **Animações** no estilo do original: entrar e sair do duto (tampa abre e o personagem afunda ou salta), portas deslizando, respingo do abate e o corpo cortado com o osso, passada com as pernas alternando, cena da sua morte (o impostor ataca com faca ou língua) e aberturas animadas de "Reunião de emergência" e "Corpo reportado".
 - Tarefas visuais que os outros veem acontecer: coluna de luz e faixa do scan, lasers saindo dos canhões pela janela de Armas, colmeia dos escudos acendendo e o lixo despencando no compactador.
-- **Sons** sintetizados sem arquivos: passos que mudam com o piso (metal, azulejo, carpete), ambiente próprio de cada sala (motores, reator, elétrica, MedBay…), duto, abate, portas, sirene de crise, buzina de emergência, sirene de corpo reportado e sons dos painéis de tarefa.
+- **Sons** sintetizados sem arquivos: passos que mudam com o piso (metal, azulejo, carpete), ambiente próprio de cada sala (motores, reator, elétrica, MedBay…), duto, abate, portas, sirene de crise, buzina de emergência, sirene de corpo reportado e sons dos painéis de tarefa. Volume geral, som ligado/desligado e som ambiente das salas ligado/desligado ficam nas configurações (Narração e interface) e na pausa, e valem na hora; o botão Som do jogo também fica salvo para as próximas partidas.
 - Visão com linha de visada: paredes e portas bloqueiam, e as luzes apagadas reduzem a visão da tripulação.
 - 17 tarefas interativas, com painéis de metal desenhados à mão (rebites, faixas de perigo, telas de fósforo) e física onde faz sentido — no lixo, a alavanca abre o alçapão e o lixo despenca de verdade:
   - Passar cartão, fiação, calibrar distribuidor, traçar rota e estabilizar direção.
@@ -226,9 +226,9 @@ tools/build.py    gera a versão de arquivo único em dist/
 
 ## Testes
 
-`AU.debug.simulate({ preset, players, impostors })` roda uma partida inteira só entre bots, sem interface, e devolve o resultado. Medido nesta versão (300 partidas cada; a variação de uma amostra de 300 é de uns ±3 pontos):
-- Clássico (10 jogadores, 2 impostores, nível Competente): a tripulação vence cerca de 44%; ~61% dos ejetados são impostores. Antes da correção das rotas perto dos móveis (bots que davam voltas na sala antes de chegar ao painel), eram 37–39%.
+`AU.debug.simulate({ preset, players, impostors })` roda uma partida inteira só entre bots, sem interface, e devolve o resultado. Medido nesta versão (Clássico e Hardcore com 600 partidas cada, variação de uns ±2 pontos; amostras de 300 variam uns ±3):
+- Clássico (10 jogadores, 2 impostores, nível Competente): a tripulação vence cerca de 44% (duas amostras de 300: 44,0% e 43,3%); ~62% dos ejetados são impostores. As regras são as padrão do Among Us, por isso ficou como está. Antes da correção das rotas perto dos móveis (bots que davam voltas na sala antes de chegar ao painel), eram 37–39%.
 - Competitivo: ~35% (amostra de 150, antes da correção das rotas).
-- Hardcore (visão 0,7, recarga de abate de 40 s, sem tarefa visual, sem confirmação, impostores Implacáveis): ~30% (antes da correção das rotas, 34–36%; com a recarga antiga de 35 s, ~28%).
+- Hardcore (visão 0,7, recarga de abate de 40 s, sem tarefa visual, sem confirmação, impostores Implacáveis): ~33% (duas amostras de 300: 30,3% e 35,0%), no meio da faixa de 30–35% pedida. Outras recargas testadas: 40,5 s → 33%, 41 s → 35% (600 partidas cada), 41,5 s → 37%, 42,5 s → 38%, 45 s → 47%; com a recarga antiga de 35 s, ~28%.
 - Medidos numa versão anterior: por nível de impostor, no Clássico, a tripulação vence cerca de 62% contra o Iniciante, 45% contra o Competente, 37% contra o Veterano e 34% contra o Implacável; no Casual, ~81%.
 - Sabotagem de reator em 400 partidas entre bots: os dois painéis ficam cobertos em 11,3 s em média (antes da divisão, 13,3 s), e "um lado com 2 ou mais e o outro vazio" aos 10 s caiu de 64 para 5 casos.

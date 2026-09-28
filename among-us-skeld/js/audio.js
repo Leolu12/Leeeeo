@@ -6,11 +6,14 @@
   'use strict';
   const AU = window.AU;
   let ctx = null, bus = null, enabled = true, alarmT = null, amb = null, ambKind = null, lastStep = 0;
+  /* volume geral (0 a 1), ambiente das salas ligado ou não, e o ambiente pedido pelo jogo (para religar depois) */
+  let volume = 1, ambOn = true, wantAmb = null;
+  const MASTER = 0.42;
 
   /* ---------- cadeia de saída: sfx + envio para reverb curto → compressor → master ---------- */
   function makeBus(c) {
     const master = c.createGain();
-    master.gain.value = 0.42;
+    master.gain.value = MASTER * volume;
     const comp = c.createDynamicsCompressor();
     comp.threshold.value = -16;
     comp.knee.value = 12;
@@ -397,17 +400,19 @@
     },
     /* ambiente da sala atual (null desliga) */
     ambience(kind) {
-      if (kind === ambKind) return;
-      ambKind = kind;
+      wantAmb = kind;
+      const eff = enabled && ambOn ? kind : null;
+      if (eff === ambKind) return;
+      ambKind = eff;
       if (amb) {
         amb.stop();
         amb = null;
       }
-      if (!kind || !enabled) return;
+      if (!eff) return;
       const c = ensure();
       if (!c) return;
       try {
-        amb = startAmb(c, kind);
+        amb = startAmb(c, eff);
       } catch (e) {
         amb = null;
       }
@@ -415,12 +420,24 @@
     unlock() { ensure(); },
     setEnabled(v) {
       enabled = !!v;
-      if (!enabled) {
-        AU.Audio.alarm(false);
-        AU.Audio.ambience(null);
-      }
+      if (!enabled) AU.Audio.alarm(false);
+      AU.Audio.ambience(wantAmb);
     },
     get enabled() { return enabled; },
+    /* volume geral, de 0 a 1 */
+    setVolume(v) {
+      volume = Math.max(0, Math.min(1, +v || 0));
+      if (ctx && bus) bus.master.gain.setTargetAtTime(MASTER * volume, ctx.currentTime, 0.03);
+    },
+    get volume() { return volume; },
+    /* som ambiente das salas (motores, reator, bipes) ligado ou não, sem mexer nos efeitos */
+    setAmbienceOn(on) {
+      ambOn = !!on;
+      AU.Audio.ambience(wantAmb);
+    },
+    get ambienceOn() { return ambOn; },
+    /* ambiente tocando agora (null = nenhum) */
+    get ambiencePlaying() { return ambKind; },
     alarm(on) {
       if (on && !alarmT && enabled) {
         if (!ensure()) return;

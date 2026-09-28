@@ -23,6 +23,35 @@
     },
     save() { U.store.set(STORE_KEY, this.S); },
 
+    /* ---------------- som ----------------
+       Configurações, pausa e o botão do jogo mexem no mesmo lugar: vale na hora e fica salvo. */
+    applySound() {
+      const ui = this.S.ui;
+      AU.Audio.setEnabled(ui.sound !== false);
+      AU.Audio.setVolume((ui.volume == null ? 100 : ui.volume) / 100);
+      AU.Audio.setAmbienceOn(ui.ambience !== false);
+    },
+    setSound(patch) {
+      Object.assign(this.S.ui, patch);
+      this.save();
+      this.applySound();
+      const g = AU.App && AU.App.game;
+      if (g) Object.assign(g.S.ui, patch);
+      if (AU.HUD && AU.HUD.syncSoundBtn) AU.HUD.syncSoundBtn();
+    },
+    /* som ligado, volume e som ambiente (prefixo: ids únicos em cada tela) */
+    soundControls(prefix, change) {
+      const ui = this.S.ui;
+      const done = () => (change ? change() : null);
+      const vol = this.range(prefix + '-vol', 0, 100, 5, () => (ui.volume == null ? 100 : ui.volume), (v) => { this.setSound({ volume: v }); done(); }, (v) => v + '%');
+      /* soltou o controle: toca um som para ouvir o volume escolhido */
+      vol.querySelector('input').addEventListener('change', () => AU.Audio.play('ok'));
+      return h('div', { class: 'grid2 sound-ctl' },
+        this.toggle(prefix + '-sound', 'Som', () => ui.sound !== false, (v) => { this.setSound({ sound: v }); done(); }),
+        this.toggle(prefix + '-amb', 'Som ambiente das salas', () => ui.ambience !== false, (v) => { this.setSound({ ambience: v }); done(); }, 'Motores, reator, bipes; os efeitos continuam'),
+        this.field('Volume', vol));
+    },
+
     /* ---------------- título ---------------- */
     title(root) {
       root.innerHTML = '';
@@ -491,8 +520,8 @@
       return this.sec('interface', 'Narração e interface', null,
         h('div', { class: 'grid2' },
           this.field('Narrador', this.seg('ui-narr', Object.keys(C.NARRATION).map((k) => [k, C.NARRATION[k]]), () => UI.narration, (v) => { UI.narration = v; change(); }), 'Descrições de salas, sabotagens e ambiente'),
-          this.toggle('ui-report', 'Relatório final', () => UI.finalReport, (v) => { UI.finalReport = v; change(); }, 'Revela funções e a linha do tempo completa'),
-          this.toggle('ui-sound', 'Som', () => UI.sound, (v) => { UI.sound = v; AU.Audio.setEnabled(v); change(); })));
+          this.toggle('ui-report', 'Relatório final', () => UI.finalReport, (v) => { UI.finalReport = v; change(); }, 'Revela funções e a linha do tempo completa')),
+        this.soundControls('ui', change));
     },
 
     secHouse(change) {

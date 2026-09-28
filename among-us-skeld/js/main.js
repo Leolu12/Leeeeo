@@ -17,7 +17,7 @@
 
     init() {
       AU.Menu.load();
-      AU.Audio.setEnabled(AU.Menu.S.ui.sound !== false);
+      AU.Menu.applySound();
       AU.LLM.detect();
       this.el = {
         title: document.getElementById('screen-title'),
@@ -65,7 +65,8 @@
     },
 
     quickStart() {
-      AU.Menu.S = AU.C.buildSettings('classico', { profile: AU.Menu.S.profile });
+      /* regras do Clássico; perfil e preferências de interface (som, narrador, IA) ficam como o jogador deixou */
+      AU.Menu.S = AU.C.buildSettings('classico', { profile: AU.Menu.S.profile, ui: U.clone(AU.Menu.S.ui) });
       this.roster = AU.Menu.buildRoster(AU.Menu.S);
       this.startGame();
     },

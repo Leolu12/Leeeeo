@@ -807,6 +807,7 @@
         h('p', {}, 'A partida está pausada. Os bots também param.'),
         house.length ? h('div', { class: 'pause-rules' }, h('strong', {}, 'Regras da casa: '), house.join(' · ')) : null,
         h('div', { class: 'pause-keys' }, 'WASD/setas: andar · E: usar · R: reportar · Q: matar · V: duto · X: sabotar · F: habilidade · M: mapa · H: conversas · 1-3: trocar de duto'),
+        h('div', { class: 'pause-sound' }, AU.Menu.soundControls('pause')),
         h('div', { class: 'pause-ai' }, h('strong', {}, 'IA das conversas: '), AU.Menu.aiStatusEl()),
         h('div', { class: 'mg-row' },
           h('button', { class: 'mg-btn big', onclick: () => this.closeOverlay() }, 'Continuar'),
@@ -816,9 +817,12 @@
     },
 
     toggleSound() {
-      AU.Audio.setEnabled(!AU.Audio.enabled);
-      this.el.soundBtn.firstChild.textContent = AU.Audio.enabled ? '🔊' : '🔈';
-      if (this.g) this.g.S.ui.sound = AU.Audio.enabled;
+      /* vale para as próximas partidas também */
+      AU.Menu.setSound({ sound: !AU.Audio.enabled });
+    },
+    syncSoundBtn() {
+      const b = this.el.soundBtn;
+      if (b) b.firstChild.textContent = AU.Audio.enabled ? '🔊' : '🔈';
     },
 
     killedScreen(killer) {
