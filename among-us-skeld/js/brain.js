@@ -1176,8 +1176,10 @@
     }
     planStalk(tgt) {
       const g = this.g;
+      /* segue de longe, mas sem sair do próprio campo de visão (com visão curta, segue mais de perto) */
+      const keep = Math.min(U.rf(4, 6), Math.max(1.2, g.visionOf(this.p) * 0.8));
       this.setPlan({
-        type: 'stalk', target: tgt.id, keep: U.rf(4, 6), dynEvery: 0.7,
+        type: 'stalk', target: tgt.id, keep, dynEvery: 0.7,
         dyn: () => {
           const s = this.lastSeenAt[g.appearId(tgt)];
           if (!tgt.alive || !s || g.t - s.t > 4) return null;
@@ -1611,7 +1613,10 @@
         const pairSeen = tgt && L.lie >= 0.5 && this.seenWithRecently(tgt);
         /* alguém (fora a vítima) me viu por aqui há pouco: o corpo vai aparecer "perto de onde viram o X" */
         const hereSeen = tgt && L.lie >= 0.5 && this.seenHereRecently(tgt);
-        const need = L.need * (busy ? 1.8 : 1) * (lowKey ? 1.8 : 1) * (grudge ? 0.75 : 1) * (nearVent && L.useVents > 0.5 ? 0.92 : 1) * (threat ? 0.92 : 1) * (pairSeen ? 1.6 : 1) * (hereSeen ? 1.45 : 1) * (myPact ? 1.8 : 1);
+        /* enxergando menos que a tripulação, não dá para observar a vítima sozinha por muito tempo: confia mais na
+           memória de quem viu por perto (noWitness) e espera menos */
+        const gapK = (this.blindGap() || { k: 0 }).k * (1 - (L.miss || 0));
+        const need = L.need * (1 - 0.7 * gapK) * (busy ? 1.8 : 1) * (lowKey ? 1.8 : 1) * (grudge ? 0.75 : 1) * (nearVent && L.useVents > 0.5 ? 0.92 : 1) * (threat ? 0.92 : 1) * (pairSeen ? 1.6 : 1) * (hereSeen ? 1.45 : 1) * (myPact ? 1.8 : 1);
         if (tgt && this.eagerRoll == null && this.isoT >= need) {
           const waited = t - this.readyT;
           this.eagerRoll = U.chance(L.eager * U.clamp(0.7 + waited / 15, 0.7, 1) * (busy ? 0.7 : 1) * (lowKey && !grudge ? 0.55 : 1));
@@ -1646,7 +1651,10 @@
           }
           return;
         } else if (!tgt && this.plan && this.plan.type === 'hunt') {
-          this.plan = null;
+          /* perdeu a vítima de vista. Enxergando menos que a tripulação, ela some em um passo: segue por onde ela foi
+             por até 2 s (a caçada vai até o último ponto visto) em vez de desistir na hora */
+          const q = g.players[this.plan.target], seenQ = q && this.lastSeenAt[g.appearId(q)];
+          if (!(this.blindGap() && !others.length && seenQ && t - seenQ.t < 2)) this.plan = null;
         }
       }
       if (g.sabCritical() && !this.plan && U.chance(0.35)) {
@@ -1778,15 +1786,28 @@
       if (L.miss >= 0.3 && seers.every((w) => w.via === 'eyes' && U.dist(p, w.p) > 5) && U.chance(L.miss * 0.5)) return true;
       return false;
     }
+    /* Quanto a tripulação enxerga a mais que eu (0 = eu vejo tanto quanto ela). Com visão igual ou maior, quem me vê
+       está no meu campo de visão; com visão menor (impostor com 0,25x, tripulação com 2x), alguém pode me ver de onde
+       eu não enxergo, e o impostor atento sabe disso. */
+    blindGap() {
+      const g = this.g, R = g.S.rules, B = g.consts.BASE_VISION;
+      const crew = B * R.crewVision * (0.25 + 0.75 * g.lightLevel), mine = g.visionOf(this.p);
+      return crew > mine ? { crew, mine, k: 1 - mine / crew } : null;
+    }
     noWitness(tgt, others) {
-      const g = this.g, p = this.p;
+      const g = this.g, p = this.p, L = this.lvl;
       if (others.length > 1) return false;
+      /* enxergando menos que a tripulação: lembra por mais tempo e de mais longe onde viu gente */
+      const gap = this.blindGap(), aware = 1 - (L.miss || 0);
+      const win = 1.6 + (gap ? 3.5 * gap.k * aware : 0), far = Math.max(10, gap ? gap.crew + 2 : 0);
       for (const id of Object.keys(this.lastSeenAt)) {
         const s = this.lastSeenAt[id];
         const q = g.players[+id];
         if (!q || q.isImp || q === tgt || !q.alive) continue;
-        if (g.t - s.t < 1.6 && U.d2(s.x, s.y, p.x, p.y) < 10 && !others.some((o) => g.appearId(o) === +id)) return false;
+        if (g.t - s.t < win && U.d2(s.x, s.y, p.x, p.y) < far && !others.some((o) => g.appearId(o) === +id)) return false;
       }
+      /* e evita matar em lugar de passagem sem enxergar em volta */
+      if (gap && gap.k > 0.25 && HIGH_TRAFFIC.has(M.areaAt(p.x, p.y).id) && U.chance(gap.k * aware)) return false;
       return true;
     }
     safeToKill(tgt, others) {

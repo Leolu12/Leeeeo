@@ -629,6 +629,10 @@
       const list = g.players.slice().sort((a, b) => a.y - b.y);
       const hDead = h && !h.alive;
       const fogOn = !!(h && h.alive);
+      /* luz do jogador: o nome de quem está na borda escurece junto com o boneco (no apagão, nome claro no escuro
+         entregava quem estava ali) */
+      const eye = fogOn ? (h.inVent ? M.VENT[h.inVent] : h) : null, Rv = fogOn ? g.visionOf(h) : 0;
+      const lit = (x, y) => (eye ? 1 - 0.88 * U.clamp((U.d2(eye.x, eye.y, x, y) - Rv * 0.6) / (Rv * 0.4), 0, 1) : 1);
       const labels = [];
       let mine = null;
       for (const p of list) {
@@ -662,7 +666,7 @@
         if (p.visual && p.visual.type === 'scan' && p.alive && !(p === h && mine)) this.scanFront(sp, ppt, t);
         const partner = h && h.isImp && p.isImp;
         /* nomes depois da névoa: o nome fica acima da cabeça e às vezes cai sobre a parede escura */
-        labels.push({ name: ap.name, x: sp.x, y: sp.y - ppt * 0.95, alpha, color: partner ? '#ff5a5a' : '#ffffff' });
+        labels.push({ name: ap.name, x: sp.x, y: sp.y - ppt * 0.95, alpha: p === h ? alpha : alpha * lit(p.x, p.y), color: partner ? '#ff5a5a' : '#ffffff' });
       }
       /* efeitos */
       for (const f of g.fx) {
@@ -948,18 +952,12 @@
       });
       hole.closePath();
       const R = r * ppt;
-      /* fora do quadrado da visão: faixas simples; o furo só é recortado dentro do quadrado */
+      /* uma área só (tela inteira menos o furo da visão): em faixas separadas, a emenda aparecia como uma linha clara */
       const W = cv.width, H = cv.height;
-      const bx0 = U.clamp(Math.floor(c0.x - R - 2), 0, W), by0 = U.clamp(Math.floor(c0.y - R - 2), 0, H);
-      const bx1 = U.clamp(Math.ceil(c0.x + R + 2), 0, W), by1 = U.clamp(Math.ceil(c0.y + R + 2), 0, H);
       ctx.save();
       ctx.fillStyle = FOG;
-      if (by0 > 0) ctx.fillRect(0, 0, W, by0);
-      if (by1 < H) ctx.fillRect(0, by1, W, H - by1);
-      if (bx0 > 0) ctx.fillRect(0, by0, bx0, by1 - by0);
-      if (bx1 < W) ctx.fillRect(bx1, by0, W - bx1, by1 - by0);
       const all = new Path2D();
-      all.rect(bx0, by0, bx1 - bx0, by1 - by0);
+      all.rect(0, 0, W, H);
       all.addPath(hole);
       ctx.fill(all, 'evenodd');
       ctx.clip(hole);
@@ -967,7 +965,9 @@
       grd.addColorStop(0, 'rgba(3,5,12,0)');
       grd.addColorStop(1, FOG);
       ctx.fillStyle = grd;
-      ctx.fillRect(c0.x - R - 2, c0.y - R - 2, R * 2 + 4, R * 2 + 4);
+      /* o recorte vai 0,12 tile além do raio (para iluminar a face da parede): o degradê cobre o recorte inteiro,
+         senão sobrava um anel sem névoa logo fora do círculo */
+      ctx.fillRect(0, 0, W, H);
       ctx.restore();
     },
     drawArrows(g, t, S, ppt) {
