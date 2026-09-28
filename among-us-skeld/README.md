@@ -226,9 +226,9 @@ tools/build.py    gera a versão de arquivo único em dist/
 
 ## Testes
 
-`AU.debug.simulate({ preset, players, impostors })` roda uma partida inteira só entre bots, sem interface, e devolve o resultado. Medido nesta versão, lado a lado com a anterior (300 partidas cada, mesmo dia e mesmo teste; a variação de uma amostra de 300 é de uns ±3 pontos):
-- Clássico (10 jogadores, 2 impostores, nível Competente): a tripulação vence cerca de 39–40% (a versão anterior deu 37%); ~55–58% dos ejetados são impostores (a anterior, 59%). O redesenho do mapa não mudou o equilíbrio.
-- Competitivo: ~35% (amostra de 150).
-- Hardcore (visão 0,7, recarga de abate de 40 s, sem tarefa visual, sem confirmação, impostores Implacáveis): ~35% (duas amostras de 300: 34% e 36%). Com a recarga antiga de 35 s dava ~28%, abaixo da faixa pedida de 30–35%.
+`AU.debug.simulate({ preset, players, impostors })` roda uma partida inteira só entre bots, sem interface, e devolve o resultado. Medido nesta versão (300 partidas cada; a variação de uma amostra de 300 é de uns ±3 pontos):
+- Clássico (10 jogadores, 2 impostores, nível Competente): a tripulação vence cerca de 44%; ~61% dos ejetados são impostores. Antes da correção das rotas perto dos móveis (bots que davam voltas na sala antes de chegar ao painel), eram 37–39%.
+- Competitivo: ~35% (amostra de 150, antes da correção das rotas).
+- Hardcore (visão 0,7, recarga de abate de 40 s, sem tarefa visual, sem confirmação, impostores Implacáveis): ~30% (antes da correção das rotas, 34–36%; com a recarga antiga de 35 s, ~28%).
 - Medidos numa versão anterior: por nível de impostor, no Clássico, a tripulação vence cerca de 62% contra o Iniciante, 45% contra o Competente, 37% contra o Veterano e 34% contra o Implacável; no Casual, ~81%.
-- Sabotagem de reator em 400 partidas entre bots: os dois painéis ficam cobertos em 11,4 s em média (antes 13,3 s), e "um lado com 2 ou mais e o outro vazio" aos 10 s caiu de 64 para 12 casos.
+- Sabotagem de reator em 400 partidas entre bots: os dois painéis ficam cobertos em 11,3 s em média (antes da divisão, 13,3 s), e "um lado com 2 ou mais e o outro vazio" aos 10 s caiu de 64 para 5 casos.
