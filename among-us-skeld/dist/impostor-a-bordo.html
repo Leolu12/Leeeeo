@@ -314,6 +314,7 @@ body.touch .act kbd { display: none; }
 .mg-btn:disabled { opacity: 0.4; }
 .mg-btn.big { padding: 14px 22px; font-family: var(--display); text-transform: uppercase; letter-spacing: 0.05em; }
 .mg-btn.danger { border-color: var(--imp); color: #ffc9c9; }
+.mg-btn.hold, .mg-hand { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .mg-dev { position: relative; padding: 18px; border-radius: 12px; border: 2px solid #151922; box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 6px 18px rgba(0,0,0,.35);
   background:
     radial-gradient(circle at 10px 10px, #c9d1de 0 2.5px, #4a5160 3px, transparent 3.6px),
@@ -2371,7 +2372,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     let beepT = null;
     if (k.beep) {
       beepT = setInterval(() => {
-        if (!ctx || !enabled) return;
+        if (!ctx || !enabled || document.hidden) return;
         osc(ctx, out, ctx.currentTime, { f: k.beep, rel: 0.12, vol: 0.12 });
         osc(ctx, out, ctx.currentTime + 0.14, { f: k.beep * 0.75, rel: 0.12, vol: 0.08 });
       }, 2600 + Math.random() * 1500);
@@ -2399,11 +2400,20 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   const SURF = { cafeteria: 'tile', medbay: 'tile', o2: 'tile', navigation: 'tile', admin: 'carpet', comms: 'carpet', security: 'carpet' };
   const AMB_OF = { upperEngine: 'engine', lowerEngine: 'engine', reactor: 'reactor', electrical: 'electrical', cafeteria: 'cafeteria', medbay: 'medbay', o2: 'o2', comms: 'comms', admin: 'quiet', security: 'quiet', navigation: 'quiet', weapons: 'quiet', shields: 'electrical', storage: 'corridor' };
 
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (!ctx) return;
+      if (document.hidden) ctx.suspend().catch(() => {});
+      else if (enabled) ctx.resume().catch(() => {});
+    });
+  }
+
   AU.Audio = {
     surfaceOf: (areaId) => SURF[areaId] || 'metal',
     ambienceOf: (areaId) => AMB_OF[areaId] || 'corridor',
     play(name, when) {
-      if (!enabled || !S[name]) return;
+      /* aba escondida: o jogo para (sem quadros) e o som também, senão os sons se acumulam e saem todos juntos na volta */
+      if (!enabled || !S[name] || (typeof document !== 'undefined' && document.hidden)) return;
       const c = ensure();
       if (!c) return;
       try {
@@ -12384,7 +12394,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     close() {
       if (this.closed) return;
       this.closed = true;
+      /* a interface some da tela e é solta (o histórico usa só as mensagens) */
       if (this.ui) this.ui.destroy();
+      this.ui = null;
       this.g.finishMeeting(this.result || { ejected: null, votes: {} });
     }
   }
@@ -12482,7 +12494,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         h('div', { class: 'mt-splash-title' }, isReport ? 'Corpo reportado' : 'Reunião de emergência'),
         h('div', { class: 'mt-splash-sub' }, isReport ? `${caller.name} encontrou o corpo de ${g.players[info.body.pid].name}` : `${caller.name} apertou o botão`));
       this.timer = h('div', { class: 'mt-timer' }, '');
-      this.pauseBtn = h('button', { class: 'mt-pause', type: 'button', title: 'Pausar a reunião para ler com calma', onclick: () => mt.setPaused(!mt.paused) }, '⏸ Pausar');
+      this.pauseBtn = h('button', { class: 'mt-pause', type: 'button', title: 'Pausar a reunião para ler com calma', onclick: () => this.mt && this.mt.setPaused(!this.mt.paused) }, '⏸ Pausar');
       this.aiBadge = h('button', { class: 'mt-ai', type: 'button', onclick: () => this.aiClick() }, '');
       this.paintAI();
       this.cards = h('div', { class: 'mt-cards' });
@@ -12570,15 +12582,17 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const g = this.g, mt = this.mt, hp = g.human;
       const dead = !p.alive;
       const partner = hp && hp.isImp && p.isImp;
+      /* os cliques guardam só o número do jogador (guardar o jogador prenderia a partida inteira na memória) */
+      const pid = p.id;
       const conf = h('div', { class: 'mt-confirm', hidden: true },
-        h('button', { class: 'yes', type: 'button', 'aria-label': 'Confirmar voto', onclick: (e) => { e.stopPropagation(); this.confirm(p.id); } }, '✓'),
+        h('button', { class: 'yes', type: 'button', 'aria-label': 'Confirmar voto', onclick: (e) => { e.stopPropagation(); this.confirm(pid); } }, '✓'),
         h('button', { class: 'no', type: 'button', 'aria-label': 'Cancelar', onclick: (e) => { e.stopPropagation(); this.cancel(); } }, '✕'));
       const voters = h('div', { class: 'mt-voters' });
       const badge = h('span', { class: 'mt-badge', hidden: true }, 'VOTOU');
       const card = h('button', {
         class: 'mt-card' + (dead ? ' dead' : '') + (p.isHuman ? ' me' : '') + (partner ? ' partner' : ''),
         type: 'button', disabled: dead,
-        onclick: () => this.pick(p.id),
+        onclick: () => this.pick(pid),
       },
       h('span', { class: 'mt-card-bean', html: AU.Render.beanSVG(p.color, { size: 40, visor: p.visor, x: dead }) }),
       h('span', { class: 'mt-card-text' },
@@ -12858,7 +12872,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     destroy() {
       if (this.iv) clearInterval(this.iv);
       if (this.stopSplash) this.stopSplash();
+      /* campo de texto com foco preso num nó removido segura a reunião inteira na memória */
+      if (document.activeElement && this.root.contains(document.activeElement)) document.activeElement.blur();
       this.root.remove();
+      /* o navegador às vezes ainda guarda o último campo de texto: corta a ligação com a partida */
+      this.mt = null;
+      this.g = null;
     }
   }
 
@@ -17783,17 +17802,25 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     const engine = ctx.step % 2 === 1;
     const gauge = h('div', { class: 'mg-gauge' }, h('div', { class: 'fill' }));
     const pct = h('div', { class: 'mg-mono' }, '0%');
-    const btn = h('button', { class: 'mg-btn big' }, engine ? 'Segure para abastecer o motor' : 'Segure para encher o galão');
+    const btn = h('button', { class: 'mg-btn big hold' }, engine ? 'Segure para abastecer o motor' : 'Segure para encher o galão');
     let holding = false, v = 0, glug = 0;
     const down = (e) => {
       e.preventDefault();
       holding = true;
+      /* o dedo escorregou um pouco para fora do botão: continua segurando */
+      try {
+        btn.setPointerCapture(e.pointerId);
+      } catch (er) {
+        /* ignora */
+      }
     };
     const up = () => (holding = false);
     btn.addEventListener('pointerdown', down);
     btn.addEventListener('pointerup', up);
     btn.addEventListener('pointerleave', up);
     btn.addEventListener('pointercancel', up);
+    /* segurar o dedo no celular não abre menu nem seleciona texto */
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
     root.appendChild(h('div', { class: 'mg-dev mg-fuel' }, h('div', { class: 'mg-can' + (engine ? ' eng' : '') }, gauge), h('div', { class: 'mg-fuel-side' }, h('div', { class: 'mg-screen' }, pct), btn)));
     api.msg(engine ? 'Despeje o combustível no motor.' : 'Encha o galão de combustível.');
     return {
@@ -18458,6 +18485,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       e.preventDefault();
       holding = true;
       pad.classList.add('on');
+      try {
+        pad.setPointerCapture(e.pointerId);
+      } catch (er) {
+        /* ignora */
+      }
     };
     const up = () => {
       holding = false;
@@ -18467,6 +18499,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     pad.addEventListener('pointerup', up);
     pad.addEventListener('pointerleave', up);
     pad.addEventListener('pointercancel', up);
+    pad.addEventListener('contextmenu', (e) => e.preventDefault());
     root.appendChild(h('div', { class: 'mg-center' }, h('div', { class: 'mg-dev' }, pad)));
     api.msg('Segure a mão no scanner. Outra pessoa precisa segurar o outro scanner ao mesmo tempo.');
     return {
@@ -20364,6 +20397,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       for (const k of ['title', 'create', 'lobby', 'reveal', 'game', 'end']) this.el[k].hidden = k !== name;
       if (name === 'title') AU.Menu.title(this.el.title);
       if (name === 'create') AU.Menu.create(this.el.create);
+      /* o relatório final guarda a partida inteira: saindo dele, solta */
+      if (name !== 'end') this.el.end.innerHTML = '';
+      if (name !== 'reveal') this.el.reveal.innerHTML = '';
       if (name !== 'game') {
         AU.Audio.alarm(false);
         AU.Audio.ambience(null);

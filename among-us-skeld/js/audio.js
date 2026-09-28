@@ -337,7 +337,7 @@
     let beepT = null;
     if (k.beep) {
       beepT = setInterval(() => {
-        if (!ctx || !enabled) return;
+        if (!ctx || !enabled || document.hidden) return;
         osc(ctx, out, ctx.currentTime, { f: k.beep, rel: 0.12, vol: 0.12 });
         osc(ctx, out, ctx.currentTime + 0.14, { f: k.beep * 0.75, rel: 0.12, vol: 0.08 });
       }, 2600 + Math.random() * 1500);
@@ -365,11 +365,20 @@
   const SURF = { cafeteria: 'tile', medbay: 'tile', o2: 'tile', navigation: 'tile', admin: 'carpet', comms: 'carpet', security: 'carpet' };
   const AMB_OF = { upperEngine: 'engine', lowerEngine: 'engine', reactor: 'reactor', electrical: 'electrical', cafeteria: 'cafeteria', medbay: 'medbay', o2: 'o2', comms: 'comms', admin: 'quiet', security: 'quiet', navigation: 'quiet', weapons: 'quiet', shields: 'electrical', storage: 'corridor' };
 
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (!ctx) return;
+      if (document.hidden) ctx.suspend().catch(() => {});
+      else if (enabled) ctx.resume().catch(() => {});
+    });
+  }
+
   AU.Audio = {
     surfaceOf: (areaId) => SURF[areaId] || 'metal',
     ambienceOf: (areaId) => AMB_OF[areaId] || 'corridor',
     play(name, when) {
-      if (!enabled || !S[name]) return;
+      /* aba escondida: o jogo para (sem quadros) e o som também, senão os sons se acumulam e saem todos juntos na volta */
+      if (!enabled || !S[name] || (typeof document !== 'undefined' && document.hidden)) return;
       const c = ensure();
       if (!c) return;
       try {

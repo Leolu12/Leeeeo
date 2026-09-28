@@ -469,7 +469,9 @@
     close() {
       if (this.closed) return;
       this.closed = true;
+      /* a interface some da tela e é solta (o histórico usa só as mensagens) */
       if (this.ui) this.ui.destroy();
+      this.ui = null;
       this.g.finishMeeting(this.result || { ejected: null, votes: {} });
     }
   }
@@ -567,7 +569,7 @@
         h('div', { class: 'mt-splash-title' }, isReport ? 'Corpo reportado' : 'Reunião de emergência'),
         h('div', { class: 'mt-splash-sub' }, isReport ? `${caller.name} encontrou o corpo de ${g.players[info.body.pid].name}` : `${caller.name} apertou o botão`));
       this.timer = h('div', { class: 'mt-timer' }, '');
-      this.pauseBtn = h('button', { class: 'mt-pause', type: 'button', title: 'Pausar a reunião para ler com calma', onclick: () => mt.setPaused(!mt.paused) }, '⏸ Pausar');
+      this.pauseBtn = h('button', { class: 'mt-pause', type: 'button', title: 'Pausar a reunião para ler com calma', onclick: () => this.mt && this.mt.setPaused(!this.mt.paused) }, '⏸ Pausar');
       this.aiBadge = h('button', { class: 'mt-ai', type: 'button', onclick: () => this.aiClick() }, '');
       this.paintAI();
       this.cards = h('div', { class: 'mt-cards' });
@@ -655,15 +657,17 @@
       const g = this.g, mt = this.mt, hp = g.human;
       const dead = !p.alive;
       const partner = hp && hp.isImp && p.isImp;
+      /* os cliques guardam só o número do jogador (guardar o jogador prenderia a partida inteira na memória) */
+      const pid = p.id;
       const conf = h('div', { class: 'mt-confirm', hidden: true },
-        h('button', { class: 'yes', type: 'button', 'aria-label': 'Confirmar voto', onclick: (e) => { e.stopPropagation(); this.confirm(p.id); } }, '✓'),
+        h('button', { class: 'yes', type: 'button', 'aria-label': 'Confirmar voto', onclick: (e) => { e.stopPropagation(); this.confirm(pid); } }, '✓'),
         h('button', { class: 'no', type: 'button', 'aria-label': 'Cancelar', onclick: (e) => { e.stopPropagation(); this.cancel(); } }, '✕'));
       const voters = h('div', { class: 'mt-voters' });
       const badge = h('span', { class: 'mt-badge', hidden: true }, 'VOTOU');
       const card = h('button', {
         class: 'mt-card' + (dead ? ' dead' : '') + (p.isHuman ? ' me' : '') + (partner ? ' partner' : ''),
         type: 'button', disabled: dead,
-        onclick: () => this.pick(p.id),
+        onclick: () => this.pick(pid),
       },
       h('span', { class: 'mt-card-bean', html: AU.Render.beanSVG(p.color, { size: 40, visor: p.visor, x: dead }) }),
       h('span', { class: 'mt-card-text' },
@@ -943,7 +947,12 @@
     destroy() {
       if (this.iv) clearInterval(this.iv);
       if (this.stopSplash) this.stopSplash();
+      /* campo de texto com foco preso num nó removido segura a reunião inteira na memória */
+      if (document.activeElement && this.root.contains(document.activeElement)) document.activeElement.blur();
       this.root.remove();
+      /* o navegador às vezes ainda guarda o último campo de texto: corta a ligação com a partida */
+      this.mt = null;
+      this.g = null;
     }
   }
 

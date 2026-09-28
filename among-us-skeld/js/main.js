@@ -45,6 +45,9 @@
       for (const k of ['title', 'create', 'lobby', 'reveal', 'game', 'end']) this.el[k].hidden = k !== name;
       if (name === 'title') AU.Menu.title(this.el.title);
       if (name === 'create') AU.Menu.create(this.el.create);
+      /* o relatório final guarda a partida inteira: saindo dele, solta */
+      if (name !== 'end') this.el.end.innerHTML = '';
+      if (name !== 'reveal') this.el.reveal.innerHTML = '';
       if (name !== 'game') {
         AU.Audio.alarm(false);
         AU.Audio.ambience(null);

@@ -1344,17 +1344,25 @@
     const engine = ctx.step % 2 === 1;
     const gauge = h('div', { class: 'mg-gauge' }, h('div', { class: 'fill' }));
     const pct = h('div', { class: 'mg-mono' }, '0%');
-    const btn = h('button', { class: 'mg-btn big' }, engine ? 'Segure para abastecer o motor' : 'Segure para encher o galão');
+    const btn = h('button', { class: 'mg-btn big hold' }, engine ? 'Segure para abastecer o motor' : 'Segure para encher o galão');
     let holding = false, v = 0, glug = 0;
     const down = (e) => {
       e.preventDefault();
       holding = true;
+      /* o dedo escorregou um pouco para fora do botão: continua segurando */
+      try {
+        btn.setPointerCapture(e.pointerId);
+      } catch (er) {
+        /* ignora */
+      }
     };
     const up = () => (holding = false);
     btn.addEventListener('pointerdown', down);
     btn.addEventListener('pointerup', up);
     btn.addEventListener('pointerleave', up);
     btn.addEventListener('pointercancel', up);
+    /* segurar o dedo no celular não abre menu nem seleciona texto */
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
     root.appendChild(h('div', { class: 'mg-dev mg-fuel' }, h('div', { class: 'mg-can' + (engine ? ' eng' : '') }, gauge), h('div', { class: 'mg-fuel-side' }, h('div', { class: 'mg-screen' }, pct), btn)));
     api.msg(engine ? 'Despeje o combustível no motor.' : 'Encha o galão de combustível.');
     return {
@@ -2019,6 +2027,11 @@
       e.preventDefault();
       holding = true;
       pad.classList.add('on');
+      try {
+        pad.setPointerCapture(e.pointerId);
+      } catch (er) {
+        /* ignora */
+      }
     };
     const up = () => {
       holding = false;
@@ -2028,6 +2041,7 @@
     pad.addEventListener('pointerup', up);
     pad.addEventListener('pointerleave', up);
     pad.addEventListener('pointercancel', up);
+    pad.addEventListener('contextmenu', (e) => e.preventDefault());
     root.appendChild(h('div', { class: 'mg-center' }, h('div', { class: 'mg-dev' }, pad)));
     api.msg('Segure a mão no scanner. Outra pessoa precisa segurar o outro scanner ao mesmo tempo.');
     return {
