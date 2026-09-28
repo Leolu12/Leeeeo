@@ -146,6 +146,7 @@
       this.bodiesNow = [];
       this.lastSeenAt = {};
       this.followWatch = {};
+      this.tailWatch = {};
       this.fieldSus = {};
       this.scanWatch = {};
       this.wantButton = null;
@@ -396,7 +397,9 @@
           const keep = this.p.alive && !this.p.isImp ? Math.min(pl.keep || 0.8, g.visionOf(this.p) * 0.8) : pl.keep || 0.8;
           const walking = !!this.dest && !pl.shuffling && pl.stage === 'go';
           this.dynT = tgMoving || walking ? Math.min(this.dynT, 0.3) : this.dynT;
-          const slack = walking || tgMoving ? 0 : this.p.alive && !this.p.isImp && g.lightLevel < 0.6 ? 0.2 : 0.9;
+          /* caçando: fecha a distância até o alcance do abate (com a folga de quem acompanha, parava a ~2,2 tiles de
+             uma vítima parada, fora do alcance de 1,9, e nunca matava) */
+          const slack = walking || tgMoving || pl.type === 'hunt' ? 0 : this.p.alive && !this.p.isImp && g.lightLevel < 0.6 ? 0.2 : 0.9;
           if (d > keep + slack || (tgMoving && walking && d > keep * 0.6)) {
             this.routeTo(tg.x, tg.y);
             pl.stage = 'go';
@@ -1543,6 +1546,7 @@
         }
         return;
       }
+      if (this.shakeTail(others)) return;
       this.sabThink -= 0.3;
       const ao = this.aiOrder;
       if (ao && !ao.done && g.t < ao.until && (ao.kind === 'sab' || ao.kind === 'doors' || ao.kind === 'double')) this.runOrder();
@@ -1692,7 +1696,7 @@
       if (p.special === 'metamorfo' && p.shiftAs != null) {
         const left = p.shiftUntil - t;
         const hunting = this.plan && this.plan.type === 'hunt' && p.killCd <= 2 && left > 4;
-        if (!hunting && (p.killCd > 3 || left < 8) && this.unseen()) {
+        if ((!hunting || this.shaking) && (p.killCd > 3 || left < 8 || this.shaking) && this.unseen()) {
           g.unshift(p);
           return false;
         }
@@ -1706,6 +1710,95 @@
           return false;
         }
         if (left < 6) return this.slipAway();
+      }
+      return false;
+    }
+    /* Alguém na minha cola (ou, disfarçado, a própria pessoa que eu imito me viu — ela sabe que é falso). Como gente:
+       1) se estamos a sós e o abate está pronto, cala quem sabe; 2) fecha as portas da sala onde ele ficou;
+       3) fora da vista dele, some pelo duto; 4) sai de vista (e o disfarce é desfeito onde ninguém vê — abilityEnd);
+       sem disfarce, vai fingir tarefa onde tem gente. O iniciante às vezes nem percebe. */
+    shakeTail(others) {
+      const g = this.g, p = this.p, t = g.t, L = this.lvl;
+      if (g.phase !== 'play' || p.inVent) return false;
+      /* só o disfarçado (ou quem já estava despistando depois de desfazer o disfarce): sem disfarce, alguém andando
+         atrás é quase sempre só alguém indo para o mesmo lado, e o impostor já não mata na frente de ninguém */
+      if (p.shiftAs == null && !(this.shaking && this.plan && this.plan.shake)) {
+        this.shaking = null;
+        return false;
+      }
+      let tail = null, ts = 0;
+      for (const q of g.players) {
+        if (!q.alive || q.isImp || q === p) continue;
+        let sc = this.tailWatch[q.id] || 0;
+        /* a pessoa que eu imito me vendo: exposto na hora */
+        if (p.shiftAs === q.id && others.includes(q)) sc += 3;
+        if (sc > ts) {
+          ts = sc;
+          tail = q;
+        }
+      }
+      const need = p.shiftAs != null ? 1.4 : 3.2;
+      const sh = this.shaking;
+      /* já decidi calar essa pessoa: sigo com ela até o fim da caçada (quem eu caço não "me segue" mais) */
+      if (sh && this.plan && this.plan.shake && this.plan.type === 'hunt') {
+        const q = g.players[sh.who];
+        if (q && q.alive) {
+          tail = q;
+          ts = Math.max(ts, need);
+        }
+      }
+      if (!tail || ts < need) {
+        if (sh && t - sh.t > 6) this.shaking = null;
+        return !!(sh && this.plan && this.plan.shake);
+      }
+      if (!sh || sh.who !== tail.id) {
+        this.shaking = { who: tail.id, t0: t, t, notice: !(L.miss >= 0.3 && U.chance(0.5)) };
+      }
+      const S = this.shaking;
+      S.t = t;
+      if (!S.notice) return false;
+      const d = U.dist(p, tail), seesMe = others.includes(tail);
+      const knows = p.shiftAs === tail.id || t - S.t0 > 10;
+      /* 1) a sós com quem sabe: cala */
+      const camsOnMe = g.anyoneOnCams() && M.CAMS.some((c) => U.d2(c.x, c.y, p.x, p.y) <= M.CAM_R && Nav.los(c.x, c.y, p.x, p.y));
+      if (knows && p.killCd <= 0 && seesMe && others.length === 1 && !camsOnMe && !(p.invisUntil > t) && this.noWitness(tail, others) &&
+          !(g.S.house.noDoubleKill && g.partnerKilledRecently(p))) {
+        if (d <= g.killDist && g.tryKill(p, tail)) {
+          this.shaking = null;
+          return true;
+        }
+        if (!this.plan || this.plan.type !== 'hunt' || this.plan.target !== tail.id) {
+          this.planHunt(tail);
+          this.plan.shake = true;
+        }
+        return true;
+      }
+      if (this.plan && this.plan.shake && this.plan.type !== 'hunt') return true;
+      /* 2) ele ficou numa sala com portas e eu já saí: fecho (dez segundos de vantagem) */
+      const tr = M.areaAt(tail.x, tail.y).id, mr = M.areaAt(p.x, p.y).id;
+      if (M.DOOR_ROOMS.includes(tr) && tr !== mr && d < 9 && g.doorReady(tr) && U.chance(0.35 + (L.sabotage || 0) * 0.5) && g.closeDoors(tr, p)) {
+        this.emote('!', 0.6);
+      }
+      /* 3) fora da vista dele, com duto perto: some */
+      if (!seesMe && (L.useVents || 0) >= 0.5) {
+        const v = M.VENTS.find((vv) => U.d2(vv.x, vv.y, p.x, p.y) < 6);
+        if (v) {
+          this.ventAway(v);
+          return true;
+        }
+      }
+      /* 4) sai de vista; sem disfarce, vai fingir tarefa onde tem gente (lá ninguém mata ninguém) */
+      if (p.shiftAs != null || (L.lie || 0) < 0.5) {
+        if (this.slipAway()) {
+          this.plan.shake = true;
+          return true;
+        }
+      }
+      const busy = M.ROOMS.filter((r) => HIGH_TRAFFIC.has(r.id) && U.d2(r.cx, r.cy, p.x, p.y) < 30);
+      if (busy.length) {
+        this.planFakeTask(U.pick(busy).id);
+        if (this.plan) this.plan.shake = true;
+        return true;
       }
       return false;
     }
@@ -1827,6 +1920,30 @@
       if (g.S.house.noDoubleKill && g.partnerKilledRecently(p)) return false;
       return true;
     }
+    /* dentro do duto: um ou dois saltos para longe da entrada */
+    ventHops(vent) {
+      const opts = [];
+      vent.links.forEach((l) => {
+        opts.push([l]);
+        M.VENT[l].links.forEach((l2) => {
+          if (l2 !== vent.id) opts.push([l, l2]);
+        });
+      });
+      return { steps: U.pick(opts).slice(), nextT: this.g.t + U.rf(0.5, 1) };
+    }
+    /* despistar pelo duto: só entra se ninguém vê (ou, disfarçado, só quem eu imito — ele já sabe) */
+    ventAway(vent) {
+      const g = this.g, p = this.p;
+      this.setPlan({
+        type: 'toVent', x: vent.x, y: vent.y, shake: true,
+        onArrive: (pl) => {
+          pl.until = g.t;
+          const vis = this.crewVisible();
+          const ok = !vis.length || (p.shiftAs != null && vis.every((q) => q.id === p.shiftAs));
+          if (ok && g.enterVent(p, vent)) this.ventPlan = this.ventHops(vent);
+        },
+      });
+    }
     planEscape() {
       const g = this.g, p = this.p, L = this.lvl;
       const e = this.escape;
@@ -1847,16 +1964,7 @@
             pl.until = g.t;
             const vis = this.crewVisible().length;
             if (vis === 0 || p.shiftAs != null || U.chance(L.riskTol)) {
-              if (g.enterVent(p, vent)) {
-                const opts = [];
-                vent.links.forEach((l) => {
-                  opts.push([l]);
-                  M.VENT[l].links.forEach((l2) => {
-                    if (l2 !== vent.id) opts.push([l, l2]);
-                  });
-                });
-                this.ventPlan = { steps: U.pick(opts).slice(), nextT: g.t + U.rf(0.5, 1) };
-              }
+              if (g.enterVent(p, vent)) this.ventPlan = this.ventHops(vent);
             }
           },
         });
@@ -2434,6 +2542,17 @@
           this.aloneWith = this.aloneWith || {};
           this.aloneWith[aid] = (this.aloneWith[aid] || 0) + 0.2;
         }
+        /* impostor: quem está na minha cola — vem atrás enquanto eu ando, ou fica me olhando de perto enquanto finjo
+           tarefa. Quem eu estou caçando/seguindo não conta. */
+        if (via === 'eyes' && p.isImp && !q.isImp) {
+          const d = U.dist(p, q);
+          const pt = this.path && this.pi < this.path.length ? this.path[this.pi] : null;
+          const behind = pt ? (q.x - p.x) * (pt.x - p.x) + (q.y - p.y) * (pt.y - p.y) < 0 : false;
+          const mine = this.plan && ['hunt', 'stalk', 'follow'].includes(this.plan.type) && this.plan.target === q.id;
+          const tw = this.tailWatch;
+          if (!mine && d < 5.5 && ((q.moving && p.moving && behind) || (!p.moving && d < 4 && !q.busy))) tw[q.id] = (tw[q.id] || 0) + 0.2;
+          else tw[q.id] = Math.max(0, (tw[q.id] || 0) - 0.1);
+        }
         if (via === 'eyes' && !p.isImp) {
           const d = U.dist(p, q);
           /* "me seguindo" = vem atrás de mim enquanto eu ando; quem eu estou seguindo (ou acompanhando) não conta */
@@ -2680,6 +2799,7 @@
       this.ventPlan = null;
       this.engVent = null;
       this.followWatch = {};
+      this.tailWatch = {};
       this.scanWatch = {};
       this.taskWatch = {};
       this.aloneWith = {};

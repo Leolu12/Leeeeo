@@ -92,6 +92,8 @@
           const v = e.ghostInput.value.trim();
           if (!v || !this.g || !this.g.ghosts) return;
           e.ghostInput.value = '';
+          /* mandou: o teclado volta para o jogo (Enter abre o campo de novo) */
+          e.ghostInput.blur();
           this.g.ghosts.onHuman(v);
         },
       }, e.ghostInput, h('button', { class: 'gh-send', type: 'submit' }, 'Enviar'));
@@ -288,7 +290,7 @@
       /* virou anjo da guarda ao morrer (como no jogo original): avisa uma vez, depois da tela de morte */
       if (sp === 'anjo' && !hp.alive && !hp.angelToast && play && g.t - (hp.deathT || 0) > 3.2) {
         hp.angelToast = true;
-        this.toast('Você virou Anjo da Guarda! Perto de um vivo, aperte F (Proteger) para pôr um escudo contra abate.', 6000);
+        this.toast('Você virou Anjo da Guarda! Perto de um vivo, use Proteger (botão ou tecla F) para pôr um escudo contra abate.', 6000);
       }
       this.setAct(e.actAbility, !!abl, ablOk, abl, ablDur > 0 ? ablDur : ablCd);
       e.actAbility.classList.toggle('dur', ablDur > 0);
@@ -315,7 +317,9 @@
         this.toast('Seguindo ' + q.name + '. Mexa-se para parar.', 3000);
       });
     },
-    toggleGhost(force) {
+    /* focus: pôr o cursor no campo de texto. Ao abrir sozinho (depois da morte) não põe — senão o teclado inteiro
+       (andar, F do anjo) ia parar no chat. Abrindo pelo botão ou pelo Enter, põe. */
+    toggleGhost(force, focus) {
       const e = this.el, g = this.g;
       if (!g || !g.human || g.human.alive) return;
       const open = force != null ? force : e.ghostPanel.hidden;
@@ -325,7 +329,7 @@
         this.ghostUnread = 0;
         e.ghostBadge.hidden = true;
         e.ghostLog.scrollTop = e.ghostLog.scrollHeight;
-        if (window.matchMedia('(pointer:fine)').matches) setTimeout(() => e.ghostInput.focus(), 30);
+        if (focus !== false && window.matchMedia('(pointer:fine)').matches) setTimeout(() => e.ghostInput.focus(), 30);
       } else if (document.activeElement === e.ghostInput) e.ghostInput.blur();
     },
     updateGhost() {
@@ -340,7 +344,7 @@
       }
       if (this.ghostOpenAt && performance.now() >= this.ghostOpenAt) {
         this.ghostOpenAt = 0;
-        if (window.innerWidth > 700) this.toggleGhost(true);
+        if (window.innerWidth > 700) this.toggleGhost(true, false);
       }
       const msgs = g.ghosts.msgs;
       if (this.ghostShown > msgs.length) this.ghostShown = 0;
@@ -830,6 +834,10 @@
       if (b) b.firstChild.textContent = AU.Audio.enabled ? '🔊' : '🔈';
     },
 
+    /* quanto falta (ms) da cena da sua morte */
+    cinemaLeft() {
+      return Math.max(0, (this.cinemaUntil || 0) - performance.now());
+    },
     killedScreen(killer) {
       const layer = document.getElementById('overlay-layer');
       const hp = this.g.human;
@@ -837,6 +845,8 @@
       const cv = h('canvas', { class: 'killed-cv', 'aria-hidden': 'true' });
       const el = h('div', { class: 'killed', role: 'alert', 'aria-label': 'Você foi morto por ' + killer.name }, cv);
       layer.appendChild(el);
+      /* enquanto a cena passa, uma reunião que comece (um bot reportou logo depois) espera ela acabar */
+      this.cinemaUntil = performance.now() + 3200;
       const stop = AU.Scenes.play(cv, 'kill', {
         killer: { color: killer.color, hat: killer.hat, visor: killer.visor, name: killer.name },
         victim: { color: hp.color, hat: hp.hat, visor: hp.visor },

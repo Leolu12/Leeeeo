@@ -9,6 +9,9 @@
   const KILL_DIST = { curta: 1.3, media: 1.9, longa: 2.6 };
   const USE_DIST = 1.7, REPORT_DIST = 3.6, BUTTON_DIST = 2.6, VENT_DIST = 1.4;
   const CRIT_TIME = 45;
+  /* duração da animação do abate (respingo e corpo caindo): antes disso o corpo não pode ser reportado, para ninguém
+     cortar a animação com a reunião (como no original, o corpo só aparece quando a animação acaba) */
+  const KILL_ANIM = 1.1;
 
   class Player {
     constructor(id, o) {
@@ -585,7 +588,7 @@
       }
       if (v.brain) v.brain.onDeath(k, apparent);
       if (this.ghosts) this.ghosts.onKill(k, v, apparent, area.id);
-      this.addFx({ type: 'kill', x: v.x, y: v.y, dur: 1.1, color: v.color, seed: Math.random() * 100 });
+      this.addFx({ type: 'kill', x: v.x, y: v.y, dur: KILL_ANIM, color: v.color, seed: Math.random() * 100 });
       this.log({ type: 'kill', killer: k.id, victim: v.id, area: area.id, apparent, witnesses: wit.map((w) => w.p.id) });
       const h = this.human;
       if (v.isHuman) {
@@ -610,7 +613,7 @@
       if (!p.alive || p.inVent) return null;
       let best = null, bd = 1e9;
       for (const b of this.bodies) {
-        if (b.gone || b.reported) continue;
+        if (b.gone || b.reported || this.t - b.t < KILL_ANIM) continue;
         const d = U.d2(p.x, p.y, b.x, b.y);
         if (d <= REPORT_DIST && d < bd && Nav.los(p.x, p.y, b.x, b.y)) {
           bd = d;
@@ -623,6 +626,7 @@
 
     tryReport(p, body) {
       if (this.phase !== 'play' || !p.alive || !body || body.reported || body.gone) return false;
+      if (this.t - body.t < KILL_ANIM) return false;
       if (U.d2(p.x, p.y, body.x, body.y) > REPORT_DIST + 0.2 || !Nav.los(p.x, p.y, body.x, body.y)) return false;
       if (this.S.house.noSelfReport && body.killer === p.id) return false;
       body.reported = true;
@@ -673,7 +677,7 @@
       info.t = this.t;
       info.roundStart = this.roundStart;
       this.log({ type: 'meeting', kind: info.kind, by: info.caller, index: this.meetings });
-      this.sfx(info.kind === 'report' ? 'report' : 'meeting');
+      /* som da reunião: toca junto com a abertura, na tela da reunião (que pode esperar a cena da sua morte acabar) */
       this.meeting = new AU.Meeting(this, info);
       this.meetingLog = this.meetingLog || [];
       this.meetingLog.push(this.meeting);

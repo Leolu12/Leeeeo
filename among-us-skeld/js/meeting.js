@@ -13,7 +13,10 @@
       this.S = g.S;
       this.t = 0;
       this.phase = 'intro';
-      this.durI = g.headless ? 0.2 : 2.8;
+      /* abertura: a animação de "Corpo reportado"/"Reunião de emergência" dura 3,2 s e toca inteira. Se a cena da
+         sua morte ainda está passando (um bot reportou logo depois de te matar), a reunião espera ela acabar. */
+      this.cinemaWait = !g.headless && AU.HUD && AU.HUD.cinemaLeft ? AU.HUD.cinemaLeft() / 1000 : 0;
+      this.durI = g.headless ? 0.2 : 3.4 + this.cinemaWait;
       this.durD = Math.max(0, g.S.rules.discussionTime);
       this.durV = Math.max(10, g.S.rules.votingTime);
       this.pace = (C.CHAT_PACE[g.S.bots.chatPace] || C.CHAT_PACE.normal).mult;
@@ -642,11 +645,22 @@
       this.root.appendChild(this.splash);
       this.root.appendChild(this.eject);
       document.getElementById('meeting-layer').appendChild(this.root);
-      this.stopSplash = AU.Scenes.play(splashCv, isReport ? 'report' : 'emergency', {
-        kind: isReport ? 'report' : 'emergency',
-        caller: { color: caller.color, hat: caller.hat, visor: caller.visor },
-        body: isReport ? { color: g.players[info.body.pid].color } : null,
-      }, 3.2);
+      const startSplash = () => {
+        this.splashT = null;
+        if (!this.root.isConnected) return;
+        this.root.style.visibility = '';
+        AU.Audio.play(isReport ? 'report' : 'meeting');
+        this.stopSplash = AU.Scenes.play(splashCv, isReport ? 'report' : 'emergency', {
+          kind: isReport ? 'report' : 'emergency',
+          caller: { color: caller.color, hat: caller.hat, visor: caller.visor },
+          body: isReport ? { color: g.players[info.body.pid].color } : null,
+        }, 3.2);
+      };
+      /* a cena da sua morte ainda está passando: a reunião fica escondida e a abertura começa quando ela acaba */
+      if (mt.cinemaWait > 0) {
+        this.root.style.visibility = 'hidden';
+        this.splashT = setTimeout(startSplash, mt.cinemaWait * 1000);
+      } else startSplash();
       this.cardEls = {};
       this.selected = null;
       g.players.forEach((p) => this.makeCard(p));
@@ -701,7 +715,7 @@
       const mt = this.mt, hp = this.g.human;
       if (mt.phase !== 'intro' && !this.splash.classList.contains('gone')) {
         this.splash.classList.add('gone');
-        setTimeout(() => this.stopSplash(), 450);
+        setTimeout(() => this.stopSplash && this.stopSplash(), 450);
       }
       const canVote = mt.phase === 'voting' && hp && hp.alive && mt.votes[hp.id] === undefined;
       this.root.classList.toggle('can-vote', !!canVote);
@@ -975,6 +989,7 @@
 
     destroy() {
       if (this.iv) clearInterval(this.iv);
+      if (this.splashT) clearTimeout(this.splashT);
       if (this.stopSplash) this.stopSplash();
       /* campo de texto com foco preso num nó removido segura a reunião inteira na memória */
       if (document.activeElement && this.root.contains(document.activeElement)) document.activeElement.blur();
