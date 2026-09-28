@@ -662,7 +662,9 @@
         type: 'fix', st, x: spot.x, y: spot.y,
         onArrive: (pl) => {
           if (this.stepAside(pl, pos.x, pos.y, g.consts.USE_DIST - 0.3)) return;
-          pl.until = g.t + (kind === 'reactor' ? 60 : kind === 'lights' ? U.rf(2, 4) : kind === 'comms' ? U.rf(3.5, 5.5) : U.rf(2.5, 4));
+          pl.until = g.t + (kind === 'reactor' ? 60 : kind === 'lights' ? U.rf(5, 7) : kind === 'comms' ? U.rf(3.5, 5.5) : U.rf(2.5, 4));
+          /* luzes: abre o painel, olha e começa a ligar os interruptores */
+          if (kind === 'lights') pl.flipAt = g.t + U.rf(0.4, 0.9);
           p.busy = { fix: st, until: pl.until };
         },
         tick: (dt, pl) => {
@@ -671,6 +673,13 @@
             return;
           }
           if (kind === 'reactor') g.reactorHold(p, st === 'reactorA' ? 'A' : 'B');
+          /* um interruptor desligado por vez, como gente (quem está no painel ao lado vê ligarem; se alguém desliga
+             um, ele religa). O último ligado conserta. */
+          if (kind === 'lights' && pl.flipAt != null && g.t >= pl.flipAt) {
+            const i = g.sab.switches.findIndex((v) => !v);
+            if (i >= 0) g.fixLightsToggle(i, p);
+            pl.flipAt = g.t + U.rf(0.35, 0.7);
+          }
         },
         onDone: () => {
           const s = g.sab;

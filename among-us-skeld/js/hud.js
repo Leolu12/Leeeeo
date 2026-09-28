@@ -46,6 +46,8 @@
   /* nomes curtos para o mapa pequeno (celular) */
   const MAP_SHORT = { upperEngine: 'Motor sup.', lowerEngine: 'Motor inf.', navigation: 'Nav.', communications: 'Comms', comms: 'Comms', security: 'Segur.', electrical: 'Elétr.', cafeteria: 'Café', storage: 'Depós.', shields: 'Escudos', weapons: 'Armas', reactor: 'Reator', medbay: 'MedBay', admin: 'Admin' };
   const SAB_NAME = { lights: 'Luzes', reactor: 'Colapso do reator', o2: 'Oxigênio esgotando', comms: 'Comunicações' };
+  /* apagão: quantos interruptores já estão ligados (" (3/5)"), para quem está longe saber se alguém já está consertando */
+  const lightsProg = (g) => (g.sab && g.sab.type === 'lights' && g.sab.switches ? ' (' + g.sab.switches.filter(Boolean).length + '/' + g.sab.switches.length + ')' : '');
 
   const HUD = {
     g: null,
@@ -171,13 +173,13 @@
       const comms = g.commsDown() && hp.alive;
       /* a espera da amostra entra na chave pelos segundos: a lista é refeita uma vez por segundo, não a cada quadro */
       const wait = (t) => (t.id === 'inspect' && t.step === 1 && !t.done && !g.taskAvailable(t) ? Math.ceil(t.readyAt - g.t) : '');
-      const key = hp.tasks.map((t) => t.step + ':' + t.done + ':' + g.taskAvailable(t) + wait(t)).join('|') + comms + hp.isImp + (g.sab ? g.sab.type : '');
+      const key = hp.tasks.map((t) => t.step + ':' + t.done + ':' + g.taskAvailable(t) + wait(t)).join('|') + comms + hp.isImp + (g.sab ? g.sab.type + lightsProg(g) : '');
       if (!force && key === this._taskKey) return;
       this._taskKey = key;
       const list = this.el.taskList;
       list.innerHTML = '';
       if (hp.isImp) list.appendChild(h('li', { class: 'imp-goal' }, 'Sabote e elimine a tripulação.' + (g.players.filter((p) => p.isImp).length > 1 ? ' Parceiros: ' + g.players.filter((p) => p.isImp && p !== hp).map((p) => p.name).join(', ') : '')));
-      if (g.sab) list.appendChild(h('li', { class: 'sab' }, '⚠ ' + SAB_NAME[g.sab.type] + (g.sab.type === 'comms' ? '' : ' — conserte!')));
+      if (g.sab) list.appendChild(h('li', { class: 'sab' }, '⚠ ' + SAB_NAME[g.sab.type] + (g.sab.type === 'comms' ? '' : ' — conserte!') + lightsProg(g)));
       if (comms) {
         list.appendChild(h('li', { class: 'comms' }, 'Comunicações sabotadas.'));
         return;
@@ -218,6 +220,7 @@
         const s = g.sab;
         let txt = '⚠ ' + SAB_NAME[s.type];
         if (s.timer != null) txt += ' · ' + Math.max(0, Math.ceil(s.timer)) + 's';
+        if (s.type === 'lights') txt += ' ·' + lightsProg(g).replace(/[()]/g, '');
         if (s.type === 'o2') txt += ' · código ' + (s.done.A ? '✓' : '✗') + ' O2 / ' + (s.done.B ? '✓' : '✗') + ' Admin';
         if (e.sab.textContent !== txt) e.sab.textContent = txt;
         if (e.sab.hidden) e.sab.hidden = false;

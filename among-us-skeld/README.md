@@ -113,7 +113,7 @@ Dentro do claude.ai a página roda sem acesso à internet, por isso lá só o Cl
   - Asteroides e lixo.
 - Tarefas visuais que os outros enxergam: scan, escudos, asteroides e lixo.
 - Sabotagens com painel de conserto:
-  - Luzes: interruptores.
+  - Luzes: 5 interruptores no painel da Elétrica, compartilhados (o que um liga vale para todos; se alguém desliga um, desliga para todos). Os bots ligam um por vez, como gente, e religam o que alguém desligar. O aviso e a lista de tarefas mostram quantos já estão ligados ("Luzes · 3/5"). Sem prazo, não é consertado pela reunião e não impede o botão de emergência; portas continuam podendo ser fechadas no escuro.
   - Reator: dois scanners segurados ao mesmo tempo. Os bots se dividem entre os dois lados como gente: contam quem já está segurando, quem está a caminho e para onde você está indo, e quem sobra de um lado corre para o lado vazio.
   - O2: código nos dois teclados.
   - Comunicações: sintonia.
@@ -234,4 +234,5 @@ tools/build.py    gera a versão de arquivo único em dist/
 - Medidos numa versão anterior: por nível de impostor, no Clássico, a tripulação vence cerca de 62% contra o Iniciante, 45% contra o Competente, 37% contra o Veterano e 34% contra o Implacável; no Casual, ~81%.
 - Desempenho (celular simulado com CPU 4x mais lenta, 390x844): ao andar, o jogo gerava 4 ou 5 pedaços do mapa no mesmo quadro (40–58 ms); agora eles são preparados antes, um por quadro, e os canvas são reaproveitados — pior quadro de desenho de 58,6 para 34,6 ms, canvas criados de 145 para 25, quadros acima de 100 ms de 41 para 11. Na reunião o mapa não é mais desenhado por baixo (quadros da abertura de 100–160 para 55–110 ms) e o preparo dos bots é espalhado pela abertura (clique até a reunião abrir: de 293 para 102 ms na primeira reunião).
 - Visão (100 partidas cada, Clássico): com a visão da tripulação em 0,25x/0,5x/1x/2x/5x, a tripulação vence 27%/32%/45%/62%/88%. Com a visão do impostor em 0,25x ela vence ~95% (antes 99%): o impostor que enxerga menos que a tripulação passa a lembrar por mais tempo de quem viu por perto, segue a vítima mais de perto e continua a caçada por até 2 s quando ela sai de vista; nos presets, onde o impostor enxerga igual ou mais, nada muda.
+- Apagão em 100 partidas (Clássico): dura em média 12 s (mediana 9 s, 90% em até 27 s); ~1,8 bots vão ao painel; no escuro saem de 40% a 65% mais abates por minuto que no claro (duas amostras).
 - Sabotagem de reator em 400 partidas entre bots: os dois painéis ficam cobertos em 11,3 s em média (antes da divisão, 13,3 s), e "um lado com 2 ou mais e o outro vazio" aos 10 s caiu de 64 para 5 casos.
