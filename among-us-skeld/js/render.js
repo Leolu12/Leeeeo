@@ -141,6 +141,23 @@
     return Math.max(0.05, 1 + Math.sin(k * Math.PI) * 0.25 - (1 - k) * 0.9);
   }
 
+  /* metamorfo trocando de aparência: por meio segundo o corpo treme e a cara antiga se desfaz por cima da nova */
+  const MORPH = 0.6;
+  function morphK(g, p) {
+    if (!p.morph) return 1;
+    const k = (g.t - p.morph.t0) / MORPH;
+    return k >= 0 && k < 1 ? k : 1;
+  }
+  function drawMorphed(ctx, g, p, x, y, u, colorId, bean) {
+    const k = morphK(g, p);
+    if (k >= 1) return drawBean(ctx, x, y, u, colorId, bean);
+    const wob = Math.sin(k * Math.PI * 7) * (1 - k);
+    const sx = x + wob * u * 0.06;
+    drawBean(ctx, sx, y, u * (1 + Math.abs(wob) * 0.08), colorId, bean);
+    const old = Object.assign({}, bean, { hat: p.morph.hat, visor: p.morph.visor, alpha: (bean.alpha == null ? 1 : bean.alpha) * (1 - k) });
+    drawBean(ctx, sx, y, u * (1 + Math.abs(wob) * 0.08), p.morph.color, old);
+  }
+
   function drawBean(ctx, x, y, u, colorId, o) {
     o = o || {};
     const col = C.COLOR[colorId] || C.COLORS[0];
@@ -661,8 +678,8 @@
         }
         const bean = { facing: p.facing, moving: p.moving, walk: p.walkT, ghost: !p.alive, alpha, hat: ap.hat, visor: ap.visor };
         /* o próprio personagem é desenhado por cima da névoa: encostado na parede ele não fica meio apagado */
-        if (p === h && h.alive && fogOn) mine = { sp, color: ap.color, bean, s: popScale(g, p) };
-        else drawBean(ctx, sp.x, sp.y - (1 - popScale(g, p)) * ppt * 0.3, ppt * 1.1 * popScale(g, p), ap.color, bean);
+        if (p === h && h.alive && fogOn) mine = { sp, color: ap.color, bean, s: popScale(g, p), p };
+        else drawMorphed(ctx, g, p, sp.x, sp.y - (1 - popScale(g, p)) * ppt * 0.3, ppt * 1.1 * popScale(g, p), ap.color, bean);
         if (p.visual && p.visual.type === 'scan' && p.alive && !(p === h && mine)) this.scanFront(sp, ppt, t);
         const partner = h && h.isImp && p.isImp;
         /* nomes depois da névoa: o nome fica acima da cabeça e às vezes cai sobre a parede escura */
@@ -754,7 +771,7 @@
       /* névoa de visão */
       if (fogOn) this.drawFog(g, h, S, ppt);
       if (mine) {
-        drawBean(ctx, mine.sp.x, mine.sp.y - (1 - mine.s) * ppt * 0.3, ppt * 1.1 * mine.s, mine.color, mine.bean);
+        drawMorphed(ctx, g, mine.p, mine.sp.x, mine.sp.y - (1 - mine.s) * ppt * 0.3, ppt * 1.1 * mine.s, mine.color, mine.bean);
         if (h.visual && h.visual.type === 'scan') this.scanFront(mine.sp, ppt, t);
       }
       ctx.font = `700 ${Math.max(11, ppt * 0.42)}px "Nunito", system-ui, sans-serif`;

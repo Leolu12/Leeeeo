@@ -660,7 +660,12 @@
       }
       for (const p of this.players) {
         if (p.inVent) p.inVent = null;
-        if (p.shiftAs != null) p.shiftAs = null;
+        /* reunião no meio do disfarce: volta ao normal e a habilidade conta como usada */
+        if (p.shiftAs != null) {
+          p.shiftAs = null;
+          p.abilityCd = Math.max(p.abilityCd, this.ro('metamorfo', 'cd', 25));
+        }
+        p.morph = null;
         p.invisUntil = 0;
         p.onCams = false;
         p.onAdmin = false;
@@ -1014,16 +1019,24 @@
       if (!tg || tg === p) return false;
       const wit = this.witnesses([p], [p.id]);
       for (const w of wit) if (w.p.brain) w.p.brain.onWitnessShift(p.id, targetId, w.via);
+      this.morphFrom(p);
       p.shiftAs = targetId;
+      p.shiftT0 = t;
       p.shiftUntil = t + this.ro('metamorfo', 'dur', 30);
       this.addFx({ type: 'puff', x: p.x, y: p.y, dur: 0.6 });
       this.log({ type: 'shift', by: p.id, into: targetId, witnesses: wit.map((w) => w.p.id) });
       return true;
     }
+    /* a aparência de antes, para a animação da troca (a velha se desfaz na nova) */
+    morphFrom(p) {
+      const a = this.appear(p);
+      p.morph = { t0: this.t, color: a.color, hat: a.hat, visor: a.visor };
+    }
     unshift(p) {
       if (p.shiftAs == null) return;
       const wit = this.witnesses([p], [p.id]);
       for (const w of wit) if (w.p.brain) w.p.brain.onWitnessShift(p.id, p.shiftAs, w.via);
+      this.morphFrom(p);
       p.shiftAs = null;
       p.abilityCd = this.ro('metamorfo', 'cd', 25);
       this.addFx({ type: 'puff', x: p.x, y: p.y, dur: 0.6 });

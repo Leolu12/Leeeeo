@@ -117,7 +117,7 @@
       else if (e.type === 'vent') add(e.who, engineers ? 50 : 88, 'vent', { area: e.area, t: e.t });
       else if (e.type === 'shift') add(e.who, 100, 'shift', { area: e.area });
       else if (e.type === 'vanish') add(e.who, 95, 'vanish', { area: e.area });
-      else if (e.type === 'noscan') add(e.who, 32, 'noscan', { area: e.area, t: e.t });
+      else if (e.type === 'noscan') add(e.who, 32, 'noscan', { area: e.area, t: e.t, task: e.task });
       else if (e.type === 'fakeTask') add(e.who, 34, 'fakeTask', { area: e.area, t: e.t });
       else if (e.type === 'follow') add(e.who, 6, 'follow', { area: e.area, t: e.t });
     }
@@ -507,7 +507,7 @@
       for (const id of Object.keys(this.ev)) for (const e of this.ev[id]) {
         if (e.reason === 'visual' && g.players[+id].alive) items.push({ k: 'vouch', who: +id, reason: 'visual', task: e.task });
         if (e.twinCut) continue;
-        if (e.reason === 'noscan') items.push({ k: 'accuse', who: +id, reason: 'noscan' });
+        if (e.reason === 'noscan') items.push({ k: 'accuse', who: +id, reason: 'noscan', task: e.task });
         if (e.reason === 'fakeTask') items.push({ k: 'accuse', who: +id, reason: 'fakeTask', area: e.area });
         if (e.reason === 'fastReport') items.push({ k: 'accuse', who: +id, reason: 'fastReport', ago: e.ago, victim: e.victim, late: true });
         /* dupla com a vítima: nos testes quase nunca era o assassino (o impostor esperto não mata o parceiro) — vira só pergunta */
@@ -1403,6 +1403,8 @@
       }
       return;
     }
+    /* regra errada no ar ("o metamorfo disfarçado fez os escudos", "o fantasma matou invisível"): alguém corrige */
+    if (!claim && !p.isImp && this.fixRule(role, it)) return;
     if (claim) {
       /* alegações são públicas: mais gente dizendo ter a função do que ela existe = alguém mente */
       const claims = (g.roleClaims = g.roleClaims || {});
@@ -1458,6 +1460,34 @@
       mt.flags[key] = true;
       this.reply(1, () => say('roleMaybe', { role, who: it.who }, []));
     }
+  };
+
+  /* Impostor não faz tarefa de verdade, nem disfarçado de metamorfo: tarefa visual (scan, asteroides, escudos, lixo)
+     é sempre de tripulante. E o fantasma não mata nem entra no duto invisível. Quem falar o contrário é corrigido
+     (uma vez por reunião), e quem "fez a visual" continua valendo como tripulante. */
+  const VIS_DID = /\b(fez|faz|fazendo|fazia|feito|terminou|terminando)\s+(o |os |a |as )?(tarefa visual|visual|escudos|scan|escaneamento|asteroides|lixo)\b|\bescane(ou|ando|ava)\b/;
+  const VIS_NOT = /fing|parad|sem (a )?anima|n(a|ã)o (fez|faz|consegue|pode|da)|nem (fez|faz)/;
+  B.fixRule = function (role, it) {
+    const mt = this.mt, pers = this.pers;
+    const txt = U.norm((this.curMsgObj && this.curMsgObj.text) || '');
+    if (!txt) return false;
+    const say = (kind, d, intents) => ({ text: this.say(kind, d), intents: intents || [] });
+    const sure = pers.times || pers.skeptic || pers.leader || U.chance(0.5);
+    if (role === 'metamorfo' && /metamorf|disfar/.test(txt) && VIS_DID.test(txt) && !VIS_NOT.test(txt)) {
+      if (mt.flags.fixVis || !sure) return false;
+      mt.flags.fixVis = true;
+      const task = /escud/.test(txt) ? 'shields' : /scan|escane/.test(txt) ? 'scan' : /asteroid/.test(txt) ? 'asteroids' : /lixo/.test(txt) ? 'garbage' : null;
+      const X = it.who != null && it.who !== this.p.id ? it.who : null;
+      this.reply(0.9, () => say('noTaskImp', { who: X, task }, X != null ? [{ type: 'vouch', who: X, reason: 'claim' }] : []), true);
+      return true;
+    }
+    if (role === 'fantasma' && /invis/.test(txt) && /\bmat(ou|ar|ando|a)\b|\bduto\b|\bventou\b/.test(txt) && !/n(a|ã)o (mata|pode|consegue)/.test(txt)) {
+      if (mt.flags.fixPh || !sure) return false;
+      mt.flags.fixPh = true;
+      this.reply(0.9, () => say('phantomNoKill', {}, []), true);
+      return true;
+    }
+    return false;
   };
 
   /* O que alguém contou ter visto ("vi o X perto do corpo", "vi o X saindo do Depósito") bate com onde o X disse
@@ -1639,9 +1669,16 @@
     const confirmable = matches.filter((s) => T0 - s.t1 <= 15 && fits(s));
     const oldSight = matches.filter((s) => T0 - s.t1 > 15 && T0 - s.t1 <= 40 && fits(s));
     if (confirmable.length && !mism.length && U.chance(0.35 + pers.talk * 0.3)) {
-      this.bump(S, -7);
       const s = confirmable[confirmable.length - 1];
-      this.reply(1.1, () => say('confirm', { who: S, area: s.area }, [{ type: 'vouch', who: S, reason: 'claim' }]));
+      const bodyA = this.knowsBody || (this.mt.facts && this.mt.facts.bodyArea);
+      const atBody = bodyA && (s.area === bodyA || M.isNear(s.area, bodyA));
+      const against = ((this.ev && this.ev[S]) || []).some((e) => e.w >= 12 && !['visual', 'together', 'alibi'].includes(e.reason));
+      if (atBody || against) {
+        this.reply(1.1, () => say('confirm', { who: S, area: s.area }, [{ type: 'sawAt', who: S, area: s.area, ago: Math.round(T0 - s.t1) }]));
+      } else {
+        this.bump(S, -7);
+        this.reply(1.1, () => say('confirm', { who: S, area: s.area }, [{ type: 'vouch', who: S, reason: 'claim' }]));
+      }
     } else if (oldSight.length && !mism.length && U.chance(0.25 + pers.talk * 0.2)) {
       /* viu lá, mas faz tempo: só informa, não serve de álibi */
       const s = oldSight[oldSight.length - 1];
@@ -2013,6 +2050,15 @@
     const mine = this.sawTimes(X).filter((q) => T0 - q.t1 <= 45);
     const clash = told.length ? mine.find((q) => told.every((tt) => !near(q.area, tt.area)) && q.t1 - q.t0 >= 1) : null;
     const place = ['nearBody', 'lastWith', 'withVictim', 'fromBody', 'lie'];
+    /* eu mesmo vi o X matar (ou entrar no duto, mudar de forma) e nada me diz que era outro: a teoria não me convence */
+    const strongMine = myEv.find((e) => STRONG[e.reason] && !e.twinCut);
+    if (strongMine && !withMe && !visual) {
+      if (!this.replied.has('rev' + X)) {
+        this.replied.add('rev' + X);
+        this.reply(1, () => say('accuse', { who: X, reason: strongMine.reason, area: strongMine.area, victim: strongMine.victim }, [{ type: 'accuse', who: X, reason: strongMine.reason, strong: true }]), true);
+      }
+      return true;
+    }
     if (withMe || visual || clash) {
       this.ev[X] = myEv.filter((e) => !place.includes(e.reason));
       this.bump(X, -((this.contraBump[X] || 0) + 14), 'own');
@@ -2025,6 +2071,16 @@
       const mineArea = clash ? clash.area : withMe ? myLast : null;
       if (area && mineArea && !near(area, mineArea)) {
         this.reply(1, () => say('disguiseYes', { who: X, area, mine: mineArea, with: !!withMe }, [{ type: 'vouch', who: X, reason: withMe ? 'together' : 'claim' }]), true);
+      } else if (visual) {
+        /* a explicação da visual basta uma vez na reunião; os outros só mudam de ideia */
+        if (mt.flags['visDisg' + X]) return true;
+        mt.flags['visDisg' + X] = true;
+        const vEv = this.mem.events.find((e) => e.type === 'visual' && e.who === X);
+        const vMsg = !vEv && mt.msgs.map((m) => m.intents.find((j) => j.type === 'vouch' && j.who === X && j.reason === 'visual')).filter(Boolean).pop();
+        const task = vEv ? vEv.task : vMsg ? vMsg.task : null;
+        /* o que eu mesmo vi "o X" fazer de impostor (matar) é o que o disfarce explica */
+        const kd = strongMine && strongMine.reason === 'kill' ? { kill: true, victim: strongMine.victim, area: strongMine.area } : { area };
+        this.reply(1, () => say('visualDisguise', Object.assign({ who: X, task, sawVis: !!vEv }, kd), [{ type: 'vouch', who: X, reason: vEv ? 'visual' : 'claim', task }]), true);
       } else {
         this.reply(1, () => say('roleMaybe', { role: 'metamorfo', who: X }, [{ type: 'vouch', who: X, reason: 'claim' }]), true);
       }
@@ -2058,12 +2114,21 @@
        Tira a culpa do X e aperta quem não tem ninguém confirmando onde estava. */
     /* "vi dois X ao mesmo tempo": o que eu vi "o X" fazendo (até duto, tarefa falsa) pode ter sido o disfarce */
     const twin = it.reason === 'twin';
-    const bodyE = myEv.find((e) => ['kill', 'nearBody', 'lastWith', 'withVictim', 'fromBody'].concat(twin ? ['vent', 'fakeTask', 'noscan', 'follow'] : []).includes(e.reason));
-    if (bodyE && roleOn(this.g, 'metamorfo') && (it.reason === 'together' || it.reason === 'visual' || twin) && this.trust(S) >= 0.5 && S !== T2 && !this.replied.has('disg' + T2)) {
+    const visV = it.reason === 'visual';
+    const bodyE0 = myEv.find((e) => ['kill', 'nearBody', 'lastWith', 'withVictim', 'fromBody'].concat(twin ? ['vent', 'fakeTask', 'noscan', 'follow'] : []).includes(e.reason));
+    /* com tarefa visual, estar perto do corpo não precisa de explicação (tripulante também passa lá): só o abate que
+       eu vi "o X" fazer é que só pode ter sido o disfarce */
+    const bodyE = visV && !twin ? (bodyE0 && bodyE0.reason === 'kill' ? bodyE0 : null) : bodyE0;
+    if (bodyE && roleOn(this.g, 'metamorfo') && (it.reason === 'together' || visV || twin) && this.trust(S) >= 0.5 && S !== T2 && !this.replied.has('disg' + T2)) {
       this.replied.add('disg' + T2);
       this.ev[T2] = myEv.filter((e) => e !== bodyE);
       this.bump(T2, -Math.min(45, bodyE.w), 'own');
-      this.reply(1, () => say(twin ? 'twinAgree' : 'shiftTheory', { who: T2, by: S, area: bodyE.area }, [{ type: 'vouch', who: T2, reason: 'claim' }]), true);
+      const task = it.task || (this.mem.events.find((e) => e.type === 'visual' && e.who === T2) || {}).task;
+      const dd = { who: T2, by: S, area: bodyE.area, kill: bodyE.reason === 'kill', victim: bodyE.victim, task };
+      if (!(visV && !twin && mt.flags['visDisg' + T2])) {
+        if (visV && !twin) mt.flags['visDisg' + T2] = true;
+        this.reply(1, () => say(twin ? 'twinAgree' : visV ? 'visualDisguise' : 'shiftTheory', dd, [{ type: 'vouch', who: T2, reason: 'claim' }]), true);
+      }
       const vouched = (id) => mt.msgs.some((m) => m.from !== id && m.intents.some((x) => x.type === 'vouch' && x.who === id));
       const open = mt.alive.filter((id) => id !== me && id !== T2 && !this.hardCleared(id) && !vouched(id));
       for (const id of open) this.bump(id, 7, 'social');
@@ -2178,11 +2243,15 @@
     const offered = (id) => g.S.rules.visualTasks && !this.hardCleared(id) && !this.mem.events.some((e) => e.type === 'noProof' && e.who === id) && mt.msgs.some((m) => m.from === id && m.intents.some((x) => x.type === 'offerVisual'));
     const earlyGame = g.meetings <= 2 || alive.length >= 7;
     const relief = (id) => (offered(id) && !strongOn(id) ? (earlyGame ? 16 : 9) : 0);
+    /* quem eu mesmo defendi nesta reunião ("tava comigo", "vi fazendo a visual", "era o metamorfo com a cara dele"):
+       votar nele seria desdizer o que eu falei; só com prova forte (vi matar/ventar, ou alguém de confiança viu) */
+    const strongChat = (id) => mt.msgs.some((m) => m.from !== me && m.from !== id && this.trust(m.from) >= 0.6 && m.intents.some((x) => x.type === 'accuse' && x.who === id && STRONG[x.reason]));
+    const myWord = (id) => mt.msgs.some((m) => m.from === me && m.intents.some((x) => x.type === 'vouch' && x.who === id)) && !strongOn(id) && !strongChat(id);
     const score = (id) => {
-      const v = (this.susp[id] || 0) + (elim && open.includes(id) ? elim : 0) + (leadOk(id) ? pers.follow * (mt.heat[id] || 0) * 0.3 + mt.saidOn(id) * pers.follow * 7 : 0) + said(id) - (solid(id) ? 12 : 0) - relief(id);
+      const v = (this.susp[id] || 0) + (elim && open.includes(id) ? elim : 0) + (leadOk(id) ? pers.follow * (mt.heat[id] || 0) * 0.3 + mt.saidOn(id) * pers.follow * 7 : 0) + said(id) - (solid(id) ? 12 : 0) - relief(id) - (myWord(id) ? 35 : 0);
       return chatBlind && v > 0 && !grounded(id) ? v * 0.55 : v;
     };
-    const ranked = alive.map((id) => ({ id, s: score(id) })).sort((a, b) => b.s - a.s);
+    const ranked = alive.filter((id) => !myWord(id)).map((id) => ({ id, s: score(id) })).sort((a, b) => b.s - a.s);
     if (AU.debug && AU.debug.trace) {
       this.why = ranked.slice(0, 3).map((r) => ({ id: r.id, s: Math.round(r.s), susp: Math.round(this.susp[r.id] || 0), chat: Math.round(this.chatDelta[r.id] || 0), carry: Math.round((this.carry[r.id] || 0) * 0.5), heat: mt.heat[r.id] || 0, votes: mt.saidOn(r.id), ev: ((this.ev && this.ev[r.id]) || []).map((e) => e.reason + ':' + Math.round(e.w)) }));
     }
@@ -2199,7 +2268,7 @@
     const trustedLead = (id) => leadOk(id) || Object.keys(saidV).some((v) => +v !== me && saidV[v] === id && this.trust(+v) >= 0.7 && (this.hardCleared(+v) || this.clearedByVisual(+v)));
     /* voto dividido não tira ninguém: se quem está na frente também é suspeito para mim e quem puxou trouxe prova
        (ou já provou ser tripulante), junto ali */
-    if (lead && lead.count >= 2 && lead.id !== me && !cleared(lead.id) && trustedLead(lead.id) && (!chatBlind || grounded(lead.id))) {
+    if (lead && lead.count >= 2 && lead.id !== me && !cleared(lead.id) && !myWord(lead.id) && trustedLead(lead.id) && (!chatBlind || grounded(lead.id))) {
       const lc = ranked.find((r) => r.id === lead.id);
       if (lc && ranked.indexOf(lc) <= 1 && lc.s >= thr * (pers.follow > 0.7 ? 0.35 : 0.55)) return lead.id;
     }
@@ -2224,7 +2293,7 @@
       };
       for (const r of ranked) r.s += tie(r.id);
       ranked.sort((a, b) => b.s - a.s);
-      const pool = ranked.filter((r) => !cleared(r.id) && (!blind || grounded(r.id)));
+      const pool = ranked.filter((r) => !cleared(r.id) && !myWord(r.id) && (!blind || grounded(r.id)));
       if (pool.length) {
         const lc = lead && pool.find((r) => r.id === lead.id);
         if (lc && pool.indexOf(lc) <= 1 && trustedLead(lc.id)) return lc.id;

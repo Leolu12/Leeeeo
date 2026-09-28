@@ -196,7 +196,7 @@
         const r = who.find((b) => U.norm(b.name) === nm || U.norm(C.COLOR[b.color].name) === nm);
         let t = m[2].replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').replace(/^["“]|["”]$/g, '').trim().slice(0, 140);
         if (AU.Talk.toneFilter) t = AU.Talk.toneFilter(t, this.S.bots.chatTone) || t;
-        if (r && t && !(V && V.selfRef && V.selfRef(r, t))) lines.push({ r, t });
+        if (r && t && !(V && V.selfRef && V.selfRef(r, t)) && !(V && V.misrule && V.misrule(t, this.S, null, { lobby: true }))) lines.push({ r, t });
       }
       if (!lines.length) {
         this.templateReply(U.norm(text), who, false);

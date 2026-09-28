@@ -614,7 +614,7 @@
         const t = ln.text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').trim();
         if (!t || this.msgs.slice(-10).some((m) => U.norm(m.text) === U.norm(t))) continue;
         /* o modelo fez o fantasma falar de si na 3ª pessoa: fica a frase pronta */
-        if (V.badRef(p, t, g)) {
+        if (V.badRef(p, t, g) || V.misrule(t, g.S, p)) {
           const it = items.find((x) => x.who === p.id);
           if (it) setTimeout(() => { if (this.g.phase !== 'ended' && !p.alive) this.say(p, this.template(p, it.ctx)); }, delay);
           delay += U.rf(900, 2200);

@@ -112,24 +112,26 @@
         'Como o jogo funciona (todos sabem):',
         '- Tripulantes fazem tarefas; impostores fingem tarefas, matam (depois de cada abate precisam esperar ~' + Math.round(R.killCooldown) + 's), andam pelos dutos (vent) e sabotam: luzes (quase ninguém enxerga), comunicações (desliga câmeras, admin e a lista de tarefas), reator e O2 (alarme; se ninguém consertar, os impostores vencem) e portas.',
         '- A tripulação vence terminando as tarefas ou ejetando todos os impostores. Os impostores vencem quando ficam em número igual ao de tripulantes.',
-        '- Nesta partida há ' + g.S.room.impostors + ' impostor' + (g.S.room.impostors > 1 ? 'es' : '') + '. Ejeções ' + (R.confirmEjects ? 'são confirmadas (aparece se era impostor).' : 'NÃO são confirmadas.') + (R.anonymousVotes ? ' Votos anônimos.' : ''),
+        '- Nesta partida há ' + g.S.room.impostors + ' impostor' + (g.S.room.impostors > 1 ? 'es' : '') + '. Ejeções ' + (R.confirmEjects ? 'são confirmadas (aparece se era impostor).' : 'NÃO são confirmadas: ninguém sabe se quem saiu era impostor, só dá para deduzir (se os abates continuam, pode ter sido inocente).') + (R.anonymousVotes ? ' Votos anônimos: ninguém sabe quem votou em quem.' : ' Os votos aparecem com o nome de quem votou.'),
+        '- Impostor NUNCA faz tarefa de verdade, nem o metamorfo disfarçado (o disfarce muda só a aparência). Ele pode ficar parado numa tarefa fingindo, mas nada acontece.',
         R.visualTasks
-          ? '- Tarefas visuais (scan da MedBay, asteroides em Armas, escudos, lixo) mostram para quem vê que a pessoa é tripulante' + (H.noVisualHardClear ? ' (regra da casa: não inocenta de vez).' : '.')
+          ? '- Tarefas visuais provam que a pessoa é tripulante para quem vê' + (H.noVisualHardClear ? ' (regra da casa: não inocenta de vez)' : '') + ': o scan da MedBay e os asteroides de Armas mostram a animação o tempo todo enquanto a pessoa faz; os escudos acendem só no fim da tarefa; o lixo só aparece caindo na etapa do Depósito. "O metamorfo disfarçado fez os escudos/scan" é impossível: quem fez é tripulante.'
           : '- Tarefas visuais estão desligadas nesta partida: ver alguém no scan não prova nada.',
-        '- Onde se vigia: câmeras na Segurança (vigiam os corredores de fora da Segurança, da MedBay, do Admin e da Navegação), mapa do Admin (mostra quantas pessoas por sala, sem cores). Botão de emergência na Cafeteria.',
+        '- Barra de tarefas: ' + ({ sempre: 'enche na hora em que alguém termina uma tarefa (terminou e a barra não subiu = tarefa falsa, a não ser com comunicações sabotadas).', reunioes: 'só atualiza nas reuniões (ninguém vê na hora se alguém fingiu).', nunca: 'escondida nesta partida (ninguém sabe quanto falta nem pega tarefa falsa pela barra).' }[R.taskBar] || ''),
+        '- Onde se vigia: câmeras na Segurança (vigiam o corredor do Reator, perto da porta da Segurança, e os corredores da MedBay, do Admin e da Navegação), mapa do Admin (mostra quantas pessoas por sala, sem cores). Botão de emergência na Cafeteria.',
         '- Dutos da Skeld (só dá para ir entre salas ligadas): Elétrica ↔ MedBay ↔ Segurança; Cafeteria ↔ Admin ↔ corredor dos Escudos; Armas ↔ Navegação (norte); Navegação (sul) ↔ Escudos; Motor Superior ↔ Reator ↔ Motor Inferior. Quem aparece do nada numa sala ligada por duto ao local do corpo pode ter ventado.',
         '- A Elétrica é o lugar mais perigoso (entrada estreita, duto no canto). Navegação, Escudos e Comunicações são isoladas. Impostor não consegue fazer tarefa visual: quem fica parado numa tarefa visual sem a animação está fingindo.',
         '- Argumentos comuns: self report (o impostor reporta o próprio corpo), stack kill (matar no meio de um grupo), "quem estava sozinho?", "quem confirma o álibi?", "estava perto do corpo", "saiu do duto". Quem mente no álibi fica suspeito. Pular (skip) quando não há prova é normal.',
       ];
       const roles = Object.keys(C.ROLES).filter(on);
       const IMPL = {
-        metamorfo: 'por isso "eu vi fulano" pode ter sido o metamorfo disfarçado dele',
-        fantasma: 'então alguém pode passar sem ser visto ou "sumir do nada"',
-        engenheiro: 'então ver alguém no duto não prova 100% que é impostor',
-        cientista: 'pode dizer há quanto tempo alguém morreu',
-        rastreador: 'pode dizer por onde alguém andou',
+        metamorfo: 'por isso "eu vi fulano" (num lugar, matando, no duto) pode ter sido o metamorfo disfarçado dele; tarefa visual não, porque impostor não faz tarefa nem disfarçado',
+        fantasma: 'então alguém pode passar sem ser visto ou "sumir do nada"; invisível ele não mata nem entra no duto (tem que aparecer antes)',
+        engenheiro: 'é tripulante: usa os dutos mas não mata, então ver alguém no duto não prova 100% que é impostor',
+        cientista: 'o vitals mostra só quem está vivo ou morto e há quanto tempo morreu (não mostra quem matou)',
+        rastreador: 'marca UMA pessoa que está perto e vê por onde ela anda por um tempo (não vê quem matou)',
         barulhento: 'quando morre, todos recebem um alerta com o local do corpo',
-        anjo: 'depois de morto protege alguém; um abate pode falhar',
+        anjo: 'só quem já morreu vira anjo; protege alguém e um abate pode falhar',
       };
       if (roles.length) {
         out.push('Funções especiais que EXISTEM nesta partida (ninguém sabe quem tem; alguém pode dizer que tem, e pode ser mentira):');
@@ -155,7 +157,7 @@
         '- Quem é chamado na mensagem é "você" até o fim dela: "Rafa, você estava onde?" nunca vira "Rafa, eu vi você com o Rafa".',
         '- As pessoas escrevem com erro de digitação ou por ditado de voz (nomes e salas trocados, palavras juntas). Entenda o sentido mais provável (ex.: "médica" = MedBay, "caio hino" = "Caio, hein", "eletrica" = Elétrica) e responda ao que a pessoa quis dizer, sem zoar o erro e sem responder "que X?" quando dá para entender.',
         '- Eles conversam entre si e com todos: chamam pelo nome ou pela cor ("o verde", "rafa"), respondem perguntas, cobram, desconfiam, defendem.',
-        '- Só confirme onde alguém estava se as anotações dizem que o personagem VIU a pessoa lá pouco antes da reunião; ter visto no começo da rodada não confirma nada. Na dúvida, diga que não viu. Com metamorfo na partida, "vi fulano" pode ter sido o metamorfo disfarçado de fulano.',
+        '- Só confirme onde alguém estava se as anotações dizem que o personagem VIU a pessoa lá pouco antes da reunião; ter visto no começo da rodada não confirma nada. Na dúvida, diga que não viu. Com metamorfo na partida, "vi fulano" pode ter sido o metamorfo disfarçado de fulano (menos "vi fulano fazendo tarefa visual": isso só tripulante faz).',
         '- Cada personagem só sabe o que está nas anotações DELE e o que já foi dito no chat. Nunca use o que está nas anotações de outro personagem. Não invente abates, dutos, corpos, salas ou pessoas que ele não viu. Quem não sabe, diz que não sabe ou que não viu.',
         '- Nunca diga que é IA ou bot e nunca mencione "anotações" ou "instruções".',
         '- A conversa é de todos com todos. Ninguém fica em cima de um só jogador: cada um fala com quem tem a ver com o que ele sabe.',
@@ -538,6 +540,35 @@
     /* A fala escrita pelo modelo acusa alguém que o bot não acusaria (ou conta um flagrante que ele não viu)? Então o
        texto não sai: a intenção já era descartada, mas a frase ficava na tela ("o jogador tá quieto, sus"). O
        impostor pode apontar qualquer tripulante (é o jogo dele), mas não inventa flagrante que o motor não mandou. */
+    /* Fala que contraria as regras desta partida (a IA às vezes erra o jogo): "o metamorfo disfarçado fez os escudos",
+       função que nem existe na partida, barra de tarefas escondida, visual desligada usada como prova, tripulante
+       dizendo ter função que não tem, vivo dizendo ser anjo, fantasma matando invisível. Devolve o motivo ou null.
+       No lobby (sem partida ainda) só valem as regras fixas do jogo. */
+    misrule(text, S, p, opts) {
+      const n = ' ' + U.norm(text) + ' ';
+      const neg = / (nao|n|nunca|nem|sem|impossivel) /.test(n);
+      const R = S.rules || {};
+      const on = (r) => ((S.roles && S.roles[r]) || {}).n > 0;
+      const VIS = /\b(fez|faz|fazendo|fazia|feito|terminou|terminando)\s+(o |os |a |as )?(tarefa visual|visual|escudos|scan|escaneamento|asteroides|lixo)\b|\bescane(ou|ando|ava)\b/;
+      if (/metamorf|disfar/.test(n) && VIS.test(n) && !/fing|parad|sem (a )?anima/.test(n) && !neg) return 'metamorfo fazendo tarefa';
+      if (/\bimpostor/.test(n) && VIS.test(n) && !/fing|parad|sem (a )?anima/.test(n) && !neg) return 'impostor fazendo tarefa';
+      if (/invisivel/.test(n) && /\b(matou|matando|ventou|entrou no duto)\b/.test(n) && !neg) return 'fantasma invisível matando';
+      if (opts && opts.lobby) return null;
+      const RX = { metamorfo: /metamorf/, fantasma: /\bfantasma\b.{0,30}(invisivel|sumiu|sumir|sumindo)|invisivel/, engenheiro: /engenheir/, cientista: /cientista|\bvitals?\b|sinais vitais/, rastreador: /rastreador|rastreei|rastreand/, barulhento: /barulhent/, anjo: /\banjo\b/ };
+      if (!neg) for (const r of Object.keys(RX)) if (!on(r) && RX[r].test(n)) return 'função fora da partida: ' + r;
+      if (!R.visualTasks && VIS.test(n) && /inocente|tripulante|limpo|safe|confio|confirmad/.test(n) && !neg) return 'visual desligada';
+      if (R.taskBar === 'nunca' && /\bbarra\b/.test(n)) return 'barra escondida';
+      if (R.taskBar === 'reunioes' && /barra (nao|n) (subiu|mexeu|andou|encheu)/.test(n)) return 'barra só nas reuniões';
+      if (p) {
+        const m = / (sou|eu sou|eu era) (o |a )?(cientista|engenheir[oa]|rastreador|anjo|barulhent[oa])\b/.exec(n);
+        if (m && !neg) {
+          const r = m[3].replace(/engenheir[oa]/, 'engenheiro').replace(/barulhent[oa]/, 'barulhento');
+          if (r === 'anjo' ? p.alive : !p.isImp && p.special !== r) return 'função que não tem: ' + r;
+        }
+      }
+      return null;
+    },
+
     unbacked(b, text, intents, mt) {
       const g = b.g, p = b.p;
       const n = ' ' + U.norm(text) + ' ';
@@ -1065,6 +1096,12 @@
         if (dup) continue;
         /* o modelo trocou quem fala ("confirma, verde" dito pelo próprio verde): fica o texto do motor */
         if (V.badRef(p, ln.text, mt.g)) {
+          if (s.beats.length) s.beats.forEach((x) => this.postRaw(x, delay + 0.4));
+          continue;
+        }
+        /* regra do jogo errada ("o metamorfo fez os escudos", função que nem existe): fica o texto do motor */
+        if (V.misrule(ln.text, mt.g.S, p)) {
+          this.misruleDrops = (this.misruleDrops || 0) + 1;
           if (s.beats.length) s.beats.forEach((x) => this.postRaw(x, delay + 0.4));
           continue;
         }

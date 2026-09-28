@@ -1601,7 +1601,7 @@
         }
       }
       /* metamorfo: se disfarça antes, sozinho e sem ninguém ver, quando o abate está quase liberado */
-      if (p.special === 'metamorfo' && p.abilityCd <= 0 && p.shiftAs == null && p.killCd < 6 && !others.length && !(this.layLowUntil && t < this.layLowUntil) &&
+      if (p.special === 'metamorfo' && p.abilityCd <= 0 && p.shiftAs == null && p.killCd < 6 && !others.length && !(this.layLowUntil && t < this.layLowUntil) && !this.shaking && !this.tailed(others) &&
           U.chance(0.06 + L.lie * 0.06) && this.unseen()) this.disguise(null, others);
       /* jogada do disfarce: mata na frente de uma ou duas pessoas, com a cara de outro, e some */
       if (p.shiftAs != null && p.killCd <= 0 && others.length >= 2) {
@@ -1657,7 +1657,7 @@
         if (tgt && committed) {
           const d = U.dist(p, tgt);
           /* disfarce: só se transforma onde ninguém vê (nem a vítima) — atrás da parede, antes de chegar */
-          if (p.special === 'metamorfo' && p.abilityCd <= 0 && p.shiftAs == null && d < 14 && U.chance(0.3 + L.lie * 0.4) && this.unseen()) this.disguise(tgt, others);
+          if (p.special === 'metamorfo' && p.abilityCd <= 0 && p.shiftAs == null && d < 14 && !this.shaking && !this.tailed(others) && U.chance(0.3 + L.lie * 0.4) && this.unseen()) this.disguise(tgt, others);
           if (d <= g.killDist && this.safeToKill(tgt, others)) {
             if (g.tryKill(p, tgt)) return;
           } else if (d <= g.killDist * 1.4) {
@@ -1709,7 +1709,18 @@
       if (p.special === 'metamorfo' && p.shiftAs != null) {
         const left = p.shiftUntil - t;
         const hunting = this.plan && this.plan.type === 'hunt' && p.killCd <= 2 && left > 4;
-        if ((!hunting || this.shaking) && (p.killCd > 3 || left < 8 || this.shaking) && this.unseen()) {
+        /* desfaz depois do abate, ou quando a caçada ficou para depois (recarga longe e já faz um tempo). Nunca logo
+           depois de se transformar: quem se disfarça antes, com o abate quase liberado, espera o abate; senão, quem
+           visse a fumaça duas vezes veria o metamorfo "virar ele mesmo" */
+        const t0 = p.shiftT0 != null ? p.shiftT0 : -99;
+        const since = t - t0;
+        const killedSince = !!(this.escape && this.escape.t0 >= t0) && since >= 3;
+        const later = p.killCd > 8 && since > 6;
+        /* a pessoa que imito morreu: andar com a cara de um morto entrega o disfarce */
+        const Xdead = g.players[p.shiftAs] && !g.players[p.shiftAs].alive;
+        /* despistar só conta se começou com o disfarce já feito, e não quando vou calar quem me segue */
+        const shake = !!(this.shaking && this.shaking.t0 >= t0 && since > 2 && !(this.plan && this.plan.shake && this.plan.type === 'hunt'));
+        if ((!hunting || shake || Xdead) && (killedSince || later || left < 8 || shake || Xdead) && this.unseen()) {
           g.unshift(p);
           return false;
         }
@@ -1741,7 +1752,7 @@
       }
       let tail = null, ts = 0;
       for (const q of g.players) {
-        if (!q.alive || q.isImp || q === p) continue;
+        if (!q.alive || q.isImp || q === p || !this.tailNow(q, others)) continue;
         let sc = this.tailWatch[q.id] || 0;
         /* a pessoa que eu imito me vendo: exposto na hora */
         if (p.shiftAs === q.id && others.includes(q)) sc += 3;
@@ -1815,6 +1826,14 @@
       }
       return false;
     }
+    /* a marcação de "na minha cola" só baixa enquanto vejo a pessoa: quem sumiu de vista há um tempo não me segue mais */
+    tailNow(q, others) {
+      const ls = this.lastSeenAt[q.id];
+      return others.includes(q) || !!(ls && this.g.t - ls.t < 4);
+    }
+    tailed(others) {
+      return this.g.players.some((q) => q.alive && !q.isImp && q !== this.p && (this.tailWatch[q.id] || 0) >= 1.4 && this.tailNow(q, others));
+    }
     /* sai de vista: vai para um canto sem ninguém por perto */
     slipAway() {
       const g = this.g, p = this.p;
@@ -1861,7 +1880,9 @@
         const ls = this.lastSeenAt[q.id];
         return this.seenNow.includes(q) || (ls && g.t - ls.t < 8 && U.d2(ls.x, ls.y, p.x, p.y) < 12);
       };
-      const cands = g.players.filter((q) => q.alive && q !== p && q !== tgt && !q.isImp && !others.includes(q) && !nearMe(q));
+      /* nem em quem outro metamorfo já está imitando (seriam dois iguais andando por aí) */
+      const taken = (q) => g.players.some((o) => o !== p && o.shiftAs === q.id);
+      const cands = g.players.filter((q) => q.alive && q !== p && q !== tgt && !q.isImp && !others.includes(q) && !nearMe(q) && !taken(q));
       if (!cands.length) return false;
       const score = (q) => {
         let s = Math.random() * 2;

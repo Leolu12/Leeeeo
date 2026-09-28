@@ -427,11 +427,15 @@
         else if (g.vanish(hp)) this.toast('Você está invisível por ' + g.ro('fantasma', 'dur', 10) + 's.');
       } else if (sp === 'metamorfo') {
         if (hp.shiftAs != null) {
-          g.unshift(hp);
+          /* toque duplo sem querer logo depois de escolher não desfaz o disfarce na hora */
+          if (g.t - (hp.shiftT0 || 0) >= 1) g.unshift(hp);
           return;
         }
         if (hp.abilityCd > 0) return;
-        this.openPicker('Transformar em…', g.players.filter((q) => q !== hp), (q) => g.shapeshift(hp, q.id));
+        /* se o disfarce não pegar (reunião começou, entrou no duto enquanto escolhia), avisa em vez de só sumir */
+        this.openPicker('Transformar em…', g.players.filter((q) => q !== hp), (q) => {
+          if (!g.shapeshift(hp, q.id)) this.toast('Não deu para se transformar agora.');
+        });
       } else if (sp === 'rastreador') {
         const near = g.players.filter((q) => q.alive && q !== hp && U.dist(q, hp) <= 3.5 && Nav.los(hp.x, hp.y, q.x, q.y));
         if (near.length === 1) {
@@ -792,7 +796,7 @@
             this.closeOverlay();
             fn(q);
           },
-        }, h('span', { html: AU.Render.beanSVG(q.color, { size: 34, visor: q.visor }) }), h('span', {}, q.name)));
+        }, h('span', { html: AU.Render.beanSVG(q.color, { size: 34, visor: q.visor }) }), h('span', {}, q.name + (q.alive ? '' : ' (morto)'))));
       }
       this.openOverlay(title, h('div', { class: 'ov-body' }, list), { kind: 'picker' });
     },
