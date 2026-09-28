@@ -131,6 +131,7 @@
         e.role.textContent = (hp.isImp ? 'Impostor' : 'Tripulante') + sp;
         e.role.className = 'hud-role ' + (hp.isImp ? 'imp' : 'crew');
       }
+      this._barW = null;
       this.renderTasks(true);
       this.narrate('A tripulação se reúne ao redor da mesa da Cafeteria. O zumbido da nave preenche o silêncio.', 'intro');
     },
@@ -168,7 +169,9 @@
       const g = this.g, hp = g && g.human;
       if (!hp) return;
       const comms = g.commsDown() && hp.alive;
-      const key = hp.tasks.map((t) => t.step + ':' + t.done + ':' + g.taskAvailable(t)).join('|') + comms + hp.isImp + (g.sab ? g.sab.type : '');
+      /* a espera da amostra entra na chave pelos segundos: a lista é refeita uma vez por segundo, não a cada quadro */
+      const wait = (t) => (t.id === 'inspect' && t.step === 1 && !t.done && !g.taskAvailable(t) ? Math.ceil(t.readyAt - g.t) : '');
+      const key = hp.tasks.map((t) => t.step + ':' + t.done + ':' + g.taskAvailable(t) + wait(t)).join('|') + comms + hp.isImp + (g.sab ? g.sab.type : '');
       if (!force && key === this._taskKey) return;
       this._taskKey = key;
       const list = this.el.taskList;
@@ -200,27 +203,26 @@
       const e = this.el;
       const busy = AU.MG.isOpen() || !!this.overlay;
       hp.frozen = busy;
-      if (g.phase === 'play') {
-        this.renderTasks();
-        if (hp.tasks.some((t) => t.id === 'inspect' && t.step === 1 && !t.done && !g.taskAvailable(t))) this._taskKey = null;
-      }
+      if (g.phase === 'play') this.renderTasks();
+      /* só escreve na página o que mudou: regravar o mesmo valor a cada quadro faz o navegador recalcular estilos */
       const tp = g.taskProgress();
       const barMode = g.S.rules.taskBar;
-      if (barMode === 'nunca') e.taskBar.hidden = true;
-      else if (barMode === 'sempre' || g.phase === 'meeting') {
-        e.taskBar.hidden = false;
-        e.taskBar.firstChild.style.width = Math.round(tp.ratio * 100) + '%';
-      }
-      if (g.commsDown() && barMode !== 'nunca') e.taskBar.firstChild.style.width = '0%';
+      if (barMode === 'nunca') {
+        if (!e.taskBar.hidden) e.taskBar.hidden = true;
+      } else if (barMode === 'sempre' || g.phase === 'meeting') {
+        if (e.taskBar.hidden) e.taskBar.hidden = false;
+        const w = g.commsDown() ? '0%' : Math.round(tp.ratio * 100) + '%';
+        if (this._barW !== w) e.taskBar.firstChild.style.width = this._barW = w;
+      } else if (g.commsDown() && this._barW !== '0%') e.taskBar.firstChild.style.width = this._barW = '0%';
       if (g.sab) {
         const s = g.sab;
         let txt = '⚠ ' + SAB_NAME[s.type];
         if (s.timer != null) txt += ' · ' + Math.max(0, Math.ceil(s.timer)) + 's';
         if (s.type === 'o2') txt += ' · código ' + (s.done.A ? '✓' : '✗') + ' O2 / ' + (s.done.B ? '✓' : '✗') + ' Admin';
         if (e.sab.textContent !== txt) e.sab.textContent = txt;
-        e.sab.hidden = false;
+        if (e.sab.hidden) e.sab.hidden = false;
         e.sab.classList.toggle('crit', s.timer != null);
-      } else e.sab.hidden = true;
+      } else if (!e.sab.hidden) e.sab.hidden = true;
       this.updateActions();
       this.updateGhost();
       this.updateVentNav();
@@ -231,7 +233,7 @@
     setAct(b, visible, enabled, label, cd) {
       if (b.hidden !== !visible) b.hidden = !visible;
       if (!visible) return;
-      b.disabled = !enabled;
+      if (b.disabled !== !enabled) b.disabled = !enabled;
       b.classList.toggle('ready', !!enabled);
       if (label && b._lbl.textContent !== label) b._lbl.textContent = label;
       const cdt = cd > 0 ? String(Math.ceil(cd)) : '';

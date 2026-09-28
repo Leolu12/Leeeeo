@@ -343,40 +343,94 @@
      vídeo. Ele é cortado em ladrilhos já na escala da tela (com 1 px de sobra em volta, para não aparecer costura),
      gerados sob demanda e guardados; a cada quadro só copia os ladrilhos visíveis 1:1. */
   const TILE = 384;
-  const tiles = { ppt: 0, map: new Map(), max: 32 };
-  function mapTile(tx, ty, ppt) {
-    if (tiles.ppt !== ppt) {
-      tiles.map.clear();
-      tiles.ppt = ppt;
+  /* pool: canvas de ladrilhos que saíram do cache, reaproveitados (criar canvas novo a toda hora pesa na memória e
+     acaba em pausas de coleta de lixo) */
+  const tiles = { ppt: 0, map: new Map(), max: 32, pool: [] };
+  const POOL_MAX = 12;
+  function drop(c) {
+    if (tiles.pool.length < POOL_MAX) tiles.pool.push(c);
+  }
+  function makeTile(tx, ty, ppt) {
+    let c = tiles.pool.pop();
+    if (!c) {
+      c = document.createElement('canvas');
+      c.width = TILE + 2;
+      c.height = TILE + 2;
     }
-    const key = tx + ',' + ty;
-    let c = tiles.map.get(key);
-    if (c) {
-      tiles.map.delete(key);
-      tiles.map.set(key, c);
-      return c;
-    }
-    c = document.createElement('canvas');
-    c.width = TILE + 2;
-    c.height = TILE + 2;
     const cx = c.getContext('2d');
+    cx.clearRect(0, 0, c.width, c.height);
     cx.imageSmoothingEnabled = true;
     const k = PX / ppt;
     const sx = (tx * TILE - 1) * k, sy = (ty * TILE - 1) * k, sw = (TILE + 2) * k;
     /* recorta a origem nos limites do mapa (fora dele fica transparente e aparece o fundo estrelado) */
     const cx0 = Math.max(0, sx), cy0 = Math.max(0, sy), cx1 = Math.min(staticCanvas.width, sx + sw), cy1 = Math.min(staticCanvas.height, sy + sw);
     if (cx1 > cx0 && cy1 > cy0) cx.drawImage(staticCanvas, cx0, cy0, cx1 - cx0, cy1 - cy0, (cx0 - sx) / k, (cy0 - sy) / k, (cx1 - cx0) / k, (cy1 - cy0) / k);
-    tiles.map.set(key, c);
-    while (tiles.map.size > tiles.max) tiles.map.delete(tiles.map.keys().next().value);
+    tiles.map.set(tx + ',' + ty, c);
+    while (tiles.map.size > tiles.max) {
+      const old = tiles.map.keys().next().value;
+      drop(tiles.map.get(old));
+      tiles.map.delete(old);
+    }
     return c;
+  }
+  function mapTile(tx, ty, ppt) {
+    if (tiles.ppt !== ppt) {
+      for (const c of tiles.map.values()) drop(c);
+      tiles.map.clear();
+      tiles.ppt = ppt;
+    }
+    const key = tx + ',' + ty;
+    const c = tiles.map.get(key);
+    if (c) {
+      tiles.map.delete(key);
+      tiles.map.set(key, c);
+      return c;
+    }
+    return makeTile(tx, ty, ppt);
+  }
+  /* Adianta um ladrilho por quadro da faixa em volta da tela, começando pelo lado para onde a câmera anda. Assim,
+     quando a câmera entra num pedaço novo do mapa, ele já está pronto (antes, 4 ou 5 ladrilhos eram gerados no
+     mesmo quadro e o jogo dava uma travadinha). */
+  const cam0 = { x: 0, y: 0, vx: 0, vy: 0 };
+  function prefetch(tx0, ty0, tx1, ty1, ppt) {
+    const k = PX / ppt;
+    let best = null, bs = -Infinity;
+    for (let ty = ty0 - 1; ty <= ty1 + 1; ty++) {
+      for (let tx = tx0 - 1; tx <= tx1 + 1; tx++) {
+        if (tx >= tx0 && tx <= tx1 && ty >= ty0 && ty <= ty1) continue;
+        const key = tx + ',' + ty, have = tiles.map.get(key);
+        if (have) {
+          /* mantém a faixa como "usada agora", para o cache descartar primeiro o que ficou para trás */
+          tiles.map.delete(key);
+          tiles.map.set(key, have);
+          continue;
+        }
+        /* fora do mapa (só estrelas): não precisa */
+        if ((tx + 1) * TILE * k <= 0 || (ty + 1) * TILE * k <= 0 || tx * TILE * k >= staticCanvas.width || ty * TILE * k >= staticCanvas.height) continue;
+        const dx = tx - (tx0 + tx1) / 2, dy = ty - (ty0 + ty1) / 2;
+        const sc = dx * cam0.vx + dy * cam0.vy - Math.hypot(dx, dy);
+        if (sc > bs) {
+          bs = sc;
+          best = [tx, ty];
+        }
+      }
+    }
+    if (best) makeTile(best[0], best[1], ppt);
   }
   function blitMap(ctx, cv, px0, py0, ppt) {
     const tx0 = Math.floor(px0 / TILE), ty0 = Math.floor(py0 / TILE);
     const tx1 = Math.floor((px0 + cv.width - 1) / TILE), ty1 = Math.floor((py0 + cv.height - 1) / TILE);
-    tiles.max = Math.max(24, (tx1 - tx0 + 2) * (ty1 - ty0 + 2) * 2);
+    /* cabe a tela, a faixa adiantada em volta e um pouco de folga */
+    tiles.max = Math.max(24, (tx1 - tx0 + 3) * (ty1 - ty0 + 3) + 6);
     for (let ty = ty0; ty <= ty1; ty++) {
       for (let tx = tx0; tx <= tx1; tx++) ctx.drawImage(mapTile(tx, ty, ppt), 1, 1, TILE, TILE, tx * TILE - px0, ty * TILE - py0, TILE, TILE);
     }
+    /* para onde a câmera anda (média suave, em pixels por quadro) */
+    cam0.vx = cam0.vx * 0.9 + (px0 - cam0.x) * 0.1;
+    cam0.vy = cam0.vy * 0.9 + (py0 - cam0.y) * 0.1;
+    cam0.x = px0;
+    cam0.y = py0;
+    prefetch(tx0, ty0, tx1, ty1, ppt);
   }
 
   /* ---------- fundo estrelado ---------- */

@@ -2316,14 +2316,40 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
 
   /* ganho de cada som, para equilibrar: eventos grandes perto de -12 dB, médios -18 dB, sutis -28 dB */
   const GAIN = { click: 2, chat: 2, type: 6, stepMetal: 1.8, stepTile: 2.2, stepCarpet: 2.2, vent: 2.6, ventMove: 6, laser: 3, lever: 2, alarm: 1.6, spark: 1.4, pour: 1.6, doorOpen: 1.5, ok: 1.3, vote: 1.2 };
-  const route = (c, b, name) => {
+  const route = (c, b, name, dest) => {
     const k = GAIN[name];
-    if (!k) return b.sfx;
+    if (!k) return dest;
     const g = c.createGain();
     g.gain.value = k;
-    g.connect(b.sfx);
+    g.connect(dest);
     return g;
   };
+  /* som que vem de um ponto do mapa: mais baixo longe, do lado certo, e abafado quando há parede no meio */
+  function spatial(c, b, at) {
+    let node = b.sfx;
+    if (!at) return node;
+    if (at.pan && c.createStereoPanner) {
+      const p = c.createStereoPanner();
+      p.pan.value = Math.max(-1, Math.min(1, at.pan));
+      p.connect(node);
+      node = p;
+    }
+    if (at.muffle) {
+      const f = c.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = 650;
+      f.Q.value = 0.5;
+      f.connect(node);
+      node = f;
+    }
+    if (at.gain != null && at.gain !== 1) {
+      const g = c.createGain();
+      g.gain.value = Math.max(0, at.gain);
+      g.connect(node);
+      node = g;
+    }
+    return node;
+  }
 
   /* ---------- ambiente da nave, por sala: zumbido base + a assinatura de cada sala ---------- */
   const AMB = {
@@ -2443,13 +2469,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   AU.Audio = {
     surfaceOf: (areaId) => SURF[areaId] || 'metal',
     ambienceOf: (areaId) => AMB_OF[areaId] || 'corridor',
-    play(name, when) {
+    /* at (opcional): { gain, pan, muffle } para sons que acontecem num ponto do mapa (ver Game.sfxAt) */
+    play(name, when, at) {
       /* aba escondida: o jogo para (sem quadros) e o som também, senão os sons se acumulam e saem todos juntos na volta */
       if (!enabled || !S[name] || (typeof document !== 'undefined' && document.hidden)) return;
       const c = ensure();
       if (!c) return;
       try {
-        S[name](c, bus, route(c, bus, name), c.currentTime + (when || 0));
+        S[name](c, bus, route(c, bus, name, spatial(c, bus, at)), c.currentTime + (when || 0));
       } catch (e) {
         /* áudio indisponível */
       }
@@ -3877,6 +3904,42 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (this.ui[kind]) this.ui[kind](...a);
     }
     sfx(name) { if (!this.headless) AU.Audio.play(name); }
+    /* Som de algo que acontece num ponto do mapa (duto, abate, porta, escudo): como no Among Us, só se ouve perto
+       (mais ou menos o que cabe na tela), mais baixo com a distância e do lado de onde vem. Atrás de parede sai
+       abafado e só bem perto. Vale também para o fantasma, que antes ouvia a nave inteira.
+       o.sight: só toca se o jogador enxerga o ponto (abate e escudo, que não fazem barulho que atravesse a sala).
+       o.range: alcance em tiles (porta batendo se ouve mais longe que a tampa do duto).
+       o.sides: pontos dos dois lados de uma porta (a porta fechada tapa a linha até ela mesma). */
+    sfxAt(name, x, y, o) {
+      const h = this.human;
+      if (this.headless || !h) return;
+      o = o || {};
+      const sight = !!o.sight, HEAR = o.range || 10;
+      const d = U.d2(h.x, h.y, x, y);
+      if (d > HEAR) return;
+      const seen = (px, py) => (sight ? this.canSeePoint(h, px, py) : !h.inVent && Nav.los(h.x, h.y, px, py));
+      const clear = !h.alive || (o.sides ? o.sides.some((q) => seen(q[0], q[1])) : seen(x, y));
+      if (sight && !clear) return;
+      if (!clear && d > HEAR / 2) return;
+      const gain = (1 - 0.7 * U.clamp((d - 2) / (HEAR - 2), 0, 1)) * (clear ? 1 : 0.55);
+      AU.Audio.play(name, 0, { gain, pan: U.clamp((x - h.x) / HEAR, -1, 1) * 0.75, muffle: !clear });
+    }
+    /* som das portas de uma sala, vindo da porta mais perto do jogador */
+    doorSfx(name, room) {
+      const h = this.human;
+      if (this.headless || !h) return;
+      let best = null, bd = Infinity;
+      for (const d of M.DOORS) {
+        if (d.room !== room) continue;
+        const [rx, ry, rw, rh] = d.rect;
+        const x = rx + rw / 2, y = ry + rh / 2;
+        const dd = U.d2(h.x, h.y, x, y);
+        if (dd >= bd) continue;
+        bd = dd;
+        best = { x, y, sides: rw > rh ? [[x, ry - 0.5], [x, ry + rh + 0.5]] : [[rx - 0.5, y], [rx + rw + 0.5, y]] };
+      }
+      if (best) this.sfxAt(name, best.x, best.y, { range: 14, sides: best.sides });
+    }
     addFx(fx) {
       fx.t0 = this.t;
       this.fx.push(fx);
@@ -4022,8 +4085,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           this.doorUntil[room] = 0;
           M.setDoorsClosed(room, false);
           this.markDoors(room);
-          const h = this.human;
-          if (h && U.d2(h.x, h.y, M.AREA[room].cx, M.AREA[room].cy) < 16) this.sfx('doorOpen');
+          this.doorSfx('doorOpen', room);
         }
       }
       if (this.sab) {
@@ -4171,7 +4233,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         this.log({ type: 'protectBlock', killer: k.id, victim: v.id });
         if (this.ghosts) this.ghosts.onShield(v);
         if (k.isHuman || v.isHuman) this.say('toast', 'Um escudo de anjo bloqueou o abate!');
-        this.sfx('shield');
+        if (k.isHuman || v.isHuman) this.sfx('shield');
+        else this.sfxAt('shield', v.x, v.y, { sight: true });
         return false;
       }
       const kx = k.x, ky = k.y;
@@ -4219,7 +4282,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       } else if (k.isHuman) {
         this.sfx('kill');
       } else if (h && h.alive && this.canSeePoint(h, v.x, v.y)) {
-        this.sfx('kill');
+        this.sfxAt('kill', v.x, v.y, { sight: true });
         this.say('narrate', 'Você viu um abate acontecer diante dos seus olhos.', 'event');
       }
       if (v.special === 'barulhento') {
@@ -4538,8 +4601,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.unstickFromDoors();
       this.log({ type: 'doors', room, by: p.id });
       for (const q of this.players) if (q.brain) q.brain.onDoors(room);
-      const h = this.human;
-      if (h && U.d2(h.x, h.y, M.AREA[room].cx, M.AREA[room].cy) < 16) this.sfx('door');
+      this.doorSfx('door', room);
       return true;
     }
 
@@ -4596,7 +4658,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const apc = this.appear(p);
       this.addFx({ type: 'ventIn', x: v.x, y: v.y, dur: 0.6, color: apc.color, hat: apc.hat, visor: apc.visor, facing: p.facing, who: p.id });
       this.log({ type: 'vent', by: p.id, vent: v.id, dir: 'in', witnesses: wit.map((w) => w.p.id) });
-      if (this.human && (p.isHuman || this.canSeePoint(this.human, v.x, v.y))) this.sfx('vent');
+      if (p.isHuman) this.sfx('vent');
+      else this.sfxAt('vent', v.x, v.y);
       return true;
     }
     ventTo(p, vid) {
@@ -4622,7 +4685,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       p.popT = this.t;
       this.log({ type: 'vent', by: p.id, vent: v.id, dir: 'out', witnesses: wit.map((w) => w.p.id) });
       if (p.special === 'engenheiro') p.abilityCd = this.ro('engenheiro', 'cd', 20);
-      if (this.human && (p.isHuman || this.canSeePoint(this.human, v.x, v.y))) this.sfx('vent');
+      if (p.isHuman) this.sfx('vent');
+      else this.sfxAt('vent', v.x, v.y);
       return true;
     }
 
@@ -12024,7 +12088,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (!g.headless && g.S.ui.aiChat !== 'off' && AU.LLM) AU.LLM.ensure();
       this.dir = !g.headless && AU.Voice ? AU.Voice.director(this) : null;
       this.ui = g.headless ? null : new MeetingUI(this);
-      for (const p of g.players) if (p.brain && p.alive && p.brain.mStart) p.brain.mStart(this);
+      /* preparo de cada bot (evidências, pauta, primeiras falas). Com interface, um bot por quadro durante a abertura
+         (quase 3 s em que ninguém fala nem vota), para a reunião não abrir com uma travada; sem interface, tudo de uma
+         vez, na mesma ordem de antes */
+      this.prep = g.players.filter((p) => p.brain && p.alive && p.brain.mStart);
+      this.prepDone = false;
+      if (g.headless) this.runPrep(Infinity);
       for (const p of g.players) {
         if (g.ghosts) break; /* o chat dos fantasmas cuida disso (e já reagiu na hora da morte) */
         if (!p.brain || p.alive || p.ejected || p.deathT == null || p.deathT < info.roundStart) continue;
@@ -12034,7 +12103,18 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           this.post(p, T.line(kind, { who: p.brain.killedBy }, g, p.brain), []);
         });
       }
-      if (this.dir) this.dir.opening();
+    }
+
+    /* prepara até n bots; quando todos estão prontos, a IA (se houver) abre a conversa com as primeiras falas deles */
+    runPrep(n) {
+      while (n-- > 0 && this.prep.length) {
+        const p = this.prep.shift();
+        if (p.brain && p.alive) p.brain.mStart(this);
+      }
+      if (!this.prep.length && !this.prepDone) {
+        this.prepDone = true;
+        if (this.dir) this.dir.opening();
+      }
     }
 
     get votingStart() { return this.durI + this.durD; }
@@ -12066,6 +12146,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
 
     update(dt) {
       if (this.closed) return;
+      /* um bot por quadro na abertura; se ela acabar antes, termina todos agora */
+      if (!this.prepDone) this.runPrep(this.phase === 'intro' && this.t + dt < this.durI ? 1 : Infinity);
       if (this.paused && (this.phase === 'discussion' || this.phase === 'voting')) {
         if (this.ui) this.ui.tick();
         return;
@@ -12737,7 +12819,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       else if (mt.phase === 'results') label = 'Resultado';
       if (mt.paused) label = 'Pausado · ' + label;
       if (this.timer.textContent !== label) this.timer.textContent = label;
-      this.pauseBtn.hidden = !(mt.phase === 'discussion' || mt.phase === 'voting');
+      const hide = !(mt.phase === 'discussion' || mt.phase === 'voting');
+      if (this.pauseBtn.hidden !== hide) this.pauseBtn.hidden = hide;
     }
     renderTyping(set) {
       const mt = this.mt, g = this.g;
@@ -15515,40 +15598,94 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
      vídeo. Ele é cortado em ladrilhos já na escala da tela (com 1 px de sobra em volta, para não aparecer costura),
      gerados sob demanda e guardados; a cada quadro só copia os ladrilhos visíveis 1:1. */
   const TILE = 384;
-  const tiles = { ppt: 0, map: new Map(), max: 32 };
-  function mapTile(tx, ty, ppt) {
-    if (tiles.ppt !== ppt) {
-      tiles.map.clear();
-      tiles.ppt = ppt;
+  /* pool: canvas de ladrilhos que saíram do cache, reaproveitados (criar canvas novo a toda hora pesa na memória e
+     acaba em pausas de coleta de lixo) */
+  const tiles = { ppt: 0, map: new Map(), max: 32, pool: [] };
+  const POOL_MAX = 12;
+  function drop(c) {
+    if (tiles.pool.length < POOL_MAX) tiles.pool.push(c);
+  }
+  function makeTile(tx, ty, ppt) {
+    let c = tiles.pool.pop();
+    if (!c) {
+      c = document.createElement('canvas');
+      c.width = TILE + 2;
+      c.height = TILE + 2;
     }
-    const key = tx + ',' + ty;
-    let c = tiles.map.get(key);
-    if (c) {
-      tiles.map.delete(key);
-      tiles.map.set(key, c);
-      return c;
-    }
-    c = document.createElement('canvas');
-    c.width = TILE + 2;
-    c.height = TILE + 2;
     const cx = c.getContext('2d');
+    cx.clearRect(0, 0, c.width, c.height);
     cx.imageSmoothingEnabled = true;
     const k = PX / ppt;
     const sx = (tx * TILE - 1) * k, sy = (ty * TILE - 1) * k, sw = (TILE + 2) * k;
     /* recorta a origem nos limites do mapa (fora dele fica transparente e aparece o fundo estrelado) */
     const cx0 = Math.max(0, sx), cy0 = Math.max(0, sy), cx1 = Math.min(staticCanvas.width, sx + sw), cy1 = Math.min(staticCanvas.height, sy + sw);
     if (cx1 > cx0 && cy1 > cy0) cx.drawImage(staticCanvas, cx0, cy0, cx1 - cx0, cy1 - cy0, (cx0 - sx) / k, (cy0 - sy) / k, (cx1 - cx0) / k, (cy1 - cy0) / k);
-    tiles.map.set(key, c);
-    while (tiles.map.size > tiles.max) tiles.map.delete(tiles.map.keys().next().value);
+    tiles.map.set(tx + ',' + ty, c);
+    while (tiles.map.size > tiles.max) {
+      const old = tiles.map.keys().next().value;
+      drop(tiles.map.get(old));
+      tiles.map.delete(old);
+    }
     return c;
+  }
+  function mapTile(tx, ty, ppt) {
+    if (tiles.ppt !== ppt) {
+      for (const c of tiles.map.values()) drop(c);
+      tiles.map.clear();
+      tiles.ppt = ppt;
+    }
+    const key = tx + ',' + ty;
+    const c = tiles.map.get(key);
+    if (c) {
+      tiles.map.delete(key);
+      tiles.map.set(key, c);
+      return c;
+    }
+    return makeTile(tx, ty, ppt);
+  }
+  /* Adianta um ladrilho por quadro da faixa em volta da tela, começando pelo lado para onde a câmera anda. Assim,
+     quando a câmera entra num pedaço novo do mapa, ele já está pronto (antes, 4 ou 5 ladrilhos eram gerados no
+     mesmo quadro e o jogo dava uma travadinha). */
+  const cam0 = { x: 0, y: 0, vx: 0, vy: 0 };
+  function prefetch(tx0, ty0, tx1, ty1, ppt) {
+    const k = PX / ppt;
+    let best = null, bs = -Infinity;
+    for (let ty = ty0 - 1; ty <= ty1 + 1; ty++) {
+      for (let tx = tx0 - 1; tx <= tx1 + 1; tx++) {
+        if (tx >= tx0 && tx <= tx1 && ty >= ty0 && ty <= ty1) continue;
+        const key = tx + ',' + ty, have = tiles.map.get(key);
+        if (have) {
+          /* mantém a faixa como "usada agora", para o cache descartar primeiro o que ficou para trás */
+          tiles.map.delete(key);
+          tiles.map.set(key, have);
+          continue;
+        }
+        /* fora do mapa (só estrelas): não precisa */
+        if ((tx + 1) * TILE * k <= 0 || (ty + 1) * TILE * k <= 0 || tx * TILE * k >= staticCanvas.width || ty * TILE * k >= staticCanvas.height) continue;
+        const dx = tx - (tx0 + tx1) / 2, dy = ty - (ty0 + ty1) / 2;
+        const sc = dx * cam0.vx + dy * cam0.vy - Math.hypot(dx, dy);
+        if (sc > bs) {
+          bs = sc;
+          best = [tx, ty];
+        }
+      }
+    }
+    if (best) makeTile(best[0], best[1], ppt);
   }
   function blitMap(ctx, cv, px0, py0, ppt) {
     const tx0 = Math.floor(px0 / TILE), ty0 = Math.floor(py0 / TILE);
     const tx1 = Math.floor((px0 + cv.width - 1) / TILE), ty1 = Math.floor((py0 + cv.height - 1) / TILE);
-    tiles.max = Math.max(24, (tx1 - tx0 + 2) * (ty1 - ty0 + 2) * 2);
+    /* cabe a tela, a faixa adiantada em volta e um pouco de folga */
+    tiles.max = Math.max(24, (tx1 - tx0 + 3) * (ty1 - ty0 + 3) + 6);
     for (let ty = ty0; ty <= ty1; ty++) {
       for (let tx = tx0; tx <= tx1; tx++) ctx.drawImage(mapTile(tx, ty, ppt), 1, 1, TILE, TILE, tx * TILE - px0, ty * TILE - py0, TILE, TILE);
     }
+    /* para onde a câmera anda (média suave, em pixels por quadro) */
+    cam0.vx = cam0.vx * 0.9 + (px0 - cam0.x) * 0.1;
+    cam0.vy = cam0.vy * 0.9 + (py0 - cam0.y) * 0.1;
+    cam0.x = px0;
+    cam0.y = py0;
+    prefetch(tx0, ty0, tx1, ty1, ppt);
   }
 
   /* ---------- fundo estrelado ---------- */
@@ -18931,6 +19068,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         e.role.textContent = (hp.isImp ? 'Impostor' : 'Tripulante') + sp;
         e.role.className = 'hud-role ' + (hp.isImp ? 'imp' : 'crew');
       }
+      this._barW = null;
       this.renderTasks(true);
       this.narrate('A tripulação se reúne ao redor da mesa da Cafeteria. O zumbido da nave preenche o silêncio.', 'intro');
     },
@@ -18968,7 +19106,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const g = this.g, hp = g && g.human;
       if (!hp) return;
       const comms = g.commsDown() && hp.alive;
-      const key = hp.tasks.map((t) => t.step + ':' + t.done + ':' + g.taskAvailable(t)).join('|') + comms + hp.isImp + (g.sab ? g.sab.type : '');
+      /* a espera da amostra entra na chave pelos segundos: a lista é refeita uma vez por segundo, não a cada quadro */
+      const wait = (t) => (t.id === 'inspect' && t.step === 1 && !t.done && !g.taskAvailable(t) ? Math.ceil(t.readyAt - g.t) : '');
+      const key = hp.tasks.map((t) => t.step + ':' + t.done + ':' + g.taskAvailable(t) + wait(t)).join('|') + comms + hp.isImp + (g.sab ? g.sab.type : '');
       if (!force && key === this._taskKey) return;
       this._taskKey = key;
       const list = this.el.taskList;
@@ -19000,27 +19140,26 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const e = this.el;
       const busy = AU.MG.isOpen() || !!this.overlay;
       hp.frozen = busy;
-      if (g.phase === 'play') {
-        this.renderTasks();
-        if (hp.tasks.some((t) => t.id === 'inspect' && t.step === 1 && !t.done && !g.taskAvailable(t))) this._taskKey = null;
-      }
+      if (g.phase === 'play') this.renderTasks();
+      /* só escreve na página o que mudou: regravar o mesmo valor a cada quadro faz o navegador recalcular estilos */
       const tp = g.taskProgress();
       const barMode = g.S.rules.taskBar;
-      if (barMode === 'nunca') e.taskBar.hidden = true;
-      else if (barMode === 'sempre' || g.phase === 'meeting') {
-        e.taskBar.hidden = false;
-        e.taskBar.firstChild.style.width = Math.round(tp.ratio * 100) + '%';
-      }
-      if (g.commsDown() && barMode !== 'nunca') e.taskBar.firstChild.style.width = '0%';
+      if (barMode === 'nunca') {
+        if (!e.taskBar.hidden) e.taskBar.hidden = true;
+      } else if (barMode === 'sempre' || g.phase === 'meeting') {
+        if (e.taskBar.hidden) e.taskBar.hidden = false;
+        const w = g.commsDown() ? '0%' : Math.round(tp.ratio * 100) + '%';
+        if (this._barW !== w) e.taskBar.firstChild.style.width = this._barW = w;
+      } else if (g.commsDown() && this._barW !== '0%') e.taskBar.firstChild.style.width = this._barW = '0%';
       if (g.sab) {
         const s = g.sab;
         let txt = '⚠ ' + SAB_NAME[s.type];
         if (s.timer != null) txt += ' · ' + Math.max(0, Math.ceil(s.timer)) + 's';
         if (s.type === 'o2') txt += ' · código ' + (s.done.A ? '✓' : '✗') + ' O2 / ' + (s.done.B ? '✓' : '✗') + ' Admin';
         if (e.sab.textContent !== txt) e.sab.textContent = txt;
-        e.sab.hidden = false;
+        if (e.sab.hidden) e.sab.hidden = false;
         e.sab.classList.toggle('crit', s.timer != null);
-      } else e.sab.hidden = true;
+      } else if (!e.sab.hidden) e.sab.hidden = true;
       this.updateActions();
       this.updateGhost();
       this.updateVentNav();
@@ -19031,7 +19170,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     setAct(b, visible, enabled, label, cd) {
       if (b.hidden !== !visible) b.hidden = !visible;
       if (!visible) return;
-      b.disabled = !enabled;
+      if (b.disabled !== !enabled) b.disabled = !enabled;
       b.classList.toggle('ready', !!enabled);
       if (label && b._lbl.textContent !== label) b._lbl.textContent = label;
       const cdt = cd > 0 ? String(Math.ceil(cd)) : '';
@@ -20687,7 +20826,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           rest -= step;
         }
       }
-      if (g.phase !== 'meeting' || !g.meeting || g.meeting.phase === 'intro') AU.Render.draw(g, ts / 1000);
+      /* na reunião a tela dela (e a abertura, opaca) cobre o mapa: não gasta desenhando o que ninguém vê */
+      if (g.phase !== 'meeting' || !g.meeting) AU.Render.draw(g, ts / 1000);
       AU.HUD.update(dt);
     },
   };

@@ -227,7 +227,8 @@
           rest -= step;
         }
       }
-      if (g.phase !== 'meeting' || !g.meeting || g.meeting.phase === 'intro') AU.Render.draw(g, ts / 1000);
+      /* na reunião a tela dela (e a abertura, opaca) cobre o mapa: não gasta desenhando o que ninguém vê */
+      if (g.phase !== 'meeting' || !g.meeting) AU.Render.draw(g, ts / 1000);
       AU.HUD.update(dt);
     },
   };

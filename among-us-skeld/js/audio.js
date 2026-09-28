@@ -252,14 +252,40 @@
 
   /* ganho de cada som, para equilibrar: eventos grandes perto de -12 dB, médios -18 dB, sutis -28 dB */
   const GAIN = { click: 2, chat: 2, type: 6, stepMetal: 1.8, stepTile: 2.2, stepCarpet: 2.2, vent: 2.6, ventMove: 6, laser: 3, lever: 2, alarm: 1.6, spark: 1.4, pour: 1.6, doorOpen: 1.5, ok: 1.3, vote: 1.2 };
-  const route = (c, b, name) => {
+  const route = (c, b, name, dest) => {
     const k = GAIN[name];
-    if (!k) return b.sfx;
+    if (!k) return dest;
     const g = c.createGain();
     g.gain.value = k;
-    g.connect(b.sfx);
+    g.connect(dest);
     return g;
   };
+  /* som que vem de um ponto do mapa: mais baixo longe, do lado certo, e abafado quando há parede no meio */
+  function spatial(c, b, at) {
+    let node = b.sfx;
+    if (!at) return node;
+    if (at.pan && c.createStereoPanner) {
+      const p = c.createStereoPanner();
+      p.pan.value = Math.max(-1, Math.min(1, at.pan));
+      p.connect(node);
+      node = p;
+    }
+    if (at.muffle) {
+      const f = c.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = 650;
+      f.Q.value = 0.5;
+      f.connect(node);
+      node = f;
+    }
+    if (at.gain != null && at.gain !== 1) {
+      const g = c.createGain();
+      g.gain.value = Math.max(0, at.gain);
+      g.connect(node);
+      node = g;
+    }
+    return node;
+  }
 
   /* ---------- ambiente da nave, por sala: zumbido base + a assinatura de cada sala ---------- */
   const AMB = {
@@ -379,13 +405,14 @@
   AU.Audio = {
     surfaceOf: (areaId) => SURF[areaId] || 'metal',
     ambienceOf: (areaId) => AMB_OF[areaId] || 'corridor',
-    play(name, when) {
+    /* at (opcional): { gain, pan, muffle } para sons que acontecem num ponto do mapa (ver Game.sfxAt) */
+    play(name, when, at) {
       /* aba escondida: o jogo para (sem quadros) e o som também, senão os sons se acumulam e saem todos juntos na volta */
       if (!enabled || !S[name] || (typeof document !== 'undefined' && document.hidden)) return;
       const c = ensure();
       if (!c) return;
       try {
-        S[name](c, bus, route(c, bus, name), c.currentTime + (when || 0));
+        S[name](c, bus, route(c, bus, name, spatial(c, bus, at)), c.currentTime + (when || 0));
       } catch (e) {
         /* áudio indisponível */
       }

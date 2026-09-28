@@ -53,7 +53,12 @@
       if (!g.headless && g.S.ui.aiChat !== 'off' && AU.LLM) AU.LLM.ensure();
       this.dir = !g.headless && AU.Voice ? AU.Voice.director(this) : null;
       this.ui = g.headless ? null : new MeetingUI(this);
-      for (const p of g.players) if (p.brain && p.alive && p.brain.mStart) p.brain.mStart(this);
+      /* preparo de cada bot (evidências, pauta, primeiras falas). Com interface, um bot por quadro durante a abertura
+         (quase 3 s em que ninguém fala nem vota), para a reunião não abrir com uma travada; sem interface, tudo de uma
+         vez, na mesma ordem de antes */
+      this.prep = g.players.filter((p) => p.brain && p.alive && p.brain.mStart);
+      this.prepDone = false;
+      if (g.headless) this.runPrep(Infinity);
       for (const p of g.players) {
         if (g.ghosts) break; /* o chat dos fantasmas cuida disso (e já reagiu na hora da morte) */
         if (!p.brain || p.alive || p.ejected || p.deathT == null || p.deathT < info.roundStart) continue;
@@ -63,7 +68,18 @@
           this.post(p, T.line(kind, { who: p.brain.killedBy }, g, p.brain), []);
         });
       }
-      if (this.dir) this.dir.opening();
+    }
+
+    /* prepara até n bots; quando todos estão prontos, a IA (se houver) abre a conversa com as primeiras falas deles */
+    runPrep(n) {
+      while (n-- > 0 && this.prep.length) {
+        const p = this.prep.shift();
+        if (p.brain && p.alive) p.brain.mStart(this);
+      }
+      if (!this.prep.length && !this.prepDone) {
+        this.prepDone = true;
+        if (this.dir) this.dir.opening();
+      }
     }
 
     get votingStart() { return this.durI + this.durD; }
@@ -95,6 +111,8 @@
 
     update(dt) {
       if (this.closed) return;
+      /* um bot por quadro na abertura; se ela acabar antes, termina todos agora */
+      if (!this.prepDone) this.runPrep(this.phase === 'intro' && this.t + dt < this.durI ? 1 : Infinity);
       if (this.paused && (this.phase === 'discussion' || this.phase === 'voting')) {
         if (this.ui) this.ui.tick();
         return;
@@ -766,7 +784,8 @@
       else if (mt.phase === 'results') label = 'Resultado';
       if (mt.paused) label = 'Pausado · ' + label;
       if (this.timer.textContent !== label) this.timer.textContent = label;
-      this.pauseBtn.hidden = !(mt.phase === 'discussion' || mt.phase === 'voting');
+      const hide = !(mt.phase === 'discussion' || mt.phase === 'voting');
+      if (this.pauseBtn.hidden !== hide) this.pauseBtn.hidden = hide;
     }
     renderTyping(set) {
       const mt = this.mt, g = this.g;

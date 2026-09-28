@@ -216,6 +216,42 @@
       if (this.ui[kind]) this.ui[kind](...a);
     }
     sfx(name) { if (!this.headless) AU.Audio.play(name); }
+    /* Som de algo que acontece num ponto do mapa (duto, abate, porta, escudo): como no Among Us, só se ouve perto
+       (mais ou menos o que cabe na tela), mais baixo com a distância e do lado de onde vem. Atrás de parede sai
+       abafado e só bem perto. Vale também para o fantasma, que antes ouvia a nave inteira.
+       o.sight: só toca se o jogador enxerga o ponto (abate e escudo, que não fazem barulho que atravesse a sala).
+       o.range: alcance em tiles (porta batendo se ouve mais longe que a tampa do duto).
+       o.sides: pontos dos dois lados de uma porta (a porta fechada tapa a linha até ela mesma). */
+    sfxAt(name, x, y, o) {
+      const h = this.human;
+      if (this.headless || !h) return;
+      o = o || {};
+      const sight = !!o.sight, HEAR = o.range || 10;
+      const d = U.d2(h.x, h.y, x, y);
+      if (d > HEAR) return;
+      const seen = (px, py) => (sight ? this.canSeePoint(h, px, py) : !h.inVent && Nav.los(h.x, h.y, px, py));
+      const clear = !h.alive || (o.sides ? o.sides.some((q) => seen(q[0], q[1])) : seen(x, y));
+      if (sight && !clear) return;
+      if (!clear && d > HEAR / 2) return;
+      const gain = (1 - 0.7 * U.clamp((d - 2) / (HEAR - 2), 0, 1)) * (clear ? 1 : 0.55);
+      AU.Audio.play(name, 0, { gain, pan: U.clamp((x - h.x) / HEAR, -1, 1) * 0.75, muffle: !clear });
+    }
+    /* som das portas de uma sala, vindo da porta mais perto do jogador */
+    doorSfx(name, room) {
+      const h = this.human;
+      if (this.headless || !h) return;
+      let best = null, bd = Infinity;
+      for (const d of M.DOORS) {
+        if (d.room !== room) continue;
+        const [rx, ry, rw, rh] = d.rect;
+        const x = rx + rw / 2, y = ry + rh / 2;
+        const dd = U.d2(h.x, h.y, x, y);
+        if (dd >= bd) continue;
+        bd = dd;
+        best = { x, y, sides: rw > rh ? [[x, ry - 0.5], [x, ry + rh + 0.5]] : [[rx - 0.5, y], [rx + rw + 0.5, y]] };
+      }
+      if (best) this.sfxAt(name, best.x, best.y, { range: 14, sides: best.sides });
+    }
     addFx(fx) {
       fx.t0 = this.t;
       this.fx.push(fx);
@@ -361,8 +397,7 @@
           this.doorUntil[room] = 0;
           M.setDoorsClosed(room, false);
           this.markDoors(room);
-          const h = this.human;
-          if (h && U.d2(h.x, h.y, M.AREA[room].cx, M.AREA[room].cy) < 16) this.sfx('doorOpen');
+          this.doorSfx('doorOpen', room);
         }
       }
       if (this.sab) {
@@ -510,7 +545,8 @@
         this.log({ type: 'protectBlock', killer: k.id, victim: v.id });
         if (this.ghosts) this.ghosts.onShield(v);
         if (k.isHuman || v.isHuman) this.say('toast', 'Um escudo de anjo bloqueou o abate!');
-        this.sfx('shield');
+        if (k.isHuman || v.isHuman) this.sfx('shield');
+        else this.sfxAt('shield', v.x, v.y, { sight: true });
         return false;
       }
       const kx = k.x, ky = k.y;
@@ -558,7 +594,7 @@
       } else if (k.isHuman) {
         this.sfx('kill');
       } else if (h && h.alive && this.canSeePoint(h, v.x, v.y)) {
-        this.sfx('kill');
+        this.sfxAt('kill', v.x, v.y, { sight: true });
         this.say('narrate', 'Você viu um abate acontecer diante dos seus olhos.', 'event');
       }
       if (v.special === 'barulhento') {
@@ -877,8 +913,7 @@
       this.unstickFromDoors();
       this.log({ type: 'doors', room, by: p.id });
       for (const q of this.players) if (q.brain) q.brain.onDoors(room);
-      const h = this.human;
-      if (h && U.d2(h.x, h.y, M.AREA[room].cx, M.AREA[room].cy) < 16) this.sfx('door');
+      this.doorSfx('door', room);
       return true;
     }
 
@@ -935,7 +970,8 @@
       const apc = this.appear(p);
       this.addFx({ type: 'ventIn', x: v.x, y: v.y, dur: 0.6, color: apc.color, hat: apc.hat, visor: apc.visor, facing: p.facing, who: p.id });
       this.log({ type: 'vent', by: p.id, vent: v.id, dir: 'in', witnesses: wit.map((w) => w.p.id) });
-      if (this.human && (p.isHuman || this.canSeePoint(this.human, v.x, v.y))) this.sfx('vent');
+      if (p.isHuman) this.sfx('vent');
+      else this.sfxAt('vent', v.x, v.y);
       return true;
     }
     ventTo(p, vid) {
@@ -961,7 +997,8 @@
       p.popT = this.t;
       this.log({ type: 'vent', by: p.id, vent: v.id, dir: 'out', witnesses: wit.map((w) => w.p.id) });
       if (p.special === 'engenheiro') p.abilityCd = this.ro('engenheiro', 'cd', 20);
-      if (this.human && (p.isHuman || this.canSeePoint(this.human, v.x, v.y))) this.sfx('vent');
+      if (p.isHuman) this.sfx('vent');
+      else this.sfxAt('vent', v.x, v.y);
       return true;
     }
 
