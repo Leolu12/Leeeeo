@@ -282,7 +282,7 @@
     canStand(x, y, ghost) {
       if (ghost) return x > 0.5 && y > 0.5 && x < M.W - 0.5 && y < M.H - 0.5;
       const r = 0.3;
-      return M.walkAt(x - r, y - r) && M.walkAt(x + r, y - r) && M.walkAt(x - r, y + r) && M.walkAt(x + r, y + r) && M.chamferGap(x, y) >= r;
+      return M.walkAt(x - r, y - r) && M.walkAt(x + r, y - r) && M.walkAt(x - r, y + r) && M.walkAt(x + r, y + r) && M.chamferGap(x, y) >= r && M.propGap(x, y) >= r;
     }
     moveEntity(p, vx, vy, dt) {
       const ghost = !p.alive;
@@ -290,14 +290,16 @@
       let moved = false;
       if (this.canStand(nx, p.y, ghost)) { p.x = nx; moved = true; }
       if (this.canStand(p.x, ny, ghost)) { p.y = ny; moved = true; }
-      /* encostado numa parede diagonal: desliza ao longo dela em vez de travar */
+      /* encostado numa parede diagonal ou num móvel redondo: desliza em volta em vez de travar
+         (tenta a direção desejada girada um pouco para cada lado, com a velocidade que sobra) */
       if (!moved && !ghost && (vx || vy)) {
-        for (const [tx, ty] of [[Math.SQRT1_2, Math.SQRT1_2], [Math.SQRT1_2, -Math.SQRT1_2]]) {
-          const k = (vx * tx + vy * ty) * dt;
-          if (Math.abs(k) < 1e-4) continue;
-          if (this.canStand(p.x + tx * k, p.y + ty * k, ghost)) {
-            p.x += tx * k;
-            p.y += ty * k;
+        const sp = Math.hypot(vx, vy), a0 = Math.atan2(vy, vx);
+        for (const da of [0.45, -0.45, 0.9, -0.9, 1.3, -1.3]) {
+          const k = sp * Math.cos(da) * dt;
+          const nx2 = p.x + Math.cos(a0 + da) * k, ny2 = p.y + Math.sin(a0 + da) * k;
+          if (this.canStand(nx2, ny2, ghost)) {
+            p.x = nx2;
+            p.y = ny2;
             moved = true;
             break;
           }
@@ -337,6 +339,7 @@
         if (this.doorUntil[room] && t >= this.doorUntil[room]) {
           this.doorUntil[room] = 0;
           M.setDoorsClosed(room, false);
+          this.markDoors(room);
         }
       }
       if (this.sab) {
@@ -523,7 +526,7 @@
       }
       if (v.brain) v.brain.onDeath(k, apparent);
       if (this.ghosts) this.ghosts.onKill(k, v, apparent, area.id);
-      this.addFx({ type: 'kill', x: v.x, y: v.y, dur: 0.8 });
+      this.addFx({ type: 'kill', x: v.x, y: v.y, dur: 1.1, color: v.color, seed: Math.random() * 100 });
       this.log({ type: 'kill', killer: k.id, victim: v.id, area: area.id, apparent, witnesses: wit.map((w) => w.p.id) });
       const h = this.human;
       if (v.isHuman) {
@@ -746,12 +749,17 @@
     }
 
     doorReady(room) { return (this.doorCd[room] || 0) <= this.t; }
+    /* marca a hora em que as portas da sala mudaram (para a animação de abrir e fechar) */
+    markDoors(room) {
+      for (const d of M.DOORS) if (d.room === room) d.animT = this.t;
+    }
     closeDoors(room, p) {
       if (!p || !p.isImp || this.phase !== 'play' || !this.doorReady(room) || !M.DOOR_ROOMS.includes(room)) return false;
       const dt0 = this.S.rules.doorTime || 10;
       this.doorUntil[room] = this.t + dt0;
       this.doorCd[room] = this.t + dt0 + (this.S.rules.doorCooldown != null ? this.S.rules.doorCooldown : 16);
       M.setDoorsClosed(room, true);
+      this.markDoors(room);
       this.unstickFromDoors();
       this.log({ type: 'doors', room, by: p.id });
       for (const q of this.players) if (q.brain) q.brain.onDoors(room);
@@ -810,7 +818,8 @@
       const wit = this.witnesses([v], [p.id]);
       const ap = this.appearId(p);
       for (const w of wit) if (w.p.brain) w.p.brain.onWitnessVent(ap, 'in', v, w.via);
-      this.addFx({ type: 'vent', x: v.x, y: v.y, dur: 0.5 });
+      const apc = this.appear(p);
+      this.addFx({ type: 'ventIn', x: v.x, y: v.y, dur: 0.6, color: apc.color, hat: apc.hat, visor: apc.visor, facing: p.facing, who: p.id });
       this.log({ type: 'vent', by: p.id, vent: v.id, dir: 'in', witnesses: wit.map((w) => w.p.id) });
       if (this.human && (p.isHuman || this.canSeePoint(this.human, v.x, v.y))) this.sfx('vent');
       return true;
@@ -833,7 +842,9 @@
       const wit = this.witnesses([v], [p.id]);
       const ap = this.appearId(p);
       for (const w of wit) if (w.p.brain) w.p.brain.onWitnessVent(ap, 'out', v, w.via);
-      this.addFx({ type: 'vent', x: v.x, y: v.y, dur: 0.5 });
+      this.addFx({ type: 'ventOut', x: v.x, y: v.y, dur: 0.5, who: p.id });
+      /* sai do duto "pulando": o desenho cresce de dentro da tampa */
+      p.popT = this.t;
       this.log({ type: 'vent', by: p.id, vent: v.id, dir: 'out', witnesses: wit.map((w) => w.p.id) });
       if (p.special === 'engenheiro') p.abilityCd = this.ro('engenheiro', 'cd', 20);
       if (this.human && (p.isHuman || this.canSeePoint(this.human, v.x, v.y))) this.sfx('vent');

@@ -14,7 +14,7 @@
   const DIRS = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, SQ2], [1, -1, SQ2], [-1, 1, SQ2], [-1, -1, SQ2]];
 
   function nearestWalk(tx, ty, ghost) {
-    const ok = ghost ? M.isFloor : M.isWalk;
+    const ok = ghost ? M.isFloor : M.isPass;
     if (ok(tx, ty)) return [tx, ty];
     for (let r = 1; r < 8; r++) {
       for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
@@ -42,7 +42,7 @@
   function find(sx, sy, tx, ty, ghost, opts) {
     const seed = opts && opts.seed ? opts.seed : 0;
     const vary = opts && opts.vary ? opts.vary : 0;
-    const ok = ghost ? M.isFloor : M.isWalk;
+    const ok = ghost ? M.isFloor : M.isPass;
     const s = nearestWalk(Math.floor(sx), Math.floor(sy), ghost);
     const t = nearestWalk(Math.floor(tx), Math.floor(ty), ghost);
     if (!s || !t) return null;
@@ -126,7 +126,7 @@
   }
 
   function clearLine(ax, ay, bx, by, ghost) {
-    const ok = ghost ? M.isFloor : M.isWalk;
+    const ok = ghost ? M.isFloor : M.isPass;
     const d = Math.hypot(bx - ax, by - ay);
     const n = Math.max(1, Math.ceil(d / 0.25));
     const r = 0.32;
@@ -134,6 +134,8 @@
       const x = ax + ((bx - ax) * i) / n, y = ay + ((by - ay) * i) / n;
       if (!ok(Math.floor(x - r), Math.floor(y - r)) || !ok(Math.floor(x + r), Math.floor(y - r)) ||
           !ok(Math.floor(x - r), Math.floor(y + r)) || !ok(Math.floor(x + r), Math.floor(y + r))) return false;
+      /* móveis e paredes em diagonal: o corpo do personagem precisa passar */
+      if (!ghost && (M.propGap(x, y) < r || M.chamferGap(x, y) < r)) return false;
     }
     return true;
   }

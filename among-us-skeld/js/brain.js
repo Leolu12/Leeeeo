@@ -257,6 +257,15 @@
           best = { x: px, y: py };
         }
       }
+      /* nenhum ponto sorteado serviu (painel encostado num móvel): procura em volta, do mais perto para o mais longe */
+      if (bs < 0 && !g.canStand(best.x, best.y)) {
+        for (let rr = 0.4; rr <= 2.4; rr += 0.3) {
+          for (let k = 0; k < 16; k++) {
+            const a = (k / 16) * Math.PI * 2, px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr;
+            if (g.canStand(px, py) && Nav.los(x, y, px, py)) return { x: px, y: py };
+          }
+        }
+      }
       return best;
     }
     crowded(r) {
@@ -606,7 +615,7 @@
     planButton() {
       const g = this.g, p = this.p;
       this.setPlan({
-        type: 'button', x: M.EMERGENCY.x + U.rf(-0.8, 0.8), y: M.EMERGENCY.y + 1.3,
+        type: 'button', x: M.EMERGENCY.x + U.rf(-0.6, 0.6), y: M.EMERGENCY.y + 2.4,
         onArrive: (pl) => {
           pl.until = g.t + 20;
         },

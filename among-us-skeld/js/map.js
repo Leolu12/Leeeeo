@@ -145,13 +145,13 @@
     wiresElec: { x: 46.5, y: 38.5 }, wiresStorage: { x: 55.5, y: 45.5 }, wiresAdmin: { x: 74.5, y: 43.5 },
     wiresNav: { x: 127.5, y: 29.5 }, wiresCaf: { x: 57.5, y: 11.5 }, wiresSec: { x: 32.5, y: 28.5 },
     calibrate: { x: 48.5, y: 44.5 }, chart: { x: 131.5, y: 35.5 }, stabilize: { x: 129.5, y: 39.5 },
-    cleanO2: { x: 88.5, y: 29.5 }, divert: { x: 36.5, y: 43.5 },
+    cleanO2: { x: 88.5, y: 30.5 }, divert: { x: 36.5, y: 43.5 },
     acceptUpper: { x: 22.5, y: 7.5 }, acceptLower: { x: 22.5, y: 64.5 }, acceptWeap: { x: 93.5, y: 16.5 },
     acceptShields: { x: 108.5, y: 53.5 }, acceptNav: { x: 117.5, y: 36.5 }, acceptO2: { x: 96.5, y: 30.5 },
     acceptComms: { x: 75.5, y: 72.5 }, acceptSec: { x: 23.5, y: 38.5 },
     shields: { x: 101.5, y: 58.5 }, manifolds: { x: 7.5, y: 27.5 }, reactor: { x: 7.5, y: 44.5 },
     garbageCaf: { x: 77.5, y: 23.5 }, garbageO2: { x: 92.5, y: 30.5 }, garbageStorage: { x: 60.5, y: 64.5 },
-    alignUpper: { x: 10.5, y: 9.5 }, alignLower: { x: 10.5, y: 62.5 },
+    alignUpper: { x: 13.5, y: 7.5 }, alignLower: { x: 13.5, y: 64.5 },
     fuelStorage: { x: 70.5, y: 63.5 }, fuelUpper: { x: 18.5, y: 17.5 }, fuelLower: { x: 18.5, y: 54.5 },
     inspect: { x: 50.5, y: 22.5 }, scan: { x: 43.5, y: 29.5 },
     dlCaf: { x: 73.5, y: 3.5 }, dlWeap: { x: 92.5, y: 5.5 }, dlNav: { x: 126.5, y: 42.5 }, dlComms: { x: 76.5, y: 63.5 }, dlElec: { x: 48.5, y: 48.5 },
@@ -315,7 +315,7 @@
       const py = y + 1 + Math.random() * Math.max(0.1, h - 2);
       /* com folga para o corpo do personagem (nada de ponto espremido no canto diagonal) */
       const r = 0.4;
-      if (M.walkAt(px, py) && M.walkAt(px - r, py - r) && M.walkAt(px + r, py - r) && M.walkAt(px - r, py + r) && M.walkAt(px + r, py + r) && M.chamferGap(px, py) >= r) return { x: px, y: py };
+      if (M.walkAt(px, py) && M.walkAt(px - r, py - r) && M.walkAt(px + r, py - r) && M.walkAt(px - r, py + r) && M.walkAt(px + r, py + r) && M.chamferGap(px, py) >= r && (!M.propGap || M.propGap(px, py) >= r)) return { x: px, y: py };
     }
     return { x: a.cx, y: a.cy };
   };

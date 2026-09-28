@@ -808,17 +808,24 @@
 
     killedScreen(killer) {
       const layer = document.getElementById('overlay-layer');
-      const el = h('div', { class: 'killed' },
-        h('div', { class: 'killed-bean', html: AU.Render.beanSVG(killer.color, { size: 140, visor: killer.visor }) }),
-        h('div', { class: 'killed-title' }, 'Você foi morto'),
-        h('div', { class: 'killed-sub' }, 'Por ' + killer.name));
-      layer.appendChild(el);
-      setTimeout(() => el.classList.add('fade'), 2200);
-      setTimeout(() => el.remove(), 3000);
       const hp = this.g.human;
+      /* cena do abate como no original: o impostor entra, ataca (faca ou língua) e o corpo se parte */
+      const cv = h('canvas', { class: 'killed-cv', 'aria-hidden': 'true' });
+      const el = h('div', { class: 'killed', role: 'alert', 'aria-label': 'Você foi morto por ' + killer.name }, cv);
+      layer.appendChild(el);
+      const stop = AU.Scenes.play(cv, 'kill', {
+        killer: { color: killer.color, hat: killer.hat, visor: killer.visor, name: killer.name },
+        victim: { color: hp.color, hat: hp.hat, visor: hp.visor },
+        style: Math.random() < 0.5 ? 'knife' : 'tongue',
+      }, 2.6);
+      setTimeout(() => el.classList.add('fade'), 2500);
+      setTimeout(() => {
+        stop();
+        el.remove();
+      }, 3200);
       setTimeout(() => {
         if (this.g && hp.special !== 'anjo') this.toast(hp.isImp ? 'Você é um fantasma. Ainda pode sabotar.' : 'Você é um fantasma. Termine suas tarefas.', 4000);
-      }, 3100);
+      }, 3300);
     },
 
     /* ---------- joystick ---------- */

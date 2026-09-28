@@ -561,8 +561,9 @@
       this.pinned = true;
       this.unread = 0;
       this.root = h('div', { class: 'meeting', role: 'dialog', 'aria-label': 'Reunião' });
-      this.splash = h('div', { class: 'mt-splash ' + (isReport ? 'report' : 'emergency') },
-        h('div', { class: 'mt-splash-icon', html: isReport ? AU.Render.beanSVG(g.players[info.body.pid].color, { dead: true, size: 150 }) : '<div class="mt-bell">!</div>' }),
+      /* abertura animada: raios girando atrás de quem chamou (botão) ou do corpo com o megafone (report) */
+      const splashCv = h('canvas', { class: 'mt-splash-cv', 'aria-hidden': 'true' });
+      this.splash = h('div', { class: 'mt-splash ' + (isReport ? 'report' : 'emergency') }, splashCv,
         h('div', { class: 'mt-splash-title' }, isReport ? 'Corpo reportado' : 'Reunião de emergência'),
         h('div', { class: 'mt-splash-sub' }, isReport ? `${caller.name} encontrou o corpo de ${g.players[info.body.pid].name}` : `${caller.name} apertou o botão`));
       this.timer = h('div', { class: 'mt-timer' }, '');
@@ -621,6 +622,11 @@
       this.root.appendChild(this.splash);
       this.root.appendChild(this.eject);
       document.getElementById('meeting-layer').appendChild(this.root);
+      this.stopSplash = AU.Scenes.play(splashCv, isReport ? 'report' : 'emergency', {
+        kind: isReport ? 'report' : 'emergency',
+        caller: { color: caller.color, hat: caller.hat, visor: caller.visor },
+        body: isReport ? { color: g.players[info.body.pid].color } : null,
+      }, 3.2);
       this.cardEls = {};
       this.selected = null;
       g.players.forEach((p) => this.makeCard(p));
@@ -670,7 +676,10 @@
     }
     onPhase() {
       const mt = this.mt, hp = this.g.human;
-      if (mt.phase !== 'intro') this.splash.classList.add('gone');
+      if (mt.phase !== 'intro' && !this.splash.classList.contains('gone')) {
+        this.splash.classList.add('gone');
+        setTimeout(() => this.stopSplash(), 450);
+      }
       const canVote = mt.phase === 'voting' && hp && hp.alive && mt.votes[hp.id] === undefined;
       this.root.classList.toggle('can-vote', !!canVote);
       this.root.classList.toggle('dead-me', !!hp && !hp.alive);
@@ -932,6 +941,7 @@
 
     destroy() {
       if (this.iv) clearInterval(this.iv);
+      if (this.stopSplash) this.stopSplash();
       this.root.remove();
     }
   }
