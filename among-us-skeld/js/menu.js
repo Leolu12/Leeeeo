@@ -12,6 +12,9 @@
     load() {
       const saved = U.store.get(STORE_KEY, null);
       const base = C.buildSettings(saved && saved.preset ? saved.preset : 'classico');
+      /* preset que mudou de padrão numa versão nova: quem estava nele recebe o valor novo (senão abriria como
+         "Personalizado" com o número antigo) */
+      if (saved && saved.preset === 'hardcore' && saved.rules && saved.rules.killCooldown === 35) saved.rules.killCooldown = 40;
       if (saved) U.merge(base, saved);
       if (!C.COLOR[base.profile.color]) base.profile.color = 'ciano';
       base.preset = C.matchPreset(base);
