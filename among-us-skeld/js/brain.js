@@ -1,0 +1,2989 @@
+/* Mente dos bots em campo: percepção limitada, memória, rotas, tarefas e estratégia de impostor. */
+(function () {
+  'use strict';
+  const AU = window.AU;
+  const U = AU.U, C = AU.C, M = AU.Map, Nav = AU.Nav;
+
+  /* estações onde a tarefa mostra animação o tempo todo (os escudos só piscam no fim; não servem para "não escaneou") */
+  const VISUAL_ST = ['scan', 'asteroids'];
+  /* Estações onde a tarefa SEMPRE termina de uma vez (etapa única/última): se alguém "termina" ali na sua frente
+     e a barra de tarefas não sobe, a tarefa era falsa. Calculado a partir das definições das tarefas. */
+  let FINAL_ST = null;
+  /* quanto tempo a última etapa leva em cada estação (o mínimo que alguém fica parado ali para terminar) */
+  const FINAL_DUR = {};
+  function finalStations() {
+    if (FINAL_ST) return FINAL_ST;
+    const info = {};
+    for (const def of Object.values(M.TASKS)) {
+      for (let k = 0; k < 25; k++) {
+        const steps = def.steps();
+        steps.forEach((st, i) => {
+          const o = (info[st] = info[st] || { fin: false, mid: false });
+          if (i === steps.length - 1) {
+            o.fin = true;
+            FINAL_DUR[st] = Math.max(FINAL_DUR[st] || 0, (def.dur && def.dur[i]) || 3);
+          } else o.mid = true;
+        });
+      }
+    }
+    FINAL_ST = new Set(Object.keys(info).filter((st) => info[st].fin && !info[st].mid));
+    return FINAL_ST;
+  }
+  const HIGH_TRAFFIC = new Set(['cafeteria', 'admin', 'storage', 'hallAdmin', 'hallUpper', 'hallStorage', 'hallRight', 'hallLower', 'hallLeft', 'hallWeapons']);
+
+  class Memory {
+    constructor() {
+      this.seen = [];
+      this.last = {};
+      this.events = [];
+      this.trail = [];
+      this.bodies = [];
+      this.admin = [];
+      this.track = [];
+      this.vitals = {};
+      this.keys = new Set();
+      this.ignoreUntil = {};
+      this.pairs = {};
+      /* memória de longo prazo (a partida inteira): mentiras que pegou, quem ficou sozinho com ele e não matou */
+      this.lies = {};
+      this.spared = {};
+    }
+    see(t, who, area, act, via, x, y) {
+      const l = this.last[who];
+      if (l && l.area === area && t - l.t1 < 2.5 && l.via === via) {
+        l.t1 = t;
+        l.x = x;
+        l.y = y;
+        if (act) l.acts.add(act);
+      } else {
+        const e = { who, area, t0: t, t1: t, acts: new Set(act ? [act] : []), via, x, y, x0: x, y0: y };
+        this.seen.push(e);
+        this.last[who] = e;
+      }
+    }
+    event(e, key) {
+      if (key) {
+        if (this.keys.has(key)) return false;
+        this.keys.add(key);
+      }
+      this.events.push(e);
+      return true;
+    }
+    /* ov: nesse instante o bot enxergava a sala quase toda (luz acesa, no meio dela): guarda os intervalos,
+       para depois poder dizer com segurança "fiquei lá e você não apareceu" */
+    trailAt(t, area, task, ov) {
+      let l = this.trail[this.trail.length - 1];
+      if (l && l.area === area) {
+        l.t1 = t;
+        if (task && !l.tasks.includes(task)) l.tasks.push(task);
+      } else {
+        l = { area, t0: t, t1: t, tasks: task ? [task] : [], ov: [] };
+        this.trail.push(l);
+      }
+      if (ov) {
+        const last = l.ov[l.ov.length - 1];
+        if (last && t - last[1] <= 1.1) last[1] = t;
+        else l.ov.push([t, t]);
+      }
+    }
+    bodySeen(b, t, nearIds, via) {
+      if (this.bodies.some((x) => x.id === b.id)) return;
+      this.bodies.push({ id: b.id, pid: b.pid, area: b.area, t, near: nearIds, via });
+    }
+  }
+
+  class Brain {
+    constructor(g, p) {
+      this.g = g;
+      this.p = p;
+      /* o tipo de personalidade dá a base; cada bot tem os próprios números em cima dela (mais ou menos atento,
+         memória melhor ou pior, mais ou menos desconfiado, mais rápido nas tarefas) e dois hábitos próprios — dois
+         "analíticos" não jogam igual */
+      const pt = C.PERSONALITIES[p.personality] || C.PERSONALITIES.analitico;
+      this.pers = Object.assign({}, pt);
+      const J = { talk: [0.25, 0.05, 1], att: [0.12, 0.3, 1], mem: [0.12, 0.3, 1], thr: [0.2, 15, 80], voteDelay: [0.35, 0.05, 1], follow: [0.35, 0, 1], hunch: [0.35, 0, 1], trust: [0.2, 0.2, 0.95], taskSpeed: [0.1, 0.6, 1.3] };
+      for (const k of Object.keys(J)) if (typeof pt[k] === 'number' && pt[k] > 0) this.pers[k] = U.clamp(pt[k] * U.rf(1 - J[k][0], 1 + J[k][0]), J[k][1], J[k][2]);
+      const hw = Object.assign({}, C.HABIT_WEIGHTS[p.personality] || {});
+      for (const k of Object.keys(C.HABITS)) hw[k] = (hw[k] || 0) + 0.6;
+      this.habits = [];
+      for (let i = 0; i < 2; i++) {
+        const keys = Object.keys(hw).filter((k) => !this.habits.includes(k) && !(k === 'solitario' && this.habits.includes('escolta')) && !(k === 'escolta' && this.habits.includes('solitario')));
+        let r = Math.random() * keys.reduce((a, k) => a + hw[k], 0);
+        for (const k of keys) if ((r -= hw[k]) <= 0) {
+          this.habits.push(k);
+          break;
+        }
+      }
+      this.hab = (k) => this.habits.includes(k);
+      /* como esse bot difere do próprio tipo, em palavras (vai para a IA e para o relatório) */
+      const dv = (k) => (pt[k] ? this.pers[k] / pt[k] : 1);
+      this.quirks = [
+        dv('att') > 1.07 ? 'mais atento que o normal' : dv('att') < 0.93 ? 'meio distraído' : '',
+        dv('mem') > 1.07 ? 'boa memória' : dv('mem') < 0.93 ? 'esquece detalhes' : '',
+        dv('thr') < 0.88 ? 'desconfia rápido' : dv('thr') > 1.12 ? 'demora a desconfiar' : '',
+        dv('talk') > 1.15 ? 'fala mais que o normal' : dv('talk') < 0.85 ? 'fala menos que o normal' : '',
+        dv('trust') > 1.1 ? 'acredita fácil nos outros' : dv('trust') < 0.9 ? 'custa a acreditar nos outros' : '',
+        dv('voteDelay') < 0.8 ? 'vota rápido' : dv('voteDelay') > 1.2 ? 'vota por último' : '',
+      ].filter(Boolean);
+      this.traitLine = () => [this.quirks.join(', '), this.habits.map((k) => C.HABITS[k].name).join(', ')].filter(Boolean).join('; ');
+      this.err = (C.HUMAN_ERROR[g.S.bots.humanError] || C.HUMAN_ERROR.medio).mult;
+      /* o nível dá a base; cada impostor tem o seu jeito em cima dela (um usa mais duto, outro persegue mais, outro
+         sabota mais, outro arrisca mais), então dois impostores do mesmo nível não jogam igual */
+      const base = C.IMP_LEVELS[g.S.bots.impostorLevel] || C.IMP_LEVELS.competente;
+      this.lvl = Object.assign({}, base);
+      for (const k of ['useVents', 'sabotage', 'stalk', 'selfReport', 'bus', 'fakeVisual', 'riskTol']) {
+        if (typeof base[k] === 'number') this.lvl[k] = U.clamp(base[k] * U.rf(0.7, 1.3), 0, 1);
+      }
+      this.mem = new Memory();
+      this.susp = {};
+      this.carry = {};
+      this.plan = null;
+      this.path = null;
+      this.pi = 0;
+      this.dest = null;
+      this.thinkT = U.rf(0.2, 1.2);
+      this.retryT = 0;
+      this.dynT = 0;
+      this.stuck = 0;
+      this.fix = null;
+      this.seenNow = [];
+      this.bodiesNow = [];
+      this.lastSeenAt = {};
+      this.followWatch = {};
+      this.tailWatch = {};
+      this.twinWatch = {};
+      this.twinAlert = null;
+      this.fieldSus = {};
+      this.scanWatch = {};
+      this.wantButton = null;
+      this.chaosButton = false;
+      this.fear = null;
+      this.escape = null;
+      this.ventPlan = null;
+      this.killedBy = null;
+      this.sabThink = U.rf(8, 16);
+      this.vitalsT = U.rf(15, 30);
+      this.lastVitals = 0;
+      this.speedMul = U.rf(0.93, 1.02);
+      /* jeito próprio de andar: faixa no corredor e preferência de caminho (cada um vai por um lado) */
+      this.lane = U.rf(-0.85, 0.85);
+      this.routeSeed = U.rint(1, 99991);
+      this.lostCount = 0;
+      this.trackT = 0;
+      this.trailT = 0;
+      this.startDelay = U.rf(0.1, 0.9);
+      this.isoT = 0;
+      this.isoTarget = null;
+      this.eagerRoll = null;
+      this.readyT = null;
+      this.skipUntil = 0;
+      this.pact = null;
+      this.call = null;
+    }
+
+    /* ---------- ciclo ---------- */
+    /* enxerga a sala quase inteira daqui? (os quatro quadrantes dentro da visão e sem parede no meio) */
+    overseeing(a) {
+      const g = this.g, p = this.p;
+      if (!a || a.kind !== 'room' || p.inVent || (!p.isImp && g.lightLevel < 0.9)) return false;
+      const r = g.visionOf(p), [x, y, w, h] = a.rect;
+      for (const [fx, fy] of [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]]) {
+        const qx = x + w * fx, qy = y + h * fy;
+        if (U.d2(p.x, p.y, qx, qy) > r || !Nav.los(p.x, p.y, qx, qy)) return false;
+      }
+      return true;
+    }
+    update(dt) {
+      const g = this.g, p = this.p;
+      if (g.phase !== 'play') return;
+      if (this.startDelay > 0) {
+        this.startDelay -= dt;
+        return;
+      }
+      if (!p.alive) return this.ghostUpdate(dt);
+      this.trailT -= dt;
+      if (this.trailT <= 0) {
+        this.trailT = 0.5;
+        const a = M.areaAt(p.x, p.y);
+        this.mem.trailAt(g.t, a.id, p.busy && p.busy.task ? p.busy.task : null, this.overseeing(a));
+      }
+      this.thinkT -= dt;
+      if (this.thinkT <= 0) {
+        this.thinkT = 0.22 + Math.random() * 0.12;
+        if (p.isImp) this.thinkImp();
+        else this.thinkCrew();
+        this.thinkRoles();
+      }
+      /* dentro do duto ninguém anda (o corpo fica escondido no duto até sair) */
+      if (!p.inVent) this.act(dt);
+      /* acabou o plano: decide o próximo já (gente não congela meio segundo entre uma coisa e outra) */
+      if (this.plan) this.hadPlan = true;
+      else if (this.hadPlan) {
+        this.hadPlan = false;
+        this.thinkT = Math.min(this.thinkT, 0.05);
+      }
+    }
+
+    setPlan(pl) {
+      const p = this.p;
+      this.engHop = null;
+      p.onCams = false;
+      p.onAdmin = false;
+      p.busy = null;
+      this.plan = pl;
+      this.path = null;
+      this.pi = 0;
+      this.dest = null;
+      this.dynT = 0;
+      if (pl && pl.x != null) this.routeTo(pl.x, pl.y);
+      if (pl && !pl.stage) pl.stage = 'go';
+    }
+    routeTo(x, y) {
+      const p = this.p;
+      this.dest = { x, y };
+      /* varia um pouco a cada rota: nem sempre o mesmo caminho, nem sempre a mesma faixa */
+      const lane = U.clamp(this.lane + U.rf(-0.3, 0.3), -0.95, 0.95);
+      const plain = !p.alive || this.plainUntil > this.g.t;
+      this.path = Nav.find(p.x, p.y, x, y, !p.alive, plain ? null : { seed: this.routeSeed + (U.chance(0.3) ? U.rint(1, 5000) : 0), vary: 0.9, lane }) || [];
+      this.pi = 0;
+    }
+    /* Lugar para ficar em volta de um painel: cada um num ponto um pouco diferente (não todos no mesmo pixel). */
+    standNear(x, y, r) {
+      const g = this.g, p = this.p;
+      /* quem chega depois fica do lado livre do painel */
+      const others = g.players.filter((q) => q !== p && q.alive && !q.inVent && U.d2(q.x, q.y, x, y) < 2.5);
+      let best = { x, y }, bs = -1;
+      for (let i = 0; i < 10; i++) {
+        const a = Math.random() * Math.PI * 2, rr = U.rf(0.15, (r || 0.55) + (others.length ? 0.35 : 0));
+        const px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr;
+        if (!g.canStand(px, py) || !Nav.los(x, y, px, py)) continue;
+        const md = others.length ? Math.min(...others.map((q) => U.d2(q.x, q.y, px, py))) : 9;
+        const sc = Math.min(md, 1.2) + Math.random() * 0.05;
+        if (sc > bs) {
+          bs = sc;
+          best = { x: px, y: py };
+        }
+      }
+      /* nenhum ponto sorteado serviu (painel encostado num móvel): procura em volta, do mais perto para o mais longe */
+      if (bs < 0 && !g.canStand(best.x, best.y)) {
+        for (let rr = 0.4; rr <= 2.4; rr += 0.3) {
+          for (let k = 0; k < 16; k++) {
+            const a = (k / 16) * Math.PI * 2, px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr;
+            if (g.canStand(px, py) && Nav.los(x, y, px, py)) return { x: px, y: py };
+          }
+        }
+      }
+      return best;
+    }
+    crowded(r) {
+      const p = this.p;
+      return this.g.players.some((q) => q !== p && q.alive && !q.inVent && U.d2(q.x, q.y, p.x, p.y) < r);
+    }
+    /* chegou ao painel e já tem alguém no mesmo lugar: dá um passo para o lado, sem sair do alcance (uma vez só) */
+    stepAside(pl, cx, cy, reach) {
+      if (pl.respot || !this.crowded(0.6)) return false;
+      pl.respot = true;
+      const p = this.p, s2 = this.standNear(cx, cy, 1.05);
+      if (U.d2(s2.x, s2.y, p.x, p.y) <= 0.35 || U.d2(s2.x, s2.y, cx, cy) > reach) return false;
+      pl.stage = 'go';
+      pl.x = s2.x;
+      pl.y = s2.y;
+      this.routeTo(s2.x, s2.y);
+      return true;
+    }
+    /* Espaço pessoal: empurrãozinho para longe de quem está colado (sem virar colisão). */
+    sepVec() {
+      const p = this.p, g = this.g;
+      let sx = 0, sy = 0;
+      for (const q of g.players) {
+        if (q === p || !q.alive || q.inVent) continue;
+        const dx = p.x - q.x, dy = p.y - q.y, d = Math.hypot(dx, dy);
+        if (d > 0.9 || d < 1e-4) continue;
+        const w = (0.9 - d) / 0.9;
+        sx += (dx / d) * w;
+        sy += (dy / d) * w;
+      }
+      return { x: sx, y: sy };
+    }
+    moveAlong(dt) {
+      const p = this.p, g = this.g;
+      if (!this.dest) return true;
+      if (!this.path || this.pi >= this.path.length) {
+        if (U.d2(p.x, p.y, this.dest.x, this.dest.y) < 0.9) return true;
+        this.retryT -= dt;
+        if (this.retryT <= 0) {
+          this.retryT = 1;
+          const dest = this.dest;
+          this.routeTo(dest.x, dest.y);
+          if (this.plan) {
+            this.plan.fails = (this.plan.fails || 0) + 1;
+            if (this.plan.fails > 6) this.plan = null;
+          }
+          /* caminho bloqueado (porta trancada): anda pela sala esperando, em vez de ficar plantado na porta */
+          if (!this.path.length && this.plan) {
+            const here = M.areaAt(p.x, p.y);
+            for (const aid of [here.id, M.roomOf(here, p.x, p.y).id]) {
+              const c = M.randomPointIn(aid);
+              const alt = U.d2(c.x, c.y, p.x, p.y) > 1 ? Nav.find(p.x, p.y, c.x, c.y, !p.alive) : null;
+              if (alt && alt.length) {
+                this.path = alt;
+                this.pi = 0;
+                this.retryT = U.rf(1.5, 2.5);
+                break;
+              }
+            }
+          }
+        }
+        return false;
+      }
+      const pt = this.path[this.pi];
+      const dx = pt.x - p.x, dy = pt.y - p.y, d = Math.hypot(dx, dy);
+      const sp = g.speedOf(p) * this.speedMul;
+      const step = sp * dt;
+      if (Math.abs(dx) > 0.02) p.facing = dx < 0 ? -1 : 1;
+      /* com alguém parado em cima do ponto, chegar perto já basta (não fica rodeando) */
+      if (d <= step || d < 0.05 || (d < 0.55 && this.sepOn && this.pi < this.path.length - 1)) {
+        if (d <= step && g.canStand(pt.x, pt.y, !p.alive)) {
+          p.x = pt.x;
+          p.y = pt.y;
+        }
+        this.pi++;
+        p.moving = true;
+        p.walkT += dt;
+        return this.pi >= this.path.length && U.d2(p.x, p.y, this.dest.x, this.dest.y) < 0.9;
+      }
+      const bx = p.x, by = p.y;
+      let vx = dx / d, vy = dy / d;
+      if (p.alive && !(this.plan && this.plan.type === 'hunt') && !(this.plainUntil > g.t)) {
+        const s = this.sepVec();
+        this.sepOn = !!(s.x || s.y);
+        if (s.x || s.y) {
+          vx += s.x * 0.8;
+          vy += s.y * 0.8;
+          const n = Math.hypot(vx, vy) || 1;
+          vx /= n;
+          vy /= n;
+        }
+      }
+      g.moveEntity(p, vx * sp, vy * sp, dt);
+      if (Math.hypot(p.x - bx, p.y - by) < step * 0.3) {
+        this.stuck += dt;
+        if (this.stuck > 0.5) {
+          this.stuck = 0;
+          /* travou de novo: anda pelo caminho simples (sem faixa nem desvio) por alguns segundos */
+          this.stuckN = (this.stuckN || 0) + 1;
+          if (this.stuckN >= 2) this.plainUntil = g.t + 4;
+          this.routeTo(this.dest.x, this.dest.y);
+        }
+      } else {
+        this.stuck = 0;
+        if (this.stuckN && Math.hypot(p.x - bx, p.y - by) > step * 0.8) this.stuckN = 0;
+      }
+      return false;
+    }
+    act(dt) {
+      const pl = this.plan;
+      if (!pl) return;
+      const g = this.g;
+      if (pl.dyn) {
+        this.dynT -= dt;
+        if (this.dynT <= 0) {
+          this.dynT = pl.dynEvery || 0.5;
+          const tg = pl.dyn();
+          if (!tg) {
+            this.plan = null;
+            return;
+          }
+          const d = U.d2(this.p.x, this.p.y, tg.x, tg.y);
+          /* quem acompanha alguém que está andando continua andando junto (não para e arranca a cada passo);
+             parado ao lado, só volta a andar quando a pessoa se afasta de verdade */
+          const tgMoving = pl.lastTg && U.d2(pl.lastTg.x, pl.lastTg.y, tg.x, tg.y) > 0.25;
+          pl.lastTg = { x: tg.x, y: tg.y };
+          /* seguindo no escuro: tem que ficar perto o bastante para enxergar a pessoa */
+          const keep = this.p.alive && !this.p.isImp ? Math.min(pl.keep || 0.8, g.visionOf(this.p) * 0.8) : pl.keep || 0.8;
+          const walking = !!this.dest && !pl.shuffling && pl.stage === 'go';
+          this.dynT = tgMoving || walking ? Math.min(this.dynT, 0.3) : this.dynT;
+          /* caçando: fecha a distância até o alcance do abate (com a folga de quem acompanha, parava a ~2,2 tiles de
+             uma vítima parada, fora do alcance de 1,9, e nunca matava) */
+          const slack = walking || tgMoving || pl.type === 'hunt' ? 0 : this.p.alive && !this.p.isImp && g.lightLevel < 0.6 ? 0.2 : 0.9;
+          if (d > keep + slack || (tgMoving && walking && d > keep * 0.6)) {
+            this.routeTo(tg.x, tg.y);
+            pl.stage = 'go';
+            pl.still = 0;
+            pl.shuffling = false;
+          } else if (!(pl.shuffling && this.dest)) {
+            pl.stage = 'wait';
+            this.path = [];
+            this.dest = null;
+            pl.shuffling = false;
+            /* esperando do lado de quem segue: fica parado, como gente. Só dá um passo para o lado se esbarrou em
+               alguém (dois bonecos um em cima do outro) */
+            if (!pl.noShuffle && this.crowded(0.55) && g.t - (pl.stepAt || 0) > 6) {
+              pl.still = (pl.still || 0) + (pl.dynEvery || 0.5);
+              if (pl.still > 1) {
+                pl.still = 0;
+                pl.stepAt = g.t;
+                const k = pl.keep || 0.8;
+                for (let i = 0; i < 4; i++) {
+                  const a = Math.random() * Math.PI * 2, rr = Math.max(0.9, k * U.rf(0.55, 0.95));
+                  const fx = tg.x + Math.cos(a) * rr, fy = tg.y + Math.sin(a) * rr;
+                  if (U.d2(fx, fy, this.p.x, this.p.y) > 0.7 && g.canStand(fx, fy) && Nav.los(tg.x, tg.y, fx, fy)) {
+                    this.routeTo(fx, fy);
+                    pl.shuffling = true;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+        }
+        if (pl.endAt && g.t >= pl.endAt) {
+          this.plan = null;
+          if (pl.onEnd) pl.onEnd(pl);
+          return;
+        }
+        if (this.dest && this.moveAlong(dt) && pl.shuffling) {
+          pl.shuffling = false;
+          this.dest = null;
+        }
+        if (pl.tick) pl.tick(dt, pl);
+        return;
+      }
+      if (pl.stage === 'go') {
+        /* engenheiro chegando no duto do atalho: entra, passa para o outro e segue dali */
+        const hop = this.engHop;
+        if (hop && !this.p.inVent) {
+          if (U.d2(this.p.x, this.p.y, hop.entry.x, hop.entry.y) <= 1.1) {
+            this.engHop = null;
+            if (g.enterVent(this.p, hop.entry)) {
+              if (this.seenNow.length) this.engSeen = g.t;
+              this.engVent = { exitAt: g.t + U.rf(0.6, 1.2), next: hop.exit.id, dest: hop.dest };
+              return;
+            }
+            this.routeTo(hop.dest.x, hop.dest.y);
+          } else if (g.t - (hop.t0 = hop.t0 || g.t) > 12) {
+            this.engHop = null;
+            this.routeTo(hop.dest.x, hop.dest.y);
+          }
+        }
+        if (this.moveAlong(dt)) {
+          pl.stage = 'do';
+          if (pl.onArrive) pl.onArrive(pl);
+          if (pl.until == null) pl.until = g.t;
+        }
+      } else if (pl.stage === 'do') {
+        if (pl.tick) pl.tick(dt, pl);
+        if (this.plan === pl && g.t >= pl.until) {
+          pl.stage = 'done';
+          this.p.busy = null;
+          if (this.plan === pl) this.plan = null;
+          if (pl.onDone) pl.onDone(pl);
+        }
+      }
+    }
+
+    /* ---------- planos ---------- */
+    /* "look": tempo olhando a sala. Entra, para num ponto e olha; não fica dando voltas dentro da sala (isso é coisa
+       de NPC). Se já está na sala, olha dali mesmo. */
+    planWander(areaId, look) {
+      const g = this.g, p = this.p;
+      const here = M.roomOf(M.areaAt(p.x, p.y), p.x, p.y).id;
+      const pos = here === areaId ? { x: p.x, y: p.y } : M.randomPointIn(areaId);
+      const span = look != null ? look : U.rf(2, 5);
+      this.setPlan({
+        type: 'wander', area: areaId, x: pos.x, y: pos.y,
+        onArrive: (pl) => (pl.until = g.t + Math.min(span, 4) * U.rf(0.6, 1)),
+      });
+    }
+    /* Sem tarefas: ronda pelas salas vazias procurando corpos (as menos vistas há mais tempo primeiro). */
+    planPatrol(n) {
+      const g = this.g, p = this.p;
+      this.checked = this.checked || {};
+      const quiet = ['electrical', 'lowerEngine', 'reactor', 'security', 'upperEngine', 'medbay', 'storage', 'comms', 'shields', 'navigation', 'o2', 'weapons'];
+      const here = M.roomOf(M.areaAt(p.x, p.y), p.x, p.y).id;
+      const route = [];
+      let cx = p.x, cy = p.y;
+      for (let i = 0; i < (n || 3); i++) {
+        let best = null, bs = -1e9;
+        for (const id of quiet) {
+          if (route.includes(id) || id === here || !M.AREA[id]) continue;
+          const a = M.AREA[id];
+          const age = g.t - (this.checked[id] != null ? this.checked[id] : g.roundStart - 40);
+          const sc = -U.d2(cx, cy, a.cx, a.cy) + Math.min(age, 70) * 0.45 + U.rf(0, 12);
+          if (sc > bs) {
+            bs = sc;
+            best = id;
+          }
+        }
+        if (!best) break;
+        route.push(best);
+        cx = M.AREA[best].cx;
+        cy = M.AREA[best].cy;
+      }
+      this.patrolRoute = route;
+      return this.nextPatrol();
+    }
+    nextPatrol() {
+      const g = this.g;
+      const id = this.patrolRoute && this.patrolRoute.shift();
+      if (!id) return false;
+      const pos = M.randomPointIn(id);
+      this.setPlan({
+        type: 'patrol', area: id, x: pos.x, y: pos.y,
+        onArrive: (pl) => {
+          this.checked[id] = g.t;
+          pl.until = g.t + U.rf(0.2, 0.7);
+        },
+        onDone: () => {
+          if (!this.plan) this.nextPatrol();
+        },
+      });
+      return true;
+    }
+    planTask(tk) {
+      const g = this.g, p = this.p;
+      const st = g.stationOfTask(tk);
+      const stepIdx = tk.step;
+      const base = tk.def.dur[stepIdx] || 3;
+      const dur = (base / this.pers.taskSpeed) * U.rf(0.9, 1.3) * (1 + (this.err - 1) * 0.15);
+      const spot = this.standNear(st.x, st.y, 0.5);
+      this.setPlan({
+        type: 'task', task: tk, x: spot.x, y: spot.y,
+        onArrive: (pl) => {
+          if (tk.done || tk.step !== stepIdx || !g.taskAvailable(tk)) {
+            pl.until = g.t;
+            return;
+          }
+          if (this.stepAside(pl, st.x, st.y, g.consts.USE_DIST - 0.3)) return;
+          pl.until = g.t + dur;
+          p.busy = { task: tk.id, station: st.id, until: pl.until };
+          const vis = tk.def.visual;
+          if (vis && vis !== 'shields' && p.alive && g.S.rules.visualTasks && (tk.def.visualStep == null || tk.def.visualStep === stepIdx)) {
+            p.visual = { type: vis, until: pl.until };
+          }
+        },
+        onDone: () => {
+          if (!tk.done && tk.step === stepIdx && g.taskAvailable(tk)) g.completeStep(p, tk);
+          /* pausa humana: olhar a lista, conferir o mapa, hesitar */
+          if (p.alive && !this.plan) {
+            const idle = U.rf(0.15, 0.9) * (this.pers.lost ? 1.5 : 1) * (this.pers.offtopic ? 1.2 : 1);
+            this.setPlan({ type: 'pause', stage: 'do', until: g.t + idle });
+          }
+        },
+      });
+    }
+    planFakeTask(preferArea) {
+      const g = this.g, p = this.p, L = this.lvl;
+      let pool = p.tasks.filter((tk) => !tk.done);
+      if (!pool.length) {
+        p.tasks.forEach((tk) => {
+          tk.done = false;
+          tk.step = 0;
+        });
+        pool = p.tasks.slice();
+      }
+      pool = pool.filter((tk) => {
+        const vis = tk.def.visual && (tk.def.visualStep == null || tk.def.visualStep === tk.step);
+        return !vis || U.chance(L.fakeVisual);
+      });
+      /* impostor esperto: com a barra de tarefas sempre visível e gente olhando, finge tarefa de várias etapas
+         (onde a barra não subir não entrega nada) */
+      if (this.g.S.rules.taskBar === 'sempre' && this.crewVisible().length && U.chance(L.lie)) {
+        const safe = pool.filter((tk) => !finalStations().has(tk.steps[tk.step]));
+        if (safe.length) pool = safe;
+      }
+      if (!pool.length) return this.planWander(U.pick(M.ROOMS).id);
+      let tk;
+      if (preferArea) tk = pool.find((x) => M.STATIONS[x.steps[x.step]].area === preferArea);
+      if (!tk) {
+        pool.sort((a, b) => {
+          const sa = M.STATIONS[a.steps[a.step]], sb = M.STATIONS[b.steps[b.step]];
+          return U.d2(p.x, p.y, sa.x, sa.y) - U.d2(p.x, p.y, sb.x, sb.y);
+        });
+        tk = U.chance(0.6) ? pool[0] : U.pick(pool);
+      }
+      const st = M.STATIONS[tk.steps[tk.step]];
+      const dur = (tk.def.dur[tk.step] || 3) * U.rf(0.8, 1.4);
+      this.setPlan({
+        type: 'fake', task: tk, ...this.standNear(st.x, st.y, 0.5),
+        onArrive: (pl) => {
+          if (this.stepAside(pl, st.x, st.y, g.consts.USE_DIST - 0.3)) return;
+          pl.until = g.t + dur;
+          p.busy = { task: tk.id, station: st.id, until: pl.until, fake: true };
+        },
+        onDone: () => {
+          tk.step++;
+          if (tk.step >= tk.steps.length) tk.done = true;
+        },
+      });
+    }
+    planReport(body) {
+      const g = this.g, p = this.p;
+      this.setPlan({ type: 'report', body, x: body.x, y: body.y, onArrive: () => g.tryReport(p, body) });
+    }
+    planButton() {
+      const g = this.g, p = this.p;
+      this.setPlan({
+        type: 'button', x: M.EMERGENCY.x + U.rf(-0.6, 0.6), y: M.EMERGENCY.y + 2.4,
+        onArrive: (pl) => {
+          pl.until = g.t + 20;
+        },
+        tick: (dt, pl) => {
+          if (g.canEmergency(p) && g.nearButton(p)) {
+            g.tryEmergency(p);
+          } else if (p.emergencyLeft <= 0) {
+            this.wantButton = null;
+            pl.until = g.t;
+          } else if (g.sabCritical()) {
+            /* botão travado pela sabotagem: vai consertar e volta depois */
+            pl.keep = true;
+            pl.until = g.t;
+          } else if (g.emergencyCdUntil - g.t > 3) {
+            /* botão em recarga: anda em volta da mesa esperando, em vez de ficar plantado */
+            pl.keep = true;
+            pl.pace = true;
+            pl.until = g.t;
+          }
+        },
+        onDone: (pl) => {
+          if (!pl.keep) {
+            this.wantButton = null;
+            return;
+          }
+          if (pl.pace && !this.plan) {
+            for (let i = 0; i < 6; i++) {
+              const x = M.EMERGENCY.x + U.rf(-4.5, 4.5), y = M.EMERGENCY.y + U.rf(-3, 4.5);
+              if (g.canStand(x, y) && U.d2(x, y, p.x, p.y) > 1.5) {
+                this.setPlan({ type: 'wander', buttonWait: true, x, y, onArrive: (q) => (q.until = g.t + U.rf(0.3, 1)) });
+                break;
+              }
+            }
+          }
+        },
+      });
+    }
+    planFix(st) {
+      const g = this.g, p = this.p;
+      const pos = M.SAB_STATIONS[st];
+      const kind = st.startsWith('reactor') ? 'reactor' : st.startsWith('o2') ? 'o2' : st;
+      const spot = this.standNear(pos.x, pos.y, 0.6);
+      this.setPlan({
+        type: 'fix', st, x: spot.x, y: spot.y,
+        onArrive: (pl) => {
+          if (this.stepAside(pl, pos.x, pos.y, g.consts.USE_DIST - 0.3)) return;
+          pl.until = g.t + (kind === 'reactor' ? 60 : kind === 'lights' ? U.rf(5, 7) : kind === 'comms' ? U.rf(3.5, 5.5) : U.rf(2.5, 4));
+          /* luzes: abre o painel, olha e começa a ligar os interruptores */
+          if (kind === 'lights') pl.flipAt = g.t + U.rf(0.4, 0.9);
+          p.busy = { fix: st, until: pl.until };
+        },
+        tick: (dt, pl) => {
+          if (!g.sab || !g.sabStationsNeeded().includes(st)) {
+            pl.until = g.t;
+            return;
+          }
+          if (kind === 'reactor') g.reactorHold(p, st === 'reactorA' ? 'A' : 'B');
+          /* um interruptor desligado por vez, como gente (quem está no painel ao lado vê ligarem; se alguém desliga
+             um, ele religa). O último ligado conserta. */
+          if (kind === 'lights' && pl.flipAt != null && g.t >= pl.flipAt) {
+            const i = g.sab.switches.findIndex((v) => !v);
+            if (i >= 0) g.fixLightsToggle(i, p);
+            pl.flipAt = g.t + U.rf(0.35, 0.7);
+          }
+        },
+        onDone: () => {
+          const s = g.sab;
+          this.fix = null;
+          if (!s) return;
+          if (kind === 'lights') g.botFixLights(p);
+          else if (kind === 'comms') g.fixComms(p);
+          else if (kind === 'o2') g.o2Enter(st === 'o2A' ? 'A' : 'B', s.code, p);
+        },
+      });
+    }
+    planCams(dur) {
+      const g = this.g, p = this.p;
+      this.setPlan({
+        type: 'cams', x: M.SECURITY.x, y: M.SECURITY.y + 0.6,
+        onArrive: (pl) => {
+          if (this.stepAside(pl, M.SECURITY.x, M.SECURITY.y, g.consts.USE_DIST - 0.3)) return;
+          pl.until = g.t + dur;
+          p.onCams = true;
+        },
+        tick: (dt, pl) => {
+          if (g.commsDown()) pl.until = g.t;
+        },
+        onDone: () => (p.onCams = false),
+      });
+    }
+    planAdmin() {
+      const g = this.g, p = this.p;
+      this.setPlan({
+        type: 'admin', ...this.standNear(M.ADMIN_TABLE.x, M.ADMIN_TABLE.y + 1.2, 0.8),
+        onArrive: (pl) => {
+          pl.until = g.t + U.rf(4, 8);
+          p.onAdmin = true;
+          if (!g.commsDown()) {
+            const counts = {};
+            for (const q of g.players) {
+              if (!q.alive || q.inVent) continue;
+              const a = M.areaAt(q.x, q.y);
+              if (a.kind === 'room') counts[a.id] = (counts[a.id] || 0) + 1;
+            }
+            this.mem.admin.push({ t: g.t, counts });
+          }
+        },
+        onDone: () => (p.onAdmin = false),
+      });
+    }
+    /* purpose 'verify': segue para ver a pessoa provar inocência; para depois de ver a tarefa visual. */
+    planFollow(q, dur, keep, purpose) {
+      const g = this.g;
+      let sawAt = 0, leaveAt = 0;
+      const hardEnd = g.t + dur + 25;
+      const plan = {
+        type: 'follow', target: q.id, purpose, dyn: () => {
+          if (!q.alive && this.p.alive) return null;
+          const s = this.lastSeenAt[g.appearId(q)];
+          /* no escuro, perdeu de vista = perdeu (não "adivinha" por onde a pessoa foi) */
+          const dark = !this.p.isImp && g.lightLevel < 0.6;
+          if (!s || g.t - s.t > (dark ? 2 : 5)) return null;
+          if (purpose === 'verify') {
+            /* como gente: assiste a tarefa inteira e só sai quando a pessoa termina (a barra/o escudo/o scan acabou),
+               não no primeiro segundo da animação */
+            if (this.sawVisualOf(q)) {
+              if (!sawAt) this.mem.event({ type: 'escortVisual', t: g.t, who: g.appearId(q) }, 'escortVisual:' + g.appearId(q) + ':' + g.meetings);
+              sawAt = sawAt || g.t;
+              if (!q.busy || g.t - sawAt > 25) leaveAt = leaveAt || g.t + U.rf(0.6, 1.5);
+              if (leaveAt && g.t >= leaveAt) return null;
+            }
+            /* a pessoa está no meio de uma tarefa na minha frente: espera ela terminar antes de desistir */
+            if (q.busy && plan.endAt - g.t < 2 && g.t < hardEnd) plan.endAt = g.t + 2;
+          }
+          return { x: s.x, y: s.y };
+        },
+        keep: keep || 2.2, endAt: g.t + dur, dynEvery: 0.6,
+        /* esperando a pessoa terminar uma tarefa: se tenho tarefa ali do lado, faço a minha enquanto isso (gente de
+           verdade não fica olhando parada), e depois volto a andar junto */
+        tick: (dt, pl) => {
+          pl.chk = (pl.chk || 0) - dt;
+          if (pl.stage !== 'wait' || pl.chk > 0) return;
+          pl.chk = 1;
+          /* os dois seguindo um ao outro = dois bonecos parados se olhando. Um assume a frente (quem quer ver a
+             tarefa visual do outro continua seguindo; senão, decide pelo número) e vai fazer as coisas dele */
+          /* vale também para uma roda (A segue B, B segue C, C segue A): todo mundo esperando alguém que espera */
+          const ring = [this.p];
+          let cur = q, closes = false;
+          for (let i = 0; i < 12 && cur && cur.alive && cur.brain; i++) {
+            const cp = cur.brain.plan;
+            if (!cp || cp.type !== 'follow' || cp.stage !== 'wait' || cp.escort) break;
+            ring.push(cur);
+            if (cp.target === this.p.id) {
+              closes = true;
+              break;
+            }
+            cur = g.players[cp.target];
+            if (ring.includes(cur)) break;
+          }
+          if (closes) {
+            /* quem só quer ver a tarefa visual do outro continua seguindo; entre os demais, sai na frente o de menor número */
+            const leaders = ring.filter((x) => x.brain.plan && x.brain.plan.purpose !== 'verify');
+            const lead = (leaders.length ? leaders : ring).reduce((a, b) => (a.id < b.id ? a : b));
+            if (lead === this.p) {
+              this.plan = null;
+              return;
+            }
+          }
+          /* em dupla: se o parceiro está parado à toa, também aproveito para fazer a minha ali do lado */
+          if (q.moving || q.busy) pl.qIdle = 0;
+          else pl.qIdle = (pl.qIdle || 0) + 1;
+          const partnerFree = q.busy || (purpose === 'pact' && pl.qIdle >= 4);
+          if (purpose === 'verify' || !partnerFree || !this.p.alive || pl.endAt - g.t < 5) return;
+          const me = this.p;
+          const near = (x, y) => U.d2(x, y, q.x, q.y) < 5.5 && Nav.los(q.x, q.y, x, y);
+          const own = me.isImp ? null : me.tasks.find((tk) => !tk.done && g.taskAvailable(tk) && near(g.stationOfTask(tk).x, g.stationOfTask(tk).y));
+          const endAt = pl.endAt, k = pl.keep;
+          if (own) this.planTask(own);
+          else if (me.isImp && U.chance(0.35) && me.tasks.some((tk) => !tk.done && M.STATIONS[tk.steps[tk.step]] && M.STATIONS[tk.steps[tk.step]].area === M.areaAt(q.x, q.y))) this.planFakeTask(M.areaAt(q.x, q.y));
+          else return;
+          const tp = this.plan;
+          if (!tp || tp === pl) return;
+          const od = tp.onDone;
+          tp.onDone = (x) => {
+            if (od) od(x);
+            if (this.p.alive && q.alive && g.t < endAt - 2 && (!this.plan || this.plan.type === 'pause')) this.planFollow(q, endAt - g.t, k, purpose);
+          };
+        },
+        onEnd: () => {
+          if (purpose === 'verify' && q.alive && !this.sawVisualOf(q) && g.S.rules.visualTasks) {
+            const id = g.appearId(q);
+            this.fieldSus[id] = (this.fieldSus[id] || 0) + 12;
+            this.mem.event({ type: 'noProof', t: g.t, who: id }, 'noProof:' + id + ':' + g.meetings);
+          }
+        },
+      };
+      this.setPlan(plan);
+    }
+    /* Viu esta pessoa fazendo tarefa visual nesta rodada (agora ou antes)? */
+    sawVisualOf(q) {
+      const g = this.g;
+      if (!g.S.rules.visualTasks) return false;
+      if (q.visual && this.seenNow.includes(q)) return true;
+      return this.mem.events.some((e) => e.type === 'visual' && e.who === g.appearId(q) && e.t >= g.roundStart);
+    }
+    /* Zigue-zague no lugar ("vem comigo"); depois segue o plano "then". */
+    /* to/purpose: a quem é o chamado e para quê ('prove' mostrar a visual, 'pact' andar junto, 'regroup' "cadê você,
+       vem", 'lure' isca, 'reply' respondendo ao chamado de alguém). Quem chama vai na frente; quem responde segue. */
+    planWiggle(text, then, to, purpose) {
+      const g = this.g, p = this.p, t0 = g.t;
+      if (to && purpose !== 'reply') this.call = { who: to.id, purpose: purpose || 'come', t0: g.t, until: g.t + 25, answered: false };
+      const axis = g.canStand(p.x + 0.7, p.y) && g.canStand(p.x - 0.7, p.y) ? 'x' : 'y';
+      this.setPlan({
+        type: 'wiggle', stage: 'do', until: g.t + 1.2,
+        tick: (dt) => {
+          const ph = Math.floor((g.t - t0) / 0.17) % 2 ? 1 : -1;
+          const s = g.speedOf(p) * 0.85;
+          g.moveEntity(p, axis === 'x' ? ph * s : 0, axis === 'y' ? ph * s : 0, dt);
+        },
+        onDone: () => {
+          if (then) then();
+        },
+      });
+      g.gesture(p, 'wiggle', { to: to ? to.id : null, reply: purpose === 'reply' });
+      void text;
+    }
+    /* Sem balões: a comunicação no mapa é só pelo movimento. */
+    emote() {}
+    /* ---------- ordens da IA (estrategista) ---------- */
+    /* Executa a ordem atual; devolve false para o motor escolher sozinho. */
+    runOrder() {
+      const g = this.g, p = this.p, o = this.aiOrder;
+      if (!o || o.done || g.t > o.until) return false;
+      const q = o.target != null ? g.players[o.target] : null;
+      const seen = q && q.alive ? this.lastSeenAt[g.appearId(q)] : null;
+      const fresh = seen && g.t - seen.t < 6;
+      const goToward = () => (seen ? this.planWander(M.AREA[seen.area] ? M.roomOf(M.AREA[seen.area], seen.x, seen.y).id : 'cafeteria', U.rf(1, 3)) : false);
+      o.done = true;
+      switch (o.kind) {
+        case 'task': {
+          const avail = p.tasks.filter((tk) => !tk.done && g.taskAvailable(tk));
+          const w = U.norm(o.task || '');
+          const tk = w && avail.find((x) => U.norm(x.def.name).split(' ').some((part) => part.length > 3 && w.includes(part)));
+          return tk ? this.planTask(tk) : false;
+        }
+        case 'follow':
+          if (!q || !q.alive) return false;
+          return fresh ? this.planFollow(q, U.rf(15, 25), 2.4) : goToward();
+        case 'tail':
+          if (!q || !q.alive) return false;
+          return fresh ? this.planFollow(q, U.rf(12, 20), U.rf(4.2, 5.5)) : goToward();
+        case 'avoid':
+          if (q) this.avoid = { who: q.id, until: o.until };
+          return false;
+        case 'signal': {
+          if (!q || !q.alive) return false;
+          if (fresh && U.dist(p, q) < 6) {
+            this.invitedRound = true;
+            this.invite = { who: g.appearId(q), until: g.t + 30 };
+            const vis = p.tasks.filter((tk) => !tk.done && g.taskAvailable(tk) && tk.def.visual);
+            return this.planWiggle('vem!', () => {
+              if (vis.length) {
+                this.shownVisual = true;
+                this.planTask(vis[0]);
+              }
+            }, q, vis.length ? 'prove' : 'come');
+          }
+          o.done = false;
+          return goToward();
+        }
+        case 'cams':
+          return g.commsDown() ? false : this.planCams(U.rf(12, 22));
+        case 'admin':
+          return g.commsDown() ? false : this.planAdmin();
+        case 'go':
+          return o.room ? this.planWander(o.room, U.rf(2, 5)) : false;
+        case 'patrol':
+          return this.planPatrol(U.rint(2, 4));
+        case 'button':
+          if (p.emergencyLeft <= 0) return false;
+          {
+            const top = this.topSuspectLive();
+            this.wantButton = top && top.s >= 30 ? { reason: 'sus', who: top.id } : { reason: 'info' };
+          }
+          return false;
+        /* impostor */
+        case 'hunt':
+          if (!q || !q.alive || q.isImp) return false;
+          this.prey = { id: q.id, until: o.until };
+          if (fresh) return this.planStalk(q);
+          return goToward();
+        case 'fake':
+          return this.planFakeTask(o.room || undefined);
+        case 'prowl':
+          return this.planProwl();
+        case 'group': {
+          const crowd = this.seenNow.filter((x) => !x.isImp && x.alive);
+          return crowd.length ? this.planFollow(U.pick(crowd), U.rf(8, 14), 2.8) : this.planWander('cafeteria', U.rf(2, 4));
+        }
+        case 'sab':
+          if (g.canSabotage(p) && g.sabotage(o.sab, p)) return false;
+          o.done = false;
+          return false;
+        case 'doors':
+          if (o.room && g.doorReady(o.room) && g.closeDoors(o.room, p)) return false;
+          return false;
+        case 'vent': {
+          const v = g.nearestVent(p);
+          if (v && g.enterVent(p, v)) {
+            this.ventPlan = { steps: [U.pick(v.links)], nextT: g.t + U.rf(0.6, 1)};
+            return true;
+          }
+          const vv = M.VENTS.slice().sort((a, b) => U.d2(p.x, p.y, a.x, a.y) - U.d2(p.x, p.y, b.x, b.y))[0];
+          o.done = false;
+          return this.setPlan({ type: 'wander', x: vv.x, y: vv.y, onArrive: (pl) => (pl.until = g.t + 0.3) });
+        }
+        case 'lure':
+          if (!q || !q.alive || q.isImp) return false;
+          if (fresh && U.dist(p, q) < 6 && this.crewVisible().length === 1) {
+            this.invitedRound = true;
+            this.invite = { who: q.id, until: g.t + 25, lure: true };
+            const quiet = M.ROOMS.filter((rm) => !['cafeteria', 'admin', 'storage'].includes(rm.id));
+            return this.planWiggle('vem!', () => this.planFakeTask(U.pick(quiet).id), q, 'lure');
+          }
+          this.prey = { id: q.id, until: o.until };
+          return fresh ? this.planStalk(q) : goToward();
+        case 'double':
+          if (!q || !q.alive || !q.isImp) return false;
+          this.dk = { with: q.id, until: g.t + 18 };
+          if (q.brain) q.brain.dk = { with: p.id, until: g.t + 18 };
+          return fresh ? this.planFollow(q, 12, 3) : false;
+        default:
+          return false;
+      }
+    }
+    topSuspectLive() {
+      let best = null;
+      for (const q of this.g.players) {
+        if (!q.alive || q === this.p) continue;
+        const s = this.liveSusp(q.id);
+        if (!best || s > best.s) best = { id: q.id, s };
+      }
+      return best;
+    }
+
+    /* Suspeita "ao vivo" durante a rodada: o que ficou das reuniões + o que viu agora. */
+    /* Viu fazer tarefa visual em QUALQUER rodada: é tripulante, e o bot não esquece. */
+    /* fui eu que chamei essa pessoa (ou vou na frente na dupla): quem vem atrás é ela, não eu */
+    leading(id) {
+      const g = this.g, c = this.call, pa = this.pact;
+      return !!((c && c.who === id && g.t < c.until) || (pa && pa.who === id && pa.lead === 'me'));
+    }
+    hardCleared(id) {
+      if (this.twinCleared(id)) return true;
+      if (this.g.S.house.noVisualHardClear || !this.g.S.rules.visualTasks) return false;
+      return this.mem.events.some((e) => (e.type === 'visual' || e.type === 'escortVisual') && e.who === id);
+    }
+    liveSusp(id) {
+      const g = this.g, rs = g.roundStart;
+      let s = Math.max(this.susp[id] || 0, (this.carry[id] || 0) * 0.8);
+      const eng = ((g.S.roles && g.S.roles.engenheiro) || {}).n > 0;
+      let strong = false;
+      for (const e of this.mem.events) {
+        if (e.who !== id) continue;
+        /* "vi o X matando / no duto", mas perto da hora em que eu vi dois X: pode ter sido o disfarce */
+        if ((e.type === 'kill' || e.type === 'vent') && this.twinDoubt(id, e.t)) {
+          if (e.t >= rs) s += 30;
+          continue;
+        }
+        /* o que viu de grave em rodadas anteriores continua valendo */
+        if (e.type === 'kill' || e.type === 'shift' || e.type === 'vanish') {
+          s = Math.max(s, e.t < rs ? 90 : 100);
+          strong = true;
+        } else if (e.type === 'vent') {
+          s = Math.max(s, eng ? 55 : e.t < rs ? 75 : 85);
+          strong = true;
+        } else if (e.t < rs) continue;
+        else if (e.type === 'noscan') s += 25;
+        else if (e.type === 'fakeTask') s += 30;
+        else if (e.type === 'follow') s += 8;
+        else if (e.type === 'visual' && g.S.rules.visualTasks) s -= 60;
+      }
+      for (const b of this.mem.bodies) if (b.t >= rs && (b.near || []).includes(id)) s += 25;
+      s += (this.mem.lies[id] || 0) * 10;
+      s += (this.fieldSus && this.fieldSus[id]) || 0;
+      if (!strong && this.hardCleared(id)) return Math.min(s, -40);
+      return s;
+    }
+    /* Segue quem chamou, mas de olho: parado à toa, sozinho demais num canto ou fazendo algo estranho = para de seguir. */
+    startEscort(q) {
+      const g = this.g, p = this.p;
+      const aid = g.appearId(q);
+      const until = g.t + U.rf(24, 32);
+      this.escort = { who: aid, until, since: g.t, idle: 0, alone: 0, lx: q.x, ly: q.y };
+      this.setPlan({
+        type: 'follow', escort: true, target: q.id, keep: 2.0, endAt: until, dynEvery: 0.5,
+        dyn: () => {
+          if (!q.alive && p.alive) return null;
+          const s = this.lastSeenAt[g.appearId(q)];
+          if (!s || g.t - s.t > 4) {
+            this.endEscort('?');
+            return null;
+          }
+          return { x: s.x, y: s.y };
+        },
+        tick: (dt) => this.checkEscort(q, dt),
+      });
+      this.mem.event({ type: 'escort', t: g.t, who: aid }, 'escort:' + aid + ':' + g.meetings);
+    }
+    checkEscort(q, dt) {
+      const g = this.g, e = this.escort;
+      if (!e) return;
+      const aid = e.who;
+      if (g.t >= e.until - 0.3) return this.endEscort('blz');
+      const moved = Math.hypot(q.x - e.lx, q.y - e.ly);
+      if (moved < 0.05 && !q.busy && !q.visual) e.idle += dt;
+      else e.idle = Math.max(0, e.idle - dt * 0.5);
+      e.lx = q.x;
+      e.ly = q.y;
+      const alone = this.seenNow.length === 1 && this.seenNow[0] === q;
+      if (alone) e.alone += dt;
+      else e.alone = Math.max(0, e.alone - dt);
+      /* o propósito de seguir era ver a prova: viu a tarefa visual, assiste até a pessoa terminar (como gente) e
+         aí volta ao próprio jogo */
+      if (q.visual && g.S.rules.visualTasks && this.seenNow.includes(q)) e.sawVisualT = e.sawVisualT || g.t;
+      if (e.sawVisualT) {
+        if (!e.visualNoted) {
+          e.visualNoted = true;
+          this.mem.event({ type: 'escortVisual', t: g.t, who: aid }, 'escortVisual:' + aid + ':' + g.meetings);
+        }
+        if (!q.busy || g.t - e.sawVisualT > 25) e.leaveAt = e.leaveAt || g.t + U.rf(0.6, 1.5);
+        if (e.leaveAt && g.t >= e.leaveAt) return this.endEscort(null);
+        if (q.busy && e.until - g.t < 2) this.extendEscort(g.t + 2);
+        return;
+      }
+      /* está no meio de uma tarefa na minha frente: espera terminar antes de desistir */
+      if (q.busy && e.until - g.t < 2 && g.t - e.since < 50) this.extendEscort(g.t + 2);
+      /* seguiu um tempo e a pessoa não mostrou nada: desiste e volta às tarefas */
+      if (g.t - e.since > 20 && !q.busy && !q.visual) return this.endEscort(null);
+      if (e.idle > 6) {
+        /* chamou para seguir e ficou parado sem fazer nada: estranho */
+        this.fieldSus[aid] = (this.fieldSus[aid] || 0) + 10;
+        e.idle = 0;
+      }
+      const s = this.liveSusp(aid);
+      const cautious = this.pers.skeptic || this.pers.panic || this.pers.times;
+      const dark = g.sab && g.sab.type === 'lights';
+      if (s >= 55) {
+        this.endEscort('!');
+        this.fear = { who: aid, t: g.t };
+        return this.planFlee(q);
+      }
+      if (s >= 30) return this.endEscort('não');
+      if (e.alone > (cautious ? 7 : 12) + (s < 0 ? 20 : 0) && (dark || s >= 10 || U.chance(cautious ? 0.03 : 0.01))) return this.endEscort('...');
+    }
+    extendEscort(until) {
+      if (!this.escort) return;
+      this.escort.until = until;
+      if (this.plan && this.plan.escort) this.plan.endAt = until;
+    }
+    endEscort(text) {
+      const g = this.g;
+      if (this.escort) this.mem.event({ type: 'escortEnd', t: g.t, who: this.escort.who, why: text }, 'escortEnd:' + this.escort.who + ':' + g.meetings);
+      this.escort = null;
+      if (text) this.emote(text);
+      if (this.plan && this.plan.escort) this.plan = null;
+    }
+    /* Alguém fez sinal perto: atende (segue), recusa ou desconfia. O impostor pode fingir que topa. */
+    onGesture(q, kind, opts) {
+      const g = this.g, p = this.p, t = g.t;
+      opts = opts || {};
+      if (kind !== 'wiggle' || !p.alive || p.inVent || g.phase !== 'play') return;
+      if (this.plan && ['report', 'flee', 'fix', 'button', 'hunt', 'wiggle'].includes(this.plan.type)) return;
+      if (this.wantButton || this.fix || this.escape) return;
+      const aid = g.appearId(q);
+      /* a pessoa que eu chamei respondeu com o zigue-zague: combinado, ela vem atrás de mim. Eu sigo na frente
+         (não vou atrás dela) e fico de olho para ela não se perder */
+      if (this.call && this.call.who === q.id && t < this.call.until) {
+        this.call.answered = true;
+        if (!this.pact || this.pact.who !== q.id) this.pact = { who: q.id, lead: 'me', scope: 'call', since: t, until: t + U.rf(40, 70) };
+        else this.pact.lead = 'me';
+        this.emote('ok');
+        return;
+      }
+      /* meu parceiro de dupla chamou: vou até ele e sigo junto */
+      if (this.pact && this.pact.who === q.id && !opts.reply) {
+        this.pact.lead = 'them';
+        this.emote('ok');
+        this.planFollow(q, U.rf(20, 35), U.rf(2, 2.8), 'pact');
+        return;
+      }
+      if (opts.reply) return;
+      if (p.isImp && q.isImp) {
+        /* parceiro fez sinal: combinado, fico perto e mato junto quando ele matar */
+        this.dk = { with: q.id, until: t + 14 };
+        this.emote('fechou');
+        this.planFollow(q, 12, 2.4);
+        return;
+      }
+      if (this.invite && this.invite.who === aid && t < this.invite.until) {
+        /* resposta ao meu próprio chamado: combinado */
+        this.emote('ok');
+        return;
+      }
+      if (this.escort && this.escort.who === aid && t < this.escort.until) return;
+      const s = p.isImp ? 0 : this.liveSusp(aid);
+      let pAcc;
+      if (p.isImp) pAcc = q.isImp ? 0.2 : 0.2 + this.lvl.lie * 0.25;
+      else {
+        /* depende de quanto confia, da personalidade e do clima: escuro, corpo recente, pouca gente por perto */
+        const recentBody = this.mem.bodies.some((b) => g.t - b.t < 40) || (g.t - g.roundStart < 25 && g.meetings > 0 && (g.events || []).some((e) => e.type === 'kill' && e.t > g.roundStart - 60));
+        const crowd = this.seenNow.filter((o) => o !== q).length;
+        pAcc = s >= 35 ? 0 : 0.45 + this.pers.follow * 0.35 + (this.pers.leader ? 0.1 : 0) - (this.pers.skeptic ? 0.15 : 0) - (this.pers.panic ? 0.1 : 0) + (q.isHuman ? 0.12 : 0)
+          - Math.max(0, s) / 45 + Math.max(0, -s) / 200 - (g.sab && g.sab.type === 'lights' ? 0.2 : 0) - (recentBody ? 0.12 : 0) + (crowd >= 1 ? 0.08 : 0);
+      }
+      if (p.busy && !U.chance(0.35)) pAcc *= 0.3;
+      if (U.chance(pAcc)) {
+        this.emote('ok');
+        /* entende para que foi chamado pelo lugar: do lado de uma tarefa visual = "vem ver eu provar"; reator/O2
+           caindo = "me ajuda aqui"; senão, "anda comigo". Às vezes responde com o zigue-zague ("tô indo") e vai
+           atrás (quem chamou vai na frente) */
+        const vst = g.S.rules.visualTasks && VISUAL_ST.concat(['shields', 'garbageStorage']).some((k) => M.STATIONS[k] && U.d2(q.x, q.y, M.STATIONS[k].x, M.STATIONS[k].y) < 2.5);
+        const go = () => (vst ? this.planFollow(q, U.rf(18, 28), 2.4, 'verify') : this.startEscort(q));
+        if (!p.busy && U.chance(0.65)) this.planWiggle('ok', go, q, 'reply');
+        else go();
+      } else this.emote(!p.isImp && s >= 20 ? 'não' : '?');
+    }
+    /* Alguém me segue (a meu pedido ou de confiança): mostro uma tarefa visual para provar que sou tripulante. */
+    showVisual(follower) {
+      const g = this.g, p = this.p;
+      if (p.isImp || this.shownVisual || !g.S.rules.visualTasks || p.busy) return false;
+      if (this.plan && ['report', 'flee', 'fix', 'button', 'wiggle'].includes(this.plan.type)) return false;
+      const vis = p.tasks.filter((tk) => !tk.done && g.taskAvailable(tk) && tk.def && tk.def.visual);
+      if (!vis.length) return false;
+      vis.sort((a, b) => {
+        const sa = g.stationOfTask(a), sb = g.stationOfTask(b);
+        return U.d2(p.x, p.y, sa.x, sa.y) - U.d2(p.x, p.y, sb.x, sb.y);
+      });
+      this.shownVisual = true;
+      this.emote('olha', 1.8);
+      this.planTask(vis[0]);
+      void follower;
+      return true;
+    }
+    planFlee(threat) {
+      const g = this.g, p = this.p;
+      let best = null, bs = -1e9;
+      for (const r of M.ROOMS) {
+        const dThreat = U.d2(r.cx, r.cy, threat.x, threat.y);
+        const dMe = U.d2(r.cx, r.cy, p.x, p.y);
+        const s = dThreat - dMe * 0.6 + (r.id === 'cafeteria' ? 10 : 0);
+        if (s > bs) {
+          bs = s;
+          best = r;
+        }
+      }
+      const pos = M.randomPointIn(best.id);
+      this.setPlan({ type: 'flee', x: pos.x, y: pos.y, onArrive: (pl) => (pl.until = g.t + 1.5) });
+    }
+    planHunt(tgt) {
+      const g = this.g, p = this.p;
+      this.setPlan({
+        type: 'hunt', target: tgt.id, keep: g.killDist * 0.7, dynEvery: 0.3, noShuffle: true,
+        dyn: () => {
+          const s = this.lastSeenAt[g.appearId(tgt)];
+          if (!tgt.alive || !s) return null;
+          /* perdeu de vista: vai até onde viu por último (quase sempre a vítima só entrou na sala seguinte) */
+          if (g.t - s.t > 2.5 && (g.t - s.t > 8 || U.d2(p.x, p.y, s.x, s.y) < 1.2)) return null;
+          return { x: s.x, y: s.y };
+        },
+        endAt: g.t + 20,
+      });
+    }
+    planStalk(tgt) {
+      const g = this.g;
+      /* segue de longe, mas sem sair do próprio campo de visão (com visão curta, segue mais de perto) */
+      const keep = Math.min(U.rf(4, 6), Math.max(1.2, g.visionOf(this.p) * 0.8));
+      this.setPlan({
+        type: 'stalk', target: tgt.id, keep, dynEvery: 0.7,
+        dyn: () => {
+          const s = this.lastSeenAt[g.appearId(tgt)];
+          if (!tgt.alive || !s || g.t - s.t > 4) return null;
+          return { x: s.x, y: s.y };
+        },
+        endAt: g.t + U.rf(10, 22),
+      });
+    }
+
+    /* ---------- tripulante ---------- */
+    hardSusp(id) {
+      let s = 0;
+      for (const e of this.mem.events) {
+        if (e.who !== id || e.t < this.g.roundStart) continue;
+        if ((e.type === 'kill' || e.type === 'vent') && this.twinDoubt(id, e.t)) s = Math.max(s, 50);
+        else if (e.type === 'kill' || e.type === 'shift' || e.type === 'vanish') s = Math.max(s, 100);
+        else if (e.type === 'vent') s = Math.max(s, 85);
+      }
+      return Math.max(s, (this.carry[id] || 0) > 70 ? this.carry[id] : 0);
+    }
+    threatNear() {
+      const p = this.p, g = this.g;
+      if (this.seenNow.length !== 1) return null;
+      const q = this.seenNow[0];
+      if (U.dist(p, q) > 5.5) return null;
+      if (this.hardSusp(g.appearId(q)) >= 80) return q;
+      if (this.avoid && g.t < this.avoid.until && g.appearId(q) === this.avoid.who && U.dist(p, q) < 4.5) return q;
+      const ls = this.liveSusp(g.appearId(q));
+      if (ls >= 45 && U.dist(p, q) < 4) return q;
+      if (ls >= 30 && U.dist(p, q) < 3 && (g.sab && g.sab.type === 'lights')) return q;
+      if (this.fear && g.t - this.fear.t < 6 && this.fear.who === g.appearId(q)) return q;
+      return null;
+    }
+    thinkCrew() {
+      const g = this.g, p = this.p;
+      const body = this.bodiesNow.find((b) => !b.reported && !b.gone);
+      /* achou um corpo: leva um instante para perceber (gente não aperta "reportar" no mesmo frame) */
+      if (body && !this.shock && (!this.noticed || this.noticed.id !== body.id)) this.noticed = { id: body.id, at: g.t + U.rf(0.35, 1.0) * (1.2 - this.pers.att * 0.4) };
+      if (body && this.noticed && this.noticed.id === body.id && g.t < this.noticed.at) return;
+      if (this.shock) {
+        const sh = this.shock, k = g.players[sh.killer];
+        const kNear = k && k.alive && !k.inVent && this.seenNow.includes(k) && U.dist(p, k) < 5.5;
+        if (g.t < sh.until) return;
+        /* passou o susto: o assassino ainda está do lado → foge (e vai ao botão); senão reporta */
+        if (kNear && !(this.plan && this.plan.type === 'flee') && !sh.fled) {
+          sh.fled = true;
+          this.fear = { who: sh.killer, t: g.t };
+          this.planFlee(k);
+          return;
+        }
+        if (!kNear || sh.fled) this.shock = null;
+        if (this.plan && this.plan.type === 'flee') return;
+      }
+      if (body) {
+        if (!this.plan || this.plan.type !== 'report' || this.plan.body !== body) {
+          if (!(this.fear && g.t - this.fear.t < 1.5 && this.plan && this.plan.type === 'flee')) this.planReport(body);
+        }
+        if (this.plan && this.plan.type === 'report') g.tryReport(p, body);
+        return;
+      }
+      if (this.plan && this.plan.type === 'report') {
+        if (this.plan.body.reported || this.plan.body.gone) this.plan = null;
+        else {
+          g.tryReport(p, this.plan.body);
+          return;
+        }
+      }
+      if (this.wantButton) {
+        if (p.emergencyLeft <= 0) this.wantButton = null;
+        else if (!g.sabCritical()) {
+          /* motivo que não é flagrante: termina a tarefa que já está fazendo antes de correr para o botão */
+          const urgent = ['kill', 'vent', 'shift', 'vanish', 'twinKill'].includes(this.wantButton.reason);
+          const finishing = !urgent && this.plan && this.plan.type === 'task' && p.busy && p.busy.until - g.t < 8;
+          if (!finishing) {
+            if (!this.plan || (this.plan.type !== 'button' && !this.plan.buttonWait)) this.planButton();
+            return;
+          }
+        }
+      }
+      const threat = this.threatNear();
+      if (threat && (!this.plan || this.plan.type !== 'flee')) {
+        this.fear = { who: g.appearId(threat), t: g.t };
+        this.planFlee(threat);
+        return;
+      }
+      if (this.plan && this.plan.type === 'flee') return;
+      if (this.fix) {
+        if (!g.sab || !g.sabStationsNeeded().includes(this.fix)) {
+          this.fix = null;
+          if (this.plan && this.plan.type === 'fix') this.plan = null;
+        } else {
+          if (!this.plan || this.plan.type !== 'fix') this.planFix(this.fix);
+          return;
+        }
+      }
+      if (this.pactThink()) return;
+      if (this.plan) return;
+      this.chooseCrewActivity();
+    }
+    /* Dupla combinada (na reunião ou por sinal aceito). Quem vai na frente faz as coisas dele e, se o parceiro ficou
+       para trás, espera um pouco e chama de novo; quem segue anda junto (e faz as tarefas que estiverem ali do lado). */
+    pactThink() {
+      const g = this.g, p = this.p;
+      /* chamei alguém e ele veio chegando perto: também é resposta (o jogador nem sempre faz o zigue-zague de volta) */
+      const c = this.call;
+      if (c && !c.answered && g.t < c.until) {
+        const q = g.players[c.who];
+        const s = q && this.lastSeenAt[g.appearId(q)];
+        if (s && g.t - s.t < 1) {
+          const d = U.d2(p.x, p.y, s.x, s.y);
+          if (c.d0 == null) c.d0 = d;
+          if ((d < 2.6 && c.d0 > 3.2) || (d < 2.2 && g.t - c.t0 > 3)) {
+            c.answered = true;
+            if (!this.pact || this.pact.who !== q.id) this.pact = { who: q.id, lead: 'me', scope: 'call', since: g.t, until: g.t + U.rf(40, 70) };
+          }
+        }
+      }
+      const pa = this.pact;
+      if (!pa) return false;
+      const q = g.players[pa.who];
+      if (!q || !q.alive || g.t > pa.until || (!p.isImp && this.liveSusp(pa.who) >= 30)) {
+        this.pact = null;
+        return false;
+      }
+      const s = this.lastSeenAt[g.appearId(q)];
+      const ago = s ? g.t - s.t : 99;
+      if (ago > 45 && g.t - pa.since > 45) {
+        if (pa.scope !== 'game') this.pact = null;
+        return false;
+      }
+      /* vou atrás, mas o parceiro está parado à toa há um tempo: troco, eu vou na frente fazer as minhas (ele que venha) */
+      if (pa.lead === 'them' && s && ago < 1.5) {
+        if (!q.moving && !q.busy && !q.onCams && !q.onAdmin) pa.idleT = (pa.idleT || 0) + 0.3;
+        else pa.idleT = 0;
+        if (pa.idleT > 15) {
+          pa.lead = 'me';
+          pa.idleT = 0;
+          if (this.plan && this.plan.type === 'follow' && this.plan.target === q.id) this.plan = null;
+          return false;
+        }
+      }
+      if (pa.lead !== 'me' || p.busy || !s) return false;
+      /* vou na frente: o parceiro ficou para trás (ainda à vista) → espero; se continua longe, chamo de novo */
+      const d = U.d2(p.x, p.y, s.x, s.y);
+      const walking = this.plan && this.plan.stage === 'go' && ['task', 'fake', 'wander', 'patrol'].includes(this.plan.type);
+      if (walking && ago < 1.5 && d > 6.5 && d < 12 && g.t - (pa.waitT || 0) > 9) {
+        pa.waitT = g.t;
+        const wait = () => this.setPlan({ type: 'pause', stage: 'do', until: g.t + U.rf(1.2, 2.2) });
+        if (g.t - (pa.callT || 0) > 16 && U.chance(0.55)) {
+          pa.callT = g.t;
+          this.planWiggle('ei', wait, q, 'regroup');
+        } else wait();
+        return true;
+      }
+      return false;
+    }
+    chooseCrewActivity() {
+      const g = this.g, p = this.p, pers = this.pers;
+      /* dupla: sigo o parceiro; perdi de vista há pouco, vou até onde vi por último */
+      const pa = this.pact;
+      if (pa && pa.lead === 'them' && g.players[pa.who] && g.players[pa.who].alive) {
+        const q = g.players[pa.who];
+        const s = this.lastSeenAt[g.appearId(q)];
+        if (s && g.t - s.t < 4) return this.planFollow(q, U.rf(20, 35), U.rf(2, 2.8), 'pact');
+        if (s && g.t - s.t < 25 && g.t - (pa.lookT || 0) > 6) {
+          pa.lookT = g.t;
+          const a = M.AREA[s.area];
+          return this.planWander(a ? M.roomOf(a, s.x, s.y).id : 'cafeteria', U.rf(0.8, 1.6));
+        }
+      }
+      if (g.sab && g.sab.type === 'lights' && !this.fix) {
+        const pal = this.seenNow.filter((q) => q.alive && !this.leading(q.id) && U.dist(p, q) < 6 && this.liveSusp(g.appearId(q)) <= 5);
+        if (pal.length && U.chance(0.5 + pers.follow * 0.3)) return this.planFollow(pal[0], U.rf(8, 14), 1.8);
+      }
+      if (this.aiOrder && this.runOrder() !== false && this.plan) return;
+      const open = p.tasks.filter((tk) => !tk.done);
+      const avail = open.filter((tk) => g.taskAvailable(tk));
+      if (avail.length) {
+        if (pers.lost && this.lostCount < 3 && U.chance(pers.lost * 0.25 * this.err)) {
+          this.lostCount++;
+          return this.planWander(U.pick(M.ROOMS).id, U.rf(1, 3));
+        }
+        /* logo depois da reunião cada um escolhe mais à vontade: ninguém sai da mesa em fila para o mesmo lado */
+        const early = g.t - g.roundStart < 15;
+        const dist = (tk) => {
+          const s = g.stationOfTask(tk);
+          return U.d2(p.x, p.y, s.x, s.y) + U.rf(0, early ? 18 : 8);
+        };
+        /* depois da reunião: vigiar o suspeito ou andar com alguém de confiança, uma vez por rodada */
+        if (this.watch && g.t < this.watch.until) {
+          const q = g.players[this.watch.who];
+          const s = q && q.alive ? this.lastSeenAt[q.id] : null;
+          if (q && q.alive && this.sawVisualOf(q)) this.watch = null;
+          else if (s && g.t - s.t < 3) {
+            const w = this.watch;
+            this.watch = null;
+            if (w.purpose === 'verify') return this.planFollow(q, U.rf(22, 32), 2.6, 'verify');
+            return this.planFollow(q, U.rf(12, 20), U.rf(4, 5.5));
+          }
+        }
+        if (this.buddy != null && !this.leading(this.buddy)) {
+          const q = g.players[this.buddy];
+          const s = q && q.alive ? this.lastSeenAt[q.id] : null;
+          if (s && g.t - s.t < 3) {
+            this.buddy = null;
+            return this.planFollow(q, U.rf(15, 28), 2.4);
+          }
+        }
+        /* chama alguém de confiança que está perto para ver a tarefa visual (vira álibi) */
+        const visAvail = g.S.rules.visualTasks ? avail.filter((x) => x.def && x.def.visual) : [];
+        if (visAvail.length && !this.invitedRound && g.t > g.roundStart + 6) {
+          const near = this.seenNow.filter((q) => q.alive && !q.inVent && U.dist(p, q) < 5 && (this.liveSusp(g.appearId(q)) < 15 || (this.proveTo && this.proveTo.includes(g.appearId(q)))));
+          const who = near.find((q) => this.proveTo && this.proveTo.includes(g.appearId(q))) || near.find((q) => q.isHuman) || near[0];
+          if (who && U.chance(0.16 + pers.talk * 0.18 + (pers.leader ? 0.12 : 0) + (who.isHuman ? 0.1 : 0) + (this.prove ? 0.25 : 0))) {
+            this.invitedRound = true;
+            this.invite = { who: g.appearId(who), until: g.t + 30 };
+            const tk2 = visAvail.slice().sort((a, b) => dist(a) - dist(b))[0];
+            return this.planWiggle('vem!', () => {
+              this.shownVisual = true;
+              this.planTask(tk2);
+            }, who, 'prove');
+          }
+        }
+        /* hábitos: visual primeiro (prova cedo), sozinho ou junto de quem está por perto */
+        const vfirst = this.hab('visualPrimeiro') && g.S.rules.visualTasks;
+        const visual = (tk) => (M.TASKS[tk.id] && M.TASKS[tk.id].visual && (this.prove || vfirst) ? (this.prove ? -400 : -60) : 0);
+        /* todo mundo evita um pouco a tarefa onde já tem gente (escolta gosta, solitário foge) */
+        const social = this.hab('escolta') ? -1 : this.hab('solitario') ? 1.5 : 0.6;
+        const nearby = (tk) => {
+          const st = g.stationOfTask(tk);
+          const n = Object.keys(this.lastSeenAt).filter((id) => +id !== p.id && g.t - this.lastSeenAt[id].t < 6 && U.d2(this.lastSeenAt[id].x, this.lastSeenAt[id].y, st.x, st.y) < 7).length;
+          return social * Math.min(2, n) * 18;
+        };
+        let tk;
+        if ((pers.lost || pers.chaos) && U.chance(0.45)) tk = U.pick(avail);
+        else if (this.hab('metodico') && U.chance(0.7)) tk = avail[0];
+        else {
+          const sc = new Map(avail.map((x) => [x, dist(x) + visual(x) + nearby(x)]));
+          tk = avail.slice().sort((a, b) => sc.get(a) - sc.get(b))[0];
+        }
+        if (this.prove && M.TASKS[tk.id] && M.TASKS[tk.id].visual) this.prove = false;
+        return this.planTask(tk);
+      }
+      if (open.length) {
+        const st = g.stationOfTask(open[0]);
+        return this.planWander(st.area || 'medbay', U.rf(2, 5));
+      }
+      this.planPostTasks();
+    }
+    /* Terminou as tarefas: faz o que um jogador de verdade faz — ronda procurando corpos, câmeras, admin,
+       vigia suspeito de longe, anda com quem confia ou acompanha quem ainda tem tarefa. Nunca fica plantado. */
+    planPostTasks() {
+      const g = this.g, p = this.p, pers = this.pers;
+      const r = Math.random();
+      const watcher = pers.leader || pers.times || pers.skeptic;
+      const camsOk = !g.commsDown() && !g.players.some((q) => q !== p && q.alive && q.onCams && !q.isImp && this.lastSeenAt[g.appearId(q)] && g.t - this.lastSeenAt[g.appearId(q)].t < 30);
+      this.postN = (this.postN || 0) + 1;
+      const sus = this.seenNow.filter((q) => q.alive && this.liveSusp(g.appearId(q)) >= 30);
+      if (sus.length && r < (watcher ? 0.55 : 0.3)) return this.planFollow(sus[0], U.rf(12, 22), U.rf(4, 5.5));
+      const pals = this.seenNow.filter((q) => q.alive && !this.leading(q.id) && (this.susp[g.appearId(q)] || 0) <= -20);
+      if (pals.length && r < 0.2 + pers.follow * 0.3) return this.planFollow(U.pick(pals), U.rf(12, 22), 2.4);
+      if (pers.chaos && !this.chaosButton && U.chance(0.12) && p.emergencyLeft > 0) {
+        this.chaosButton = true;
+        this.wantButton = { reason: 'chaos' };
+        return;
+      }
+      const q = Math.random();
+      /* câmeras: um de cada vez; quem é observador (ou gosta de câmeras) fica mais tempo */
+      const camper = this.hab('camper');
+      if (camsOk && q < (watcher ? 0.3 : 0.14) + (camper ? 0.25 : 0) && !this.camsRound) {
+        this.camsRound = true;
+        return this.planCams(watcher ? U.rf(14, 26) : U.rf(8, 15));
+      }
+      if (!g.commsDown() && q < (watcher ? 0.42 : 0.22) + (camper ? 0.2 : 0) && g.t - (this.adminAt || -99) > 40) {
+        this.adminAt = g.t;
+        return this.planAdmin();
+      }
+      /* acompanha quem ainda tem tarefa (segurança em grupo); quem gosta de ronda vai direto para as salas vazias */
+      if (q < 0.4 + pers.follow * 0.25 + (this.hab('escolta') ? 0.25 : 0) - (this.hab('patrulheiro') || this.hab('solitario') ? 0.25 : 0)) {
+        const cand = this.seenNow.filter((x) => x.alive && !this.leading(x.id) && this.liveSusp(g.appearId(x)) < 20 && U.dist(p, x) < 7);
+        if (cand.length) return this.planFollow(U.pick(cand), U.rf(10, 20), U.rf(2.2, 3.4));
+      }
+      if (!pers.panic || U.chance(0.4)) return this.planPatrol(U.rint(2, 4));
+      this.planWander(U.chance(0.5) ? 'cafeteria' : U.pick(['admin', 'storage']), U.rf(3, 6));
+    }
+
+    /* ---------- impostor ---------- */
+    crewVisible() {
+      const g = this.g, p = this.p, t = g.t, L = this.lvl;
+      if (!p.isImp) return this.seenNow.filter((q) => !q.isImp);
+      /* desatenção: quem está na borda da visão às vezes passa despercebido */
+      this.missed = this.missed || {};
+      return this.seenNow.filter((q) => {
+        if (q.isImp) return false;
+        const d = U.dist(p, q);
+        if (d < 4.5) return true;
+        let m = this.missed[q.id];
+        if (!m || t > m.until) m = this.missed[q.id] = { until: t + 1.5, miss: U.chance(L.miss || 0) };
+        return !m.miss;
+      });
+    }
+    thinkImp() {
+      const g = this.g, p = this.p, t = g.t, L = this.lvl;
+      if (p.inVent) return this.ventThink();
+      const others = this.crewVisible();
+      if (this.abilityEnd()) return;
+      if (this.escape) {
+        const e = this.escape;
+        if (!e.decided && t - e.t0 < 7 && others.length && !g.S.house.noSelfReport && !e.body.reported && p.shiftAs == null) {
+          if (others.some((q) => U.d2(q.x, q.y, e.body.x, e.body.y) < 9)) {
+            e.decided = true;
+            /* reportar o próprio abate na hora denuncia (a vítima foi vista viva segundos antes): o impostor experiente
+               reporta menos e, quando reporta, deixa passar uns segundos, como quem "chegou agora" */
+            const smart = L.lie >= 0.8;
+            if (U.chance(L.selfReport * (smart ? 0.6 : 1))) {
+              this.selfReport = true;
+              if (smart) this.reportDelayUntil = t + U.rf(3, 6);
+              this.planReport(e.body);
+              return;
+            }
+          }
+        }
+        if (this.plan && this.plan.type === 'report') {
+          if (t >= (this.reportDelayUntil || 0)) g.tryReport(p, this.plan.body);
+          return;
+        }
+        if (!e.moved) {
+          e.moved = true;
+          this.planEscape();
+          return;
+        }
+        if (t - e.t0 > 14) this.escape = null;
+        if (this.plan) return;
+      }
+      if (this.plan && this.plan.type === 'report') {
+        if (this.plan.body.reported || this.plan.body.gone) this.plan = null;
+        else {
+          g.tryReport(p, this.plan.body);
+          return;
+        }
+      }
+      const body = this.bodiesNow.find((b) => !b.reported && !b.gone);
+      if (body && !this.escape) {
+        if (others.length && U.chance(0.35 + L.selfReport * 0.5)) {
+          this.planReport(body);
+          return;
+        }
+        if (!this.plan || (this.plan.type !== 'leave' && this.plan.type !== 'fake')) {
+          const far = M.ROOMS.filter((r) => U.d2(r.cx, r.cy, body.x, body.y) > 18);
+          const r = U.pick(far);
+          const pos = M.randomPointIn(r.id);
+          this.setPlan({ type: 'leave', x: pos.x, y: pos.y, onArrive: (pl) => (pl.until = g.t + 1) });
+        }
+        return;
+      }
+      if (this.shakeTail(others)) return;
+      this.sabThink -= 0.3;
+      const ao = this.aiOrder;
+      if (ao && !ao.done && g.t < ao.until && (ao.kind === 'sab' || ao.kind === 'doors' || ao.kind === 'double')) this.runOrder();
+      if (this.sabThink <= 0) {
+        this.sabThink = U.rf(4, 9);
+        if (!(ao && (ao.kind === 'sab') && g.t < ao.until)) this.maybeSabotage(others);
+      }
+      if (p.killCd > 0) this.readyT = null;
+      else if (this.readyT == null) this.readyT = t;
+      if (this.dkTarget != null && p.killCd <= 0) {
+        const q = g.players[this.dkTarget];
+        if (!q || !q.alive || !others.includes(q) || (this.plan && this.plan.type === 'hunt' && this.plan.target !== q.id)) this.dkTarget = null;
+        else {
+          if (U.dist(p, q) <= g.killDist && g.tryKill(p, q)) {
+            this.dkTarget = null;
+            return;
+          }
+          if (!this.plan || this.plan.type !== 'hunt') this.planHunt(q);
+          return;
+        }
+      }
+      /* dois tripulantes juntos e o parceiro do lado: combina um double kill */
+      if (p.killCd <= 0 && others.length === 2 && !g.S.house.noDoubleKill && !(this.layLowUntil && t < this.layLowUntil) && !this.dk) {
+        const mate = g.players.find((q) => q.isImp && q !== p && q.alive && !q.inVent && q.killCd <= 0 && U.dist(p, q) < 5);
+        if (mate && this.noWitness(others[0], [others[0]]) && U.chance(L.lie * 0.12)) {
+          const [a, b] = others.slice().sort((x, y) => U.dist(p, x) - U.dist(p, y));
+          if (mate.brain) {
+            mate.brain.dkTarget = b.id;
+            mate.brain.emote('ok', 1);
+          } else if (mate.isHuman) {
+            /* parceiro é o jogador: faz o sinal e espera ele matar primeiro */
+            this.dk = { with: mate.id, until: t + 10 };
+            this.planWiggle('duplo?');
+            return;
+          }
+          this.dkTarget = a.id;
+          this.emote('!', 0.8);
+          return this.planHunt(a);
+        }
+      }
+      /* metamorfo: se disfarça antes, sozinho e sem ninguém ver, quando o abate está quase liberado */
+      if (p.special === 'metamorfo' && p.abilityCd <= 0 && p.shiftAs == null && p.killCd < 6 && !others.length && !(this.layLowUntil && t < this.layLowUntil) && !this.shaking && !this.tailed(others) &&
+          U.chance(0.06 + L.lie * 0.06) && this.unseen()) this.disguise(null, others);
+      /* jogada do disfarce: mata na frente de uma ou duas pessoas, com a cara de outro, e some */
+      if (p.shiftAs != null && p.killCd <= 0 && others.length >= 2) {
+        /* nunca mata quem está imitando (a testemunha veria "fulano matando fulano") */
+        const v = others.filter((q) => q.id !== p.shiftAs && U.dist(p, q) <= g.killDist && Nav.los(p.x, p.y, q.x, q.y)).sort((a, b) => U.dist(p, a) - U.dist(p, b))[0];
+        if (v && this.frameKill(v, others) && g.tryKill(p, v)) {
+          this.framedX = p.shiftAs;
+          return;
+        }
+        if (!v && this.frameRoll && others.length <= 3 && (!this.plan || this.plan.type !== 'hunt')) {
+          const near = others.filter((q) => q.id !== p.shiftAs).sort((a, b) => U.dist(p, a) - U.dist(p, b))[0];
+          if (near && U.dist(p, near) < 6 && this.frameKill(near, others)) return this.planHunt(near);
+        }
+      }
+      if (p.killCd <= 0 && !(p.invisUntil > t)) {
+        /* a dupla combinada na reunião (todo mundo ouviu): matar o próprio parceiro me entrega na hora; o esperto não mata */
+        const pactWith = (q) => q && (g.publicPacts || []).some((pc) => (pc.from === g.meetings || pc.scope === 'game') && ((pc.a === p.id && pc.b === q.id) || (pc.b === p.id && pc.a === q.id)));
+        let tgt = others.length === 1 ? others[0] : null;
+        if (tgt && p.shiftAs === tgt.id) tgt = null;
+        const myPact = pactWith(tgt);
+        if (myPact && L.lie >= 0.5) tgt = null;
+        /* só age depois de ver a vítima isolada por um tempo, e nem sempre na primeira chance */
+        if (tgt && tgt === this.isoTarget && this.noWitness(tgt, others)) this.isoT += 0.3;
+        else {
+          this.isoTarget = tgt;
+          this.isoT = 0;
+          this.eagerRoll = null;
+        }
+        const busy = HIGH_TRAFFIC.has(M.areaAt(tgt ? tgt.x : p.x, tgt ? tgt.y : p.y).id);
+        const lowKey = this.layLowUntil && t < this.layLowUntil;
+        const grudge = tgt && (tgt.id === this.grudge || (this.prey && t < this.prey.until && tgt.id === this.prey.id));
+        const nearVent = tgt && M.VENTS.some((v) => U.d2(v.x, v.y, tgt.x, tgt.y) < 4.5);
+        const threat = tgt && ((tgt.brain && (tgt.brain.pers.leader || tgt.brain.pers.times)) || this.mem.events.some((e) => e.type === 'visual' && e.who === tgt.id));
+        /* alguém acabou de me ver junto com essa pessoa: matar agora me deixa como "o último com a vítima" */
+        const pairSeen = tgt && L.lie >= 0.5 && this.seenWithRecently(tgt);
+        /* alguém (fora a vítima) me viu por aqui há pouco: o corpo vai aparecer "perto de onde viram o X" */
+        const hereSeen = tgt && L.lie >= 0.5 && this.seenHereRecently(tgt);
+        /* enxergando menos que a tripulação, não dá para observar a vítima sozinha por muito tempo: confia mais na
+           memória de quem viu por perto (noWitness) e espera menos */
+        const gapK = (this.blindGap() || { k: 0 }).k * (1 - (L.miss || 0));
+        const need = L.need * (1 - 0.7 * gapK) * (busy ? 1.8 : 1) * (lowKey ? 1.8 : 1) * (grudge ? 0.75 : 1) * (nearVent && L.useVents > 0.5 ? 0.92 : 1) * (threat ? 0.92 : 1) * (pairSeen ? 1.6 : 1) * (hereSeen ? 1.45 : 1) * (myPact ? 1.8 : 1);
+        if (tgt && this.eagerRoll == null && this.isoT >= need) {
+          const waited = t - this.readyT;
+          this.eagerRoll = U.chance(L.eager * U.clamp(0.7 + waited / 15, 0.7, 1) * (busy ? 0.7 : 1) * (lowKey && !grudge ? 0.55 : 1));
+          if (!this.eagerRoll) this.skipUntil = t + U.rf(1.5, 3.5);
+        }
+        if (this.skipUntil && t >= this.skipUntil) {
+          this.skipUntil = 0;
+          this.eagerRoll = null;
+          this.isoT = need * 0.5;
+        }
+        const committed = tgt && (this.eagerRoll || (this.plan && this.plan.type === 'hunt' && this.plan.target === tgt.id));
+        if (tgt && committed) {
+          const d = U.dist(p, tgt);
+          /* disfarce: só se transforma onde ninguém vê (nem a vítima) — atrás da parede, antes de chegar */
+          if (p.special === 'metamorfo' && p.abilityCd <= 0 && p.shiftAs == null && d < 14 && !this.shaking && !this.tailed(others) && U.chance(0.3 + L.lie * 0.4) && this.unseen()) this.disguise(tgt, others);
+          if (d <= g.killDist && this.safeToKill(tgt, others)) {
+            if (g.tryKill(p, tgt)) return;
+          } else if (d <= g.killDist * 1.4) {
+            /* colado na vítima sem poder matar (tem gente vendo): não fica grudado, se afasta e observa de longe */
+            this.unsafeT = (this.unsafeT || 0) + 0.3;
+            if (this.unsafeT > (this.unsafeLim || (this.unsafeLim = U.rf(1.5, 3)))) {
+              this.unsafeT = 0;
+              this.unsafeLim = 0;
+              this.eagerRoll = null;
+              this.isoT = 0;
+              this.skipUntil = t + U.rf(4, 8);
+              return this.planStalk(tgt);
+            }
+          }
+          if (!this.plan || this.plan.type !== 'hunt' || this.plan.target !== tgt.id) {
+            if (this.noWitness(tgt, others) || U.chance(L.riskTol)) this.planHunt(tgt);
+          }
+          return;
+        } else if (!tgt && this.plan && this.plan.type === 'hunt') {
+          /* perdeu a vítima de vista. Enxergando menos que a tripulação, ela some em um passo: segue por onde ela foi
+             por até 2 s (a caçada vai até o último ponto visto) em vez de desistir na hora */
+          const q = g.players[this.plan.target], seenQ = q && this.lastSeenAt[g.appearId(q)];
+          if (!(this.blindGap() && !others.length && seenQ && t - seenQ.t < 2)) this.plan = null;
+        }
+      }
+      if (g.sabCritical() && !this.plan && U.chance(0.35)) {
+        const st = U.pick(g.sabStationsNeeded());
+        if (st) {
+          const pos = M.SAB_STATIONS[st];
+          const spot = this.standNear(pos.x, pos.y, 1.2);
+          this.setPlan({ type: 'loiter', x: spot.x, y: spot.y, onArrive: (pl) => (pl.until = g.t + U.rf(3, 6)) });
+          return;
+        }
+      }
+      /* abate pronto, tarefa falsa longe de todo mundo há um tempo: larga a encenação e vai caçar */
+      if (others.length) this.lastCrewT = t;
+      if (this.plan && (this.plan.type === 'fake' || this.plan.type === 'wander') && p.killCd <= 0 && t - (this.lastCrewT || 0) > 5 &&
+          !(this.layLowUntil && t < this.layLowUntil) && !this.aiOrder && t - (this.prowlAt || 0) > 8 && U.chance(0.12 + L.stalk * 0.15)) {
+        this.prowlAt = t;
+        if (this.planProwl()) return;
+      }
+      if (!this.plan) this.chooseImpActivity(others);
+    }
+    /* Fim do disfarce / da invisibilidade: volta ao normal longe dos olhos. O metamorfo desfaz sozinho quando
+       ninguém vê (depois do abate, ou quando não vai caçar tão cedo); se o tempo está acabando com alguém olhando,
+       sai de perto antes que a transformação aconteça na frente dos outros. */
+    abilityEnd() {
+      const g = this.g, p = this.p, t = g.t;
+      if (p.special === 'metamorfo' && p.shiftAs != null) {
+        const left = p.shiftUntil - t;
+        const hunting = this.plan && this.plan.type === 'hunt' && p.killCd <= 2 && left > 4;
+        /* desfaz depois do abate, ou quando a caçada ficou para depois (recarga longe e já faz um tempo). Nunca logo
+           depois de se transformar: quem se disfarça antes, com o abate quase liberado, espera o abate; senão, quem
+           visse a fumaça duas vezes veria o metamorfo "virar ele mesmo" */
+        const t0 = p.shiftT0 != null ? p.shiftT0 : -99;
+        const since = t - t0;
+        const killedSince = !!(this.escape && this.escape.t0 >= t0) && since >= 3;
+        const later = p.killCd > 8 && since > 6;
+        /* a pessoa que imito morreu: andar com a cara de um morto entrega o disfarce */
+        const Xdead = g.players[p.shiftAs] && !g.players[p.shiftAs].alive;
+        /* despistar só conta se começou com o disfarce já feito, e não quando vou calar quem me segue */
+        const shake = !!(this.shaking && this.shaking.t0 >= t0 && since > 2 && !(this.plan && this.plan.shake && this.plan.type === 'hunt'));
+        if ((!hunting || shake || Xdead) && (killedSince || later || left < 8 || shake || Xdead) && this.unseen()) {
+          g.unshift(p);
+          return false;
+        }
+        if (left < 7 && !this.unseen()) return this.slipAway();
+      }
+      if (p.special === 'fantasma' && p.invisUntil > t) {
+        const left = p.invisUntil - t;
+        /* reaparece quando está seguro (ninguém olhando); se o tempo está acabando perto de alguém, se afasta antes */
+        if (left < 6 && this.unseen()) {
+          g.reappear(p);
+          return false;
+        }
+        if (left < 6) return this.slipAway();
+      }
+      return false;
+    }
+    /* Alguém na minha cola (ou, disfarçado, a própria pessoa que eu imito me viu — ela sabe que é falso). Como gente:
+       1) se estamos a sós e o abate está pronto, cala quem sabe; 2) fecha as portas da sala onde ele ficou;
+       3) fora da vista dele, some pelo duto; 4) sai de vista (e o disfarce é desfeito onde ninguém vê — abilityEnd);
+       sem disfarce, vai fingir tarefa onde tem gente. O iniciante às vezes nem percebe. */
+    shakeTail(others) {
+      const g = this.g, p = this.p, t = g.t, L = this.lvl;
+      if (g.phase !== 'play' || p.inVent) return false;
+      /* só o disfarçado (ou quem já estava despistando depois de desfazer o disfarce): sem disfarce, alguém andando
+         atrás é quase sempre só alguém indo para o mesmo lado, e o impostor já não mata na frente de ninguém */
+      if (p.shiftAs == null && !(this.shaking && this.plan && this.plan.shake)) {
+        this.shaking = null;
+        return false;
+      }
+      let tail = null, ts = 0;
+      for (const q of g.players) {
+        if (!q.alive || q.isImp || q === p || !this.tailNow(q, others)) continue;
+        let sc = this.tailWatch[q.id] || 0;
+        /* a pessoa que eu imito me vendo: exposto na hora */
+        if (p.shiftAs === q.id && others.includes(q)) sc += 3;
+        if (sc > ts) {
+          ts = sc;
+          tail = q;
+        }
+      }
+      const need = p.shiftAs != null ? 1.4 : 3.2;
+      const sh = this.shaking;
+      /* já decidi calar essa pessoa: sigo com ela até o fim da caçada (quem eu caço não "me segue" mais) */
+      if (sh && this.plan && this.plan.shake && this.plan.type === 'hunt') {
+        const q = g.players[sh.who];
+        if (q && q.alive) {
+          tail = q;
+          ts = Math.max(ts, need);
+        }
+      }
+      if (!tail || ts < need) {
+        if (sh && t - sh.t > 6) this.shaking = null;
+        return !!(sh && this.plan && this.plan.shake);
+      }
+      if (!sh || sh.who !== tail.id) {
+        this.shaking = { who: tail.id, t0: t, t, notice: !(L.miss >= 0.3 && U.chance(0.5)) };
+      }
+      const S = this.shaking;
+      S.t = t;
+      if (!S.notice) return false;
+      const d = U.dist(p, tail), seesMe = others.includes(tail);
+      const knows = p.shiftAs === tail.id || t - S.t0 > 10;
+      /* 1) a sós com quem sabe: cala */
+      const camsOnMe = g.anyoneOnCams() && M.CAMS.some((c) => U.d2(c.x, c.y, p.x, p.y) <= M.CAM_R && Nav.los(c.x, c.y, p.x, p.y));
+      if (knows && p.killCd <= 0 && seesMe && others.length === 1 && !camsOnMe && !(p.invisUntil > t) && this.noWitness(tail, others) &&
+          !(g.S.house.noDoubleKill && g.partnerKilledRecently(p))) {
+        if (d <= g.killDist && g.tryKill(p, tail)) {
+          this.shaking = null;
+          return true;
+        }
+        if (!this.plan || this.plan.type !== 'hunt' || this.plan.target !== tail.id) {
+          this.planHunt(tail);
+          this.plan.shake = true;
+        }
+        return true;
+      }
+      if (this.plan && this.plan.shake && this.plan.type !== 'hunt') return true;
+      /* 2) ele ficou numa sala com portas e eu já saí: fecho (dez segundos de vantagem) */
+      const tr = M.areaAt(tail.x, tail.y).id, mr = M.areaAt(p.x, p.y).id;
+      if (M.DOOR_ROOMS.includes(tr) && tr !== mr && d < 9 && g.doorReady(tr) && U.chance(0.35 + (L.sabotage || 0) * 0.5) && g.closeDoors(tr, p)) {
+        this.emote('!', 0.6);
+      }
+      /* 3) fora da vista dele, com duto perto: some */
+      if (!seesMe && (L.useVents || 0) >= 0.5) {
+        const v = M.VENTS.find((vv) => U.d2(vv.x, vv.y, p.x, p.y) < 6);
+        if (v) {
+          this.ventAway(v);
+          return true;
+        }
+      }
+      /* 4) sai de vista; sem disfarce, vai fingir tarefa onde tem gente (lá ninguém mata ninguém) */
+      if (p.shiftAs != null || (L.lie || 0) < 0.5) {
+        if (this.slipAway()) {
+          this.plan.shake = true;
+          return true;
+        }
+      }
+      const busy = M.ROOMS.filter((r) => HIGH_TRAFFIC.has(r.id) && U.d2(r.cx, r.cy, p.x, p.y) < 30);
+      if (busy.length) {
+        this.planFakeTask(U.pick(busy).id);
+        if (this.plan) this.plan.shake = true;
+        return true;
+      }
+      return false;
+    }
+    /* a marcação de "na minha cola" só baixa enquanto vejo a pessoa: quem sumiu de vista há um tempo não me segue mais */
+    tailNow(q, others) {
+      const ls = this.lastSeenAt[q.id];
+      return others.includes(q) || !!(ls && this.g.t - ls.t < 4);
+    }
+    tailed(others) {
+      return this.g.players.some((q) => q.alive && !q.isImp && q !== this.p && (this.tailWatch[q.id] || 0) >= 1.4 && this.tailNow(q, others));
+    }
+    /* sai de vista: vai para um canto sem ninguém por perto */
+    slipAway() {
+      const g = this.g, p = this.p;
+      if (this.plan && this.plan.type === 'leave' && this.plan.slip && g.t < this.plan.slip) return true;
+      /* só sabe onde está quem viu há pouco (não enxerga o mapa inteiro) */
+      const crew = g.players.filter((q) => q.alive && !q.isImp && this.lastSeenAt[g.appearId(q)] && g.t - this.lastSeenAt[g.appearId(q)].t < 10).map((q) => this.lastSeenAt[g.appearId(q)]);
+      const cands = M.ROOMS.filter((r) => {
+        const d = U.d2(r.cx, r.cy, p.x, p.y);
+        return d > 6 && d < 30 && !crew.some((q) => U.d2(q.x, q.y, r.cx, r.cy) < 9);
+      });
+      if (!cands.length) return false;
+      cands.sort((a, b) => U.d2(a.cx, a.cy, p.x, p.y) - U.d2(b.cx, b.cy, p.x, p.y));
+      const pos = M.randomPointIn(U.pick(cands.slice(0, 2)).id);
+      this.setPlan({ type: 'leave', x: pos.x, y: pos.y, slip: g.t + 4, onArrive: (pl) => (pl.until = g.t + 0.5) });
+      return true;
+    }
+    seenHereRecently(tgt) {
+      const g = this.g, p = this.p, t = g.t;
+      for (const id of Object.keys(this.lastSeenAt)) {
+        const s = this.lastSeenAt[id], q = g.players[+id];
+        if (!q || q.isImp || !q.alive || q === tgt || t - s.t > 18) continue;
+        if (U.d2(s.x, s.y, p.x, p.y) < 11) return true;
+      }
+      return false;
+    }
+    seenWithRecently(tgt) {
+      const g = this.g, t = g.t;
+      const seen = this.mem.seen;
+      const tS = [];
+      for (let i = seen.length - 1; i >= 0 && seen[i].t1 >= t - 25; i--) if (seen[i].who === tgt.id && seen[i].via === 'eyes') tS.push(seen[i]);
+      if (!tS.length) return false;
+      for (let i = seen.length - 1; i >= 0 && seen[i].t1 >= t - 25; i--) {
+        const s = seen[i], q = g.players[s.who];
+        if (s.who === tgt.id || s.via !== 'eyes' || !q || q.isImp || !q.alive || s.t1 < t - 20) continue;
+        if (tS.some((x) => x.t0 <= s.t1 && s.t0 <= x.t1 && (x.area === s.area || M.isNear(x.area, s.area)))) return true;
+      }
+      return false;
+    }
+    /* Em quem se transformar: em alguém que não está por perto (senão aparecem dois iguais), de preferência quem a
+       turma já desconfia ou quem vi longe e sozinho; evita quem todo mundo sabe que é inocente (fez visual). */
+    disguise(tgt, others) {
+      const g = this.g, p = this.p;
+      const nearMe = (q) => {
+        const ls = this.lastSeenAt[q.id];
+        return this.seenNow.includes(q) || (ls && g.t - ls.t < 8 && U.d2(ls.x, ls.y, p.x, p.y) < 12);
+      };
+      /* nem em quem outro metamorfo já está imitando (seriam dois iguais andando por aí) */
+      const taken = (q) => g.players.some((o) => o !== p && o.shiftAs === q.id);
+      const cands = g.players.filter((q) => q.alive && q !== p && q !== tgt && !q.isImp && !others.includes(q) && !nearMe(q) && !taken(q));
+      if (!cands.length) return false;
+      const score = (q) => {
+        let s = Math.random() * 2;
+        if (q.id === this.scapegoat) s += 3;
+        const ls = this.lastSeenAt[q.id];
+        if (ls && U.d2(ls.x, ls.y, p.x, p.y) > 18) s += 1.5;
+        if (this.mem.events.some((e) => e.type === 'visual' && e.who === q.id)) s -= 3;
+        if (q.isHuman) s += 0.5;
+        return s;
+      };
+      const X = cands.sort((a, b) => score(b) - score(a))[0];
+      if (!g.shapeshift(p, X.id)) return false;
+      this.frameRoll = null;
+      return true;
+    }
+    /* Abate "na frente" disfarçado: vale a pena com uma ou duas testemunhas, se o disfarçado de verdade está longe
+       (ninguém vê dois iguais) e há por onde sumir (duto perto, ou ninguém colado). */
+    frameKill(v, others) {
+      const g = this.g, p = this.p, L = this.lvl;
+      if (p.shiftAs == null || L.lie < 0.55 || (this.layLowUntil && g.t < this.layLowUntil)) return false;
+      const X = g.players[p.shiftAs];
+      if (!X || !X.alive || others.includes(X) || U.dist(p, X) < 14) return false;
+      const wit = others.filter((q) => q !== v);
+      if (wit.length < 1 || wit.length > 2) return false;
+      const vent = L.useVents >= 0.5 && M.VENTS.some((vv) => U.d2(vv.x, vv.y, p.x, p.y) < 6);
+      if (!vent && wit.some((q) => U.dist(p, q) < 2.5)) return false;
+      if (p.shiftUntil - g.t < 6) return false;
+      if (this.frameRoll == null) this.frameRoll = U.chance(0.3 + L.lie * 0.45);
+      return this.frameRoll;
+    }
+    /* ninguém da tripulação consegue me ver agora (nem o alvo, nem pelas câmeras). Visão é de mão dupla: quem me
+       enxerga está no meu campo de visão, então o impostor atento sabe disso. O desatento (iniciante) às vezes erra. */
+    unseen() {
+      const g = this.g, p = this.p, L = this.lvl;
+      const seers = g.witnesses([p], [p.id]).filter((w) => !w.p.isImp);
+      if (!seers.length) return true;
+      if (L.miss >= 0.3 && seers.every((w) => w.via === 'eyes' && U.dist(p, w.p) > 5) && U.chance(L.miss * 0.5)) return true;
+      return false;
+    }
+    /* Quanto a tripulação enxerga a mais que eu (0 = eu vejo tanto quanto ela). Com visão igual ou maior, quem me vê
+       está no meu campo de visão; com visão menor (impostor com 0,25x, tripulação com 2x), alguém pode me ver de onde
+       eu não enxergo, e o impostor atento sabe disso. */
+    blindGap() {
+      const g = this.g, R = g.S.rules, B = g.consts.BASE_VISION;
+      const crew = B * R.crewVision * (0.25 + 0.75 * g.lightLevel), mine = g.visionOf(this.p);
+      return crew > mine ? { crew, mine, k: 1 - mine / crew } : null;
+    }
+    noWitness(tgt, others) {
+      const g = this.g, p = this.p, L = this.lvl;
+      if (others.length > 1) return false;
+      /* enxergando menos que a tripulação: lembra por mais tempo e de mais longe onde viu gente */
+      const gap = this.blindGap(), aware = 1 - (L.miss || 0);
+      const win = 1.6 + (gap ? 3.5 * gap.k * aware : 0), far = Math.max(10, gap ? gap.crew + 2 : 0);
+      for (const id of Object.keys(this.lastSeenAt)) {
+        const s = this.lastSeenAt[id];
+        const q = g.players[+id];
+        if (!q || q.isImp || q === tgt || !q.alive) continue;
+        if (g.t - s.t < win && U.d2(s.x, s.y, p.x, p.y) < far && !others.some((o) => g.appearId(o) === +id)) return false;
+      }
+      /* e evita matar em lugar de passagem sem enxergar em volta */
+      if (gap && gap.k > 0.25 && HIGH_TRAFFIC.has(M.areaAt(p.x, p.y).id) && U.chance(gap.k * aware)) return false;
+      return true;
+    }
+    safeToKill(tgt, others) {
+      const g = this.g, p = this.p, L = this.lvl;
+      if (others.length > 1) return U.chance(L.riskTol * 0.25);
+      if (!this.noWitness(tgt, others) && !U.chance(L.riskTol)) return false;
+      if (L.camsAware && g.anyoneOnCams() && M.CAMS.some((c) => U.d2(c.x, c.y, p.x, p.y) <= M.CAM_R && Nav.los(c.x, c.y, p.x, p.y))) return false;
+      if (g.S.house.noDoubleKill && g.partnerKilledRecently(p)) return false;
+      return true;
+    }
+    /* dentro do duto: um ou dois saltos para longe da entrada */
+    ventHops(vent) {
+      const opts = [];
+      vent.links.forEach((l) => {
+        opts.push([l]);
+        M.VENT[l].links.forEach((l2) => {
+          if (l2 !== vent.id) opts.push([l, l2]);
+        });
+      });
+      return { steps: U.pick(opts).slice(), nextT: this.g.t + U.rf(0.5, 1) };
+    }
+    /* despistar pelo duto: só entra se ninguém vê (ou, disfarçado, só quem eu imito — ele já sabe) */
+    ventAway(vent) {
+      const g = this.g, p = this.p;
+      this.setPlan({
+        type: 'toVent', x: vent.x, y: vent.y, shake: true,
+        onArrive: (pl) => {
+          pl.until = g.t;
+          const vis = this.crewVisible();
+          const ok = !vis.length || (p.shiftAs != null && vis.every((q) => q.id === p.shiftAs));
+          if (ok && g.enterVent(p, vent)) this.ventPlan = this.ventHops(vent);
+        },
+      });
+    }
+    planEscape() {
+      const g = this.g, p = this.p, L = this.lvl;
+      const e = this.escape;
+      const clear = this.crewVisible().length === 0;
+      let vent = null, vd = 7;
+      for (const v of M.VENTS) {
+        const d = U.d2(p.x, p.y, v.x, v.y);
+        if (d < vd) {
+          vd = d;
+          vent = v;
+        }
+      }
+      const disguised = p.shiftAs != null;
+      if (vent && (clear || disguised) && U.chance(disguised ? Math.max(0.7, L.useVents) : L.useVents)) {
+        this.setPlan({
+          type: 'toVent', x: vent.x, y: vent.y,
+          onArrive: (pl) => {
+            pl.until = g.t;
+            const vis = this.crewVisible().length;
+            if (vis === 0 || p.shiftAs != null || U.chance(L.riskTol)) {
+              if (g.enterVent(p, vent)) this.ventPlan = this.ventHops(vent);
+            }
+          },
+        });
+        return;
+      }
+      if (p.special === 'fantasma' && p.abilityCd <= 0 && (this.unseen() || U.chance(this.lvl.riskTol * 0.5)) && U.chance(0.7)) g.vanish(p);
+      const far = M.ROOMS.filter((r) => r.id !== e.area && U.d2(r.cx, r.cy, p.x, p.y) > 14 && U.d2(r.cx, r.cy, p.x, p.y) < 45);
+      const room = far.length ? U.pick(far) : U.pick(M.ROOMS);
+      if (U.chance(0.6)) this.planFakeTask(room.id);
+      else this.planWander(room.id, U.rf(2, 5));
+    }
+    ventThink() {
+      const g = this.g, p = this.p, t = g.t;
+      const vp = this.ventPlan || (this.ventPlan = { steps: [], nextT: t + 1 });
+      if (t < vp.nextT) return;
+      if (vp.steps.length) {
+        g.ventTo(p, vp.steps.shift());
+        vp.nextT = t + U.rf(0.6, 1.1);
+        return;
+      }
+      const r = g.visionOf(p);
+      const vis = g.players.filter((q) => q.alive && !q.isImp && !q.inVent && U.d2(q.x, q.y, p.x, p.y) <= r && Nav.los(p.x, p.y, q.x, q.y));
+      if (vis.length === 0 || t - p.ventT > 12) {
+        g.exitVent(p);
+        this.ventPlan = null;
+        const a = M.areaAt(p.x, p.y);
+        if (U.chance(0.7)) this.planFakeTask(M.roomOf(a, p.x, p.y).id);
+        else this.planWander(M.roomOf(a, p.x, p.y).id, U.rf(1, 3));
+      } else {
+        const cur = M.VENT[p.inVent];
+        if (U.chance(0.5)) vp.steps.push(U.pick(cur.links));
+        vp.nextT = t + U.rf(0.7, 1.3);
+      }
+    }
+    maybeSabotage(others) {
+      const c = this.chooseSabotage(others, false);
+      if (!c) return;
+      this.lastSab = c;
+      if (c.type === 'doors') return this.g.closeDoors(c.room, this.p);
+      return this.g.sabotage(c.type, this.p);
+    }
+    /* Jeito próprio de sabotar: cada impostor tem as suas preferências (um gosta de apagar as luzes, outro de
+       travar a nave com reator/O2, outro de fechar portas), além do que o nível e a personalidade pedem. */
+    sabStyle() {
+      if (!this._sabStyle) {
+        const pers = this.pers;
+        this._sabStyle = {
+          lights: U.rf(0.6, 1.4), comms: U.rf(0.6, 1.4), doors: U.rf(0.6, 1.4),
+          crit: U.rf(0.6, 1.4) * (pers.chaos ? 1.3 : 1) * (pers.leader ? 1.1 : 1),
+        };
+      }
+      return this._sabStyle;
+    }
+    /* Decide a sabotagem pelo que ESTE impostor sabe agora (quem ele viu e onde, o próprio abate, as câmeras),
+       não por sorteio: apagar as luzes quando alguém está sozinho perto de um impostor pronto; fechar a porta com a
+       vítima dentro; reator/O2 para separar um grupo ou puxar todo mundo para longe do corpo; comunicações quando
+       tem gente nas câmeras ou no Admin; travar a tripulação quando as tarefas estão quase no fim. */
+    chooseSabotage(others, ghost) {
+      const g = this.g, p = this.p, L = this.lvl, t = g.t;
+      if (!g.canSabotage(p)) return null;
+      const st = this.sabStyle();
+      const smart = 0.4 + L.lie * 0.6;
+      const opts = [];
+      const add = (type, sc, why, room) => {
+        if (sc <= 0) return;
+        const w = type === 'doors' ? st.doors : type === 'reactor' || type === 'o2' ? st.crit : st[type];
+        opts.push({ type, s: sc * w, why, room });
+      };
+      const crit = g.critAllowed();
+      const imps = g.players.filter((q) => q.isImp && q.alive);
+      const crew = g.players.filter((q) => q.alive && !q.isImp && this.lastSeenAt[q.id] && t - this.lastSeenAt[q.id].t < 6).map((q) => ({ q, s: this.lastSeenAt[q.id] }));
+      const far = (type, x, y) => {
+        const ks = type === 'reactor' ? ['reactorA', 'reactorB'] : ['o2A', 'o2B'];
+        return ks.reduce((a, k) => a + Math.sqrt(U.d2(M.SAB_STATIONS[k].x, M.SAB_STATIONS[k].y, x, y)), 0) / ks.length;
+      };
+      const bestCrit = (x, y) => (far('reactor', x, y) >= far('o2', x, y) ? 'reactor' : 'o2');
+      /* 1. alguém sozinho perto de um impostor com o abate pronto (eu, ou o parceiro se eu já morri) */
+      for (const c of crew) {
+        const others2 = crew.filter((o) => o !== c && U.d2(o.s.x, o.s.y, c.s.x, c.s.y) < 49);
+        if (others2.length) continue;
+        const killer = imps.find((q) => q.killCd < 4 && U.d2(q.x, q.y, c.s.x, c.s.y) < 64);
+        if (!killer) continue;
+        const nearby = crew.some((o) => o !== c && U.d2(o.s.x, o.s.y, c.s.x, c.s.y) < 196);
+        add('lights', (nearby ? 0.7 : 0.35) * (L.sabKill ? 1.3 : 1) * smart, 'isolar ' + c.q.name);
+        const room = M.roomOf(M.areaAt(c.s.x, c.s.y), c.s.x, c.s.y);
+        const kRoom = M.roomOf(M.areaAt(killer.x, killer.y), killer.x, killer.y);
+        if (room && kRoom && room.id === kRoom.id && M.DOOR_ROOMS.includes(room.id) && g.doorReady(room.id)) add('doors', 0.75 * smart, 'trancar ' + c.q.name, room.id);
+      }
+      /* 2. meu abate recente e o corpo ainda não foi achado: puxa todo mundo para o lado oposto da nave */
+      const myBody = g.bodies.find((b) => b.killer === p.id && !b.reported && !b.gone && t - b.t < 12);
+      if (myBody && crit) add(bestCrit(myBody.x, myBody.y), 0.8 * smart * (L.camsAware ? 1.15 : 1), 'longe do corpo');
+      /* 3. grupo grande junto: reator/O2 obriga a se separar em dois painéis longe dali */
+      if (crit && crew.length >= 4 && imps.some((q) => q.killCd < 8)) {
+        const cx = crew.reduce((a, c) => a + c.s.x, 0) / crew.length, cy = crew.reduce((a, c) => a + c.s.y, 0) / crew.length;
+        const tight = crew.filter((c) => U.d2(c.s.x, c.s.y, cx, cy) < 64).length;
+        if (tight >= 4) add(bestCrit(cx, cy), 0.55 * smart, 'separar o grupo');
+      }
+      /* 4. gente nas câmeras ou no Admin vendo onde cada um está */
+      /* só sabe que tem gente nas câmeras vendo a luz da câmera piscar perto de si, ou se viu alguém na Segurança;
+         no Admin, se viu alguém lá há pouco */
+      const underCam = M.CAMS.some((c) => U.d2(c.x, c.y, p.x, p.y) < M.CAM_R * M.CAM_R * 2.2);
+      const sawIn = (area) => Object.keys(this.lastSeenAt).some((id) => this.lastSeenAt[id].area === area && g.t - this.lastSeenAt[id].t < 20);
+      const onCams = g.anyoneOnCams() && (underCam || sawIn('security'));
+      const onAdmin = !g.commsDown() && g.players.some((q) => q.alive && q.onAdmin) && sawIn('admin');
+      if (onCams || onAdmin) {
+        add('comms', ((onCams ? 0.45 : 0.3) + (underCam || p.killCd < 4 ? 0.3 : 0)) * (L.camsAware ? 1.3 : 0.8), onCams ? 'câmeras' : 'admin');
+      }
+      /* 5. tarefas quase no fim (com a barra visível): trava todo mundo */
+      if (g.S.rules.taskBar === 'sempre' && !g.commsDown()) {
+        const tp = g.taskProgress();
+        const f = tp.total ? tp.done / tp.total : 0;
+        /* uma vez por rodada: sabotar sem parar só entrega que tem impostor desesperado */
+        if (f >= 0.7 && this.stallRound !== g.roundStart) {
+          /* o painel longe de onde a tripulação está (pelo que ele viu) faz todo mundo largar as tarefas e atravessar a nave */
+          const cx = crew.length ? crew.reduce((a, c) => a + c.s.x, 0) / crew.length : p.x, cy = crew.length ? crew.reduce((a, c) => a + c.s.y, 0) / crew.length : p.y;
+          if (crit) add(bestCrit(cx, cy), (0.25 + (f - 0.7) * 1.5) * smart, 'tarefas no fim');
+          add('lights', 0.2 * smart, 'atrasar tarefas');
+        }
+      }
+      /* 6. reta final: mais um abate ganha; pressão com sabotagem crítica */
+      const aliveN = g.players.filter((q) => q.alive).length;
+      if (crit && aliveN - imps.length <= imps.length + 2) add(bestCrit(p.x, p.y), 0.25 * smart, 'reta final');
+      /* 7. sem motivo claro: o iniciante (e o caótico) às vezes apaga as luzes à toa */
+      add('lights', 0.06 * (1.4 - smart) + (this.pers.chaos ? 0.06 : 0), 'confusão');
+      if (!opts.length) return null;
+      opts.sort((a, b) => b.s - a.s);
+      const best = opts[0];
+      if (best.type === 'doors' && !best.room) return null;
+      /* sabotagem tem hora: quem sabota toda chance que aparece fica previsível (e a nave inteira sabe que tem impostor ativo) */
+      if (!U.chance(Math.min(0.9, best.s * (0.15 + L.sabotage * 0.45)))) return null;
+      if (/^(tarefas|atrasar)/.test(best.why)) this.stallRound = g.roundStart;
+      return best;
+    }
+    chooseImpActivity(others) {
+      const g = this.g, L = this.lvl, p = this.p;
+      const r = Math.random();
+      /* abate liberado e ninguém à vista: vai caçar (onde viu alguém sozinho há pouco, ou de tocaia numa sala afastada) */
+      if (p.killCd <= 1.5 && !others.length && !(this.layLowUntil && g.t < this.layLowUntil) && !this.aiOrder && U.chance(0.45 + L.stalk * 0.45)) {
+        if (this.planProwl()) return;
+      }
+      if (this.aiOrder) {
+        const res = this.runOrder();
+        if (res !== false && (this.plan || this.p.inVent)) return;
+      }
+      /* combinou dupla na reunião: cumpre (é álibi) — mas com o abate pronto e os dois a sós, a dupla vira a chance */
+      const pa = this.pact;
+      if (pa && g.players[pa.who] && g.players[pa.who].alive) {
+        const q = g.players[pa.who];
+        const s = this.lastSeenAt[g.appearId(q)];
+        if (pa.lead === 'them' && s && g.t - s.t < 4 && U.chance(0.6 + L.lie * 0.3)) return this.planFollow(q, U.rf(15, 25), U.rf(2, 2.8), 'pact');
+      } else if (pa) this.pact = null;
+      /* começo da rodada: anda com alguém para ter álibi, depois se separa para caçar */
+      if (!this.groupedRound && g.t - g.roundStart < 25) {
+        this.groupedRound = true;
+        const crowd = this.seenNow.filter((q) => !q.isImp && q.alive);
+        if (crowd.length && U.chance(0.35 + L.lie * 0.4)) return this.planFollow(U.pick(crowd), U.rf(8, 14), 2.6);
+      }
+      /* acusado na reunião: fica perto do grupo, fazendo "tarefa" à vista */
+      if (this.layLowUntil && g.t < this.layLowUntil && r < 0.55) {
+        const crowd = this.seenNow.filter((q) => !q.isImp);
+        if (crowd.length) return this.planFollow(U.pick(crowd), U.rf(8, 14), 3);
+        return this.planFakeTask();
+      }
+      if (this.grudge != null && r < 0.3) {
+        const q = others.find((o) => o.id === this.grudge);
+        if (q) return this.planStalk(q);
+      }
+      /* isca: chama um tripulante sozinho para "vir junto" e leva para um canto vazio */
+      if (others.length === 1 && !this.invitedRound && !(this.layLowUntil && g.t < this.layLowUntil) && U.chance(0.05 + L.lie * 0.08)) {
+        const q = others[0];
+        this.invitedRound = true;
+        this.invite = { who: q.id, until: g.t + 25, lure: true };
+        const quiet = M.ROOMS.filter((rm) => !['cafeteria', 'admin', 'storage'].includes(rm.id));
+        return this.planWiggle('vem!', () => this.planFakeTask(U.pick(quiet).id), q, 'lure');
+      }
+      if (r < L.stalk * 0.45) {
+        const cands = others.length ? others : [];
+        if (cands.length) return this.planStalk(U.pick(cands));
+      }
+      if (r < 0.7) return this.planFakeTask();
+      if (r < 0.82) {
+        const crowd = this.seenNow.filter((q) => !q.isImp);
+        if (crowd.length >= 2) return this.planFollow(U.pick(crowd), U.rf(8, 15), 3);
+      }
+      this.planWander(U.chance(0.25) ? 'cafeteria' : U.pick(M.ROOMS).id);
+    }
+
+    /* Caça com o abate liberado: vai até onde viu alguém sozinho há pouco (sala afastada vale mais; gente em grupo,
+       menos) andando como quem vai fazer tarefa; sem pista, fica de tocaia numa sala isolada fingindo tarefa. */
+    planProwl() {
+      const g = this.g, p = this.p, t = g.t;
+      const seen = (id) => this.lastSeenAt[id];
+      let best = null, bs = 0;
+      for (const q of g.players) {
+        if (!q.alive || q.isImp || q === p) continue;
+        const s = seen(q.id);
+        if (!s || t - s.t > 30) continue;
+        const crowd = g.players.filter((o) => o !== q && o.alive && !o.isImp && seen(o.id) && Math.abs(seen(o.id).t - s.t) < 4 && U.d2(seen(o.id).x, seen(o.id).y, s.x, s.y) < 7).length;
+        const remote = !HIGH_TRAFFIC.has(s.area);
+        const sc = 30 - (t - s.t) - U.d2(p.x, p.y, s.x, s.y) * 0.35 + (remote ? 8 : 0) - crowd * 14 + (q.id === this.grudge ? 10 : 0);
+        if (sc > bs) {
+          bs = sc;
+          best = { q, s };
+        }
+      }
+      if (best) {
+        const a = M.AREA[best.s.area];
+        const room = a ? M.roomOf(a, best.s.x, best.s.y) : null;
+        const here = M.roomOf(M.areaAt(p.x, p.y), p.x, p.y);
+        /* já está na sala: se instala numa tarefa falsa ali (esperando parado, como quem faz tarefa), sem ficar
+           andando de um canto a outro */
+        if (room && room.kind === 'room' && here.id === room.id) {
+          this.planFakeTask(room.id);
+          return true;
+        }
+        const pos = room && room.kind === 'room' ? M.randomPointIn(room.id) : { x: best.s.x, y: best.s.y };
+        this.setPlan({
+          type: 'prowl', target: best.q.id, x: pos.x, y: pos.y,
+          onArrive: (pl) => (pl.until = g.t + U.rf(0.4, 1)),
+          onDone: () => {
+            if (!this.plan && room && room.kind === 'room') this.planFakeTask(room.id);
+          },
+        });
+        return true;
+      }
+      const lurk = ['electrical', 'medbay', 'navigation', 'shields', 'o2', 'reactor', 'security', 'lowerEngine', 'upperEngine', 'comms', 'weapons']
+        .filter((id) => U.d2(M.AREA[id].cx, M.AREA[id].cy, p.x, p.y) < 40);
+      if (!lurk.length) return false;
+      this.planFakeTask(U.pick(lurk));
+      return true;
+    }
+
+    /* ---------- funções especiais ---------- */
+    thinkRoles() {
+      const g = this.g, p = this.p, t = g.t;
+      if (p.special === 'cientista') {
+        this.vitalsT -= 0.3;
+        if (this.vitalsT <= 0 && p.battery >= 2) {
+          this.vitalsT = U.rf(18, 30);
+          p.battery -= 2;
+          for (const q of g.players) {
+            if (!q.alive && !q.ejected && !this.mem.vitals[q.id]) {
+              this.mem.vitals[q.id] = { from: this.lastVitals, to: t };
+              /* cientista viu alguém morrer nos sinais vitais e ninguém reportou: chama reunião para avisar */
+              if (!p.isImp && g.bodies.some((b) => b.pid === q.id && !b.reported && !b.gone) && p.emergencyLeft > 0 && !this.wantButton && U.chance(0.55)) this.wantButton = { reason: 'vitals', victim: q.id };
+            }
+          }
+          this.lastVitals = t;
+        }
+      }
+      /* rastreador: guarda o rastreio para quem vale a pena — suspeito, ou alguém que está se separando sozinho;
+         não gasta em quem já provou ser tripulante. Se ninguém vale, depois de um tempo rastreia quem estiver perto
+         (melhor ter alguém rastreado na hora de um abate do que nada) */
+      if (p.special === 'rastreador' && p.abilityCd <= 0 && !p.isImp) {
+        this.trkReady = this.trkReady || t;
+        const cand = this.seenNow.filter((q) => q.alive && U.dist(p, q) < 3.4 && Nav.los(p.x, p.y, q.x, q.y) && !this.hardCleared(g.appearId(q)));
+        const score = (q) => this.liveSusp(g.appearId(q)) + (q.moving && this.seenNow.length <= 2 ? 8 : 0) + (q.isHuman ? 0 : U.rf(0, 4));
+        cand.sort((a, b) => score(b) - score(a));
+        const best = cand[0];
+        if (best && (score(best) >= 10 || t - this.trkReady > 20)) {
+          if (g.track(p, best.id)) this.trkReady = 0;
+        }
+      }
+      /* engenheiro usa o duto como atalho de verdade: indo para uma tarefa (ou conserto) longe, entra no duto ao
+         lado e sai no que fica perto do destino; também foge de perigo por ele. Evita ser visto (se alguém viu,
+         avisa na reunião que é engenheiro) */
+      /* planeja o atalho: um duto a poucos passos que leva para perto de onde vou */
+      if (p.special === 'engenheiro' && !p.inVent && p.abilityCd <= 0 && !p.isImp && !this.engHop && this.plan && !this.plan.dyn && this.plan.stage === 'go' && this.dest && this.seenNow.length <= 2) {
+        const dest = this.dest, walk = U.d2(p.x, p.y, dest.x, dest.y);
+        let best = null, bs = 6;
+        if (walk > 12) for (const V of M.VENTS) {
+          const dv = U.d2(p.x, p.y, V.x, V.y);
+          if (dv > 9) continue;
+          for (const id of V.links) {
+            const L = M.VENT[id];
+            const save = walk - (dv + U.d2(L.x, L.y, dest.x, dest.y));
+            if (save > bs) {
+              bs = save;
+              best = { entry: V, exit: L, dest: { x: dest.x, y: dest.y } };
+            }
+          }
+        }
+        if (best) {
+          this.engHop = best;
+          this.routeTo(best.entry.x, best.entry.y);
+        }
+      }
+      if (p.special === 'engenheiro' && !p.inVent && p.abilityCd <= 0 && !p.isImp && !this.engHop) {
+        const v = g.nearestVent(p);
+        const dest = this.dest;
+        const danger = this.fear && t - this.fear.t < 3;
+        if (v && (dest || danger)) {
+          const walk = dest ? U.d2(p.x, p.y, dest.x, dest.y) : 0;
+          let best = null, bd = 1e9;
+          for (const id of v.links) {
+            const w = M.VENT[id];
+            const d = dest ? U.d2(w.x, w.y, dest.x, dest.y) : -U.d2(w.x, w.y, p.x, p.y);
+            if (d < bd) {
+              bd = d;
+              best = w;
+            }
+          }
+          const worth = danger || (best && walk > 12 && bd < walk - 6);
+          const seen = this.seenNow.length;
+          if (best && worth && (seen === 0 || (danger && U.chance(0.6)) || U.chance(0.15)) && g.enterVent(p, v)) {
+            if (seen) this.engSeen = t;
+            this.engVent = { exitAt: t + U.rf(0.6, 1.4), next: best.id, dest: dest ? { x: dest.x, y: dest.y } : null };
+          }
+        }
+      }
+      if (p.inVent && this.engVent) {
+        if (this.engVent.next) {
+          g.ventTo(p, this.engVent.next);
+          this.engVent.next = null;
+        } else if (t >= this.engVent.exitAt) {
+          if (this.seenNow.length) this.engSeen = t;
+          g.exitVent(p);
+          const d = this.engVent.dest;
+          this.engVent = null;
+          /* segue para onde ia (o plano continua; só recalcula o caminho a partir do duto) */
+          if (d && this.plan) this.routeTo(d.x, d.y);
+          else this.plan = null;
+        }
+      }
+    }
+
+    /* ---------- fantasma ---------- */
+    /* Anjo da guarda: o fantasma sabe quem o matou (e o que viu depois de morto). Protege quem está perto
+       desse assassino ou sozinho num canto perigoso; às vezes, o jogador. Entre escudos, fica rondando o protegido. */
+    angelThink() {
+      const g = this.g, p = this.p;
+      const alive = g.players.filter((q) => q.alive);
+      if (!alive.length) return false;
+      const tasksLeft = p.tasks.some((tk) => !tk.done);
+      if (p.abilityCd > 8 && tasksLeft) return false;
+      const know = g.ghosts ? g.ghosts.k(p.id) : { saw: [] };
+      const killers = new Set();
+      if (this.killedBy != null && g.players[this.killedBy] && g.players[this.killedBy].alive) killers.add(this.killedBy);
+      (know.saw || []).forEach((x) => g.players[x.killer] && g.players[x.killer].alive && killers.add(x.killer));
+      const danger = (q) => {
+        let s = 0;
+        for (const kid of killers) {
+          const k = g.players[kid];
+          if (k === q) return -999;
+          const d = U.dist(k, q);
+          if (d < 14) s += 60 - d * 3;
+        }
+        const near = alive.filter((o) => o !== q && U.dist(o, q) < 7).length;
+        if (near === 0) s += 18;
+        else if (near === 1) s += 10;
+        const a = M.areaAt(q.x, q.y).id;
+        if (['electrical', 'lowerEngine', 'reactor', 'navigation', 'shields', 'comms', 'o2', 'security'].includes(a)) s += 8;
+        if (q.isHuman) s += 6;
+        s -= (this.susp[q.id] || 0) * 0.3;
+        return s + U.rf(0, 6);
+      };
+      /* sabe quem é o assassino: acompanha ELE (fantasma é mais rápido) e protege quem ele pegar sozinho por perto */
+      const hot = () => {
+        let best = null, bd = 99;
+        for (const kid of killers) {
+          const k = g.players[kid];
+          for (const q of alive) {
+            if (q === k || killers.has(q.id)) continue;
+            const d = U.dist(k, q);
+            if (d > 6.5 || d >= bd) continue;
+            if (alive.some((o) => o !== q && o !== k && U.dist(o, q) < 6)) continue;
+            bd = d;
+            best = q;
+          }
+        }
+        return best;
+      };
+      const h = killers.size ? hot() : null;
+      if (h && (!this.angelPick || this.angelPick.id !== h.id)) this.angelPick = { id: h.id, until: g.t + 6, since: g.t - 10, risk: 60 };
+      /* pedido no chat dos fantasmas ("protege a rosa"): vai até a pessoa e usa o escudo assim que der */
+      const ao = this.angelOrder;
+      if (ao && (g.t > ao.until || !g.players[ao.id] || !g.players[ao.id].alive)) this.angelOrder = null;
+      if (this.angelOrder && !h) {
+        const tgo = g.players[this.angelOrder.id];
+        if (p.abilityCd <= 0 && U.dist(p, tgo) <= 3.5 && !(tgo.protectedUntil > g.t) && g.protect(p, tgo.id)) {
+          this.angelOrder = null;
+          this.angelWin = null;
+          return true;
+        }
+        if (!this.plan || this.plan.type !== 'guard' || this.plan.target !== tgo.id) this.setPlan({ type: 'guard', target: tgo.id, dyn: () => (tgo.alive ? { x: tgo.x, y: tgo.y } : null), keep: 1.6, endAt: g.t + 25, dynEvery: 0.4 });
+        return true;
+      }
+      if (!this.angelPick || g.t > this.angelPick.until || !g.players[this.angelPick.id].alive) {
+        const best = alive.slice().sort((a, b) => danger(b) - danger(a))[0];
+        this.angelPick = { id: best.id, until: g.t + U.rf(6, 12), since: g.t, risk: danger(best) };
+      }
+      const tg = g.players[this.angelPick.id];
+      /* como gente de verdade: nem sempre está prestando atenção quando o escudo fica pronto. Em cada janela
+         de recarga decide se vai usar (uns 40-50%, mais para quem é atento); distraído, espera e tenta de novo. */
+      if (p.abilityCd <= 0 && (!this.angelWin || this.angelWin.until < g.t)) {
+        const pUse = 0.2 + this.pers.att * 0.3;
+        const use = U.chance(pUse);
+        this.angelWin = { use, until: g.t + (use ? U.rf(35, 50) : U.rf(20, 40)), react: g.t + U.rf(0.6, 2.2) };
+      }
+      const win = this.angelWin;
+      if (win && !win.use && win.until > g.t && tasksLeft) return false;
+      const urgent = this.angelPick.risk >= 30;
+      /* quando decide usar, guarda o escudo para a hora do perigo (assassino sozinho com alguém); se a janela está
+         acabando sem essa hora, usa em quem está mais exposto — a frequência de uso continua a de um jogador normal */
+      const saving = killers.size > 0 && !h && win && g.t < win.until - 3;
+      if (p.abilityCd <= 0 && win && win.use && g.t >= win.react && U.dist(p, tg) <= 3.5 && !(tg.protectedUntil > g.t) && (h ? tg === h : !saving && (urgent || g.t - this.angelPick.since > 8))) {
+        if (g.protect(p, tg.id)) this.angelWin = null;
+        this.angelPick.until = g.t + U.rf(10, 20);
+      }
+      /* com assassino conhecido e ninguém em perigo agora: fica na cola do assassino (de onde dá para proteger rápido) */
+      const kFollow = !h && killers.size ? g.players[[...killers].sort((a, b) => U.dist(p, g.players[a]) - U.dist(p, g.players[b]))[0]] : null;
+      const gt = h || kFollow || tg;
+      if (!this.plan || this.plan.type !== 'guard' || this.plan.target !== gt.id) {
+        this.setPlan({ type: 'guard', target: gt.id, dyn: () => (gt.alive ? { x: gt.x, y: gt.y } : null), keep: gt === kFollow ? 3 : 2.4, endAt: g.t + 25, dynEvery: 0.4 });
+      }
+      return true;
+    }
+    /* Fantasma chamado por outro fantasma ("me segue", "vem aqui", zigue-zague): vai junto, sem desconfiança — a
+       partida já acabou para os dois. Com sala dita ("vem na elétrica"), vai para lá. */
+    ghostCome(q, area, why) {
+      const g = this.g, p = this.p;
+      if (p.alive || !q || q.alive || q === p) return false;
+      const fresh = !this.ghostEscort || this.ghostEscort.who !== q.id;
+      this.ghostEscort = { who: q.id, area: area || null, until: g.t + (area ? 40 : U.rf(25, 40)), arrived: false };
+      this.plan = null;
+      if (fresh && why === 'sinal' && g.ghosts) g.ghosts.later(p, U.rf(0.6, 1.6), { kind: 'comeOk', x: q.id });
+      return true;
+    }
+    ghostRelease(q) {
+      if (this.ghostEscort && (!q || this.ghostEscort.who === q.id)) {
+        this.ghostEscort = null;
+        if (this.plan && this.plan.type === 'follow') this.plan = null;
+        return true;
+      }
+      return false;
+    }
+    /* o que o fantasma está fazendo agora (para ele mesmo contar no chat) */
+    ghostDoing() {
+      const g = this.g, p = this.p, pl = this.plan;
+      const room = M.roomOf(M.areaAt(p.x, p.y), p.x, p.y);
+      const ge = this.ghostEscort;
+      if (ge) return { kind: ge.area && !ge.arrived ? 'going' : 'with', who: ge.who, area: ge.area || room.id };
+      if (pl && pl.type === 'task' && pl.task) return { kind: 'task', area: room.id, task: pl.task.id };
+      if (pl && pl.type === 'guard') return { kind: 'guard', who: pl.target, area: room.id };
+      if (pl && pl.type === 'follow' && g.players[pl.target] && g.players[pl.target].alive) return { kind: 'watch', who: pl.target, area: room.id };
+      return { kind: 'idle', area: room.id, left: p.tasks.filter((tk) => !tk.done).length };
+    }
+    ghostUpdate(dt) {
+      const g = this.g, p = this.p;
+      this.thinkT -= dt;
+      const ge = this.ghostEscort;
+      if (ge && (g.t > ge.until || !g.players[ge.who] || g.players[ge.who].alive)) this.ghostEscort = null;
+      if (this.ghostEscort && this.thinkT <= 0) {
+        this.thinkT = 0.4;
+        const q = g.players[ge.who];
+        const room = M.roomOf(M.areaAt(p.x, p.y), p.x, p.y);
+        if (ge.area && !ge.arrived) {
+          if (room.id === ge.area) {
+            ge.arrived = true;
+            this.plan = null;
+          } else if (!this.plan || this.plan.type !== 'wander') {
+            const pos = M.randomPointIn(ge.area);
+            this.setPlan({ type: 'wander', area: ge.area, x: pos.x, y: pos.y, onArrive: (pl) => (pl.until = g.t + 30) });
+          }
+        } else if (!ge.area && (!this.plan || this.plan.type !== 'follow' || this.plan.target !== q.id)) {
+          this.setPlan({ type: 'follow', target: q.id, dyn: () => (q.alive ? null : { x: q.x, y: q.y }), keep: 1.8, endAt: ge.until, dynEvery: 0.4, noShuffle: true });
+        }
+      }
+      if (this.ghostEscort) {
+        this.act(dt);
+        return;
+      }
+      /* pedido do chat dos fantasmas: assistir alguém (até o tempo acabar ou a pessoa morrer) ou ir fazer as tasks */
+      const gf = this.ghostFocus;
+      if (gf && (g.t > gf.until || (gf.kind === 'watch' && !(g.players[gf.who] && g.players[gf.who].alive)))) this.ghostFocus = null;
+      if (this.ghostFocus && this.ghostFocus.kind === 'watch' && this.thinkT <= 0 && (!this.plan || this.plan.type !== 'follow' || this.plan.target !== this.ghostFocus.who)) {
+        this.thinkT = 0.5;
+        this.ghostWatch(g.players[this.ghostFocus.who], this.ghostFocus.until - g.t, true);
+      }
+      if (this.ghostFocus && this.ghostFocus.kind === 'watch') {
+        this.act(dt);
+        return;
+      }
+      /* "vamos fazer as tasks": larga o que estava assistindo e vai */
+      if (this.ghostFocus && this.ghostFocus.kind === 'tasks' && this.plan && this.plan.type === 'follow') this.plan = null;
+      if (this.thinkT <= 0) {
+        this.thinkT = 0.5;
+        if (p.isImp) {
+          this.sabThink -= 0.5;
+          if (this.sabThink <= 0) {
+            this.sabThink = U.rf(12, 25);
+            /* fantasma impostor ajuda o parceiro vivo com a sabotagem que a situação pede */
+            const c = this.chooseSabotage([], true);
+            if (c) {
+              this.lastSab = c;
+              if (c.type === 'doors') g.closeDoors(c.room, p);
+              else g.sabotage(c.type, p);
+            }
+          }
+          if (!this.plan && !this.ghostSpectate()) this.planWander(U.pick(M.ROOMS).id, U.rf(1.5, 4));
+        } else if (p.special === 'anjo' && !p.isImp && (this.angelOrder || !(this.ghostFocus && this.ghostFocus.kind === 'tasks')) && this.angelThink()) {
+          /* anjo cuidando de alguém */
+        } else if (!this.plan || this.plan.type === 'guard') {
+          const avail = p.tasks.filter((tk) => !tk.done && g.taskAvailable(tk));
+          if (avail.length) {
+            avail.sort((a, b) => {
+              const sa = g.stationOfTask(a), sb = g.stationOfTask(b);
+              return U.d2(p.x, p.y, sa.x, sa.y) - U.d2(p.x, p.y, sb.x, sb.y);
+            });
+            this.planTask(avail[0]);
+          } else if (!this.ghostSpectate()) this.planWander(U.pick(M.ROOMS).id, U.rf(1.5, 4));
+        }
+      }
+      this.act(dt);
+    }
+
+    /* Fantasma sem tarefa: como gente de verdade, vai assistir alguém vivo (quem sabe quem é o assassino vai
+       atrás dele, para ver o próximo abate; ex-impostor vai ver o parceiro) em vez de ficar parado numa sala. */
+    ghostSpectate() {
+      const g = this.g, p = this.p, pers = this.pers;
+      const alive = g.players.filter((q) => q.alive && !q.inVent);
+      if (!alive.length || !U.chance(0.35 + (pers.skeptic || pers.leader ? 0.2 : 0) + (pers.follow || 0) * 0.2)) return false;
+      const know = g.ghosts ? g.ghosts.k(p.id) : { saw: [] };
+      const killers = [this.killedBy].concat((know.saw || []).map((x) => x.killer)).filter((id) => id != null && g.players[id] && g.players[id].alive && !g.players[id].inVent);
+      let q;
+      if (!p.isImp && killers.length && U.chance(0.65)) {
+        q = g.players[U.pick(killers)];
+        if (!this.announced || this.announced !== q.id) {
+          this.announced = q.id;
+          if (g.ghosts && U.chance(0.5)) g.ghosts.announceWatch(p, q);
+        }
+      } else q = U.pick(p.isImp ? alive.filter((x) => x.isImp).concat(alive) : alive);
+      this.ghostWatch(q, U.rf(12, 30), true);
+      return true;
+    }
+    /* assistir alguém vivo (pedido no chat dos fantasmas ou por conta própria) */
+    ghostWatch(q, dur, own) {
+      const g = this.g;
+      if (!q || !q.alive) return;
+      if (!own) this.ghostFocus = { kind: 'watch', who: q.id, until: g.t + dur };
+      this.setPlan({ type: 'follow', target: q.id, dyn: () => (q.alive && !q.inVent ? { x: q.x, y: q.y } : null), keep: U.rf(2, 3.5), endAt: g.t + dur, dynEvery: 0.5, noShuffle: true });
+    }
+
+    /* ---------- percepção e eventos ---------- */
+    confuse(id) {
+      const q = this.g.players[id];
+      /* só confunde com quem ainda está vivo (ninguém "lembra" de ter visto um morto andando) */
+      const alts = (C.CONFUSABLE[q.color] || []).map((c) => this.g.players.find((x) => x.color === c)).filter((x) => x && x.alive && x !== this.p);
+      return alts.length ? U.pick(alts).id : id;
+    }
+    perceive(seen, bodies, via) {
+      const g = this.g, p = this.p, t = g.t, pers = this.pers, mem = this.mem;
+      if (via === 'eyes') {
+        this.seenNow = seen;
+        this.bodiesNow = bodies.slice();
+        /* tarefa que parecia falsa: a pessoa não voltou para ela em uns segundos — agora sim guarda (e quem tem
+           iniciativa chama reunião) */
+        if (this.fakePending) for (const id of Object.keys(this.fakePending)) {
+          const f = this.fakePending[id];
+          if (t < f.at) continue;
+          delete this.fakePending[id];
+          if (this.hardCleared(+id) || !U.chance(0.4 + pers.att * 0.5)) continue;
+          if (mem.event({ type: 'fakeTask', t: f.t, who: +id, area: f.area, station: f.station }, 'fakeTask:' + id + ':' + g.meetings)) this.maybeButton('fakeTask', +id, f.area);
+        }
+      } else {
+        for (const b of bodies) if (!this.bodiesNow.includes(b)) this.bodiesNow.push(b);
+      }
+      for (const q of seen) {
+        const aid = g.appearId(q);
+        /* alguém com a MINHA cara não é "eu visto em algum lugar": é o metamorfo (twinCheck cuida disso) */
+        if (aid === p.id) continue;
+        const area = M.areaAt(q.x, q.y).id;
+        this.lastSeenAt[aid] = { t, x: q.x, y: q.y, area };
+        const l = mem.last[aid];
+        const isNew = !l || l.area !== area || t - l.t1 > 2.5 || l.via !== via;
+        if (isNew && U.chance((1 - pers.att) * 0.2 * this.err)) mem.ignoreUntil[aid] = t + 3;
+        if ((mem.ignoreUntil[aid] || 0) > t) continue;
+        let act = null;
+        if (q.visual && g.S.rules.visualTasks) act = 'visual';
+        else if (q.busy) act = 'task';
+        else if (q.onCams) act = 'cams';
+        else if (q.onAdmin) act = 'admin';
+        mem.see(t, aid, area, act, via, q.x, q.y);
+        if (act === 'visual') mem.event({ type: 'visual', t, who: aid, task: q.visual.type, area, via }, 'visual:' + aid + ':' + g.meetings);
+        if (via === 'eyes' && !p.isImp && seen.length === 1 && U.dist(p, q) < 5 && t >= g.roundStart + 9) {
+          this.aloneWith = this.aloneWith || {};
+          this.aloneWith[aid] = (this.aloneWith[aid] || 0) + 0.2;
+        }
+        /* impostor: quem está na minha cola — vem atrás enquanto eu ando, ou fica me olhando de perto enquanto finjo
+           tarefa. Quem eu estou caçando/seguindo não conta. */
+        if (via === 'eyes' && p.isImp && !q.isImp) {
+          const d = U.dist(p, q);
+          const pt = this.path && this.pi < this.path.length ? this.path[this.pi] : null;
+          const behind = pt ? (q.x - p.x) * (pt.x - p.x) + (q.y - p.y) * (pt.y - p.y) < 0 : false;
+          const mine = this.plan && ['hunt', 'stalk', 'follow'].includes(this.plan.type) && this.plan.target === q.id;
+          const tw = this.tailWatch;
+          if (!mine && d < 5.5 && ((q.moving && p.moving && behind) || (!p.moving && d < 4 && !q.busy))) tw[q.id] = (tw[q.id] || 0) + 0.2;
+          else tw[q.id] = Math.max(0, (tw[q.id] || 0) - 0.1);
+        }
+        if (via === 'eyes' && !p.isImp) {
+          const d = U.dist(p, q);
+          /* "me seguindo" = vem atrás de mim enquanto eu ando; quem eu estou seguindo (ou acompanhando) não conta */
+          const pt = this.path && this.pi < this.path.length ? this.path[this.pi] : null;
+          const behind = pt ? (q.x - p.x) * (pt.x - p.x) + (q.y - p.y) * (pt.y - p.y) < 0 : false;
+          const iFollow = this.plan && this.plan.type === 'follow' && (this.plan.target === q.id || this.plan.target === aid);
+          if (d < 3.8 && q.moving && p.moving && behind && !iFollow) this.followWatch[aid] = (this.followWatch[aid] || 0) + 0.2;
+          else this.followWatch[aid] = Math.max(0, (this.followWatch[aid] || 0) - 0.08);
+          const invited = this.invite && this.invite.who === aid && t < this.invite.until;
+          const friendly = invited || (this.susp[aid] || 0) < 8;
+          if (this.followWatch[aid] >= 3 && friendly && !this.shownVisual && U.chance(invited ? 1 : 0.35) && this.showVisual(q)) {
+            this.followWatch[aid] = 0;
+          }
+          if (invited && this.followWatch[aid] >= 7) this.followWatch[aid] = 0;
+          if (!invited && this.followWatch[aid] >= 4 && this.liveSusp(aid) >= 20 && !(this.plan && ['flee', 'report', 'fix', 'button'].includes(this.plan.type))) {
+            this.followWatch[aid] = 0;
+            this.fieldSus[aid] = (this.fieldSus[aid] || 0) + 6;
+            this.emote('?');
+            this.fear = { who: aid, t };
+            this.planFlee(q);
+          }
+          if (this.followWatch[aid] >= 7) {
+            this.followWatch[aid] = 0;
+            /* quem já provou ser tripulante (tarefa visual) andando atrás é só companhia; e quem ficou a sós comigo
+               um bom tempo e não fez nada teve a chance: seguir assim é escolta, não caça */
+            const hadChance = ((this.aloneWith || {})[aid] || 0) >= 4;
+            if (!this.hardCleared(aid) && !hadChance && mem.event({ type: 'follow', t, who: aid, area }, 'follow:' + aid + ':' + g.meetings) && pers.panic) {
+              this.fear = { who: aid, t };
+              this.planFlee(q);
+            }
+          }
+          /* viu alguém parado numa tarefa de etapa única pelo tempo que ela leva, sair, e a barra não subir = tarefa
+             falsa (só com a barra sempre visível). Não conclui na hora: quem erra a tarefa ou desiste e tenta de novo
+             volta a abrir (gente de verdade faz isso), então espera uns segundos antes de guardar. */
+          this.taskWatch = this.taskWatch || {};
+          const tw = this.taskWatch[aid];
+          if (q.busy && q.busy.station && !q.moving) {
+            if (this.fakePending && this.fakePending[aid] && this.fakePending[aid].station === q.busy.station) delete this.fakePending[aid];
+            if (!tw || tw.station !== q.busy.station) this.taskWatch[aid] = { station: q.busy.station, t0: t, done0: g.taskProgress().done, sab0: g.sab };
+            else tw.last = t;
+          } else if (tw) {
+            delete this.taskWatch[aid];
+            /* só vale se viu a pessoa sair da tarefa agora (não quando reaparece depois), e sem sabotagem nova no meio
+               (quem larga a tarefa para consertar o reator não está fingindo) */
+            const sawStop = t - (tw.last || tw.t0) < 0.8;
+            const fin = finalStations().has(tw.station);
+            const need = Math.max(2.5, (FINAL_DUR[tw.station] || 3) * 0.75);
+            const watched = (tw.last || tw.t0) - tw.t0;
+            if (sawStop && fin && watched >= need && !this.hardCleared(aid) && !(g.sab && g.sab !== tw.sab0) && g.S.rules.taskBar === 'sempre' && !g.commsDown() && g.taskProgress().done === tw.done0) {
+              (this.fakePending = this.fakePending || {})[aid] = { station: tw.station, t, at: t + U.rf(2.5, 4), area };
+            }
+          }
+          /* parado numa tarefa visual sem a animação aparecer = tarefa falsa */
+          const vst = g.S.rules.visualTasks ? VISUAL_ST.find((k) => U.d2(q.x, q.y, M.STATIONS[k].x, M.STATIONS[k].y) < 0.9) : null;
+          /* só conta quem está "fazendo" a tarefa ali (parado na estação, ocupado) e sem a animação; ficar do lado
+             esperando a vez ou acompanhando alguém não é tarefa falsa. Precisa ser seguido: saiu, zera. */
+          if (vst && !q.visual && !q.moving && q.busy && q.busy.station === vst) {
+            this.scanWatch[aid] = (this.scanWatch[aid] || 0) + 0.2;
+            if (this.scanWatch[aid] >= 3.2 && !this.hardCleared(aid) && mem.event({ type: 'noscan', t, who: aid, area, task: vst }, 'noscan:' + aid + ':' + g.meetings)) this.maybeButton('noscan', aid, area);
+          } else if (this.scanWatch[aid]) this.scanWatch[aid] = 0;
+        }
+      }
+      if (!p.isImp) this.twinCheck(seen, via);
+      for (const b of bodies) mem.bodySeen(b, t, seen.map((q) => g.appearId(q)).filter((id) => id !== p.id), via);
+      /* quem anda junto de quem (base para "o X estava seguindo o Y") */
+      if (via === 'eyes' && seen.length >= 2 && seen.length <= 4) {
+        for (let i = 0; i < seen.length; i++) for (let j = i + 1; j < seen.length; j++) {
+          const a = seen[i], b = seen[j];
+          if (U.dist(a, b) > 4.5) continue;
+          const ia = g.appearId(a), ib = g.appearId(b);
+          const key = ia < ib ? ia + ':' + ib : ib + ':' + ia;
+          const pr = mem.pairs[key];
+          const area = M.areaAt(a.x, a.y).id;
+          if (pr && t - pr.t1 < 3) {
+            pr.t1 = t;
+            pr.n++;
+            pr.area = area;
+          } else mem.pairs[key] = { a: ia, b: ib, t0: t, t1: t, n: 1, area, alone: seen.length === 2 };
+        }
+      }
+    }
+    perceiveTrack(q) {
+      const g = this.g;
+      if (g.t - this.trackT < 1) return;
+      this.trackT = g.t;
+      this.mem.track.push({ who: q.id, area: M.areaAt(q.x, q.y).id, t: g.t });
+    }
+    /* Dois iguais ao mesmo tempo, ou alguém com a MINHA cara: um deles é o metamorfo disfarçado. Não é na hora:
+       precisa reparar (atenção, luz, estar ocupado numa tarefa, ser pela câmera, muita gente em volta), ver os dois
+       por um tempinho seguido, e os dois separados o bastante para não parecerem um só. */
+    twinCheck(seen, via) {
+      const g = this.g, p = this.p, t = g.t, pers = this.pers;
+      /* sem ninguém disfarçado não existem dois iguais (só poupa a conta; a percepção é pelo que se vê) */
+      if (!p.alive || !g.players.some((q) => q.shiftAs != null)) return;
+      const pool = via === 'eyes' ? seen : this.seenNow.concat(seen);
+      const hit = new Map();
+      for (const q of seen) {
+        const a = g.appearId(q);
+        if (hit.has(a) || this.mem.keys.has('twin:' + a + ':' + g.meetings)) continue;
+        const twin = a === p.id ? p : pool.find((o) => o !== q && g.appearId(o) === a && U.dist(o, q) >= 1.2);
+        if (twin) hit.set(a, [q, twin]);
+      }
+      const dark = g.lightLevel < 0.6;
+      for (const [a, pair] of hit) {
+        const k = (0.35 + pers.att * 0.5) * (dark ? 0.6 : 1) * (p.busy ? 0.45 : 1) * (via === 'cams' ? 0.6 : 1) * (a === p.id ? 1.6 : 1) *
+          (pool.length > 5 ? 0.7 : 1) / (0.75 + 0.25 * this.err);
+        const w = this.twinWatch[a] && t - this.twinWatch[a].t <= 1 ? this.twinWatch[a] : (this.twinWatch[a] = { v: 0, t });
+        w.t = t;
+        w.v += 0.2 * k;
+        if (w.v >= 1) {
+          delete this.twinWatch[a];
+          this.onTwin(a, pair, via);
+        }
+      }
+    }
+    /* Reparou nos dois iguais. Qual é o falso não dá para saber (a não ser que um esteja na tarefa visual, que o
+       metamorfo não faz), mas dá para saber que o de verdade NÃO é o metamorfo, que quem estava à vista nessa hora
+       também não, e que o metamorfo está ali agora com essa cara. Estranha (para e olha) e fica com o pé atrás: não
+       fica a sós com ninguém dessa cara por um tempo. */
+    onTwin(a, pair, via, extra) {
+      const g = this.g, p = this.p, t = g.t, pers = this.pers;
+      const self = a === p.id;
+      const ar = (q) => M.areaAt(q.x, q.y).id;
+      const vis = !self && g.S.rules.visualTasks ? pair.find((q) => q && q.visual) : null;
+      const withIds = [...new Set(this.seenNow.map((q) => g.appearId(q)).filter((id) => id !== a && id !== p.id))];
+      const e = Object.assign({ type: 'twin', t, who: a, self, a1: ar(pair[0]), a2: pair[1] ? ar(pair[1]) : ar(pair[0]), via, real: vis ? ar(vis) : null, with: withIds, solo: this.impsAliveKnown() <= 1 }, extra || {});
+      if (!this.mem.event(e, extra && extra.key ? extra.key : 'twin:' + a + ':' + g.meetings)) return false;
+      this.mem.twinN = (this.mem.twinN || 0) + 1;
+      this.twinAlert = { who: a, t, until: t + g.ro('metamorfo', 'dur', 30), self };
+      if (!this.avoid || t >= this.avoid.until) this.avoid = { who: a, until: t + U.rf(18, 28) };
+      if (extra) return true;
+      const busyPlan = this.plan && ['report', 'flee', 'fix', 'button', 'wiggle', 'pause'].includes(this.plan.type);
+      /* com a MINHA cara: aquilo é o metamorfo, do meu lado, e ele sabe que eu sei — parar para olhar é pedir para
+         morrer. Sai de perto (a fuga puxa para a Cafeteria, onde tem gente e o botão); o mais decidido vai avisar. */
+      if (self) {
+        if (p.emergencyLeft > 0 && !this.wantButton && U.chance(0.12 + (pers.leader ? 0.15 : 0) + (pers.panic ? 0.1 : 0) + (this.hab('botao') ? 0.15 : 0))) this.wantButton = { reason: 'twinSelf', who: p.id, area: e.a1 };
+        else if (pair[0] && !busyPlan && !this.shock) {
+          this.fear = { who: p.id, t };
+          this.planFlee(pair[0]);
+        }
+        return true;
+      }
+      /* dois iguais: estranha e para um instante para olhar — só com mais gente por perto (a sós com os dois, um deles é
+         o metamorfo: melhor seguir andando) */
+      const crowd = this.seenNow.filter((q) => q.alive && g.appearId(q) !== a).length;
+      if (via === 'eyes' && crowd >= 1 && !p.busy && !busyPlan && !this.shock) this.setPlan({ type: 'pause', stage: 'do', until: t + U.rf(0.6, 1.2) });
+      return true;
+    }
+    /* quantos impostores podem estar vivos, só pelo que é certo: o total da partida menos os ejetados confirmados */
+    impsAliveKnown() {
+      const g = this.g;
+      return g.S.room.impostors - (g.S.rules.confirmEjects ? g.players.filter((q) => q.ejected && q.isImp).length : 0);
+    }
+    /* viu dois iguais com um impostor só em jogo: o metamorfo era o terceiro, então o de verdade e quem estava à vista
+       nessa hora são tripulantes, com certeza */
+    twinCleared(id) {
+      if (!this.mem.twinN) return false;
+      return this.mem.events.some((e) => e.type === 'twin' && e.solo && ((e.who === id && !e.self) || (e.with || []).includes(id)));
+    }
+    /* o que "o X" fez perto da hora em que eu vi dois X pode ter sido o metamorfo com a cara dele */
+    twinDoubt(id, t) {
+      if (!this.mem.twinN) return false;
+      const dur = this.g.ro('metamorfo', 'dur', 30) + 2;
+      return this.mem.events.some((e) => e.type === 'twin' && !e.self && e.who === id && Math.abs(e.t - t) <= dur);
+    }
+    /* pegou alguém fingindo tarefa: quem tem iniciativa chama reunião na hora (a prova não espera o próximo corpo) */
+    maybeButton(reason, who, area) {
+      const p = this.p, pers = this.pers;
+      if (p.isImp || p.emergencyLeft <= 0 || this.wantButton) return;
+      /* já vi essa pessoa fazer tarefa visual: um detalhe estranho não vale uma reunião */
+      if (who != null && ['fakeTask', 'noscan', 'follow'].includes(reason) && this.hardCleared(who)) return;
+      const pr = 0.35 + (pers.leader ? 0.3 : 0) + (pers.times ? 0.15 : 0) + (pers.skeptic ? 0.1 : 0) - (pers.talk < 0.3 ? 0.15 : 0) + (this.hab('botao') ? 0.25 : 0);
+      if (U.chance(pr)) this.wantButton = { reason, who, area };
+    }
+    onWitnessKill(apparent, victimId, area, via, body, killer) {
+      const g = this.g, p = this.p, pers = this.pers;
+      if (p.isImp) {
+        this.mem.event({ type: 'partnerKill', t: g.t, who: apparent, victim: victimId, area });
+        return;
+      }
+      if (!U.chance(0.9 + 0.1 * pers.att)) return;
+      /* o assassino tinha a MINHA cara, ou tinha a cara de alguém que eu estou vendo em outro lugar agora mesmo: era o
+         metamorfo. Não acuso o dono da cara; guardo como "dois iguais", com o abate, e vou avisar. */
+      const other = killer && apparent !== p.id ? this.seenNow.find((q) => q !== killer && q.alive && g.appearId(q) === apparent && U.dist(q, killer) >= 1.2) : null;
+      if (killer && (apparent === p.id || (other && U.chance(0.55 + pers.att * 0.4)))) {
+        this.onTwin(apparent, [killer, other || p], via, { kill: victimId, key: 'twinKill:' + victimId });
+        this.wantButton = { reason: 'twinKill', who: apparent, victim: victimId, area };
+        if (via === 'eyes') {
+          const shock = U.rf(1.0, 2.3) * (pers.panic ? 1.4 : 1) * (pers.leader || pers.times ? 0.8 : 1);
+          this.shock = { until: g.t + shock, killer: null, body: body ? body.id : null };
+          this.setPlan({ type: 'pause', stage: 'do', until: g.t + shock * 0.6 });
+        }
+        if (pers.panic) this.planFlee(killer);
+        return;
+      }
+      let who = apparent;
+      if (U.chance((1 - pers.mem) * 0.1 * this.err)) who = this.confuse(who);
+      this.mem.event({ type: 'kill', t: g.t, who, victim: victimId, area, via }, 'kill:' + victimId);
+      this.susp[who] = 100;
+      if (pers.panic || via === 'cams') this.fear = { who, t: g.t };
+      this.wantButton = { reason: 'kill', who, victim: victimId, area };
+      /* ninguém reporta no mesmo instante: primeiro o susto (congela ou recua), e com o assassino ali do lado a
+         reação natural é fugir e ir apertar o botão; o mais frio volta e reporta quando ele se afasta */
+      if (via === 'eyes') {
+        const shock = U.rf(1.0, 2.3) * (pers.panic ? 1.4 : 1) * (pers.leader || pers.times ? 0.8 : 1) * (0.9 + (1 - pers.att) * 0.4);
+        this.shock = { until: g.t + shock, killer: apparent, body: body ? body.id : null };
+        this.setPlan({ type: 'pause', stage: 'do', until: g.t + shock * 0.6 });
+      }
+      if (pers.panic) this.planFlee(g.players[apparent]);
+    }
+    onWitnessVent(apparent, dir, v, via) {
+      const g = this.g, p = this.p, pers = this.pers;
+      if (p.isImp) return;
+      if (!U.chance(0.55 + 0.45 * pers.att)) return;
+      /* alguém com a minha cara entrando/saindo do duto: o metamorfo (e impostor, porque ventou) */
+      if (apparent === p.id) {
+        this.onTwin(p.id, [{ x: v.x, y: v.y }, p], via, { vent: v.area, key: 'twinVent:' + g.meetings });
+        return;
+      }
+      let who = apparent;
+      if (U.chance((1 - pers.mem) * 0.08 * this.err)) who = this.confuse(who);
+      /* suspeita de antes do duto (o próprio duto já conta como forte em liveSusp) */
+      const before = this.liveSusp(who);
+      if (!this.mem.event({ type: 'vent', t: g.t, who, area: v.area, dir, via }, 'vent:' + who + ':' + g.meetings)) return;
+      /* todos sabem as funções da partida: com engenheiro possível, duto sozinho não prova nada. Guarda para
+         perguntar na reunião ("é engenheiro?") e só chama reunião se for estranho: corpo ali perto, alguém de quem já
+         desconfiava, ou a vaga de engenheiro já foi assumida por outra pessoa */
+      const ec = g.S.roles.engenheiro || {};
+      const eng = ec.n > 0 && (ec.chance == null || ec.chance > 0);
+      let weird = !eng;
+      if (eng) {
+        const bodyNear = this.mem.bodies.some((b) => g.t - b.t < 25 && (b.area === v.area || M.isNear(b.area, v.area)));
+        const claimed = ((g.roleClaims || {}).engenheiro || []).filter((id) => id !== who && g.players[id] && g.players[id].alive);
+        weird = bodyNear || before >= 45 || claimed.length >= (ec.n || 1);
+      }
+      if (!weird) {
+        this.fieldSus[who] = (this.fieldSus[who] || 0) + 6;
+        return;
+      }
+      /* flagrante: nem todo mundo corre para o botão; uns se afastam e guardam para a reunião */
+      const pBtn = (eng ? 0.55 : 0.45) + (pers.leader ? 0.25 : 0) + (pers.times ? 0.1 : 0) + (pers.panic ? 0.15 : 0) + (this.hab('botao') ? 0.2 : 0) - (pers.talk < 0.3 ? 0.15 : 0);
+      if (p.emergencyLeft > 0 && U.chance(pBtn)) this.wantButton = { reason: 'vent', who, area: v.area };
+      else {
+        this.fear = { who, t: g.t };
+        this.avoid = { who, until: g.t + 40 };
+      }
+    }
+    onWitnessShift(realId, intoId, via) {
+      this.witnessAbility('shift', realId, via, intoId);
+    }
+    onWitnessVanish(realId, via) {
+      this.witnessAbility('vanish', realId, via);
+    }
+    /* Ver alguém se transformar ou sumir não é garantido: depende de estar olhando, da distância, da luz e de estar
+       ocupado numa tarefa. Quem vê de longe fica só com uma impressão (e pode confundir a cor); quem tem certeza
+       nem sempre corre para o botão: às vezes guarda para a próxima reunião ou só se afasta. */
+    witnessAbility(kind, realId, via, intoId) {
+      const g = this.g, p = this.p, q = g.players[realId], pers = this.pers;
+      if (p.isImp || !q || !p.alive) return;
+      const d = U.dist(p, q);
+      const dark = g.lightLevel < 0.6;
+      /* já de olho em quem tem essa cara (vi dois iguais há pouco, ou era a minha cara): repara bem mais */
+      const al = this.twinAlert;
+      const watching = kind === 'shift' && intoId != null && (intoId === p.id || (al && g.t < al.until && al.who === intoId));
+      const pNotice = Math.min(0.95, (0.3 + pers.att * 0.45) * (d < 3.5 ? 1 : d < 6 ? 0.7 : 0.45) * (p.busy ? 0.5 : 1) * (dark ? 0.6 : 1) * (via === 'cams' ? 0.45 : 1) * (kind === 'vanish' ? 0.85 : 1) * (watching ? 1.7 : 1));
+      if (!U.chance(pNotice)) return;
+      const area = M.areaAt(q.x, q.y).id;
+      const sure = via === 'eyes' && d < 4.5 && !dark && U.chance(0.5 + pers.att * 0.35 + (watching ? 0.25 : 0));
+      if (!sure) {
+        let who = realId;
+        if (U.chance((1 - pers.att) * 0.5)) who = this.confuse(realId);
+        this.fieldSus[who] = (this.fieldSus[who] || 0) + 14;
+        this.mem.event({ type: 'oddAbility', t: g.t, who, area, kind, via }, 'oddAbility:' + who + ':' + g.meetings);
+        return;
+      }
+      if (!this.mem.event({ type: kind, t: g.t, who: realId, into: intoId, area, via }, kind + ':' + realId + ':' + g.meetings)) return;
+      const pBtn = 0.3 + (pers.leader ? 0.2 : 0) + (pers.panic ? 0.15 : 0) + (pers.skeptic ? 0.05 : 0);
+      if (p.emergencyLeft > 0 && U.chance(pBtn)) this.wantButton = { reason: kind, who: realId, area };
+      else {
+        this.fear = { who: realId, t: g.t };
+        this.avoid = { who: realId, until: g.t + 40 };
+      }
+    }
+    onNoise(body) {
+      const p = this.p;
+      if (!p.alive || p.isImp) return;
+      if (U.d2(p.x, p.y, body.x, body.y) < 45 && U.chance(0.75)) {
+        this.mem.event({ type: 'noise', t: this.g.t, victim: body.pid, area: body.area });
+        this.planReport(body);
+      }
+    }
+    /* Parceiro acabou de matar perto: se combinado (ou se dá), mata a testemunha que sobrou. */
+    onPartnerKill(k, v, wit) {
+      const g = this.g, p = this.p, L = this.lvl;
+      if (p.killCd > 0 || U.dist(p, k) > 7) return;
+      const agreed = this.dk && g.t < this.dk.until && this.dk.with === k.id;
+      const cands = wit.map((w) => w.p).filter((q) => q.alive && !q.isImp && q !== p && U.dist(p, q) < 5 && q.id !== v.id);
+      if (!cands.length) return;
+      if (!agreed && !U.chance(L.lie * 0.3 + L.riskTol)) return;
+      /* só se ninguém mais além dessas testemunhas estiver vendo */
+      const others = this.crewVisible().filter((q) => !cands.includes(q));
+      if (others.length && !agreed) return;
+      cands.sort((a, b) => U.dist(p, a) - U.dist(p, b));
+      const tgt = cands[0];
+      this.dk = null;
+      this.dkTarget = tgt.id;
+      this.emote('!', 0.8);
+      this.planHunt(tgt);
+    }
+    onKilled(victim, body) {
+      this.escape = { t0: this.g.t, body, area: body.area, victim: victim.id, moved: false, decided: false };
+      this.mem.event({ type: 'myKill', t: this.g.t, victim: victim.id, area: body.area, seenBy: this.crewVisible().map((q) => this.g.appearId(q)) });
+      this.plan = null;
+    }
+    onDeath(killer, apparent) {
+      this.killedBy = apparent;
+      this.plan = null;
+      this.path = null;
+      this.fix = null;
+      this.p.busy = null;
+    }
+    onSabotage() {}
+    onSabFixed() {
+      if (this.fix) this.fix = null;
+      if (this.plan && this.plan.type === 'fix') this.plan = null;
+    }
+    onDoors() {
+      if (this.dest) this.routeTo(this.dest.x, this.dest.y);
+    }
+    canHelpFix() {
+      if (!this.p.alive || this.p.inVent) return false;
+      return !(this.plan && (this.plan.type === 'report' || this.plan.type === 'button' || this.plan.type === 'flee'));
+    }
+    assignFix(st) {
+      if (this.fix || !this.canHelpFix()) return;
+      this.fix = st;
+    }
+    /* troca de painel (o outro lado ficou vazio): larga o que estava segurando e vai */
+    reassignFix(st) {
+      this.fix = st;
+      if (this.plan && this.plan.type === 'fix') this.plan = null;
+      if (this.p.busy && this.p.busy.fix) this.p.busy = null;
+    }
+    onMeetingEnd(result) {
+      if (this.mEnd) this.mEnd(result);
+      this.plan = null;
+      this.path = null;
+      this.dest = null;
+      this.fix = null;
+      this.wantButton = null;
+      this.fear = null;
+      this.escape = null;
+      this.ventPlan = null;
+      this.engVent = null;
+      this.followWatch = {};
+      this.tailWatch = {};
+      this.twinWatch = {};
+      this.twinAlert = null;
+      this.scanWatch = {};
+      this.taskWatch = {};
+      this.fakePending = null;
+      this.aloneWith = {};
+      this.seenNow = [];
+      this.bodiesNow = [];
+      this.selfReport = false;
+      this.invite = null;
+      this.call = null;
+      this.shock = null;
+      this.noticed = null;
+      if (this.pact && this.pact.scope === 'call') this.pact = null;
+      this.dk = null;
+      this.dkTarget = null;
+      this.aiOrder = null;
+      this.prey = null;
+      this.avoid = null;
+      this.invitedRound = false;
+      this.groupedRound = false;
+      this.escort = null;
+      this.shownVisual = false;
+      this.camsRound = false;
+      this.patrolRoute = null;
+      this.startDelay = U.rf(0.2, 1.1);
+      this.lostCount = Math.max(0, this.lostCount - 1);
+    }
+  }
+
+  AU.Brain = Brain;
+  AU.Memory = Memory;
+})();
