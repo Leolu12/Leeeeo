@@ -625,11 +625,11 @@
       /* câmeras: luz vermelha quando alguém assiste */
       if (g.anyoneOnCams()) {
         for (const cam of M.CAMS) {
-          const cp = AU.Decor.camPos ? AU.Decor.camPos(cam) : { x: cam.x, y: cam.y - 1.6 };
-          const p = S(cp.x, cp.y + 0.18);
+          const cp = AU.Decor.camPos ? AU.Decor.camPos(cam).led : { x: cam.x, y: cam.y - 1.6 };
+          const p = S(cp.x, cp.y + 0.08);
           ctx.fillStyle = Math.sin(t * 6) > 0 ? '#ff3b3b' : '#6a1010';
           ctx.beginPath();
-          ctx.arc(p.x, p.y, ppt * 0.18, 0, Math.PI * 2);
+          ctx.arc(p.x, p.y, ppt * 0.09, 0, Math.PI * 2);
           ctx.fill();
         }
       }

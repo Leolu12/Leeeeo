@@ -705,8 +705,9 @@
       },
       h('span', { class: 'mt-card-bean', html: AU.Render.beanSVG(p.color, { size: 40, visor: p.visor, x: dead }) }),
       h('span', { class: 'mt-card-text' },
-        h('span', { class: 'mt-card-name' }, p.name + (p.isHuman ? ' (você)' : '')),
-        h('span', { class: 'mt-card-col' }, C.COLOR[p.color].name + (dead ? (p.ejected ? ' · ejetado' : ' · morto') : ''))),
+        /* "você" vai na linha de baixo: no celular o nome inteiro cabe no cartão */
+        h('span', { class: 'mt-card-name' }, p.name),
+        h('span', { class: 'mt-card-col' }, C.COLOR[p.color].name + (p.isHuman ? ' · você' : '') + (dead ? (p.ejected ? ' · ejetado' : ' · morto') : ''))),
       mt.info.caller === p.id ? h('span', { class: 'mt-mega', title: 'Chamou a reunião' }, '📣') : null,
       badge, conf, voters);
       this.cards.appendChild(card);
@@ -747,6 +748,10 @@
       if (g.S.ui.aiChat === 'off') {
         txt = 'IA desligada';
         tip = 'A IA das conversas está desligada nas configurações da partida.';
+      } else if (L.status === 'off') {
+        /* sem nenhuma IA configurada não é erro: as conversas usam o sistema de regras (igual ao lobby) */
+        txt = 'IA desligada';
+        tip = L.detail || 'Sem IA configurada: as conversas usam o sistema de regras.';
       } else if (AU.Voice && AU.Voice.active(mt) && (!mt.dir || mt.dir.on())) {
         cls += ' on';
         txt = 'IA: ' + L.label();

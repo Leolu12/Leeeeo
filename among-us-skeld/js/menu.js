@@ -683,12 +683,12 @@
       root.innerHTML = '';
       const hp = g.human;
       const won = hp ? (g.winner === 'impostor') === hp.isImp : false;
-      const name = (id) => (id == null ? 'o encontro' : g.players[id].name);
+      const name = (id) => (id == null ? 'alguém' : g.players[id].name);
       const area = (a) => (M.AREA[a] ? M.AREA[a].name : a);
       const fate = (p) => {
         if (p.alive) return 'Sobreviveu';
         if (p.ejected) return 'Ejetado aos ' + U.fmtTime(p.deathT);
-        return 'Morto por ' + name(p.killerId) + ' aos ' + U.fmtTime(p.deathT);
+        return (p.killerId == null ? 'Morreu' : 'Morto por ' + name(p.killerId)) + ' aos ' + U.fmtTime(p.deathT);
       };
       const rows = g.players.map((p) => {
         const done = p.tasks.filter((t) => t.done).length;

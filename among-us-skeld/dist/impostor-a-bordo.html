@@ -13624,8 +13624,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       },
       h('span', { class: 'mt-card-bean', html: AU.Render.beanSVG(p.color, { size: 40, visor: p.visor, x: dead }) }),
       h('span', { class: 'mt-card-text' },
-        h('span', { class: 'mt-card-name' }, p.name + (p.isHuman ? ' (você)' : '')),
-        h('span', { class: 'mt-card-col' }, C.COLOR[p.color].name + (dead ? (p.ejected ? ' · ejetado' : ' · morto') : ''))),
+        /* "você" vai na linha de baixo: no celular o nome inteiro cabe no cartão */
+        h('span', { class: 'mt-card-name' }, p.name),
+        h('span', { class: 'mt-card-col' }, C.COLOR[p.color].name + (p.isHuman ? ' · você' : '') + (dead ? (p.ejected ? ' · ejetado' : ' · morto') : ''))),
       mt.info.caller === p.id ? h('span', { class: 'mt-mega', title: 'Chamou a reunião' }, '📣') : null,
       badge, conf, voters);
       this.cards.appendChild(card);
@@ -13666,6 +13667,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (g.S.ui.aiChat === 'off') {
         txt = 'IA desligada';
         tip = 'A IA das conversas está desligada nas configurações da partida.';
+      } else if (L.status === 'off') {
+        /* sem nenhuma IA configurada não é erro: as conversas usam o sistema de regras (igual ao lobby) */
+        txt = 'IA desligada';
+        tip = L.detail || 'Sem IA configurada: as conversas usam o sistema de regras.';
       } else if (AU.Voice && AU.Voice.active(mt) && (!mt.dir || mt.dir.on())) {
         cls += ' on';
         txt = 'IA: ' + L.label();
@@ -13978,12 +13983,48 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     admin: [80.5, 43.2], o2: [92, 29.8], weapons: [100, 15.6], navigation: [123.5, 42.6],
     shields: [103.8, 63.8], comms: [81.5, 68.6],
   };
-  /* posição da câmera de segurança presa na parede (a luz vermelha acende em cima dela) */
+  /* Câmera de segurança presa na parede, como no original: na face da parede de cima quando há uma perto (olhando
+     para baixo), senão na parede do lado do corredor (olhando para dentro). "led" é onde a luz vermelha acende. */
   const camPos = (cam) => {
-    let y = cam.y;
-    while (y > cam.y - 4 && M.isFloor(Math.floor(cam.x), Math.floor(y - 1))) y -= 1;
-    return { x: cam.x, y: Math.floor(y) - 0.35 };
+    const tx = Math.floor(cam.x), ty = Math.floor(cam.y);
+    let y = ty;
+    while (y > ty - 3 && M.isFloor(tx, y - 1)) y--;
+    if (!M.isFloor(tx, y - 1)) {
+      /* presa na borda de baixo da parede, com o corpo avançando sobre o corredor (onde a luz bate) */
+      const my = y;
+      return { x: cam.x, y: my, dir: 'down', led: { x: cam.x + 0.22, y: my - 0.02 } };
+    }
+    let l = tx, r = tx;
+    while (l > tx - 5 && M.isFloor(l - 1, ty)) l--;
+    while (r < tx + 5 && M.isFloor(r + 1, ty)) r++;
+    const left = tx - l <= r - tx;
+    const wx = left ? l : r + 1;
+    return { x: wx, y: cam.y, dir: left ? 'right' : 'left', led: { x: wx + (left ? 0.3 : -0.3), y: cam.y - 0.28 } };
   };
+  function drawCamera(D, q) {
+    const BODY = '#c9d1de', DARK = '#3a4252';
+    if (q.dir === 'down') {
+      /* placa na parede, braço e a câmera inclinada para o corredor */
+      D.box(q.x - 0.24, q.y - 0.46, 0.48, 0.22, DARK, OUT, 0.05);
+      D.box(q.x - 0.05, q.y - 0.26, 0.1, 0.24, '#5b6476', OUT, 0.02);
+      D.box(q.x - 0.36, q.y - 0.04, 0.72, 0.4, BODY, OUT, 0.1);
+      D.box(q.x - 0.36, q.y + 0.22, 0.72, 0.14, '#9aa4b6', null, 0.06);
+      D.circle(q.x - 0.08, q.y + 0.18, 0.13, '#10141c', OUT);
+      D.circle(q.x - 0.11, q.y + 0.14, 0.045, 'rgba(160,210,255,0.8)', null);
+      D.circle(q.led.x, q.led.y + 0.08, 0.055, '#5a1218', null);
+      return;
+    }
+    const s = q.dir === 'right' ? 1 : -1;
+    /* placa na parede do lado, braço e a câmera virada para dentro do corredor */
+    D.box(q.x + (s > 0 ? 0 : -0.16), q.y - 0.26, 0.16, 0.52, DARK, OUT, 0.04);
+    D.box(q.x + (s > 0 ? 0.14 : -0.3), q.y - 0.05, 0.16, 0.1, '#5b6476', OUT, 0.02);
+    const bx = q.x + (s > 0 ? 0.28 : -0.9);
+    D.box(bx, q.y - 0.2, 0.62, 0.4, BODY, OUT, 0.1);
+    D.box(bx, q.y + 0.08, 0.62, 0.12, '#9aa4b6', null, 0.06);
+    D.circle(q.x + s * 0.86, q.y, 0.13, '#10141c', OUT);
+    D.circle(q.x + s * 0.83, q.y - 0.04, 0.045, 'rgba(160,210,255,0.8)', null);
+    D.circle(q.led.x, q.led.y + 0.1, 0.055, '#5a1218', null);
+  }
 
   /* elementos animados, montados junto com o mapa */
   const LIVE = [];
@@ -14307,12 +14348,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     wallDecor(D, c, P);
     drawProps(D, c, P);
     drawVents(D, c, P);
-    for (const cam of M.CAMS) {
-      const q = camPos(cam);
-      D.box(q.x - 0.28, q.y - 0.25, 0.56, 0.36, '#2a303d', OUT, 0.08);
-      D.box(q.x - 0.14, q.y + 0.05, 0.28, 0.24, '#1a1f29', OUT, 0.06);
-      D.circle(q.x, q.y + 0.18, 0.08, '#4b0f14', null);
-    }
+    for (const cam of M.CAMS) drawCamera(D, camPos(cam));
     /* nomes das salas pintados no chão */
     for (const r of M.ROOMS) {
       const [lx, ly] = LABELS[r.id];
@@ -14665,6 +14701,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   function wallDecor(D, c, P) {
     const taken = [];
     for (const a of Object.values(M.STATION_ART)) taken.push([a.x, a.y]);
+    for (const cam of M.CAMS) {
+      const q = camPos(cam);
+      taken.push([q.x, q.y + 0.5]);
+    }
     const free = (x, y) => !taken.some(([tx, ty]) => Math.abs(tx - x) < 1.6 && Math.abs(ty - y) < 3);
     /* luminárias na face das paredes de cima, a cada ~5 tiles */
     for (let y = 1; y < H; y++) for (let x = 0; x < W; x++) {
@@ -15289,9 +15329,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     /* Admin: telão com o status da nave */
     D.screen(77.4, 32.7, 5.2, 1.1, '#123a2a');
     live('statusBoard', 77.4, 32.7, { w: 5.2, h: 1.1 });
-    /* Comunicações: antena e mostradores na parede */
-    D.screen(79.2, 60.9, 3.6, 0.9, '#2a1f4a');
-    live('wave', 79.2, 60.9, { w: 3.6, h: 0.9 });
+    /* Comunicações: mostrador de sinal na parede de cima, entre o download e a porta (a porta fica em x 80–84) */
+    D.screen(77.55, 60.95, 2.2, 0.85, '#2a1f4a');
+    live('wave', 77.55, 60.95, { w: 2.2, h: 0.85 });
     /* Elétrica: quadros de disjuntores na parede */
     for (const bx of [40.4, 42.6]) {
       D.box(bx, 36.55, 1.9, 1.3, '#4b4636', OUT, 0.08);
@@ -15366,8 +15406,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     };
     switch (a.kind) {
       case 'wires': {
-        body('#c9a227');
-        D.box(fx + 0.12, fy + 0.12, fw - 0.24, fh - 0.3, '#2a2a22', OUT, 0.06);
+        /* caixa de metal cinza, como no original: borda amarela é o destaque de tarefa (não pode confundir) */
+        body('#59647e');
+        D.box(fx + 0.12, fy + 0.12, fw - 0.24, fh - 0.3, '#1f232c', OUT, 0.06);
         const cols = ['#e24b4b', '#4aa3ff', '#ffd23b', '#e05ad0'];
         for (let i = 0; i < 4; i++) {
           if (vert) D.line(fx + 0.2, fy + 0.25 + i * (fh - 0.5) / 3, fx + fw - 0.2, fy + 0.25 + ((i + 2) % 4) * (fh - 0.5) / 3, cols[i], 0.07);
@@ -16793,11 +16834,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       /* câmeras: luz vermelha quando alguém assiste */
       if (g.anyoneOnCams()) {
         for (const cam of M.CAMS) {
-          const cp = AU.Decor.camPos ? AU.Decor.camPos(cam) : { x: cam.x, y: cam.y - 1.6 };
-          const p = S(cp.x, cp.y + 0.18);
+          const cp = AU.Decor.camPos ? AU.Decor.camPos(cam).led : { x: cam.x, y: cam.y - 1.6 };
+          const p = S(cp.x, cp.y + 0.08);
           ctx.fillStyle = Math.sin(t * 6) > 0 ? '#ff3b3b' : '#6a1010';
           ctx.beginPath();
-          ctx.arc(p.x, p.y, ppt * 0.18, 0, Math.PI * 2);
+          ctx.arc(p.x, p.y, ppt * 0.09, 0, Math.PI * 2);
           ctx.fill();
         }
       }
@@ -21509,12 +21550,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       root.innerHTML = '';
       const hp = g.human;
       const won = hp ? (g.winner === 'impostor') === hp.isImp : false;
-      const name = (id) => (id == null ? 'o encontro' : g.players[id].name);
+      const name = (id) => (id == null ? 'alguém' : g.players[id].name);
       const area = (a) => (M.AREA[a] ? M.AREA[a].name : a);
       const fate = (p) => {
         if (p.alive) return 'Sobreviveu';
         if (p.ejected) return 'Ejetado aos ' + U.fmtTime(p.deathT);
-        return 'Morto por ' + name(p.killerId) + ' aos ' + U.fmtTime(p.deathT);
+        return (p.killerId == null ? 'Morreu' : 'Morto por ' + name(p.killerId)) + ' aos ' + U.fmtTime(p.deathT);
       };
       const rows = g.players.map((p) => {
         const done = p.tasks.filter((t) => t.done).length;
