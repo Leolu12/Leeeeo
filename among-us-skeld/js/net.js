@@ -714,7 +714,7 @@
     }
     /* ---------- acontecimentos do jogo que todos precisam ver ---------- */
     fx(f) {
-      this.emit('fx', { ty: f.type, x: r2(f.x), y: r2(f.y), c: f.color, fa: f.facing, ht: f.hat, vs: f.visor, sd: f.seed, du: f.dur });
+      this.emit('fx', { ty: f.type, x: r2(f.x), y: r2(f.y), ox: f.ox == null ? undefined : r2(f.ox), oy: f.oy == null ? undefined : r2(f.oy), c: f.color, fa: f.facing, ht: f.hat, vs: f.visor, sd: f.seed, du: f.dur, w: f.who });
     }
     meeting(mt) {
       const info = mt.info;
@@ -888,7 +888,7 @@
           break;
         case 'fx':
           if (!g) break;
-          g.addFx({ type: d.ty, x: d.x, y: d.y, color: d.c, facing: d.fa, hat: d.ht, visor: d.vs, seed: d.sd, dur: d.du });
+          g.addFx({ type: d.ty, x: d.x, y: d.y, ox: d.ox, oy: d.oy, color: d.c, facing: d.fa, hat: d.ht, visor: d.vs, seed: d.sd, dur: d.du, who: Number.isInteger(d.w) ? d.w : undefined });
           if (d.ty === 'kill') {
             g.sfxAt('kill', d.x, d.y, { sight: true, h: 0.7 });
             const v = g.players.find((q) => q.color === d.c);

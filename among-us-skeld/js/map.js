@@ -325,6 +325,32 @@
     });
   };
   M.resetDoors = () => DOORS.forEach((d) => (d.closed = false));
+  /* fechada de verdade (dentro do desenho, d.closed pode estar trocado pelo estado visual) */
+  let visOn = false;
+  M.doorClosed = (d) => (visOn ? d.realClosed : d.closed);
+  /* portas como aparecem na tela durante a animação (0,35 s): fechando, a passagem só some quando as folhas estão
+     quase juntas; abrindo, só aparece quando elas começam a se afastar. Só para o desenho (visão e quem aparece):
+     as regras usam o estado de verdade. Devolve a função que desfaz. */
+  M.visualDoors = (t) => {
+    const saved = [];
+    for (const d of DOORS) {
+      /* o estado de verdade fica à mão para a animação das folhas (que não pode ler o estado trocado) */
+      d.realClosed = d.closed;
+      if (d.animT == null) continue;
+      const k = (t - d.animT) / 0.35;
+      if (k < 0 || k >= 1) continue;
+      const shown = d.closed ? k >= 0.8 : k < 0.3;
+      if (shown !== d.closed) {
+        saved.push([d, d.closed]);
+        d.closed = shown;
+      }
+    }
+    visOn = true;
+    return () => {
+      for (const [d, c] of saved) d.closed = c;
+      visOn = false;
+    };
+  };
   M.chatAlias = (areaId) => U.pick(AREA[areaId].chat);
   M.stationOf = (id) => STATIONS[id] || SAB_STATIONS[id];
 

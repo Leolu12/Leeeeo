@@ -364,10 +364,13 @@
   /* ---------- portas ---------- */
   function doors(ctx, root) {
     const { MAT, out } = ctx;
-    /* folhas da porta: a névoa não as apaga (fechada, a folha fica dentro do tile da porta, fora do polígono de visão) */
-    const leafMat = KIT.patch(new THREE.MeshStandardMaterial({ color: '#8994aa', metalness: 0.85, roughness: 0.36 }), { vis: false });
-    const hazLeaf = KIT.patch(new THREE.MeshStandardMaterial({ map: MAT.hazard.map, metalness: 0.3, roughness: 0.5 }), { vis: false });
+    /* folhas da porta: fechada, ela fica dentro do tile da porta, fora do polígono de visão, e a névoa comum a apagaria
+       mesmo vista de frente. Cada porta tem o próprio material, e o jogo escurece a porta que você não enxerga de
+       nenhum dos lados (como a névoa faz com o resto) */
     for (const d of M.DOORS) {
+      const leafMat = KIT.patch(new THREE.MeshStandardMaterial({ color: '#8994aa', metalness: 0.85, roughness: 0.36 }), { vis: false });
+      const hazLeaf = KIT.patch(new THREE.MeshStandardMaterial({ map: MAT.hazard.map, metalness: 0.3, roughness: 0.5 }), { vis: false });
+      const edgeMat = KIT.patch(new THREE.MeshStandardMaterial({ color: '#111', emissive: '#ffb020', emissiveIntensity: 0.4, metalness: 0, roughness: 0.6 }), { vis: false });
       const [x, y, w, h] = d.rect;
       const horiz = w > h;
       const L = horiz ? w : h;
@@ -395,7 +398,7 @@
         lk.rbox(L / 2, dh - 0.04, 0.2, 0.03, leafMat, 0, (dh - 0.04) / 2, 0);
         /* faixa de perigo e a borda de encontro */
         lk.box(L / 2 - 0.1, 0.18, 0.21, hazLeaf, 0, dh * 0.55, 0);
-        lk.box(0.05, dh - 0.1, 0.22, MAT.glow('#ffb020', 0.4), -s * (L / 4 - 0.03), (dh - 0.04) / 2, 0);
+        lk.box(0.05, dh - 0.1, 0.22, edgeMat, -s * (L / 4 - 0.03), (dh - 0.04) / 2, 0);
         const leaf = lk.build();
         leaf.position.x = s * (L / 4);
         grp.add(leaf);
@@ -408,7 +411,9 @@
       lamp.position.set(0, dh + 0.16, 0.26);
       grp.add(lamp);
       root.add(grp);
-      out.doors.push({ d, grp, leaves, L, lamp, lampMat });
+      /* pontos dos dois lados da porta (para saber se você a enxerga) */
+      const sides = horiz ? [[cx, y - 0.6], [cx, y + h + 0.6]] : [[x - 0.6, cz], [x + w + 0.6, cz]];
+      out.doors.push({ d, grp, leaves, L, lamp, lampMat, mats: [leafMat, hazLeaf, edgeMat], sides, seen: 1 });
     }
   }
 

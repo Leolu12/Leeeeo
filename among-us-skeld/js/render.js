@@ -486,7 +486,8 @@
     const lw = Math.max(1.5, ppt * 0.05);
     for (const d of M.DOORS) {
       const prog = d.animT != null ? Math.min(1, Math.max(0, (g.t - d.animT) / 0.35)) : 1;
-      const amt = d.closed ? prog : 1 - prog;
+      const closed = M.doorClosed(d);
+      const amt = closed ? prog : 1 - prog;
       const [x, y, w, hh] = d.rect;
       const p = S(x, y);
       const horiz = w > hh;
@@ -519,7 +520,7 @@
         ctx.lineWidth = lw;
         ctx.strokeRect(rx, ry, rw, rh);
       }
-      if (d.closed && amt > 0.95) {
+      if (closed && amt > 0.95) {
         ctx.fillStyle = Math.sin(t * 6) > 0 ? '#ff3b3b' : '#7a1010';
         const cx = p.x + (horiz ? L / 2 : T / 2), cy = p.y + (horiz ? T / 2 : L / 2);
         ctx.beginPath();
@@ -570,7 +571,17 @@
       const r = g.visionOf(h);
       return U.d2(h.x, h.y, x, y) <= r + 0.3 && Nav.los(h.x, h.y, x, y);
     },
+    /* quadro: com as portas como aparecem na tela (a visão acompanha as folhas fechando e abrindo) */
     draw(g, t) {
+      if (!this.ctx) return;
+      const undo = M.visualDoors(g.t);
+      try {
+        this.drawFrame(g, t);
+      } finally {
+        undo();
+      }
+    },
+    drawFrame(g, t) {
       const ctx = this.ctx, cv = this.canvas;
       if (!ctx) return;
       const h = g.human;
@@ -666,6 +677,11 @@
         if (p !== h && p.alive && !this.visibleToHuman(g, p.x, p.y)) continue;
         const ap = g.appear(p);
         const sp = S(p.x, p.y);
+        /* saindo do duto: quem aparece subindo do buraco é o efeito do duto (desenhado depois, na frente da tampa) */
+        if (p.alive && p.popT != null && g.t - p.popT >= 0 && g.t - p.popT < 0.5 && g.fx.some((f) => f.type === 'ventOut' && f.who === p.id && f.color)) {
+          labels.push({ name: ap.name, x: sp.x, y: sp.y - ppt * 0.95, alpha: p === h ? alpha : alpha * lit(p.x, p.y), color: h && h.isImp && p.isImp ? '#ff5a5a' : '#ffffff' });
+          continue;
+        }
         const pp = S(p.petX, p.petY);
         if (p.alive) drawPet(ctx, pp.x, pp.y, ppt * 1.1, ap.pet, ap.color, p.facing);
         if (p.visual && p.visual.type === 'scan' && p.alive) this.scanBack(sp, ppt, t);
@@ -717,20 +733,11 @@
         } else if (f.type === 'ventIn' || f.type === 'ventOut') {
           /* tampa do duto abre, o personagem pula para dentro (ou sai de dentro) e a tampa fecha */
           ctx.globalAlpha = 1;
-          const open = k < 0.2 ? k / 0.2 : k > 0.75 ? Math.max(0, (1 - k) / 0.25) : 1;
+          const [oa, ob] = f.type === 'ventIn' ? [0.25, 0.85] : [0.15, 0.72];
+          const open = k < oa ? k / oa : k > ob ? Math.max(0, (1 - k) / (1 - ob)) : 1;
           ctx.fillStyle = '#05070b';
           rr(ctx, p.x - ppt * 0.6, p.y - ppt * 0.36, ppt * 1.2, ppt * 0.72, ppt * 0.1);
           ctx.fill();
-          if (f.type === 'ventIn' && k > 0.15 && k < 0.8) {
-            const u = (k - 0.15) / 0.65;
-            const sc = u < 0.25 ? 1 + u * 0.4 : Math.max(0.05, 1.1 - (u - 0.25) * 1.9);
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(p.x - ppt, p.y - ppt * 2.2, ppt * 2, ppt * 2.55);
-            ctx.clip();
-            drawBean(ctx, p.x, p.y - ppt * 0.25 + (u > 0.25 ? (u - 0.25) * ppt * 0.9 : -u * ppt * 0.6), ppt * 1.1 * sc, f.color, { facing: f.facing, hat: f.hat, visor: f.visor });
-            ctx.restore();
-          }
           /* tampa: grade presa na borda de cima, levantando */
           const lh = ppt * 0.72 * open;
           ctx.fillStyle = '#5b6476';
@@ -745,6 +752,39 @@
             ctx.moveTo(p.x - ppt * 0.6 + i * ppt * 0.2, p.y - ppt * 0.36 - lh + 2);
             ctx.lineTo(p.x - ppt * 0.6 + i * ppt * 0.2, p.y - ppt * 0.36 - 2);
             ctx.stroke();
+          }
+          /* saindo: sobe de dentro do buraco (cortado na borda de baixo dele), passa um pouco e pousa na tampa */
+          if (f.type === 'ventOut' && f.color && k < 1) {
+            const opts = { facing: f.facing, hat: f.hat, visor: f.visor };
+            if (k < 0.55) {
+              const u = k / 0.55, e = 1 - (1 - u) * (1 - u);
+              ctx.save();
+              ctx.beginPath();
+              ctx.rect(p.x - ppt * 1.2, p.y - ppt * 2.6, ppt * 2.4, ppt * 2.6 + ppt * 0.3);
+              ctx.clip();
+              drawBean(ctx, p.x, p.y - ppt * 0.25 + ppt * 1.6 * (1 - e) - ppt * 0.4 * e, ppt * 1.1, f.color, opts);
+              ctx.restore();
+            } else {
+              const u = (k - 0.55) / 0.45;
+              drawBean(ctx, p.x, p.y - ppt * 0.25 - ppt * 0.4 * (1 - u * u), ppt * 1.1, f.color, opts);
+            }
+          }
+          /* o personagem fica na frente da tampa (ela abre em pé, atrás do buraco) */
+          if (f.type === 'ventIn' && k < 0.85) {
+            /* pulo em arco de onde estava até o duto, depois afunda no buraco (cortado na borda de cima dele) */
+            const o = f.ox != null ? S(f.ox, f.oy) : p;
+            if (k < 0.45) {
+              const u = k / 0.45, e = u * u * (3 - 2 * u);
+              drawBean(ctx, o.x + (p.x - o.x) * e, o.y + (p.y - o.y) * e - ppt * 0.25 - Math.sin(u * Math.PI) * ppt * 0.55, ppt * 1.1, f.color, { facing: f.facing, hat: f.hat, visor: f.visor });
+            } else {
+              const u = (k - 0.45) / 0.4;
+              ctx.save();
+              ctx.beginPath();
+              ctx.rect(p.x - ppt * 1.2, p.y - ppt * 2.6, ppt * 2.4, ppt * 2.6 + ppt * 0.3);
+              ctx.clip();
+              drawBean(ctx, p.x, p.y - ppt * 0.25 + Math.pow(u, 1.5) * ppt * 1.6, ppt * 1.1, f.color, { facing: f.facing, hat: f.hat, visor: f.visor });
+              ctx.restore();
+            }
           }
         } else if (f.type === 'vent') {
           ctx.fillStyle = 'rgba(160,170,190,0.6)';

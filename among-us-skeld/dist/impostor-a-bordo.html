@@ -1612,6 +1612,32 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     });
   };
   M.resetDoors = () => DOORS.forEach((d) => (d.closed = false));
+  /* fechada de verdade (dentro do desenho, d.closed pode estar trocado pelo estado visual) */
+  let visOn = false;
+  M.doorClosed = (d) => (visOn ? d.realClosed : d.closed);
+  /* portas como aparecem na tela durante a animação (0,35 s): fechando, a passagem só some quando as folhas estão
+     quase juntas; abrindo, só aparece quando elas começam a se afastar. Só para o desenho (visão e quem aparece):
+     as regras usam o estado de verdade. Devolve a função que desfaz. */
+  M.visualDoors = (t) => {
+    const saved = [];
+    for (const d of DOORS) {
+      /* o estado de verdade fica à mão para a animação das folhas (que não pode ler o estado trocado) */
+      d.realClosed = d.closed;
+      if (d.animT == null) continue;
+      const k = (t - d.animT) / 0.35;
+      if (k < 0 || k >= 1) continue;
+      const shown = d.closed ? k >= 0.8 : k < 0.3;
+      if (shown !== d.closed) {
+        saved.push([d, d.closed]);
+        d.closed = shown;
+      }
+    }
+    visOn = true;
+    return () => {
+      for (const [d, c] of saved) d.closed = c;
+      visOn = false;
+    };
+  };
   M.chatAlias = (areaId) => U.pick(AREA[areaId].chat);
   M.stationOf = (id) => STATIONS[id] || SAB_STATIONS[id];
 
@@ -5091,6 +5117,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (!this.canVent(p) || p.inVent || !v) return false;
       if (p.special === 'engenheiro' && p.abilityCd > 0) return false;
       if (p.invisUntil > this.t) return false;
+      /* de onde pulou (a animação sai daqui e cai no duto) */
+      const ox = p.x, oy = p.y;
       p.inVent = v.id;
       p.x = v.x;
       p.y = v.y;
@@ -5101,7 +5129,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const ap = this.appearId(p);
       for (const w of wit) if (w.p.brain) w.p.brain.onWitnessVent(ap, 'in', v, w.via);
       const apc = this.appear(p);
-      this.addFx({ type: 'ventIn', x: v.x, y: v.y, dur: 0.6, color: apc.color, hat: apc.hat, visor: apc.visor, facing: p.facing, who: p.id });
+      this.addFx({ type: 'ventIn', x: v.x, y: v.y, ox, oy, dur: 0.6, color: apc.color, hat: apc.hat, visor: apc.visor, facing: p.facing, who: p.id });
       this.log({ type: 'vent', by: p.id, vent: v.id, dir: 'in', witnesses: wit.map((w) => w.p.id) });
       if (p.isHuman) this.sfx('vent');
       else this.sfxAt('vent', v.x, v.y, { h: 0.1 });
@@ -5125,7 +5153,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const wit = this.witnesses([v], [p.id]);
       const ap = this.appearId(p);
       for (const w of wit) if (w.p.brain) w.p.brain.onWitnessVent(ap, 'out', v, w.via);
-      this.addFx({ type: 'ventOut', x: v.x, y: v.y, dur: 0.5, who: p.id });
+      const apc = this.appear(p);
+      this.addFx({ type: 'ventOut', x: v.x, y: v.y, dur: 0.5, color: apc.color, hat: apc.hat, visor: apc.visor, facing: p.facing, who: p.id });
       /* sai do duto "pulando": o desenho cresce de dentro da tampa */
       p.popT = this.t;
       this.log({ type: 'vent', by: p.id, vent: v.id, dir: 'out', witnesses: wit.map((w) => w.p.id) });
@@ -18030,7 +18059,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     const lw = Math.max(1.5, ppt * 0.05);
     for (const d of M.DOORS) {
       const prog = d.animT != null ? Math.min(1, Math.max(0, (g.t - d.animT) / 0.35)) : 1;
-      const amt = d.closed ? prog : 1 - prog;
+      const closed = M.doorClosed(d);
+      const amt = closed ? prog : 1 - prog;
       const [x, y, w, hh] = d.rect;
       const p = S(x, y);
       const horiz = w > hh;
@@ -18063,7 +18093,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         ctx.lineWidth = lw;
         ctx.strokeRect(rx, ry, rw, rh);
       }
-      if (d.closed && amt > 0.95) {
+      if (closed && amt > 0.95) {
         ctx.fillStyle = Math.sin(t * 6) > 0 ? '#ff3b3b' : '#7a1010';
         const cx = p.x + (horiz ? L / 2 : T / 2), cy = p.y + (horiz ? T / 2 : L / 2);
         ctx.beginPath();
@@ -18114,7 +18144,17 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const r = g.visionOf(h);
       return U.d2(h.x, h.y, x, y) <= r + 0.3 && Nav.los(h.x, h.y, x, y);
     },
+    /* quadro: com as portas como aparecem na tela (a visão acompanha as folhas fechando e abrindo) */
     draw(g, t) {
+      if (!this.ctx) return;
+      const undo = M.visualDoors(g.t);
+      try {
+        this.drawFrame(g, t);
+      } finally {
+        undo();
+      }
+    },
+    drawFrame(g, t) {
       const ctx = this.ctx, cv = this.canvas;
       if (!ctx) return;
       const h = g.human;
@@ -18210,6 +18250,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (p !== h && p.alive && !this.visibleToHuman(g, p.x, p.y)) continue;
         const ap = g.appear(p);
         const sp = S(p.x, p.y);
+        /* saindo do duto: quem aparece subindo do buraco é o efeito do duto (desenhado depois, na frente da tampa) */
+        if (p.alive && p.popT != null && g.t - p.popT >= 0 && g.t - p.popT < 0.5 && g.fx.some((f) => f.type === 'ventOut' && f.who === p.id && f.color)) {
+          labels.push({ name: ap.name, x: sp.x, y: sp.y - ppt * 0.95, alpha: p === h ? alpha : alpha * lit(p.x, p.y), color: h && h.isImp && p.isImp ? '#ff5a5a' : '#ffffff' });
+          continue;
+        }
         const pp = S(p.petX, p.petY);
         if (p.alive) drawPet(ctx, pp.x, pp.y, ppt * 1.1, ap.pet, ap.color, p.facing);
         if (p.visual && p.visual.type === 'scan' && p.alive) this.scanBack(sp, ppt, t);
@@ -18261,20 +18306,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         } else if (f.type === 'ventIn' || f.type === 'ventOut') {
           /* tampa do duto abre, o personagem pula para dentro (ou sai de dentro) e a tampa fecha */
           ctx.globalAlpha = 1;
-          const open = k < 0.2 ? k / 0.2 : k > 0.75 ? Math.max(0, (1 - k) / 0.25) : 1;
+          const [oa, ob] = f.type === 'ventIn' ? [0.25, 0.85] : [0.15, 0.72];
+          const open = k < oa ? k / oa : k > ob ? Math.max(0, (1 - k) / (1 - ob)) : 1;
           ctx.fillStyle = '#05070b';
           rr(ctx, p.x - ppt * 0.6, p.y - ppt * 0.36, ppt * 1.2, ppt * 0.72, ppt * 0.1);
           ctx.fill();
-          if (f.type === 'ventIn' && k > 0.15 && k < 0.8) {
-            const u = (k - 0.15) / 0.65;
-            const sc = u < 0.25 ? 1 + u * 0.4 : Math.max(0.05, 1.1 - (u - 0.25) * 1.9);
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(p.x - ppt, p.y - ppt * 2.2, ppt * 2, ppt * 2.55);
-            ctx.clip();
-            drawBean(ctx, p.x, p.y - ppt * 0.25 + (u > 0.25 ? (u - 0.25) * ppt * 0.9 : -u * ppt * 0.6), ppt * 1.1 * sc, f.color, { facing: f.facing, hat: f.hat, visor: f.visor });
-            ctx.restore();
-          }
           /* tampa: grade presa na borda de cima, levantando */
           const lh = ppt * 0.72 * open;
           ctx.fillStyle = '#5b6476';
@@ -18289,6 +18325,39 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
             ctx.moveTo(p.x - ppt * 0.6 + i * ppt * 0.2, p.y - ppt * 0.36 - lh + 2);
             ctx.lineTo(p.x - ppt * 0.6 + i * ppt * 0.2, p.y - ppt * 0.36 - 2);
             ctx.stroke();
+          }
+          /* saindo: sobe de dentro do buraco (cortado na borda de baixo dele), passa um pouco e pousa na tampa */
+          if (f.type === 'ventOut' && f.color && k < 1) {
+            const opts = { facing: f.facing, hat: f.hat, visor: f.visor };
+            if (k < 0.55) {
+              const u = k / 0.55, e = 1 - (1 - u) * (1 - u);
+              ctx.save();
+              ctx.beginPath();
+              ctx.rect(p.x - ppt * 1.2, p.y - ppt * 2.6, ppt * 2.4, ppt * 2.6 + ppt * 0.3);
+              ctx.clip();
+              drawBean(ctx, p.x, p.y - ppt * 0.25 + ppt * 1.6 * (1 - e) - ppt * 0.4 * e, ppt * 1.1, f.color, opts);
+              ctx.restore();
+            } else {
+              const u = (k - 0.55) / 0.45;
+              drawBean(ctx, p.x, p.y - ppt * 0.25 - ppt * 0.4 * (1 - u * u), ppt * 1.1, f.color, opts);
+            }
+          }
+          /* o personagem fica na frente da tampa (ela abre em pé, atrás do buraco) */
+          if (f.type === 'ventIn' && k < 0.85) {
+            /* pulo em arco de onde estava até o duto, depois afunda no buraco (cortado na borda de cima dele) */
+            const o = f.ox != null ? S(f.ox, f.oy) : p;
+            if (k < 0.45) {
+              const u = k / 0.45, e = u * u * (3 - 2 * u);
+              drawBean(ctx, o.x + (p.x - o.x) * e, o.y + (p.y - o.y) * e - ppt * 0.25 - Math.sin(u * Math.PI) * ppt * 0.55, ppt * 1.1, f.color, { facing: f.facing, hat: f.hat, visor: f.visor });
+            } else {
+              const u = (k - 0.45) / 0.4;
+              ctx.save();
+              ctx.beginPath();
+              ctx.rect(p.x - ppt * 1.2, p.y - ppt * 2.6, ppt * 2.4, ppt * 2.6 + ppt * 0.3);
+              ctx.clip();
+              drawBean(ctx, p.x, p.y - ppt * 0.25 + Math.pow(u, 1.5) * ppt * 1.6, ppt * 1.1, f.color, { facing: f.facing, hat: f.hat, visor: f.visor });
+              ctx.restore();
+            }
           }
         } else if (f.type === 'vent') {
           ctx.fillStyle = 'rgba(160,170,190,0.6)';
@@ -24436,10 +24505,13 @@ float auBayer(vec2 p) {
   /* ---------- portas ---------- */
   function doors(ctx, root) {
     const { MAT, out } = ctx;
-    /* folhas da porta: a névoa não as apaga (fechada, a folha fica dentro do tile da porta, fora do polígono de visão) */
-    const leafMat = KIT.patch(new THREE.MeshStandardMaterial({ color: '#8994aa', metalness: 0.85, roughness: 0.36 }), { vis: false });
-    const hazLeaf = KIT.patch(new THREE.MeshStandardMaterial({ map: MAT.hazard.map, metalness: 0.3, roughness: 0.5 }), { vis: false });
+    /* folhas da porta: fechada, ela fica dentro do tile da porta, fora do polígono de visão, e a névoa comum a apagaria
+       mesmo vista de frente. Cada porta tem o próprio material, e o jogo escurece a porta que você não enxerga de
+       nenhum dos lados (como a névoa faz com o resto) */
     for (const d of M.DOORS) {
+      const leafMat = KIT.patch(new THREE.MeshStandardMaterial({ color: '#8994aa', metalness: 0.85, roughness: 0.36 }), { vis: false });
+      const hazLeaf = KIT.patch(new THREE.MeshStandardMaterial({ map: MAT.hazard.map, metalness: 0.3, roughness: 0.5 }), { vis: false });
+      const edgeMat = KIT.patch(new THREE.MeshStandardMaterial({ color: '#111', emissive: '#ffb020', emissiveIntensity: 0.4, metalness: 0, roughness: 0.6 }), { vis: false });
       const [x, y, w, h] = d.rect;
       const horiz = w > h;
       const L = horiz ? w : h;
@@ -24467,7 +24539,7 @@ float auBayer(vec2 p) {
         lk.rbox(L / 2, dh - 0.04, 0.2, 0.03, leafMat, 0, (dh - 0.04) / 2, 0);
         /* faixa de perigo e a borda de encontro */
         lk.box(L / 2 - 0.1, 0.18, 0.21, hazLeaf, 0, dh * 0.55, 0);
-        lk.box(0.05, dh - 0.1, 0.22, MAT.glow('#ffb020', 0.4), -s * (L / 4 - 0.03), (dh - 0.04) / 2, 0);
+        lk.box(0.05, dh - 0.1, 0.22, edgeMat, -s * (L / 4 - 0.03), (dh - 0.04) / 2, 0);
         const leaf = lk.build();
         leaf.position.x = s * (L / 4);
         grp.add(leaf);
@@ -24480,7 +24552,9 @@ float auBayer(vec2 p) {
       lamp.position.set(0, dh + 0.16, 0.26);
       grp.add(lamp);
       root.add(grp);
-      out.doors.push({ d, grp, leaves, L, lamp, lampMat });
+      /* pontos dos dois lados da porta (para saber se você a enxerga) */
+      const sides = horiz ? [[cx, y - 0.6], [cx, y + h + 0.6]] : [[x - 0.6, cz], [x + w + 0.6, cz]];
+      out.doors.push({ d, grp, leaves, L, lamp, lampMat, mats: [leafMat, hazLeaf, edgeMat], sides, seen: 1 });
     }
   }
 
@@ -25553,13 +25627,18 @@ float auBayer(vec2 p) {
         }
         a.px = p.x;
         a.pz = p.y;
-        /* saindo do duto: cresce com um pulinho */
-        let sc = 1, hop = 0;
+        /* saindo do duto: sobe de dentro do buraco (o chão e o fundo preto do duto escondem a parte de baixo), passa
+           um pouco da altura do chão e pousa em cima da tampa */
+        const sc = 1;
+        let hop = 0;
         if (p.popT != null) {
-          const k = (g.t - p.popT) / 0.35;
-          if (k >= 0 && k < 1) {
-            sc = Math.max(0.05, 1 + Math.sin(k * Math.PI) * 0.25 - (1 - k) * 0.9);
-            hop = Math.sin(k * Math.PI) * 0.35;
+          const k = (g.t - p.popT) / 0.5;
+          if (k >= 0 && k < 0.55) {
+            const u = k / 0.55;
+            hop = -1.4 + 1.82 * (1 - (1 - u) * (1 - u));
+          } else if (k >= 0.55 && k < 1) {
+            const u = (k - 0.55) / 0.45;
+            hop = 0.42 * (1 - u * u);
           }
         }
         /* metamorfo trocando: o corpo treme */
@@ -26414,17 +26493,34 @@ float auBayer(vec2 p) {
           this.ventGuys.splice(i, 1);
           continue;
         }
-        const u = vg.out ? 1 - k : k;
-        const y = u < 0.25 ? u * 1.2 : 0.3 - (u - 0.25) * 2.4;
-        vg.a.group.position.set(vg.x, y, vg.z);
-        vg.a.group.scale.setScalar(Math.max(0.05, 1 - Math.max(0, u - 0.5) * 1.6));
+        /* pulo em arco de onde estava até o duto (a tampa já aberta) e queda para dentro do buraco */
+        let x = vg.x, z = vg.z, y;
+        if (k < 0.45) {
+          const u = k / 0.45, e = u * u * (3 - 2 * u);
+          x = vg.ox + (vg.x - vg.ox) * e;
+          z = vg.oz + (vg.z - vg.oz) * e;
+          y = Math.sin(u * Math.PI) * 0.42;
+        } else {
+          const u = (k - 0.45) / 0.55;
+          y = -1.5 * Math.pow(u, 1.6);
+        }
+        vg.a.group.position.set(x, y, z);
+        vg.a.group.rotation.y = vg.yaw;
       }
     },
+    /* entrando no duto: uma cópia do personagem faz o pulo (o de verdade já está dentro). Saindo, quem sobe do
+       buraco é o próprio personagem (ver Actors.update), sem cópia */
     ventGuy(f) {
-      const a = AU.R3DActors.makeCrew(f.color, f.hat || 'nenhum', f.visor || 'azul');
-      a.group.rotation.y = (f.facing || 1) > 0 ? Math.PI / 2 : -Math.PI / 2;
+      if (f.type !== 'ventIn') return;
+      const src = f.who != null && this.actors && this.actors.list.get(f.who);
+      const ox = f.ox != null ? f.ox : f.x, oz = f.oy != null ? f.oy : f.y;
+      const a = AU.R3DActors.makeCrew(f.color, f.hat || 'nenhum', f.visor || 'classico');
+      const far = Math.hypot(f.x - ox, f.y - oz) > 0.15;
+      const yaw = far ? Math.atan2(f.x - ox, f.y - oz) : src ? src.yaw : (f.facing || 1) > 0 ? Math.PI / 2 : -Math.PI / 2;
+      a.group.position.set(ox, 0, oz);
+      a.group.rotation.y = yaw;
       this.scene.add(a.group);
-      this.ventGuys.push({ a, x: f.x, z: f.y, t0: f.t0, dur: f.dur || 0.8, out: f.type === 'ventOut' });
+      this.ventGuys.push({ a, x: f.x, z: f.y, ox, oz, yaw, t0: f.t0, dur: f.dur || 0.6 });
     },
     drawAsteroids(t) {
       const c = this.astro.c, x = c.getContext('2d'), W = c.width, Hh = c.height;
@@ -26505,8 +26601,17 @@ float auBayer(vec2 p) {
     },
 
     /* ---------- quadro ---------- */
+    /* quadro: com as portas como aparecem na tela (a visão acompanha as folhas fechando e abrindo) */
     draw(g, t) {
       if (!this.active || !this.renderer) return;
+      const undo = M.visualDoors(g.t);
+      try {
+        this.drawFrame(g, t);
+      } finally {
+        undo();
+      }
+    },
+    drawFrame(g, t) {
       if (this.needResize) {
         this.needResize = false;
         this.resize();
@@ -26749,12 +26854,22 @@ float auBayer(vec2 p) {
     },
 
     updateDoors(g, t) {
+      const dt = Math.min(0.1, Math.max(0, t - (this.doorT || t)));
+      this.doorT = t;
       for (const D of this.world.doors) {
         const d = D.d;
+        /* enxerga a porta (de um dos lados)? senão ela escurece como a névoa, devagar */
+        const seen = D.sides.some(([sx, sz]) => this.visible(g, sx, sz)) ? 1 : 0;
+        D.seen += (seen - D.seen) * Math.min(1, dt * 8);
+        const b = AU.R3DKit.UNI.uDark.value + (1 - AU.R3DKit.UNI.uDark.value) * D.seen;
+        D.mats[0].color.setRGB(0.25 * b, 0.296 * b, 0.402 * b);
+        D.mats[1].color.setScalar(b);
+        D.mats[2].emissiveIntensity = 0.4 * b;
         const prog = d.animT != null ? Math.min(1, Math.max(0, (g.t - d.animT) / 0.35)) : 1;
-        const amt = d.closed ? prog : 1 - prog;
+        const closed = M.doorClosed(d);
+        const amt = closed ? prog : 1 - prog;
         for (const lf of D.leaves) lf.g.position.x = lf.s * (D.L / 4 + (1 - amt) * (D.L / 2 - 0.02));
-        const red = d.closed;
+        const red = closed;
         D.lampMat.emissive.set(red ? '#ff2a2a' : '#3aff7a');
         D.lampMat.emissiveIntensity = red ? (Math.sin(t * 6) > 0 ? 4 : 0.6) : 2;
       }
@@ -26764,7 +26879,10 @@ float auBayer(vec2 p) {
       for (const f of g.fx) {
         if (f.type !== 'ventIn' && f.type !== 'ventOut') continue;
         const k = (g.t - f.t0) / (f.dur || 0.8);
-        const o = k < 0.2 ? k / 0.2 : k > 0.75 ? Math.max(0, (1 - k) / 0.25) : 1;
+        /* entrando: abre antes de o pulo chegar e só fecha quando o personagem já sumiu lá dentro; saindo: abre logo
+           e fecha depois que ele saiu */
+        const [a, b] = f.type === 'ventIn' ? [0.25, 0.85] : [0.15, 0.72];
+        const o = k < 0 ? 0 : k < a ? k / a : k > b ? Math.max(0, (1 - k) / (1 - b)) : 1;
         const v = M.VENTS.reduce((b, q) => (U.d2(q.x, q.y, f.x, f.y) < U.d2(b.x, b.y, f.x, f.y) ? q : b));
         open[v.id] = Math.max(open[v.id] || 0, o);
       }
@@ -26967,7 +27085,19 @@ float auBayer(vec2 p) {
       }
       const rd = this.renderer;
       rd.setRenderTarget(this.camRT);
+      /* portas: na câmera elas aparecem como são (não escurecidas pela visão do jogador) */
+      const doorB = this.world.doors.map((D) => [D, D.mats[0].color.clone(), D.mats[1].color.clone(), D.mats[2].emissiveIntensity]);
+      for (const D of this.world.doors) {
+        D.mats[0].color.setRGB(0.25, 0.296, 0.402);
+        D.mats[1].color.setScalar(1);
+        D.mats[2].emissiveIntensity = 0.4;
+      }
       rd.render(this.scene, cc);
+      for (const [D, c0, c1, e2] of doorB) {
+        D.mats[0].color.copy(c0);
+        D.mats[1].color.copy(c1);
+        D.mats[2].emissiveIntensity = e2;
+      }
       rd.readRenderTargetPixels(this.camRT, 0, 0, 320, 200, this.camBuf);
       rd.setRenderTarget(null);
       for (const [o, v] of saved) o.visible = v;
@@ -32177,7 +32307,7 @@ float auBayer(vec2 p) {
     }
     /* ---------- acontecimentos do jogo que todos precisam ver ---------- */
     fx(f) {
-      this.emit('fx', { ty: f.type, x: r2(f.x), y: r2(f.y), c: f.color, fa: f.facing, ht: f.hat, vs: f.visor, sd: f.seed, du: f.dur });
+      this.emit('fx', { ty: f.type, x: r2(f.x), y: r2(f.y), ox: f.ox == null ? undefined : r2(f.ox), oy: f.oy == null ? undefined : r2(f.oy), c: f.color, fa: f.facing, ht: f.hat, vs: f.visor, sd: f.seed, du: f.dur, w: f.who });
     }
     meeting(mt) {
       const info = mt.info;
@@ -32351,7 +32481,7 @@ float auBayer(vec2 p) {
           break;
         case 'fx':
           if (!g) break;
-          g.addFx({ type: d.ty, x: d.x, y: d.y, color: d.c, facing: d.fa, hat: d.ht, visor: d.vs, seed: d.sd, dur: d.du });
+          g.addFx({ type: d.ty, x: d.x, y: d.y, ox: d.ox, oy: d.oy, color: d.c, facing: d.fa, hat: d.ht, visor: d.vs, seed: d.sd, dur: d.du, who: Number.isInteger(d.w) ? d.w : undefined });
           if (d.ty === 'kill') {
             g.sfxAt('kill', d.x, d.y, { sight: true, h: 0.7 });
             const v = g.players.find((q) => q.color === d.c);

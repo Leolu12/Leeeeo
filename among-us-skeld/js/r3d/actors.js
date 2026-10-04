@@ -357,13 +357,18 @@
         }
         a.px = p.x;
         a.pz = p.y;
-        /* saindo do duto: cresce com um pulinho */
-        let sc = 1, hop = 0;
+        /* saindo do duto: sobe de dentro do buraco (o chão e o fundo preto do duto escondem a parte de baixo), passa
+           um pouco da altura do chão e pousa em cima da tampa */
+        const sc = 1;
+        let hop = 0;
         if (p.popT != null) {
-          const k = (g.t - p.popT) / 0.35;
-          if (k >= 0 && k < 1) {
-            sc = Math.max(0.05, 1 + Math.sin(k * Math.PI) * 0.25 - (1 - k) * 0.9);
-            hop = Math.sin(k * Math.PI) * 0.35;
+          const k = (g.t - p.popT) / 0.5;
+          if (k >= 0 && k < 0.55) {
+            const u = k / 0.55;
+            hop = -1.4 + 1.82 * (1 - (1 - u) * (1 - u));
+          } else if (k >= 0.55 && k < 1) {
+            const u = (k - 0.55) / 0.45;
+            hop = 0.42 * (1 - u * u);
           }
         }
         /* metamorfo trocando: o corpo treme */

@@ -1008,6 +1008,8 @@
       if (!this.canVent(p) || p.inVent || !v) return false;
       if (p.special === 'engenheiro' && p.abilityCd > 0) return false;
       if (p.invisUntil > this.t) return false;
+      /* de onde pulou (a animação sai daqui e cai no duto) */
+      const ox = p.x, oy = p.y;
       p.inVent = v.id;
       p.x = v.x;
       p.y = v.y;
@@ -1018,7 +1020,7 @@
       const ap = this.appearId(p);
       for (const w of wit) if (w.p.brain) w.p.brain.onWitnessVent(ap, 'in', v, w.via);
       const apc = this.appear(p);
-      this.addFx({ type: 'ventIn', x: v.x, y: v.y, dur: 0.6, color: apc.color, hat: apc.hat, visor: apc.visor, facing: p.facing, who: p.id });
+      this.addFx({ type: 'ventIn', x: v.x, y: v.y, ox, oy, dur: 0.6, color: apc.color, hat: apc.hat, visor: apc.visor, facing: p.facing, who: p.id });
       this.log({ type: 'vent', by: p.id, vent: v.id, dir: 'in', witnesses: wit.map((w) => w.p.id) });
       if (p.isHuman) this.sfx('vent');
       else this.sfxAt('vent', v.x, v.y, { h: 0.1 });
@@ -1042,7 +1044,8 @@
       const wit = this.witnesses([v], [p.id]);
       const ap = this.appearId(p);
       for (const w of wit) if (w.p.brain) w.p.brain.onWitnessVent(ap, 'out', v, w.via);
-      this.addFx({ type: 'ventOut', x: v.x, y: v.y, dur: 0.5, who: p.id });
+      const apc = this.appear(p);
+      this.addFx({ type: 'ventOut', x: v.x, y: v.y, dur: 0.5, color: apc.color, hat: apc.hat, visor: apc.visor, facing: p.facing, who: p.id });
       /* sai do duto "pulando": o desenho cresce de dentro da tampa */
       p.popT = this.t;
       this.log({ type: 'vent', by: p.id, vent: v.id, dir: 'out', witnesses: wit.map((w) => w.p.id) });
