@@ -650,10 +650,15 @@ float auBayer(vec2 p) {
     const m = new THREE.MeshPhysicalMaterial(o);
     return patch(m, p);
   }
-  function makeMaterials() {
+  /* em etapas (yield entre uma textura e outra): dá para montar aos poucos, sem travar a tela */
+  function* materialsGen() {
     const T = {};
-    for (const k of Object.keys(SURF)) T[k] = SURF[k]();
+    for (const k of Object.keys(SURF)) {
+      T[k] = SURF[k]();
+      yield;
+    }
     UNI.uMacro.value = macroTex();
+    yield;
     const floor = (style, color, metal, rough) => std(Object.assign({ color, metalness: metal == null ? 0.55 : metal, roughness: rough == null ? 1 : rough }, T[style]), { macro: true });
     MAT.floor = {
       plates: (c) => floor('plates', c, 0.6, 0.95),
@@ -701,6 +706,9 @@ float auBayer(vec2 p) {
     MAT.screen = (kind, k) => once('s' + kind + k, () => std({ color: '#000', emissive: '#ffffff', emissiveMap: screenTex(kind), emissiveIntensity: k == null ? 1.6 : k, metalness: 0.1, roughness: 0.15 }));
     MAT.lamp = std({ color: '#fff', emissive: '#fff3dc', emissiveIntensity: 3.2, roughness: 0.4 });
     MAT.textures = T;
+  }
+  function makeMaterials() {
+    for (const _ of materialsGen()) void _;
   }
 
   /* ---------- montador: junta as peças por material ---------- */
@@ -776,7 +784,7 @@ float auBayer(vec2 p) {
   }
 
   AU.R3DKit = {
-    UNI, patch, MAT, SURF, Kit, makeMaterials, tickScreens, starsTex, hazardTex, canvas, tex, rnd,
+    UNI, patch, MAT, SURF, Kit, makeMaterials, materialsGen, tickScreens, starsTex, hazardTex, canvas, tex, rnd,
     setQuality(size, aniso) {
       QUAL = size;
       ANISO = aniso;

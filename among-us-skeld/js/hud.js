@@ -824,6 +824,7 @@
         h('div', { class: 'pause-gfx' }, AU.Menu.gfxControls(AU.Menu.S.ui, () => {
           g.S.ui.graphics = AU.Menu.S.ui.graphics;
           g.S.ui.quality = AU.Menu.S.ui.quality;
+          g.S.ui.graphicsPicked = AU.Menu.S.ui.graphicsPicked;
           AU.Menu.save();
         })),
         h('div', { class: 'pause-ai' }, h('strong', {}, 'IA das conversas: '), AU.Menu.aiStatusEl()),

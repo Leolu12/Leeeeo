@@ -49,6 +49,7 @@
       this.screen = name;
       for (const k of ['title', 'create', 'lobby', 'reveal', 'game', 'end', 'online']) this.el[k].hidden = k !== name;
       if (name === 'title') AU.Menu.title(this.el.title);
+      if (name !== 'game') this.prewarm();
       if (name === 'online') AU.Net.screen(this.el.online);
       if (name === 'create') AU.Menu.create(this.el.create);
       /* o relatório final guarda a partida inteira: saindo dele, solta */
@@ -110,13 +111,16 @@
           if (started) return;
           started = true;
           clearTimeout(AU.Menu._revealT);
-          this.show('game');
-          AU.Render.setup(this.el.canvas);
-          AU.Render.cam.x = g.human.x;
-          AU.Render.cam.y = g.human.y;
-          AU.HUD.mount(this.el.hud, g);
-          this.applyGraphics();
-          this.last = 0;
+          this.whenGraphicsReady(() => {
+            if (this.game !== g) return;
+            this.show('game');
+            AU.Render.setup(this.el.canvas);
+            AU.Render.cam.x = g.human.x;
+            AU.Render.cam.y = g.human.y;
+            AU.HUD.mount(this.el.hud, g);
+            this.applyGraphics();
+            this.last = 0;
+          });
         });
       };
       if (cl.privOK) go();
@@ -195,37 +199,86 @@
         if (started) return;
         started = true;
         clearTimeout(AU.Menu._revealT);
-        this.show('game');
-        AU.Render.setup(this.el.canvas);
-        AU.Render.cam.x = this.game.human.x;
-        AU.Render.cam.y = this.game.human.y;
-        this.applyGraphics();
-        AU.HUD.mount(this.el.hud, this.game);
-        this.paused = false;
-        this.last = 0;
+        const g = this.game;
+        this.whenGraphicsReady(() => {
+          if (this.game !== g) return;
+          this.show('game');
+          AU.Render.setup(this.el.canvas);
+          AU.Render.cam.x = g.human.x;
+          AU.Render.cam.y = g.human.y;
+          this.applyGraphics();
+          AU.HUD.mount(this.el.hud, g);
+          this.paused = false;
+          this.last = 0;
+        });
       });
     },
 
-    /* liga o 3D (se escolhido e possível) ou volta ao 2D; force: reconstrói com a qualidade nova */
+    /* liga o 3D (se escolhido e possível) ou volta ao 2D; force: reconstrói com a qualidade nova. Se o 3D ainda
+       está sendo montado, a partida segue no 2D e troca sozinha quando ele fica pronto (nada de tela travada) */
     applyGraphics(force) {
       const g = this.game, R3 = AU.R3D;
-      if (!g || this.screen !== 'game') return;
+      if (!g || this.screen !== 'game') {
+        this.prewarm();
+        return;
+      }
       const ui = AU.Menu.S.ui;
-      const want = ui.graphics !== '2d' && R3 && R3.supported() && !R3.failed;
+      const want = AU.Menu.wants3d(ui);
+      const lv = ui.quality === 'auto' ? null : ui.quality;
       if (want) {
         if (force && R3.renderer) R3.dispose();
-        this.el.canvas3d.hidden = false;
-        const ok = R3.setup(this.el.canvas3d, this.el.canvas, ui.quality === 'auto' ? null : ui.quality);
-        if (ok) {
+        const c3 = (this.el.canvas3d = document.getElementById('world3d'));
+        if (R3.ready(c3, lv) && R3.setup(c3, this.el.canvas, lv)) {
+          c3.hidden = false;
+          R3.resize();
           R3.reset(g);
           this.mode3d = true;
           return;
         }
+        R3.prepare(c3, this.el.canvas, lv).then((ok) => {
+          if (ok && this.game === g && this.screen === 'game' && !this.mode3d) this.applyGraphics();
+        });
       }
       if (R3) R3.hide();
       this.el.canvas3d.hidden = true;
       this.mode3d = false;
       AU.Render.setup(this.el.canvas);
+    },
+    /* monta o 3D aos poucos enquanto você está nos menus (a partida já começa com ele pronto) */
+    prewarm(now) {
+      const R3 = AU.R3D, ui = AU.Menu.S.ui;
+      const want = AU.Menu.wants3d(ui);
+      if (R3 && !want && R3.job) R3.dispose(); /* escolheu o 2D no meio da montagem: para e solta a memória */
+      if (!want) return null;
+      const lv = ui.quality === 'auto' ? null : ui.quality;
+      const c3 = (this.el.canvas3d = document.getElementById('world3d'));
+      if (R3.ready(c3, lv)) return Promise.resolve(true);
+      clearTimeout(this._warmT);
+      if (now) return R3.prepare(c3, this.el.canvas, lv);
+      this._warmT = setTimeout(() => {
+        if (this.screen !== 'game') R3.prepare(c3, this.el.canvas, lv);
+      }, 700);
+      return null;
+    },
+    /* depois de ver o papel: espera o 3D terminar de montar (no máximo alguns segundos) */
+    whenGraphicsReady(cb) {
+      const p = this.prewarm(true);
+      if (!p) return cb();
+      let done = false;
+      const go = () => {
+        if (done) return;
+        done = true;
+        clearTimeout(t);
+        cb();
+      };
+      const btn = this.el.reveal.querySelector('.btn');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Preparando a nave em 3D…';
+      }
+      /* online a partida já está correndo: espera menos (o 3D entra sozinho quando ficar pronto) */
+      const t = setTimeout(go, this.online ? 3000 : 9000);
+      p.then(go, go);
     },
 
     teardown(keepNet) {

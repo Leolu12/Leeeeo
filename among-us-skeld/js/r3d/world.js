@@ -170,7 +170,8 @@
   }
 
   /* ---------- montagem do mundo ---------- */
-  function build(scene) {
+  /* em etapas (yield entre as partes), para montar aos poucos sem travar a tela; build() faz tudo de uma vez */
+  function* buildGen(scene) {
     const MAT = KIT.MAT;
     classify();
     buildHullMask();
@@ -211,6 +212,7 @@
       g.name = 'floor:' + aid;
       root.add(g);
     }
+    yield;
 
     /* paredes e casco */
     const wk = new KIT.Kit(), hk = new KIT.Kit(), tk = new KIT.Kit();
@@ -255,6 +257,7 @@
         hk.add(sideGeo(x0, z0, x1, z1, HULL_DEEP, HULL_Y, dx, dz, 3, 3), MAT.hullSide, 0, 0, 0);
       }
     }
+    yield;
     const walls = wk.build();
     walls.name = 'walls';
     root.add(walls);
@@ -272,12 +275,16 @@
       return RK(a ? a.id : 'misc');
     };
     const ctx = { MAT, out, RK, kitOf, heightAt, HIGH, LOW };
+    yield;
     lamps(ctx);
     doors(ctx, root);
     vents(ctx, root);
+    yield;
     cameras(ctx, root);
     windows(ctx, root);
     wallDecor(ctx);
+    yield;
+    let n = 0;
     for (const pr of M.PROPS) {
       const fn = PROP[pr.kind];
       if (!fn) continue;
@@ -286,16 +293,27 @@
       } catch (e) {
         if (window.console) console.warn('objeto 3D falhou', pr.kind, e);
       }
+      if (++n % 8 === 0) yield;
     }
     floorDecor(ctx);
     for (const o of out.extra || []) root.add(o);
+    yield;
+    n = 0;
     for (const [aid, kit] of Object.entries(roomKits)) {
       const g = kit.build();
       g.name = 'room:' + aid;
       root.add(g);
+      if (++n % 3 === 0) yield;
     }
     out.root = root;
     return out;
+  }
+  function build(scene) {
+    const it = buildGen(scene);
+    for (;;) {
+      const r = it.next();
+      if (r.done) return r.value;
+    }
   }
   function pointInPoly(poly, x, z) {
     let inside = false;
@@ -1099,5 +1117,5 @@
     out.stations[pr.station] = { x: sx, y: sy, z: sz };
   };
 
-  AU.R3DWorld = { build, HIGH, LOW, HULL_Y, wallHAt: (tx, tz) => wallH[tz * W + tx], heightAt: (x, z) => heightAt(x, z), STYLE, ACCENT };
+  AU.R3DWorld = { build, buildGen, HIGH, LOW, HULL_Y, wallHAt: (tx, tz) => wallH[tz * W + tx], heightAt: (x, z) => heightAt(x, z), STYLE, ACCENT };
 })();

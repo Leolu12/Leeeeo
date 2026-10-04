@@ -117,6 +117,16 @@
         try {
           offs.push(this.db.collection('salas').onSnapshot((snap) => {
             this.dbRooms = snap.docs.map((d) => d.data()).filter((d) => d && /^[A-Z]{4}$/.test(d.code || '')).map((d) => ({ code: d.code, name: clean(d.name), n: +d.n || 1, max: +d.max || 10, st: d.st === 'play' ? 'play' : 'lobby', at: +d.at || 0 }));
+            /* salas abandonadas (aba fechada sem sair): apaga as velhas, poucas por vez */
+            this.pruned = this.pruned || new Set();
+            let k = 0;
+            for (const d of snap.docs) {
+              const v = d.data() || {};
+              if (k >= 5 || this.pruned.has(d.id) || Date.now() - (+v.at || 0) < 15 * 60000) continue;
+              this.pruned.add(d.id);
+              k++;
+              this.db.doc('salas/' + d.id).delete().catch(() => {});
+            }
             cb();
           }, () => {}));
         } catch (e) {
@@ -370,6 +380,16 @@
     async start() {
       this.keys = await keyPair();
       this.gr = await Net.room.join('au-' + this.code.toLowerCase());
+      /* só quem pode mandar eventos (acesso de colaborador ou mais) consegue rodar a partida: testa antes de abrir
+         (o teste tem número 0, que os amigos ignoram) */
+      try {
+        await this.gr.emit('ev', { s: 0, k: 'ping' });
+      } catch (e) {
+        if (e && e.code === 'not_permitted') {
+          this.gr.leave().catch(() => {});
+          throw e;
+        }
+      }
       this.unsub = [
         this.gr.onPeers((ch) => this.onPeers(ch), () => {}),
       ];
@@ -751,6 +771,16 @@
     async start() {
       this.keys = await keyPair();
       this.gr = await Net.room.join('au-' + this.code.toLowerCase());
+      /* só quem pode mandar eventos (acesso de colaborador ou mais) consegue rodar a partida: testa antes de abrir
+         (o teste tem número 0, que os amigos ignoram) */
+      try {
+        await this.gr.emit('ev', { s: 0, k: 'ping' });
+      } catch (e) {
+        if (e && e.code === 'not_permitted') {
+          this.gr.leave().catch(() => {});
+          throw e;
+        }
+      }
       this.unsub = [
         this.gr.onPeers((ch) => this.onPeers(ch), () => {}),
         this.gr.on('ev', (m) => this.onEvent(m), () => {}),
@@ -1267,7 +1297,12 @@
     try {
       await host.start();
     } catch (e) {
-      card.append(h('p', { class: 'online-msg bad' }, 'Não deu para abrir a sala agora. Tente de novo em instantes.'));
+      if (Net.host === host) Net.leave();
+      card.innerHTML = '';
+      card.append(h('div', { class: 'online-head' }, h('h2', {}, 'Criar sala'), h('button', { class: 'btn ghost', onclick: () => Net.screen(card.parentNode.parentNode) }, '← Voltar')));
+      card.append(h('p', { class: 'online-msg bad' }, e && e.code === 'not_permitted'
+        ? 'Para criar uma sala você precisa de acesso de Colaborador (ou mais) a este jogo — peça para quem compartilhou o link. Entrar na sala de um amigo funciona com qualquer acesso.'
+        : 'Não deu para abrir a sala agora. Tente de novo em instantes.'));
       return;
     }
     draw();

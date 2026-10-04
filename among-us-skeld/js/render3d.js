@@ -16,22 +16,42 @@
   };
   const coarse = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   function autoLevel() {
+    if (slowGPU()) return 'baixa';
     const mem = (navigator && navigator.deviceMemory) || 8;
     if (coarse) return mem < 4 ? 'baixa' : 'media';
     return mem < 4 ? 'media' : 'alta';
   }
 
-  /* WebGL 2 disponível? (sem ele, fica no 2D) */
-  let SUPPORT = null;
+  /* WebGL 2 disponível? (sem ele, fica no 2D). slow: o navegador desenha sem placa de vídeo (no processador) */
+  let SUPPORT = null, SLOW = false;
   function supported() {
     if (SUPPORT != null) return SUPPORT;
     try {
       const c = document.createElement('canvas');
       SUPPORT = !!(THREE && c.getContext('webgl2'));
+      if (SUPPORT) {
+        const c2 = document.createElement('canvas');
+        const gl = c2.getContext('webgl2', { failIfMajorPerformanceCaveat: true });
+        SLOW = !gl;
+        /* nome do renderizador: os de software se entregam (SwiftShader, llvmpipe, "Basic Render Driver"...) */
+        if (gl && !SLOW) {
+          const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+          const name = String(gl.getParameter(dbg ? dbg.UNMASKED_RENDERER_WEBGL : gl.RENDERER) || '');
+          SLOW = /swiftshader|llvmpipe|softpipe|software|basic render/i.test(name);
+        }
+        const lose = gl && gl.getExtension('WEBGL_lose_context');
+        if (lose) lose.loseContext();
+      }
+      const lose = SUPPORT && c.getContext('webgl2').getExtension('WEBGL_lose_context');
+      if (lose) lose.loseContext();
     } catch (e) {
       SUPPORT = false;
     }
     return SUPPORT;
+  }
+  function slowGPU() {
+    supported();
+    return SLOW;
   }
 
   const R3 = {
@@ -39,21 +59,92 @@
     failed: false,
     level: null,
     supported,
+    slowGPU,
     LEVELS,
     autoLevel,
     cam: { x: 69, y: 14 },
 
-    /* prepara (uma vez por sessão; a nave fica pronta para as próximas partidas) */
+    /* já montado (ou montando) para esta tela e qualidade? */
+    ready(canvas, levelName) {
+      const lvName = levelName && LEVELS[levelName] ? levelName : autoLevel();
+      return !!(this.renderer && !this.job && this.canvas === canvas && this.levelName === lvName);
+    },
+    /* monta aos poucos, sem travar a tela (uma etapa por folga do navegador); devolve uma promessa (true = pronto).
+       Chamar de novo com a mesma qualidade devolve a mesma montagem; com outra, cancela a anterior. */
+    prepare(canvas, overlay, levelName) {
+      if (!supported() || this.failed) return Promise.resolve(false);
+      const lvName = levelName && LEVELS[levelName] ? levelName : autoLevel();
+      if (this.ready(canvas, lvName)) return Promise.resolve(true);
+      if (this.job && this.job.lv === lvName && this.job.canvas === canvas) return this.job.p;
+      if (this.job) this.job.cancel = true;
+      canvas = this.release(canvas);
+      const job = { lv: lvName, canvas, cancel: false, it: this.buildGen(canvas, overlay, lvName) };
+      this.job = job;
+      const pause = () => new Promise((r) => (window.requestIdleCallback ? requestIdleCallback(() => r(), { timeout: 60 }) : setTimeout(r, 0)));
+      job.p = (async () => {
+        try {
+          for (;;) {
+            if (job.done) return true;
+            if (job.cancel) return false;
+            const r = job.it.next();
+            if (r.done) break;
+            if (r.value && typeof r.value.then === 'function') await Promise.resolve(r.value).catch(() => {});
+            await pause();
+          }
+        } catch (e) {
+          if (job.cancel) return false;
+          if (window.console) console.warn('3D indisponível, usando 2D', e);
+          this.failed = true;
+          this.active = false;
+          this.job = null;
+          try {
+            this.dispose();
+          } catch (e2) {
+            /* nada */
+          }
+          return false;
+        }
+        if (job.done) return true;
+        if (job.cancel) return false;
+        this.job = null;
+        return true;
+      })();
+      return job.p;
+    },
+    /* prepara de uma vez (uma vez por sessão; a nave fica pronta para as próximas partidas) */
     setup(canvas, overlay, levelName) {
       if (!supported() || this.failed) return false;
       const lvName = levelName && LEVELS[levelName] ? levelName : autoLevel();
-      if (this.renderer && this.canvas === canvas && this.levelName === lvName) {
+      /* montagem em andamento com esta qualidade: termina agora, de uma vez */
+      if (this.job && this.job.lv === lvName && this.job.canvas === canvas) {
+        const job = this.job;
+        try {
+          for (;;) {
+            const r = job.it.next();
+            if (r.done) break;
+          }
+        } catch (e) {
+          job.cancel = true;
+          this.job = null;
+          if (window.console) console.warn('3D indisponível, usando 2D', e);
+          this.failed = true;
+          this.active = false;
+          return false;
+        }
+        job.done = true; /* o laço da promessa para e responde "pronto" */
+        this.job = null;
+      }
+      if (this.renderer && !this.job && this.canvas === canvas && this.levelName === lvName) {
         this.overlay = overlay;
         this.active = true;
         this.resize();
         return true;
       }
-      if (this.renderer) this.dispose();
+      if (this.job) {
+        this.job.cancel = true;
+        this.job = null;
+      }
+      canvas = this.release(canvas);
       try {
         this.build(canvas, overlay, lvName);
       } catch (e) {
@@ -70,7 +161,12 @@
       this.active = true;
       return true;
     },
+    /* monta tudo de uma vez (trava a tela enquanto monta) */
     build(canvas, overlay, lvName) {
+      for (const _ of this.buildGen(canvas, overlay, lvName)) void _;
+    },
+    /* a montagem em etapas: cada yield é uma pausa em que a tela pode respirar (ver prepare) */
+    *buildGen(canvas, overlay, lvName) {
       const KIT = AU.R3DKit;
       const T0 = performance.now(), tm = {};
       const mark = (k) => (tm[k] = Math.round(performance.now() - T0));
@@ -89,13 +185,17 @@
       renderer.shadowMap.enabled = lv.shadow > 0;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.shadowMap.autoUpdate = true;
+      mark('renderer');
       canvas.addEventListener('webglcontextlost', (e) => {
         e.preventDefault();
+        /* perda de verdade (não a do descarte, que troca a tela por outra) */
+        if (canvas !== this.canvas || !this.renderer) return;
         this.failed = true;
         this.active = false;
       });
       KIT.setQuality(lv.tex, Math.min(lv.aniso, renderer.capabilities.getMaxAnisotropy()));
-      if (!KIT.MAT.wall) KIT.makeMaterials();
+      yield;
+      if (!KIT.MAT.wall) yield* KIT.materialsGen();
       mark('materiais');
       const scene = new THREE.Scene();
       scene.background = new THREE.Color('#010208');
@@ -105,6 +205,7 @@
       scene.environment = pm.fromScene(new THREE.RoomEnvironment(), 0.04).texture;
       scene.environmentIntensity = 0.42;
       pm.dispose();
+      yield;
       const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 400);
       this.camera = camera;
       /* espaço lá embaixo: estrelas em duas camadas (paralaxe) */
@@ -123,8 +224,10 @@
       this.sky = [sky, sky2];
       /* a nave */
       mark('ambiente');
-      this.world = AU.R3DWorld.build(scene);
+      yield;
+      this.world = yield* AU.R3DWorld.buildGen(scene);
       mark('nave');
+      yield;
       this.actors = new AU.R3DActors.Actors(scene);
       /* luzes */
       const hemi = new THREE.HemisphereLight('#b8c8ff', '#2a2420', 0.4);
@@ -160,6 +263,7 @@
       this.setupVision();
       this.setupAO();
       mark('sombra');
+      yield;
       this.setupFx();
       this.setupPost();
       mark('pronto');
@@ -169,6 +273,94 @@
       this.fpsN = 0;
       this.scale = 1;
       this.dynPR = lv.pr;
+      /* aquecimento: compila os programas de sombreamento antes da partida (com personagens de mentira em cena,
+         para os materiais deles também), em vez de travar no primeiro quadro */
+      const A = AU.R3DActors, dummy = [];
+      try {
+        const c = A.makeCrew('red', 'nenhum', 'classico');
+        dummy.push(c.group, A.makeGhost('blue'), A.makeBody('green'));
+      } catch (e) {
+        /* sem personagens de mentira: compilam no primeiro quadro */
+      }
+      for (const d of dummy) {
+        d.position.set(this.cam.x, 0, this.cam.y);
+        scene.add(d);
+      }
+      camera.position.set(this.cam.x, 14, this.cam.y + 9);
+      camera.lookAt(this.cam.x, 0.5, this.cam.y);
+      /* o navegador só termina de preparar um programa quando ele é usado: "usa" cada programa novo na hora
+         (lendo os uniformes), um por etapa, em vez de pagar tudo no primeiro quadro */
+      /* texturas para a placa de vídeo, poucas por etapa (senão sobem todas no primeiro quadro em que aparecem) */
+      const texs = new Set();
+      scene.traverse((o) => {
+        const ms = !o.material ? [] : Array.isArray(o.material) ? o.material : [o.material];
+        for (const m of ms) for (const k of ['map', 'normalMap', 'roughnessMap', 'emissiveMap', 'alphaMap']) if (m[k] && m[k].isTexture) texs.add(m[k]);
+      });
+      let nt = 0;
+      for (const t of texs) {
+        renderer.initTexture(t);
+        if (++nt % 4 === 0) yield;
+      }
+      /* compila como a cena é desenhada de verdade: dentro de uma imagem intermediária (o pós-processamento faz
+         o tom e a cor no fim), senão os programas saem diferentes e compilam de novo no primeiro quadro */
+      const rt = new THREE.WebGLRenderTarget(64, 64, { type: THREE.HalfFloatType });
+      renderer.setRenderTarget(rt);
+      const progs = () => renderer.info.programs || [];
+      let seen = progs().length;
+      const settle = () => {
+        const list = progs();
+        for (let i = seen; i < list.length; i++) list[i].getUniforms();
+        const changed = list.length !== seen;
+        seen = list.length;
+        return changed;
+      };
+      if (renderer.compileAsync && renderer.extensions.has('KHR_parallel_shader_compile')) {
+        yield renderer.compileAsync(scene, camera);
+        renderer.setRenderTarget(rt);
+        settle();
+      } else {
+        const objs = [];
+        scene.traverse((o) => {
+          if (o.isMesh || o.isPoints || o.isSprite || o.isLine) objs.push(o);
+        });
+        let n = 0;
+        for (const o of objs) {
+          renderer.setRenderTarget(rt);
+          renderer.compile(o, camera, scene);
+          if (settle() || ++n % 40 === 0) yield;
+        }
+      }
+      /* efeitos de tela (brilho, cor, saída): cada material num quadradinho, compilado e usado */
+      const post = new Set();
+      const take = (v) => {
+        if (v && v.isMaterial) post.add(v);
+        else if (Array.isArray(v)) v.forEach(take);
+      };
+      for (const pass of this.composer.passes) {
+        for (const v of Object.values(pass)) take(v);
+        if (pass.fsQuad) take(pass.fsQuad.material);
+      }
+      const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), quad = new THREE.PlaneGeometry(2, 2);
+      for (const m of post) {
+        try {
+          renderer.setRenderTarget(rt);
+          renderer.compile(new THREE.Mesh(quad, m), ortho);
+        } catch (e) {
+          /* compila no primeiro quadro */
+        }
+        if (settle()) yield;
+      }
+      quad.dispose();
+      /* um quadro de verdade, pequeno (sombras e o que faltou) */
+      renderer.setRenderTarget(rt);
+      renderer.render(scene, camera);
+      renderer.setRenderTarget(null);
+      rt.dispose();
+      settle();
+      yield;
+      this.composer.render(0);
+      for (const d of dummy) scene.remove(d);
+      mark('aquecido');
     },
 
     setupVision() {
@@ -1014,14 +1206,33 @@
     hide() {
       this.active = false;
     },
+    /* descarta a montagem atual; devolve a tela a usar (a nova, se a pedida era a que foi trocada) */
+    release(canvas) {
+      if (!this.renderer) return canvas;
+      const was = this.canvas;
+      this.dispose();
+      return canvas === was ? this.canvas : canvas;
+    },
     dispose() {
-      if (this.renderer) {
-        this.renderer.dispose();
-        this.renderer.forceContextLoss && this.renderer.forceContextLoss();
+      if (this.job) {
+        this.job.cancel = true;
+        this.job = null;
       }
+      const r = this.renderer;
       this.renderer = null;
       this.composer = null;
       this.active = false;
+      if (r) {
+        r.dispose();
+        if (r.forceContextLoss) r.forceContextLoss();
+        /* a tela de desenho fica presa ao contexto perdido: põe uma nova no lugar (mesmo id) para a próxima montagem */
+        const old = this.canvas;
+        if (old && old.parentNode) {
+          const fresh = old.cloneNode(false);
+          old.parentNode.replaceChild(fresh, old);
+          this.canvas = fresh;
+        }
+      }
     },
   };
 
