@@ -9,13 +9,20 @@
   const U = AU.U, C = AU.C, M = AU.Map, Nav = AU.Nav;
 
   const LEVELS = {
-    baixa: { pr: 0.75, shadow: 0, bloom: false, lights: 4, tex: 256, aniso: 2, msaa: 0, gtao: false },
-    media: { pr: 1, shadow: 1024, bloom: true, lights: 6, tex: 512, aniso: 4, msaa: 0, gtao: false },
-    alta: { pr: 1.5, shadow: 2048, bloom: true, lights: 8, tex: 512, aniso: 8, msaa: 4, gtao: false },
-    ultra: { pr: 2, shadow: 4096, bloom: true, lights: 10, tex: 1024, aniso: 8, msaa: 4, gtao: true },
+    baixa: { pr: 0.75, shadow: 0, bloom: false, lights: 0, tex: 256, aniso: 2, msaa: 0, gtao: false },
+    media: { pr: 1, shadow: 1024, bloom: true, lights: 2, tex: 512, aniso: 4, msaa: 0, gtao: false },
+    alta: { pr: 1.5, shadow: 2048, bloom: true, lights: 3, tex: 512, aniso: 8, msaa: 4, gtao: false },
+    ultra: { pr: 2, shadow: 4096, bloom: true, lights: 4, tex: 1024, aniso: 8, msaa: 4, gtao: true },
   };
   const coarse = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  const ORDER = ['baixa', 'media', 'alta', 'ultra'];
   function autoLevel() {
+    const lv = autoLevel0();
+    /* aparelho que não aguentou nesta sessão: não sobe acima do degrau em que ficou liso */
+    const cap = typeof R3 !== 'undefined' && R3.capLevel;
+    return cap && ORDER.indexOf(lv) > ORDER.indexOf(cap) ? cap : lv;
+  }
+  function autoLevel0() {
     if (slowGPU()) return 'baixa';
     const mem = (navigator && navigator.deviceMemory) || 8;
     if (coarse) return mem < 4 ? 'baixa' : 'media';
@@ -60,6 +67,7 @@
     level: null,
     supported,
     slowGPU,
+    ORDER,
     LEVELS,
     autoLevel,
     cam: { x: 69, y: 14 },
@@ -228,6 +236,8 @@
       this.world = yield* AU.R3DWorld.buildGen(scene);
       mark('nave');
       yield;
+      yield* this.bakeLights();
+      mark('luz');
       this.actors = new AU.R3DActors.Actors(scene);
       /* luzes */
       const hemi = new THREE.HemisphereLight('#b8c8ff', '#2a2420', 0.4);
@@ -364,7 +374,9 @@
     },
 
     setupVision() {
-      const N = 240;
+      /* mais raios que o 2D: no 3D a borda da visão cai em paredes vistas de lado, e poucos raios faziam a face da
+         parede piscar entre acesa e apagada enquanto você anda */
+      const N = 480;
       const geo = new THREE.BufferGeometry();
       const pos = new Float32Array(N * 3 * 3), world = new Float32Array(N * 3 * 2);
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -385,9 +397,10 @@
       AU.R3DKit.UNI.uVisTex.value = this.vis.rt.texture;
     },
     updateVision(eye, r) {
-      const v = this.vis, S = r + 1.6;
-      const ox = eye.x - S, oz = eye.y - S, size = S * 2;
-      const poly = Nav.visPoly(eye.x, eye.y, r, v.N);
+      const v = this.vis, S = r + 1.6, size = S * 2, tx = size / 512;
+      /* origem presa à grade da textura: a borda da visão não treme enquanto você anda */
+      const ox = Math.floor((eye.x - S) / tx) * tx, oz = Math.floor((eye.y - S) / tx) * tx;
+      const poly = Nav.visPoly(eye.x, eye.y, r, v.N, 0.3);
       const pos = v.geo.attributes.position.array, wd = v.geo.attributes.world.array;
       const nx = (x) => ((x - ox) / size) * 2 - 1, nz = (z) => ((z - oz) / size) * 2 - 1;
       for (let i = 0; i < v.N; i++) {
@@ -478,8 +491,15 @@
         this.bloom = bloom;
       }
       comp.addPass(new THREE.OutputPass());
+      /* suavização de bordas na imagem pronta (FXAA): pega também o brilho do metal, que a da placa não pega */
+      this.fxaa = null;
+      if (THREE.FXAAShader) {
+        const fx = new THREE.ShaderPass(THREE.FXAAShader);
+        comp.addPass(fx);
+        this.fxaa = fx;
+      }
       const grade = new THREE.ShaderPass({
-        uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uRed: { value: 0 }, uGrain: { value: 0.035 }, uCA: { value: 0.006 }, uGhost: { value: 0 } },
+        uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uRed: { value: 0 }, uGrain: { value: 0.018 }, uCA: { value: 0.006 }, uGhost: { value: 0 } },
         vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
         fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime; uniform float uRed; uniform float uGrain; uniform float uCA; uniform float uGhost; varying vec2 vUv;
           void main(){
@@ -815,6 +835,7 @@
         this.composer.setPixelRatio(pr);
         this.composer.setSize(w, h);
       }
+      if (this.fxaa) this.fxaa.material.uniforms.resolution.value.set(1 / Math.max(1, w * pr), 1 / Math.max(1, h * pr));
       const o = this.overlay;
       if (o) {
         const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -829,6 +850,10 @@
     /* ---------- quadro ---------- */
     draw(g, t) {
       if (!this.active || !this.renderer) return;
+      if (this.needResize) {
+        this.needResize = false;
+        this.resize();
+      }
       const now = performance.now();
       const dt = Math.min(0.1, (now - (this.last || now)) / 1000);
       this.last = now;
@@ -855,7 +880,9 @@
       /* luz principal (sombras) acompanha a câmera */
       this.key.position.set(this.cam.x - 7, 24, this.cam.y - 9);
       this.key.target.position.set(this.cam.x, 0, this.cam.y);
+      this.key.updateMatrixWorld();
       this.key.target.updateMatrixWorld();
+      if (this.key.castShadow) this.snapShadow();
       /* névoa de visão */
       const fog = !!(h && h.alive);
       UNI.uVisOn.value = fog ? 1 : 0;
@@ -908,28 +935,133 @@
       this.adapt(dt);
     },
 
+    /* luz das luminárias e das máquinas, calculada uma vez para a nave inteira: cada sala fica acesa por todas as
+       lâmpadas dela, sem luz trocando de lugar (que piscava) e sem o custo de dezenas de luzes por ponto da tela.
+       A parede bloqueia (a luz passa pelas portas). Fica guardada para as próximas montagens. */
+    *bakeLights() {
+      const UNI = AU.R3DKit.UNI;
+      if (!UNI.uLMLamp.value) {
+        const P = 4, w = M.W * P, h = M.H * P;
+        const isF = new Uint8Array(w * h);
+        for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+          const x = (i + 0.5) / P, z = (j + 0.5) / P, tx = Math.floor(x), tz = Math.floor(z);
+          isF[j * w + i] = (M.isFloor(tx, tz) || M.isCutTile(tx, tz)) && M.chamferGap(x, z) >= 0 ? 1 : 0;
+        }
+        const tileF = (x, z) => M.isFloor(Math.floor(x), Math.floor(z)) || M.isCutTile(Math.floor(x), Math.floor(z));
+        /* a lâmpada enxerga o ponto? (sem parede no caminho, passos de 0,3 m) */
+        const sees = (ax, az, bx, bz) => {
+          const d = Math.hypot(bx - ax, bz - az), n = Math.ceil(d / 0.3);
+          for (let k = 1; k < n; k++) if (!tileF(ax + ((bx - ax) * k) / n, az + ((bz - az) * k) / n)) return false;
+          return true;
+        };
+        const maps = { lamp: new Float32Array(w * h * 3), accent: new Float32Array(w * h * 3) };
+        const col = new THREE.Color();
+        let n = 0;
+        for (const L of this.world.lights) {
+          const out = maps[L.kind === 'lamp' ? 'lamp' : 'accent'];
+          col.setHex(L.color);
+          const D = L.dist, r = Math.ceil(D * P), ci = Math.floor(L.x * P), cj = Math.floor(L.z * P);
+          for (let j = Math.max(0, cj - r); j < Math.min(h, cj + r + 1); j++) {
+            for (let i = Math.max(0, ci - r); i < Math.min(w, ci + r + 1); i++) {
+              if (!isF[j * w + i]) continue;
+              const x = (i + 0.5) / P, z = (j + 0.5) / P, dx = x - L.x, dz = z - L.z, d2h = dx * dx + dz * dz;
+              if (d2h > D * D || !sees(L.x, L.z, x, z)) continue;
+              /* a mesma conta de uma luz de ponto: inverso do quadrado com corte suave no alcance, vezes o cosseno no chão */
+              const d2 = d2h + L.y * L.y, d = Math.sqrt(d2);
+              const win = Math.max(0, 1 - Math.pow(d / D, 4));
+              const e = (L.power * win * win * (L.y / d)) / Math.max(d2, 0.01);
+              const k = (j * w + i) * 3;
+              out[k] += e * col.r;
+              out[k + 1] += e * col.g;
+              out[k + 2] += e * col.b;
+            }
+          }
+          if (++n % 5 === 0) yield;
+        }
+        /* suaviza um pouco (só entre pontos de chão) e estende para dentro das paredes, sem emenda escura no rodapé */
+        const soften = (src) => {
+          const out = new Float32Array(src.length);
+          for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+            const k = j * w + i;
+            if (!isF[k]) continue;
+            let r = 0, g = 0, b = 0, c = 0;
+            for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+              const ii = i + di, jj = j + dj;
+              if (ii < 0 || jj < 0 || ii >= w || jj >= h || !isF[jj * w + ii]) continue;
+              const q = (jj * w + ii) * 3;
+              r += src[q]; g += src[q + 1]; b += src[q + 2]; c++;
+            }
+            out[k * 3] = r / c; out[k * 3 + 1] = g / c; out[k * 3 + 2] = b / c;
+          }
+          for (let pass = 0; pass < 2; pass++) {
+            for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+              const k = j * w + i;
+              if (isF[k] || out[k * 3] + out[k * 3 + 1] + out[k * 3 + 2] > 0) continue;
+              let r = 0, g = 0, b = 0, c = 0;
+              for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                const ii = i + di, jj = j + dj;
+                if (ii < 0 || jj < 0 || ii >= w || jj >= h) continue;
+                const q = (jj * w + ii) * 3;
+                if (out[q] + out[q + 1] + out[q + 2] <= 0) continue;
+                r += out[q]; g += out[q + 1]; b += out[q + 2]; c++;
+              }
+              if (c) { out[k * 3] = r / c; out[k * 3 + 1] = g / c; out[k * 3 + 2] = b / c; }
+            }
+          }
+          return out;
+        };
+        const tex = (src) => {
+          const f = soften(src), data = new Uint16Array(w * h * 4);
+          for (let k = 0; k < w * h; k++) {
+            data[k * 4] = THREE.DataUtils.toHalfFloat(f[k * 3]);
+            data[k * 4 + 1] = THREE.DataUtils.toHalfFloat(f[k * 3 + 1]);
+            data[k * 4 + 2] = THREE.DataUtils.toHalfFloat(f[k * 3 + 2]);
+            data[k * 4 + 3] = THREE.DataUtils.toHalfFloat(1);
+          }
+          const t = new THREE.DataTexture(data, w, h, THREE.RGBAFormat, THREE.HalfFloatType);
+          t.minFilter = THREE.LinearFilter;
+          t.magFilter = THREE.LinearFilter;
+          t.needsUpdate = true;
+          return t;
+        };
+        UNI.uLMLamp.value = tex(maps.lamp);
+        yield;
+        UNI.uLMAcc.value = tex(maps.accent);
+      }
+      UNI.uLMOn.value = 1;
+    },
+
+    /* poucas luzes de verdade, nas lâmpadas mais perto do jogador, só pelo brilho no metal (a luz das salas já vem
+       calculada). Quando uma precisa mudar de lugar, apaga devagar antes e acende devagar no lugar novo */
     updateLights(g, dt, t, lk) {
+      const UNI = AU.R3DKit.UNI;
+      UNI.uLMLampK.value = 0.12 + 0.88 * lk;
+      AU.R3DKit.MAT.lamp.emissiveIntensity = 0.3 + 2.9 * lk;
+      if (!this.pool.length) return;
       const cands = this.world.lights;
       const cx = this.cam.x, cz = this.cam.y;
       for (const c of cands) c.d2 = (c.x - cx) * (c.x - cx) + (c.z - cz) * (c.z - cz);
       const sorted = cands.slice().sort((a, b) => a.d2 - b.d2);
       const want = sorted.slice(0, this.pool.length);
-      const keep = new Set(sorted.slice(0, this.pool.length + 2));
-      /* quem já está aceso e continua perto fica no mesmo lugar (sem piscar) */
-      const used = new Set();
-      for (const s of this.pool) if (s.cand && keep.has(s.cand)) used.add(s.cand);
-      const free = want.filter((c) => !used.has(c));
+      const keep = new Set(sorted.slice(0, this.pool.length + 3));
+      const used = new Set(this.pool.map((s) => s.cand).filter(Boolean));
       for (const s of this.pool) {
-        if (s.cand && keep.has(s.cand)) continue;
-        s.cand = free.shift() || null;
-        s.cur = 0;
-        if (s.cand) {
-          s.l.position.set(s.cand.x, s.cand.y, s.cand.z);
-          s.l.color.setHex(s.cand.color);
-          s.l.distance = s.cand.dist;
+        if (s.cand && keep.has(s.cand)) {
+          s.cur = Math.min(1, s.cur + dt * 1.6);
+        } else if (s.cand && s.cur > 0) {
+          s.cur = Math.max(0, s.cur - dt * 2.2);
+        } else {
+          /* apagada: vai para a lâmpada mais perto que ainda não tem luz */
+          if (s.cand) used.delete(s.cand);
+          s.cand = want.find((c) => !used.has(c)) || null;
+          s.cur = 0;
+          if (s.cand) {
+            used.add(s.cand);
+            s.l.position.set(s.cand.x, s.cand.y, s.cand.z);
+            s.l.color.setHex(s.cand.color);
+            s.l.distance = s.cand.dist;
+          }
         }
-      }
-      for (const s of this.pool) {
         if (!s.cand) {
           s.l.intensity = 0;
           continue;
@@ -937,11 +1069,26 @@
         const c = s.cand;
         const fl = c.kind === 'lamp' ? 0.12 + 0.88 * lk : 1;
         const flick = c.kind === 'lamp' && lk < 0.95 ? 0.85 + 0.15 * Math.sin(t * 23 + c.x) : 1;
-        s.cur = Math.min(1, s.cur + dt * 3);
-        s.l.intensity = c.power * fl * flick * s.cur;
+        /* curva suave (sem degrau) na entrada e na saída */
+        const e = s.cur * s.cur * (3 - 2 * s.cur);
+        s.l.intensity = c.power * 0.45 * fl * flick * e;
       }
-      /* lâmpadas das luminárias também apagam */
-      AU.R3DKit.MAT.lamp.emissiveIntensity = 0.3 + 2.9 * lk;
+    },
+
+    /* a sombra acompanha a câmera em passos do tamanho de um ponto do mapa de sombra: andando, as bordas das sombras
+       ficam paradas no lugar em vez de tremer */
+    snapShadow() {
+      const k = this.key, sh = k.shadow, cam = sh.camera;
+      sh.updateMatrices(k);
+      const texel = (cam.right - cam.left) / sh.mapSize.x;
+      const o = (this._sv = this._sv || new THREE.Vector3()).set(0, 0, 0).applyMatrix4(cam.matrixWorldInverse);
+      const fx = (Math.round(o.x / texel) - o.x / texel) * texel, fy = (Math.round(o.y / texel) - o.y / texel) * texel;
+      const e = cam.matrixWorld.elements;
+      const mx = -(fx * e[0] + fy * e[4]), my = -(fx * e[1] + fy * e[5]), mz = -(fx * e[2] + fy * e[6]);
+      k.position.x += mx; k.position.y += my; k.position.z += mz;
+      k.target.position.x += mx; k.target.position.y += my; k.target.position.z += mz;
+      k.updateMatrixWorld();
+      k.target.updateMatrixWorld();
     },
 
     updateDoors(g, t) {
@@ -1086,6 +1233,9 @@
     },
 
     /* resolução dinâmica: se os quadros caem, baixa a resolução interna (e sobe de novo quando sobra fôlego) */
+    /* resolução automática: mede o ritmo a cada 2 s; baixa se ficar lento duas vezes seguidas e só volta a subir
+       depois de muito tempo rápido (sem ficar indo e voltando). A troca acontece no começo do próximo quadro, antes de
+       desenhar: trocar o tamanho da tela depois de desenhar mostrava um quadro preto (a tela piscava) */
     adapt(dt) {
       this.fpsT += dt;
       this.fpsN++;
@@ -1094,14 +1244,30 @@
       this.fpsT = 0;
       this.fpsN = 0;
       this.fps = fps;
-      const max = this.lv.pr, min = Math.min(0.6, max);
+      const max = this.lv.pr, min = Math.min(0.6, max), now = performance.now();
+      this.slowN = fps < 40 ? (this.slowN || 0) + 1 : 0;
+      this.fastN = fps > 57 ? (this.fastN || 0) + 1 : 0;
       let pr = this.dynPR;
-      if (fps < 42) pr = Math.max(min, pr * 0.85);
-      else if (fps > 57 && pr < max) pr = Math.min(max, pr * 1.08);
+      if (this.slowN >= 2 && pr > min) {
+        pr = Math.max(min, pr * 0.8);
+        this.slowN = 0;
+        this.dropAt = now;
+      } else if (this.fastN >= 5 && pr < max && now - (this.dropAt || 0) > 30000) {
+        pr = Math.min(max, pr * 1.12);
+        this.fastN = 0;
+      }
       if (Math.abs(pr - this.dynPR) > 0.02) {
         this.dynPR = pr;
-        this.resize();
+        this.needResize = true;
       }
+      /* lento mesmo na menor resolução: avisa o jogo (que baixa a qualidade ou passa para o 2D) */
+      if (pr <= min + 0.01 && fps < 24) {
+        this.verySlowN = (this.verySlowN || 0) + 1;
+        if (this.verySlowN >= 3) {
+          this.verySlowN = 0;
+          if (this.onSlow) this.onSlow(fps);
+        }
+      } else this.verySlowN = 0;
     },
 
     /* vista de uma câmera de segurança (painel da Segurança): renderiza o 3D daquele ponto, sem névoa */

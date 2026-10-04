@@ -540,7 +540,7 @@
     /* o 3D vale aqui? (escolhido, possível e, se o aparelho desenha sem placa de vídeo, só se a pessoa pediu) */
     wants3d(UI) {
       const R = AU.R3D;
-      if (!R || !R.supported() || R.failed || UI.graphics === '2d') return false;
+      if (!R || !R.supported() || R.failed || R.no3d || UI.graphics === '2d') return false;
       return !R.slowGPU() || !!UI.graphicsPicked;
     },
     /* gráficos: mapa 3D (padrão quando o aparelho tem placa de vídeo) ou o 2D de sempre; qualidade do 3D */
@@ -548,9 +548,9 @@
       const ok3d = AU.R3D && AU.R3D.supported();
       const slow = ok3d && AU.R3D.slowGPU();
       const box = h('div', { class: 'grid2' },
-        this.field('Gráficos', this.seg('ui-gfx', Object.keys(C.GRAPHICS).map((k) => [k, C.GRAPHICS[k]]), () => (this.wants3d(UI) ? '3d' : '2d'), (v) => { UI.graphics = v; UI.graphicsPicked = true; change(); if (AU.App && AU.App.applyGraphics) AU.App.applyGraphics(); }),
+        this.field('Gráficos', this.seg('ui-gfx', Object.keys(C.GRAPHICS).map((k) => [k, C.GRAPHICS[k]]), () => (this.wants3d(UI) ? '3d' : '2d'), (v) => { UI.graphics = v; UI.graphicsPicked = true; if (AU.R3D) AU.R3D.no3d = false; change(); if (AU.App && AU.App.applyGraphics) AU.App.applyGraphics(); }),
           !ok3d ? 'Este navegador não tem WebGL 2: só o 2D funciona aqui.' : slow ? 'Este aparelho está desenhando sem placa de vídeo: o 2D fica bem mais leve (o 3D funciona, mas devagar).' : 'O 3D tem luz, sombra e reflexo de verdade; o 2D é mais leve.'),
-        this.field('Qualidade do 3D', this.seg('ui-q', Object.keys(C.QUALITY).map((k) => [k, C.QUALITY[k]]), () => UI.quality || 'auto', (v) => { UI.quality = v; change(); if (AU.App && AU.App.applyGraphics) AU.App.applyGraphics(true); }),
+        this.field('Qualidade do 3D', this.seg('ui-q', Object.keys(C.QUALITY).map((k) => [k, C.QUALITY[k]]), () => UI.quality || 'auto', (v) => { UI.quality = v; if (AU.R3D) AU.R3D.capLevel = null; change(); if (AU.App && AU.App.applyGraphics) AU.App.applyGraphics(true); }),
           'Automática escolhe pelo aparelho e baixa a resolução sozinha se ficar lento.'));
       return box;
     },

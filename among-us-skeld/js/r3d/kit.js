@@ -23,6 +23,12 @@
     uCutPos: { value: new THREE.Vector2(-999, -999) },
     uCutOn: { value: 0 },
     uTime: { value: 0 },
+    /* luz das luminárias e das máquinas, calculada uma vez para a nave inteira (ver R3D.bakeLights) */
+    uLMLamp: { value: null },
+    uLMAcc: { value: null },
+    uLMLampK: { value: 1 },
+    uLMAccK: { value: 1 },
+    uLMOn: { value: 0 },
   };
 
   const VERT_HEAD = 'varying vec3 vAUW;\n';
@@ -38,6 +44,7 @@
   const FRAG_HEAD = `varying vec3 vAUW;
 uniform sampler2D uVisTex; uniform vec2 uVisOrigin; uniform vec2 uVisSize; uniform float uVisOn; uniform float uDark;
 uniform sampler2D uAOTex; uniform vec2 uAOSize; uniform float uAOOn; uniform vec2 uCutPos; uniform float uCutOn; uniform sampler2D uMacro;
+uniform sampler2D uLMLamp; uniform sampler2D uLMAcc; uniform float uLMLampK; uniform float uLMAccK; uniform float uLMOn;
 float auBayer(vec2 p) {
   vec2 q = mod(floor(p), 4.0);
   int i = int(q.x) + int(q.y) * 4;
@@ -49,7 +56,7 @@ float auBayer(vec2 p) {
   /* o — ao: sombra de contato; vis: névoa de visão; cut: parede transparente na frente do jogador */
   function patch(mat, o) {
     o = o || {};
-    const ao = o.ao !== false, vis = o.vis !== false, cut = !!o.cut;
+    const ao = o.ao !== false, vis = o.vis !== false, cut = !!o.cut, lm = o.lm !== false;
     mat.onBeforeCompile = (sh) => {
       for (const k of Object.keys(UNI)) sh.uniforms[k] = UNI[k];
       sh.vertexShader = VERT_HEAD + sh.vertexShader.replace('#include <project_vertex>', VERT_BODY);
@@ -58,11 +65,22 @@ float auBayer(vec2 p) {
         /* parede entre a câmera e o jogador: some em pontilhado acima da altura do joelho */
         tail += `if (uCutOn > 0.5 && vAUW.y > 0.8) {
           vec2 dd = vAUW.xz - uCutPos;
-          float k = (1.0 - smoothstep(1.6, 2.6, abs(dd.x))) * smoothstep(-0.3, 0.4, dd.y) * (1.0 - smoothstep(2.4, 3.4, dd.y));
-          if (k * 0.82 > auBayer(gl_FragCoord.xy)) discard;
+          float k = (1.0 - smoothstep(1.7, 2.3, abs(dd.x))) * smoothstep(-0.25, 0.2, dd.y) * (1.0 - smoothstep(2.6, 3.2, dd.y));
+          if (k > auBayer(gl_FragCoord.xy)) discard;
         }\n`;
       }
       sh.fragmentShader = FRAG_HEAD + sh.fragmentShader.replace('void main() {', 'void main() {\n' + tail);
+      /* luz gravada: entra como luz difusa (multiplicada pela cor do material, como uma lâmpada de verdade).
+         Paredes e laterais pegam a luz do chão logo à frente delas */
+      if (lm) {
+        sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_maps>', `#include <lights_fragment_maps>
+          if (uLMOn > 0.5) {
+            vec3 auN = inverseTransformDirection(geometryNormal, viewMatrix);
+            vec2 auUv = (vAUW.xz + auN.xz * 0.55) / uAOSize;
+            vec3 auL = texture2D(uLMLamp, auUv).rgb * uLMLampK + texture2D(uLMAcc, auUv).rgb * uLMAccK;
+            irradiance += auL * mix(0.62, 1.0, clamp(auN.y, 0.0, 1.0));
+          }`);
+      }
       let post = '';
       if (ao) post += 'if (uAOOn > 0.5) { float ao = texture2D(uAOTex, vAUW.xz / uAOSize).r; gl_FragColor.rgb *= mix(ao, 1.0, smoothstep(0.02, 0.9, vAUW.y)); }\n';
       /* variação larga de sujeira e tom (quebra a repetição das texturas de piso e parede) */
@@ -78,7 +96,7 @@ float auBayer(vec2 p) {
       }
       sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>', '#include <opaque_fragment>\n' + post);
     };
-    mat.customProgramCacheKey = () => 'au' + (ao ? 1 : 0) + (vis ? 1 : 0) + (cut ? 1 : 0) + (o.macro ? 1 : 0);
+    mat.customProgramCacheKey = () => 'au' + (ao ? 1 : 0) + (vis ? 1 : 0) + (cut ? 1 : 0) + (o.macro ? 1 : 0) + (lm ? 1 : 0);
     return mat;
   }
 

@@ -228,6 +228,7 @@
       if (want) {
         if (force && R3.renderer) R3.dispose();
         const c3 = (this.el.canvas3d = document.getElementById('world3d'));
+        R3.onSlow = () => this.graphicsTooSlow();
         if (R3.ready(c3, lv) && R3.setup(c3, this.el.canvas, lv)) {
           c3.hidden = false;
           R3.resize();
@@ -243,6 +244,29 @@
       this.el.canvas3d.hidden = true;
       this.mode3d = false;
       AU.Render.setup(this.el.canvas);
+    },
+    /* o 3D não aguenta neste aparelho (lento mesmo na menor resolução): na qualidade automática desce um degrau;
+       no degrau mais baixo passa para o 2D nesta sessão. Com qualidade escolhida à mão, só avisa uma vez */
+    graphicsTooSlow() {
+      const R3 = AU.R3D, ui = AU.Menu.S.ui;
+      if (!this.mode3d || !R3) return;
+      if (ui.quality !== 'auto') {
+        if (!this._slowTold) {
+          this._slowTold = true;
+          AU.HUD.toast('O 3D está pesado neste aparelho: baixe a qualidade ou use o 2D (Menu → Gráficos).', 6000);
+        }
+        return;
+      }
+      const i = R3.ORDER.indexOf(R3.levelName);
+      if (i > 0) {
+        R3.capLevel = R3.ORDER[i - 1];
+        AU.HUD.toast('Deixando o 3D mais leve para rodar liso…', 3000);
+        this.applyGraphics(true);
+      } else {
+        R3.no3d = true;
+        AU.HUD.toast('O 3D está pesado demais neste aparelho: o jogo passou para o 2D. Dá para voltar em Menu → Gráficos.', 7000);
+        this.applyGraphics();
+      }
     },
     /* monta o 3D aos poucos enquanto você está nos menus (a partida já começa com ele pronto) */
     prewarm(now) {

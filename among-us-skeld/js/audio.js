@@ -13,45 +13,53 @@
   };
   /* volume geral (0 a 1), ambiente das salas ligado ou não, e o ambiente pedido pelo jogo (para religar depois) */
   let volume = 1, ambOn = true;
-  const MASTER = 0.42;
+  const MASTER = 0.52;
 
-  /* ---------- cadeia de saída: sfx + envio para reverb curto → compressor → master ---------- */
+  /* ---------- cadeia de saída: sfx + envio para o eco → compressor → master ----------
+     Um eco só (as três salas de eco ao mesmo tempo pesavam no processador e o som engasgava num computador ocupado
+     com o 3D): o lugar onde você está muda quanto vai para ele e o brilho dele. Sons da interface (clique, chat,
+     tarefa concluída, votos, painéis) saem secos, sem eco da sala. */
   function makeBus(c) {
     const master = c.createGain();
     master.gain.value = MASTER * volume;
     const comp = c.createDynamicsCompressor();
-    comp.threshold.value = -16;
-    comp.knee.value = 12;
-    comp.ratio.value = 4;
-    comp.attack.value = 0.004;
-    comp.release.value = 0.2;
+    comp.threshold.value = -14;
+    comp.knee.value = 10;
+    comp.ratio.value = 3;
+    comp.attack.value = 0.006;
+    comp.release.value = 0.25;
     comp.connect(master);
     master.connect(c.destination);
     const sfx = c.createGain();
     sfx.connect(comp);
-    /* acústica de cada lugar: sala pequena (seca), salão (cauda longa de casco de aço) e corredor de metal (ecos
-       curtos batendo nas paredes). O jogo diz onde o jogador está e as três se misturam devagar. */
+    const dry = c.createGain();
+    dry.connect(comp);
     const revIn = c.createGain();
-    const rooms = {};
-    for (const [k, secs, curve, early] of [['sala', 0.5, 3.6, 0], ['salao', 1.7, 2.3, 0], ['corredor', 0.85, 3.0, 1]]) {
-      const conv = c.createConvolver();
-      conv.buffer = makeIR(c, secs, curve, early);
-      const g = c.createGain();
-      g.gain.value = k === 'salao' ? 1 : 0;
-      revIn.connect(conv);
-      conv.connect(g);
-      g.connect(comp);
-      rooms[k] = g;
-    }
+    const env = c.createGain();
+    env.gain.value = ENV.salao.send;
+    const conv = c.createConvolver();
+    conv.buffer = makeIR(c, 1.15, 2.6, 1);
+    const tone = c.createBiquadFilter();
+    tone.type = 'lowpass';
+    tone.frequency.value = ENV.salao.tone;
+    tone.Q.value = 0.5;
+    revIn.connect(env);
+    env.connect(conv);
+    conv.connect(tone);
+    tone.connect(comp);
     const send = c.createGain();
-    send.gain.value = 0.16;
+    send.gain.value = 0.14;
     sfx.connect(send);
     send.connect(revIn);
     const ambBus = c.createGain();
     ambBus.gain.value = 1;
     ambBus.connect(comp);
-    return { master, sfx, ambBus, revIn, rooms, noise: null };
+    return { master, sfx, dry, ambBus, revIn, env, tone, noise: null };
   }
+  /* quanto cada lugar ecoa: sala pequena (pouco e abafado), salão (mais e aberto), corredor de metal (no meio) */
+  const ENV = { sala: { send: 0.5, tone: 4200 }, salao: { send: 1, tone: 7000 }, corredor: { send: 0.75, tone: 5600 } };
+  /* sons da interface: secos (o eco da sala neles soava estranho) */
+  const DRY = new Set(['click', 'ok', 'fail', 'chat', 'type', 'task', 'vote', 'meeting', 'report', 'reveal', 'win', 'lose', 'eject', 'spark', 'laser', 'lever', 'dump', 'scan', 'pour', 'boom']);
   /* resposta de sala gerada: ruído com queda exponencial; no corredor, reflexões fortes nos primeiros 60 ms */
   function makeIR(c, secs, curve, early) {
     const len = Math.max(1, Math.floor(c.sampleRate * secs));
@@ -291,9 +299,10 @@
      à direita soa à direita. No computador usa HRTF (com fone dá para perceber frente e trás); no celular, o
      panorama mais leve. A distância e a parede são tratadas à parte (ganho e filtro), o panner só dá a direção. */
   const HRTF = typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(pointer: coarse)').matches;
-  function panner3d(c) {
+  /* lite: só a direção, sem HRTF (passos dos outros: muitos e curtos, não valem o custo) */
+  function panner3d(c, lite) {
     const p = c.createPanner();
-    p.panningModel = HRTF ? 'HRTF' : 'equalpower';
+    p.panningModel = HRTF && !lite ? 'HRTF' : 'equalpower';
     p.distanceModel = 'linear';
     p.rolloffFactor = 0;
     return p;
@@ -318,14 +327,14 @@
     let node = b.sfx;
     if (!at) return node;
     if (at.dx != null) {
-      const p = panner3d(c);
+      const p = panner3d(c, at.lite);
       place(p, at.dx, at.dy || 0, null, at.h);
       p.connect(node);
       node = p;
       /* de longe chega mais eco que som direto (o salão "responde" mais) */
       if (at.dist != null && b.revIn) {
         const w = c.createGain();
-        w.gain.value = 0.08 + 0.45 * Math.min(1, at.dist / 12) + (at.muffle ? 0.2 : 0);
+        w.gain.value = Math.min(0.42, 0.06 + 0.3 * Math.min(1, at.dist / 12) + (at.muffle ? 0.12 : 0));
         w.connect(b.revIn);
         const split = c.createGain();
         split.connect(p);
@@ -616,7 +625,8 @@
       const c = ensure();
       if (!c) return;
       try {
-        S[name](c, bus, route(c, bus, name, spatial(c, bus, at)), c.currentTime + (when || 0));
+        const dest = !at && DRY.has(name) ? bus.dry : spatial(c, bus, at);
+        S[name](c, bus, route(c, bus, name, dest), c.currentTime + (when || 0));
       } catch (e) {
         /* áudio indisponível */
       }
@@ -634,11 +644,12 @@
     listen(sc) {
       scene = sc || null;
       refresh();
-      if (sc && ctx && bus && bus.rooms) {
+      if (sc && ctx && bus && bus.env) {
         const kind = !sc.alive ? 'salao' : ACOUSTIC[sc.area] || (sc.area && /^hall/.test(sc.area) ? 'corredor' : 'sala');
         if (kind !== acoustic) {
           acoustic = kind;
-          for (const [k, g] of Object.entries(bus.rooms)) g.gain.setTargetAtTime(k === kind ? 1 : 0, ctx.currentTime, 0.45);
+          bus.env.gain.setTargetAtTime(ENV[kind].send, ctx.currentTime, 0.5);
+          bus.tone.frequency.setTargetAtTime(ENV[kind].tone, ctx.currentTime, 0.5);
         }
       }
     },
@@ -646,9 +657,10 @@
     stepAt(surface, at) {
       if (!enabled) return;
       const now = performance.now();
-      if (now - lastOther < 60) return;
+      /* no máximo uns 6 passos alheios por segundo: com a sala cheia virava um batuque sem fim */
+      if (now - lastOther < 160) return;
       lastOther = now;
-      AU.Audio.play(surface === 'tile' ? 'stepTile' : surface === 'carpet' ? 'stepCarpet' : 'stepMetal', 0, at);
+      AU.Audio.play(surface === 'tile' ? 'stepTile' : surface === 'carpet' ? 'stepCarpet' : 'stepMetal', 0, Object.assign({}, at, { lite: true }));
     },
     /* compatibilidade: ambience(null) desliga o ambiente */
     ambience(kind) {

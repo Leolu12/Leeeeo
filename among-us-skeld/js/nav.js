@@ -240,12 +240,13 @@
     return maxD;
   }
 
-  function visPoly(x, y, r, rays) {
+  /* ext: quanto o polígono entra na parede que o raio acertou (o 3D usa mais, para a face da parede ficar inteira) */
+  function visPoly(x, y, r, rays, ext) {
     rays = rays || 220;
     const pts = [];
     for (let i = 0; i < rays; i++) {
       const a = (i / rays) * Math.PI * 2;
-      const d = rayDist(x, y, a, r) + 0.12;
+      const d = rayDist(x, y, a, r) + (ext == null ? 0.12 : ext);
       pts.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d });
     }
     return pts;
