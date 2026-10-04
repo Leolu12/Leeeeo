@@ -29,7 +29,7 @@ def main():
         return "<script>\n" + js + "\n</script>"
 
     html = re.sub(r'<link rel="stylesheet" href="(css/[^"]+)">', inline_css, html)
-    html = re.sub(r'<script src="(js/[^"]+)"></script>', inline_js, html)
+    html = re.sub(r'<script src="((?:js|vendor)/[^"]+)"></script>', inline_js, html)
 
     DIST.mkdir(exist_ok=True)
     (DIST / "impostor-a-bordo.html").write_text(html, encoding="utf-8")

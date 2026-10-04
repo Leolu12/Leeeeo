@@ -821,6 +821,11 @@
         house.length ? h('div', { class: 'pause-rules' }, h('strong', {}, 'Regras da casa: '), house.join(' · ')) : null,
         h('div', { class: 'pause-keys' }, 'WASD/setas: andar · E: usar · R: reportar · Q: matar · V: duto · X: sabotar · F: habilidade · M: mapa · H: conversas · 1-3: trocar de duto'),
         h('div', { class: 'pause-sound' }, AU.Menu.soundControls('pause')),
+        h('div', { class: 'pause-gfx' }, AU.Menu.gfxControls(AU.Menu.S.ui, () => {
+          g.S.ui.graphics = AU.Menu.S.ui.graphics;
+          g.S.ui.quality = AU.Menu.S.ui.quality;
+          AU.Menu.save();
+        })),
         h('div', { class: 'pause-ai' }, h('strong', {}, 'IA das conversas: '), AU.Menu.aiStatusEl()),
         h('div', { class: 'mg-row' },
           h('button', { class: 'mg-btn big', onclick: () => this.closeOverlay() }, 'Continuar'),

@@ -27,10 +27,14 @@
         game: document.getElementById('screen-game'),
         end: document.getElementById('screen-end'),
         canvas: document.getElementById('world'),
+        canvas3d: document.getElementById('world3d'),
         hud: document.getElementById('hud'),
       };
       AU.MG.host = document.getElementById('mg-layer');
-      window.addEventListener('resize', () => AU.Render.resize());
+      window.addEventListener('resize', () => {
+        AU.Render.resize();
+        if (AU.R3D && AU.R3D.active) AU.R3D.resize();
+      });
       window.addEventListener('keydown', (e) => this.onKey(e, true));
       window.addEventListener('keyup', (e) => this.onKey(e, false));
       window.addEventListener('blur', () => (this.keys = {}));
@@ -121,10 +125,33 @@
         AU.Render.setup(this.el.canvas);
         AU.Render.cam.x = this.game.human.x;
         AU.Render.cam.y = this.game.human.y;
+        this.applyGraphics();
         AU.HUD.mount(this.el.hud, this.game);
         this.paused = false;
         this.last = 0;
       });
+    },
+
+    /* liga o 3D (se escolhido e possível) ou volta ao 2D; force: reconstrói com a qualidade nova */
+    applyGraphics(force) {
+      const g = this.game, R3 = AU.R3D;
+      if (!g || this.screen !== 'game') return;
+      const ui = AU.Menu.S.ui;
+      const want = ui.graphics !== '2d' && R3 && R3.supported() && !R3.failed;
+      if (want) {
+        if (force && R3.renderer) R3.dispose();
+        this.el.canvas3d.hidden = false;
+        const ok = R3.setup(this.el.canvas3d, this.el.canvas, ui.quality === 'auto' ? null : ui.quality);
+        if (ok) {
+          R3.reset(g);
+          this.mode3d = true;
+          return;
+        }
+      }
+      if (R3) R3.hide();
+      this.el.canvas3d.hidden = true;
+      this.mode3d = false;
+      AU.Render.setup(this.el.canvas);
     },
 
     teardown() {
@@ -228,7 +255,18 @@
         }
       }
       /* na reunião a tela dela (e a abertura, opaca) cobre o mapa: não gasta desenhando o que ninguém vê */
-      if (g.phase !== 'meeting' || !g.meeting) AU.Render.draw(g, ts / 1000);
+      if (g.phase !== 'meeting' || !g.meeting) {
+        if (this.mode3d && AU.R3D.active) {
+          try {
+            AU.R3D.draw(g, ts / 1000);
+          } catch (err) {
+            /* 3D falhou no meio da partida: segue no 2D */
+            if (window.console) console.error(err);
+            AU.R3D.failed = true;
+            this.applyGraphics();
+          }
+        } else AU.Render.draw(g, ts / 1000);
+      }
       AU.HUD.update(dt);
     },
   };

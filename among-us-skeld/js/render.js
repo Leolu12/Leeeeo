@@ -1029,6 +1029,7 @@
     },
     /* Vista de câmera sem névoa (painel de segurança). */
     drawCam(canvas, g, cam, t) {
+      if (AU.R3D && AU.R3D.active) return AU.R3D.drawCam(canvas, g, cam, t);
       const ctx = canvas.getContext('2d');
       const ppt = canvas.width / 16;
       const x0 = cam.x - 8, y0 = cam.y - (canvas.height / ppt) / 2;

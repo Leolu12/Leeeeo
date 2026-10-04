@@ -529,7 +529,19 @@
         h('div', { class: 'grid2' },
           this.field('Narrador', this.seg('ui-narr', Object.keys(C.NARRATION).map((k) => [k, C.NARRATION[k]]), () => UI.narration, (v) => { UI.narration = v; change(); }), 'Descrições de salas, sabotagens e ambiente'),
           this.toggle('ui-report', 'Relatório final', () => UI.finalReport, (v) => { UI.finalReport = v; change(); }, 'Revela funções e a linha do tempo completa')),
+        this.gfxControls(UI, change),
         this.soundControls('ui', change));
+    },
+
+    /* gráficos: mapa 3D (padrão quando o aparelho tem WebGL 2) ou o 2D de sempre; qualidade do 3D */
+    gfxControls(UI, change) {
+      const ok3d = AU.R3D && AU.R3D.supported();
+      const box = h('div', { class: 'grid2' },
+        this.field('Gráficos', this.seg('ui-gfx', Object.keys(C.GRAPHICS).map((k) => [k, C.GRAPHICS[k]]), () => (ok3d ? UI.graphics || '3d' : '2d'), (v) => { UI.graphics = v; change(); if (AU.App && AU.App.applyGraphics) AU.App.applyGraphics(); }),
+          ok3d ? 'O 3D tem luz, sombra e reflexo de verdade; o 2D é mais leve.' : 'Este navegador não tem WebGL 2: só o 2D funciona aqui.'),
+        this.field('Qualidade do 3D', this.seg('ui-q', Object.keys(C.QUALITY).map((k) => [k, C.QUALITY[k]]), () => UI.quality || 'auto', (v) => { UI.quality = v; change(); if (AU.App && AU.App.applyGraphics) AU.App.applyGraphics(true); }),
+          'Automática escolhe pelo aparelho e baixa a resolução sozinha se ficar lento.'));
+      return box;
     },
 
     secHouse(change) {

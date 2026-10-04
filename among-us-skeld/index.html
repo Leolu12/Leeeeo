@@ -17,6 +17,7 @@
     <section id="screen-lobby" class="screen" hidden></section>
     <section id="screen-reveal" class="screen" hidden></section>
     <section id="screen-game" class="screen" hidden>
+      <canvas id="world3d" aria-hidden="true" hidden></canvas>
       <canvas id="world" aria-label="Nave The Skeld"></canvas>
       <div id="hud"></div>
       <div id="mg-layer"></div>
@@ -44,6 +45,11 @@
   <script src="js/meeting.js"></script>
   <script src="js/decor.js"></script>
   <script src="js/render.js"></script>
+  <script src="vendor/three.min.js"></script>
+  <script src="js/r3d/kit.js"></script>
+  <script src="js/r3d/world.js"></script>
+  <script src="js/r3d/actors.js"></script>
+  <script src="js/render3d.js"></script>
   <script src="js/scenes.js"></script>
   <script src="js/minigames.js"></script>
   <script src="js/hud.js"></script>
