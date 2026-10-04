@@ -26,6 +26,7 @@
         reveal: document.getElementById('screen-reveal'),
         game: document.getElementById('screen-game'),
         end: document.getElementById('screen-end'),
+        online: document.getElementById('screen-online'),
         canvas: document.getElementById('world'),
         canvas3d: document.getElementById('world3d'),
         hud: document.getElementById('hud'),
@@ -46,8 +47,9 @@
 
     show(name) {
       this.screen = name;
-      for (const k of ['title', 'create', 'lobby', 'reveal', 'game', 'end']) this.el[k].hidden = k !== name;
+      for (const k of ['title', 'create', 'lobby', 'reveal', 'game', 'end', 'online']) this.el[k].hidden = k !== name;
       if (name === 'title') AU.Menu.title(this.el.title);
+      if (name === 'online') AU.Net.screen(this.el.online);
       if (name === 'create') AU.Menu.create(this.el.create);
       /* o relatório final guarda a partida inteira: saindo dele, solta */
       if (name !== 'end') this.el.end.innerHTML = '';
@@ -75,13 +77,69 @@
       this.startGame();
     },
 
-    startGame() {
-      /* clique em "Começar": momento certo para pedir a permissão do Claude, se for o caso */
-      if (AU.Menu.S.ui.aiChat !== 'off') AU.LLM.ensure(true);
-      const S = U.clone(AU.Menu.S);
-      if (!this.roster || this.roster.length !== S.room.players) this.roster = AU.Menu.buildRoster(AU.Menu.S);
-      this.teardown();
-      const ui = {
+    /* online: o anfitrião começa com o elenco da sala (amigos nos lugares deles, bots no resto) */
+    startOnlineHost(host, roster) {
+      this.roster = roster;
+      this.startGame({ net: host });
+    },
+    /* online, no aparelho do amigo: monta a mesma nave e mostra o papel quando ele chega (criptografado) */
+    startOnlineClient(cl, d) {
+      const S = U.clone(d.S);
+      S.ui = U.clone(AU.Menu.S.ui);
+      const roster = d.roster.map((r, i) => ({ name: r.name, color: r.color, hat: r.hat, visor: r.visor, pet: r.pet, isHuman: i === cl.mySlot }));
+      this.teardown(true);
+      this.online = { role: 'client', cl };
+      const g = new AU.Game(S, roster, { ui: this.makeUi(), client: true });
+      for (const p of g.players) {
+        p.role = 'crew';
+        p.special = null;
+        p.tasks = [];
+      }
+      g.nImpKnown = d.nImp;
+      AU.Net.patchClient(g, cl);
+      this.game = g;
+      this.paused = false;
+      this.startTicker();
+      let shown = false;
+      const go = () => {
+        if (shown || this.game !== g) return;
+        shown = true;
+        this.show('reveal');
+        let started = false;
+        AU.Menu.reveal(this.el.reveal, g, () => {
+          if (started) return;
+          started = true;
+          clearTimeout(AU.Menu._revealT);
+          this.show('game');
+          AU.Render.setup(this.el.canvas);
+          AU.Render.cam.x = g.human.x;
+          AU.Render.cam.y = g.human.y;
+          AU.HUD.mount(this.el.hud, g);
+          this.applyGraphics();
+          this.last = 0;
+        });
+      };
+      if (cl.privOK) go();
+      else {
+        cl.onPriv = () => {
+          cl.onPriv = null;
+          go();
+        };
+        cl.flushPriv();
+        setTimeout(go, 5000);
+      }
+    },
+    /* a conexão com a sala caiu */
+    onlineLost(why) {
+      AU.HUD.toast(why || 'A conexão com a sala caiu.', 4000);
+      setTimeout(() => {
+        if (this.online) this.quitToMenu();
+      }, 3000);
+    },
+
+    makeUi() {
+      return {
+
         toast: (t) => AU.HUD.toast(t),
         narrate: (t, l) => AU.HUD.narrate(t, l),
         closeOverlays: () => {
@@ -112,8 +170,24 @@
           }, 1600);
         },
       };
+    },
+
+    startGame(o) {
+      o = o || {};
+      /* clique em "Começar": momento certo para pedir a permissão do Claude, se for o caso */
+      if (AU.Menu.S.ui.aiChat !== 'off') AU.LLM.ensure(true);
+      const S = U.clone(AU.Menu.S);
+      if (!o.net && (!this.roster || this.roster.length !== S.room.players)) this.roster = AU.Menu.buildRoster(AU.Menu.S);
+      this.teardown(!!o.net);
+      const ui = this.makeUi();
       const roster = this.roster.map((r) => Object.assign({}, r));
-      this.game = new AU.Game(S, roster, { ui });
+      this.game = new AU.Game(S, roster, { ui, net: o.net || null });
+      if (o.net) {
+        this.online = { role: 'host', host: o.net };
+        o.net.attach(this.game);
+        this.startTicker();
+      }
+
       this.paused = true;
       this.show('reveal');
       let started = false;
@@ -154,7 +228,10 @@
       AU.Render.setup(this.el.canvas);
     },
 
-    teardown() {
+    teardown(keepNet) {
+      if (!keepNet && AU.Net) AU.Net.leave();
+      if (!keepNet) this.online = null;
+      this.stopTicker();
       if (this.game) {
         const mt = this.game.meeting;
         if (mt && mt.ui) mt.ui.destroy();
@@ -228,12 +305,35 @@
       }
     },
 
-    loop(ts) {
-      requestAnimationFrame((t) => this.loop(t));
-      const dt = this.last ? Math.min(0.1, (ts - this.last) / 1000) : 0.016;
-      this.last = ts;
-      const g = this.game;
-      if (!g || this.screen !== 'game') return;
+    /* simulação online num relógio próprio: o navegador para de dar quadros a uma aba em segundo plano, e o anfitrião
+       não pode congelar a partida de todo mundo quando troca de aba. Um "worker" bate o relógio (timers de worker não
+       são freados como os da página); se o navegador não deixar, fica num setInterval comum. */
+    startTicker() {
+      if (this.ticker) return;
+      let last = performance.now();
+      const tick = () => {
+        const now = performance.now();
+        const dt = Math.min(0.25, (now - last) / 1000);
+        last = now;
+        const g = this.game;
+        if (!g || !this.online || (this.screen !== 'game' && this.screen !== 'end')) return;
+        this.stepSim(g, dt);
+      };
+      try {
+        const src = URL.createObjectURL(new Blob(['setInterval(function(){postMessage(0)},33);'], { type: 'text/javascript' }));
+        const w = new Worker(src);
+        w.onmessage = tick;
+        this.ticker = { stop: () => w.terminate() };
+      } catch (e) {
+        const iv = setInterval(tick, 33);
+        this.ticker = { stop: () => clearInterval(iv) };
+      }
+    },
+    stopTicker() {
+      if (this.ticker) this.ticker.stop();
+      this.ticker = null;
+    },
+    stepSim(g, dt) {
       const k = this.keys;
       let x = (k.right ? 1 : 0) - (k.left ? 1 : 0), y = (k.down ? 1 : 0) - (k.up ? 1 : 0);
       if (!x && !y) {
@@ -242,7 +342,50 @@
       }
       g.input.x = x;
       g.input.y = y;
-      if (!this.paused) {
+      let rest = dt;
+      while (rest > 0) {
+        const step = Math.min(0.034, rest);
+        try {
+          g.update(step);
+        } catch (err) {
+          if (window.console) console.error(err);
+        }
+        rest -= step;
+      }
+    },
+
+    loop(ts) {
+      requestAnimationFrame((t) => this.loop(t));
+      const dt = this.last ? Math.min(0.1, (ts - this.last) / 1000) : 0.016;
+      this.last = ts;
+      const g = this.game;
+      if (!g || this.screen !== 'game') return;
+      /* online: a simulação anda no relógio próprio; aqui só desenha */
+      if (this.online && this.ticker) {
+        if (g.phase !== 'meeting' || !g.meeting) {
+          if (this.mode3d && AU.R3D.active) {
+            try {
+              AU.R3D.draw(g, ts / 1000);
+            } catch (err) {
+              if (window.console) console.error(err);
+              AU.R3D.failed = true;
+              this.applyGraphics();
+            }
+          } else AU.Render.draw(g, ts / 1000);
+        }
+        AU.HUD.update(dt);
+        return;
+      }
+      const k = this.keys;
+      let x = (k.right ? 1 : 0) - (k.left ? 1 : 0), y = (k.down ? 1 : 0) - (k.up ? 1 : 0);
+      if (!x && !y) {
+        x = this.touchVec.x;
+        y = this.touchVec.y;
+      }
+      g.input.x = x;
+      g.input.y = y;
+      /* online a partida não para (a pausa só abre o menu) */
+      if (!this.paused || this.online) {
         let rest = dt;
         while (rest > 0) {
           const step = Math.min(0.034, rest);

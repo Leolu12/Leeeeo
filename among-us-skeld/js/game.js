@@ -23,6 +23,8 @@
       this.pet = o.pet || 'nenhum';
       this.visor = o.visor || 'classico';
       this.personality = o.personality || null;
+      /* jogador de verdade em outro aparelho (online): sem cérebro de bot; anda e age pelo que a pessoa manda */
+      this.remote = o.remote || null;
       this.role = 'crew';
       this.special = null;
       this.x = 0;
@@ -90,8 +92,11 @@
       this.percT = 0;
       this.dispatchT = 0;
       this.roundStart = 0;
-      this.tactics = !this.headless && AU.Tactics ? AU.Tactics.create(this) : null;
-      this.ghosts = !this.headless && AU.Ghosts ? AU.Ghosts.create(this) : null;
+      /* online: o anfitrião roda a partida (net = anfitrião); no aparelho do amigo (client) o jogo só mostra o estado */
+      this.net = opts.net || null;
+      const client = !!opts.client;
+      this.tactics = !this.headless && !client && AU.Tactics ? AU.Tactics.create(this) : null;
+      this.ghosts = !this.headless && !client && AU.Ghosts ? AU.Ghosts.create(this) : null;
       this.consts = { USE_DIST, REPORT_DIST, BUTTON_DIST, VENT_DIST, BASE_VISION };
       M.resetDoors();
       this.assignRoles();
@@ -102,10 +107,10 @@
       });
       this.placeAtTable();
       this.players.forEach((p) => {
-        if (!p.isHuman || opts.autopilot) p.brain = new AU.Brain(this, p);
+        if (!client && !p.remote && (!p.isHuman || opts.autopilot)) p.brain = new AU.Brain(this, p);
       });
       /* mente própria: cada bot com uma IA só dele (liga e desliga sozinha conforme a IA está disponível) */
-      this.minds = AU.Minds && (!this.headless || opts.minds) ? AU.Minds.create(this) : null;
+      this.minds = !client && AU.Minds && (!this.headless || opts.minds) ? AU.Minds.create(this) : null;
       if (this.minds && opts.minds) this.forceMinds = true;
       this.log({ type: 'start' });
     }
@@ -238,9 +243,21 @@
       const seen = (px, py) => (sight ? this.canSeePoint(h, px, py) : !h.inVent && Nav.los(h.x, h.y, px, py));
       const clear = !h.alive || (o.sides ? o.sides.some((q) => seen(q[0], q[1])) : seen(x, y));
       if (sight && !clear) return;
-      if (!clear && d > HEAR / 2) return;
-      const gain = (1 - 0.7 * U.clamp((d - 2) / (HEAR - 2), 0, 1)) * (clear ? 1 : 0.55);
-      AU.Audio.play(name, 0, { gain, dx: x - h.x, dy: y - h.y, muffle: !clear });
+      let dx = x - h.x, dy = y - h.y, dist = d;
+      if (!clear) {
+        /* atrás da parede: o som chega pelo caminho que ele faria (pela porta aberta), vindo daquela direção */
+        const path = !h.inVent && h.alive ? Nav.find(h.x, h.y, x, y, false) : null;
+        if (path && path.length) {
+          dist = Nav.pathLength(path, h);
+          if (dist > HEAR * 1.25) return;
+          const p0 = path.find((q) => U.d2(h.x, h.y, q.x, q.y) > 0.8) || path[path.length - 1];
+          const k = Math.min(dist, 6) / Math.max(0.01, U.d2(h.x, h.y, p0.x, p0.y));
+          dx = (p0.x - h.x) * k;
+          dy = (p0.y - h.y) * k;
+        } else if (d > HEAR / 2) return;
+      }
+      const gain = (1 - 0.7 * U.clamp((dist - 2) / (HEAR - 2), 0, 1)) * (clear ? 1 : 0.55);
+      AU.Audio.play(name, 0, { gain, dx, dy, muffle: !clear, dist, h: o.h });
     }
     /* som das portas de uma sala, vindo da porta mais perto do jogador */
     doorSfx(name, room) {
@@ -256,11 +273,12 @@
         bd = dd;
         best = { x, y, sides: rw > rh ? [[x, ry - 0.5], [x, ry + rh + 0.5]] : [[rx - 0.5, y], [rx + rw + 0.5, y]] };
       }
-      if (best) this.sfxAt(name, best.x, best.y, { range: 14, sides: best.sides });
+      if (best) this.sfxAt(name, best.x, best.y, { range: 14, sides: best.sides, h: 1.3 });
     }
     addFx(fx) {
       fx.t0 = this.t;
       this.fx.push(fx);
+      if (this.net) this.net.fx(fx);
     }
 
     /* ---------- sinais com o corpo ---------- */
@@ -351,16 +369,30 @@
       p.moving = moved && (Math.abs(vx) + Math.abs(vy) > 0.01);
       if (p.moving) {
         p.walkT += dt;
-        /* passos do jogador, no ritmo da passada e com o som do piso */
-        if (p.isHuman && p.alive && !this.headless) {
-          const k = Math.floor((p.walkT * 11) / Math.PI);
-          if (k !== p.stepK) {
-            p.stepK = k;
-            AU.Audio.step(AU.Audio.surfaceOf((M.areaAt(p.x, p.y) || {}).id));
-          }
-        }
+        this.footstep(p);
       }
       return moved;
+    }
+
+    /* passos no ritmo da passada e com o som do piso: os seus, e os de quem anda perto (baixinho, de onde a pessoa
+       está, abafados atrás da parede) */
+    footstep(p) {
+      if (this.headless || !p.alive) return;
+      const k = Math.floor((p.walkT * 11) / Math.PI);
+      if (k === p.stepK) return;
+      const h = this.human;
+      if (p === h) {
+        p.stepK = k;
+        AU.Audio.step(AU.Audio.surfaceOf((M.areaAt(p.x, p.y) || {}).id));
+        return;
+      }
+      if (p.invisUntil > this.t || !h || h.inVent) return;
+      p.stepK = k;
+      const d = U.d2(h.x, h.y, p.x, p.y);
+      if (d < 7) {
+        const clear = Nav.los(h.x, h.y, p.x, p.y);
+        if (clear || d < 4.5) AU.Audio.stepAt(AU.Audio.surfaceOf((M.areaAt(p.x, p.y) || {}).id), { gain: (clear ? 0.42 : 0.2) * (1 - d / 8), dx: p.x - h.x, dy: p.y - h.y, muffle: !clear, dist: d, h: 0.05 });
+      }
     }
 
     /* ---------- laço principal ---------- */
@@ -368,6 +400,7 @@
       if (this.phase === 'ended') return;
       if (this.ghosts) this.ghosts.tick(dt);
       if (this.phase === 'meeting') {
+        if (this.net) this.net.tick(dt);
         if (this.meeting) this.meeting.update(dt);
         return;
       }
@@ -382,7 +415,7 @@
       if (!this.headless && this.human && (this.ambT = (this.ambT || 0) - dt) <= 0) {
         this.ambT = 0.1;
         const h = this.human;
-        AU.Audio.listen({ x: h.x, y: h.y, alive: h.alive, inVent: !!h.inVent, los: Nav.los });
+        AU.Audio.listen({ x: h.x, y: h.y, alive: h.alive, inVent: !!h.inVent, los: Nav.los, area: (M.areaAt(h.x, h.y) || {}).id });
       }
       for (const p of this.players) {
         p.killCd = Math.max(0, p.killCd - dt);
@@ -395,6 +428,8 @@
         if (p.busy && p.busy.until && p.busy.until < t - 0.5 && !p.isHuman) p.busy = null;
         p.moving = false;
       }
+      /* online: posições e ações dos amigos (depois de zerar o "andando", para valer neste quadro) */
+      if (this.net) this.net.tick(dt);
       this.sabCd = Math.max(0, this.sabCd - dt);
       const lightTarget = this.sab && this.sab.type === 'lights' ? 0 : 1;
       this.lightLevel += U.clamp(lightTarget - this.lightLevel, -dt / 1.5, dt / 1.5);
@@ -553,7 +588,7 @@
         if (this.ghosts) this.ghosts.onShield(v);
         if (k.isHuman || v.isHuman) this.say('toast', 'Um escudo de anjo bloqueou o abate!');
         if (k.isHuman || v.isHuman) this.sfx('shield');
-        else this.sfxAt('shield', v.x, v.y, { sight: true });
+        else this.sfxAt('shield', v.x, v.y, { sight: true, h: 0.8 });
         return false;
       }
       const kx = k.x, ky = k.y;
@@ -601,7 +636,7 @@
       } else if (k.isHuman) {
         this.sfx('kill');
       } else if (h && h.alive && this.canSeePoint(h, v.x, v.y)) {
-        this.sfxAt('kill', v.x, v.y, { sight: true });
+        this.sfxAt('kill', v.x, v.y, { sight: true, h: 0.7 });
         this.say('narrate', 'Você viu um abate acontecer diante dos seus olhos.', 'event');
       }
       if (v.special === 'barulhento') {
@@ -690,6 +725,7 @@
       this.meeting = new AU.Meeting(this, info);
       this.meetingLog = this.meetingLog || [];
       this.meetingLog.push(this.meeting);
+      if (this.net) this.net.meeting(this.meeting);
       this.say('onMeetingStart', this.meeting);
     }
 
@@ -717,6 +753,7 @@
       this.emergencyCdUntil = this.t + this.S.rules.emergencyCooldown;
       this.roundStart = this.t;
       if (this.minds && this.meeting) this.minds.afterMeeting(this.meeting, result);
+      if (this.net) this.net.meetingEnd(result);
       for (const p of this.players) if (p.brain) p.brain.onMeetingEnd(result);
       if (this.tactics) this.tactics.poke('both', 5);
       this.meeting = null;
@@ -985,7 +1022,7 @@
       this.addFx({ type: 'ventIn', x: v.x, y: v.y, dur: 0.6, color: apc.color, hat: apc.hat, visor: apc.visor, facing: p.facing, who: p.id });
       this.log({ type: 'vent', by: p.id, vent: v.id, dir: 'in', witnesses: wit.map((w) => w.p.id) });
       if (p.isHuman) this.sfx('vent');
-      else this.sfxAt('vent', v.x, v.y);
+      else this.sfxAt('vent', v.x, v.y, { h: 0.1 });
       return true;
     }
     ventTo(p, vid) {
@@ -1012,7 +1049,7 @@
       this.log({ type: 'vent', by: p.id, vent: v.id, dir: 'out', witnesses: wit.map((w) => w.p.id) });
       if (p.special === 'engenheiro') p.abilityCd = this.ro('engenheiro', 'cd', 20);
       if (p.isHuman) this.sfx('vent');
-      else this.sfxAt('vent', v.x, v.y);
+      else this.sfxAt('vent', v.x, v.y, { h: 0.1 });
       return true;
     }
 
@@ -1180,6 +1217,7 @@
       this.endReason = reason;
       AU.Audio.alarm(false);
       this.log({ type: 'end', winner, reason });
+      if (this.net) this.net.end(this);
       this.say('closeOverlays');
       this.say('onGameEnd', { winner, reason });
     }

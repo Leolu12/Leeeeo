@@ -66,7 +66,8 @@
           h('p', { class: 'lede' }, 'Tripulantes controlados por IA com memória, visão limitada e personalidade própria. Ninguém sabe quem é quem, só os impostores se conhecem.'),
           h('div', { class: 'title-actions' },
             h('button', { class: 'btn primary', onclick: () => AU.App.show('create') }, 'Criar partida'),
-            h('button', { class: 'btn', onclick: () => { AU.App.quickStart(); } }, 'Partida rápida')),
+            h('button', { class: 'btn', onclick: () => { AU.App.quickStart(); } }, 'Partida rápida'),
+            h('button', { class: 'btn', onclick: () => AU.App.show('online') }, 'Jogar online')),
           h('p', { class: 'fine' }, 'Jogo de fã, sem vínculo com a Innersloth. Funciona offline no navegador.')));
     },
 
@@ -117,7 +118,10 @@
       const foot = h('div', { class: 'cfg-foot' },
         h('button', { class: 'btn ghost', onclick: () => AU.App.show('title') }, '← Voltar'),
         summary,
-        h('button', { class: 'btn primary', onclick: () => { this.save(); AU.App.toLobby(true); } }, 'Ir para o lobby →'));
+        /* o anfitrião de uma sala online volta para a sala, não para o lobby de bots */
+        AU.Net && AU.Net.host && !AU.Net.host.closed
+          ? h('button', { class: 'btn primary', onclick: () => { this.save(); AU.App.show('online'); } }, 'Voltar para a sala online →')
+          : h('button', { class: 'btn primary', onclick: () => { this.save(); AU.App.toLobby(true); } }, 'Ir para o lobby →'));
       root.append(h('header', { class: 'cfg-head' }, h('h2', {}, 'Criar partida'), h('p', {}, 'Tudo aqui é opcional: o que você não mudar fica no padrão do preset.')),
         h('div', { class: 'cfg-body' }, nav, main), foot);
     },
@@ -672,7 +676,7 @@
       root.innerHTML = '';
       const hp = g.human;
       const imp = hp.isImp;
-      const nImp = g.players.filter((p) => p.isImp).length;
+      const nImp = g.nImpKnown || g.players.filter((p) => p.isImp).length;
       const team = imp ? g.players.filter((p) => p.isImp) : g.players;
       const row = h('div', { class: 'reveal-row' });
       team.forEach((p, i) => row.appendChild(h('div', { class: 'reveal-p' + (p === hp ? ' me' : ''), style: { animationDelay: 0.15 + i * 0.06 + 's' } }, h('span', { html: AU.Render.beanSVG(p.color, { size: p === hp ? 110 : 70, visor: p.visor }) }), h('span', { class: imp ? 'imp' : '' }, p.name))));

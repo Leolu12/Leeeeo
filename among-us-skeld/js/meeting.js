@@ -55,7 +55,8 @@
       /* a IA (se houver) conduz a conversa; sem ela, as falas saem direto do motor */
       if (!g.headless && g.S.ui.aiChat !== 'off' && AU.LLM) AU.LLM.ensure();
       /* mente própria: cada bot fala e vota por si (a "mesa" chama a IA de um personagem por vez) */
-      this.dir = g.minds && g.minds.online() ? g.minds.meeting(this) : !g.headless && AU.Voice ? AU.Voice.director(this) : null;
+      this.netClient = !!g.netClient;
+      this.dir = this.netClient ? null : g.minds && g.minds.online() ? g.minds.meeting(this) : !g.headless && AU.Voice ? AU.Voice.director(this) : null;
       this.ui = g.headless ? null : new MeetingUI(this);
       /* preparo de cada bot (evidências, pauta, primeiras falas). Com interface, um bot por quadro durante a abertura
          (quase 3 s em que ninguém fala nem vota), para a reunião não abrir com uma travada; sem interface, tudo de uma
@@ -197,9 +198,10 @@
             this.say(p.brain, { text: T.line('voteSay', { who: v === 'skip' ? null : v }, this.g, p.brain), intents: vi }, { kind: 'vote', vote: v, reason: why });
           }
         }
+        /* online, no aparelho do amigo: o resultado vem do anfitrião */
         const allVoted = this.alive.every((id) => this.votes[id] !== undefined);
         if (allVoted && this.endT == null) this.endT = t + 1.2;
-        if (t >= this.votingEnd || (this.endT != null && t >= this.endT)) this.finishVoting();
+        if (!this.netClient && (t >= this.votingEnd || (this.endT != null && t >= this.endT))) this.finishVoting();
       }
       if (this.phase === 'results' && t >= this.resultsEnd) {
         this.phase = 'eject';
@@ -276,6 +278,11 @@
       const g = this.g, hp = g.human;
       text = String(text || '').trim().slice(0, 160);
       if (!text || !hp || this.closed) return;
+      /* online, no aparelho do amigo: a fala vai para o anfitrião e volta para todos */
+      if (this.netClient) {
+        if (this.phase === 'discussion' || this.phase === 'voting') g.netClient.cmd('say', text);
+        return;
+      }
       if (this.phase !== 'discussion' && this.phase !== 'voting') return;
       if (!hp.alive) {
         this.post(hp, text, []);
@@ -351,6 +358,7 @@
         this.ghostMsgs.push(msg);
         if (g.ghosts) g.ghosts.record({ from: p.id, text });
         if (this.ui) this.ui.addMsg(msg);
+        if (g.net) g.net.msg(msg);
         return msg;
       }
       this.msgs.push(msg);
@@ -391,6 +399,7 @@
         if (it.type === 'claimLoc') this.answered[p.id] = msg.id;
       }
       if (this.ui) this.ui.addMsg(msg);
+      if (this.g.net) this.g.net.msg(msg);
       if (this.dir && this.dir.onPost) this.dir.onPost(msg);
       for (const q of g.players) {
         if (q.brain && q.alive && q.id !== p.id && q.brain.mOnMessage) {
@@ -404,12 +413,33 @@
       return msg;
     }
 
+    /* fala de um amigo online (no anfitrião): entra no chat como a de qualquer jogador */
+    remoteSay(p, text) {
+      if (!text || this.closed || !p) return;
+      if (this.phase !== 'discussion' && this.phase !== 'voting') return;
+      if (!p.alive) {
+        this.post(p, text, []);
+        return;
+      }
+      const intents = T.parse(text, this.g, { self: p.id, addressed: this.lastSpeaker, bodyKnown: !!this.facts.bodyArea });
+      this.post(p, text, intents);
+    }
+
     castVote(voter, target) {
       if (this.phase !== 'voting' || this.votes[voter] !== undefined) return false;
+      const gg = this.g;
+      if (this.netClient && gg.human && voter === gg.human.id) {
+        this.votes[voter] = target;
+        gg.netClient.cmd('vote', target);
+        if (this.ui) this.ui.onVote(voter);
+        AU.Audio.play('vote');
+        return true;
+      }
       const p = this.g.players[voter];
       if (!p || !p.alive) return false;
       if (target !== 'skip' && (!this.g.players[target] || !this.g.players[target].alive)) return false;
       this.votes[voter] = target;
+      if (this.g.net) this.g.net.vote(voter);
       if (this.ui) this.ui.onVote(voter);
       if (!this.g.headless) AU.Audio.play('vote');
       return true;
@@ -490,6 +520,7 @@
       this.phase = 'results';
       this.paused = false;
       this.resultsEnd = this.t + (this.g.headless ? 0.1 : 4.2);
+      if (this.g.net) this.g.net.result(this.result);
       if (this.ui) this.ui.showResults();
     }
 
@@ -757,6 +788,10 @@
         /* sem nenhuma IA configurada não é erro: as conversas usam o sistema de regras (igual ao lobby) */
         txt = 'IA desligada';
         tip = L.detail || 'Sem IA configurada: as conversas usam o sistema de regras.';
+      } else if (mt.netClient) {
+        cls += ' on';
+        txt = 'Online';
+        tip = 'Partida online: as falas dos bots vêm do aparelho do anfitrião.';
       } else if (mt.dir && mt.dir.mind && mt.dir.on()) {
         cls += ' on';
         txt = 'Mente própria';

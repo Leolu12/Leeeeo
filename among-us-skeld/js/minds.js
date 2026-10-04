@@ -496,6 +496,10 @@
       this.wasOn = null;
       this.pastChat = [];
     }
+    /* um bot assumiu o lugar de um amigo que saiu (online) */
+    adopt(p) {
+      if (p && p.brain && !this.minds.has(p.id)) this.minds.set(p.id, new Mind(this, p));
+    }
     mind(p) {
       return p ? this.minds.get(p.id) : null;
     }

@@ -5,7 +5,12 @@
 (function () {
   'use strict';
   const AU = window.AU;
-  let ctx = null, bus = null, enabled = true, alarmT = null, lastStep = 0;
+  let ctx = null, bus = null, enabled = true, alarmT = null, lastStep = 0, lastOther = 0, acoustic = 'salao';
+  /* salões (cauda longa) e salas pequenas (secas); corredores têm acústica própria */
+  const ACOUSTIC = {
+    cafeteria: 'salao', storage: 'salao', reactor: 'salao', upperEngine: 'salao', lowerEngine: 'salao', navigation: 'salao', weapons: 'salao',
+    security: 'sala', comms: 'sala', admin: 'sala', o2: 'sala', medbay: 'sala', electrical: 'sala', shields: 'sala',
+  };
   /* volume geral (0 a 1), ambiente das salas ligado ou não, e o ambiente pedido pelo jogo (para religar depois) */
   let volume = 1, ambOn = true;
   const MASTER = 0.42;
@@ -24,24 +29,44 @@
     master.connect(c.destination);
     const sfx = c.createGain();
     sfx.connect(comp);
-    /* reverb metálico curto: a nave é um casco de aço */
-    const rev = c.createConvolver();
-    const len = Math.floor(c.sampleRate * 0.9);
-    const ir = c.createBuffer(2, len, c.sampleRate);
-    for (let ch = 0; ch < 2; ch++) {
-      const d = ir.getChannelData(ch);
-      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2) * (i < 40 ? i / 40 : 1);
+    /* acústica de cada lugar: sala pequena (seca), salão (cauda longa de casco de aço) e corredor de metal (ecos
+       curtos batendo nas paredes). O jogo diz onde o jogador está e as três se misturam devagar. */
+    const revIn = c.createGain();
+    const rooms = {};
+    for (const [k, secs, curve, early] of [['sala', 0.5, 3.6, 0], ['salao', 1.7, 2.3, 0], ['corredor', 0.85, 3.0, 1]]) {
+      const conv = c.createConvolver();
+      conv.buffer = makeIR(c, secs, curve, early);
+      const g = c.createGain();
+      g.gain.value = k === 'salao' ? 1 : 0;
+      revIn.connect(conv);
+      conv.connect(g);
+      g.connect(comp);
+      rooms[k] = g;
     }
-    rev.buffer = ir;
     const send = c.createGain();
     send.gain.value = 0.16;
     sfx.connect(send);
-    send.connect(rev);
-    rev.connect(comp);
+    send.connect(revIn);
     const ambBus = c.createGain();
     ambBus.gain.value = 1;
     ambBus.connect(comp);
-    return { master, sfx, ambBus, noise: null };
+    return { master, sfx, ambBus, revIn, rooms, noise: null };
+  }
+  /* resposta de sala gerada: ruído com queda exponencial; no corredor, reflexões fortes nos primeiros 60 ms */
+  function makeIR(c, secs, curve, early) {
+    const len = Math.max(1, Math.floor(c.sampleRate * secs));
+    const ir = c.createBuffer(2, len, c.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = ir.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, curve) * (i < 40 ? i / 40 : 1) * 0.8;
+      if (early) {
+        for (const [ms, a] of [[7, 0.7], [13, 0.5], [21, 0.45], [34, 0.35], [52, 0.25]]) {
+          const k = Math.floor((ms + (ch ? 1.3 : 0)) * c.sampleRate / 1000);
+          if (k < len) d[k] += a * (ch ? -1 : 1);
+        }
+      }
+    }
+    return ir;
   }
 
   function ensure() {
@@ -273,9 +298,9 @@
     p.rolloffFactor = 0;
     return p;
   }
-  function place(p, dx, dy, now) {
-    /* 1 tile = 1 metro; um pouco acima do chão, para nada ficar exatamente "dentro da cabeça" */
-    const x = dx, y = 0.8, z = dy;
+  function place(p, dx, dy, now, h) {
+    /* 1 tile = 1 metro; a cabeça do ouvinte fica a 1,2 m do chão: um duto soa embaixo, uma porta na altura do ouvido */
+    const x = dx, y = h == null ? 0.8 : h - 1.2, z = dy;
     if (p.positionX) {
       if (now == null) {
         p.positionX.value = x;
@@ -294,9 +319,28 @@
     if (!at) return node;
     if (at.dx != null) {
       const p = panner3d(c);
-      place(p, at.dx, at.dy || 0);
+      place(p, at.dx, at.dy || 0, null, at.h);
       p.connect(node);
       node = p;
+      /* de longe chega mais eco que som direto (o salão "responde" mais) */
+      if (at.dist != null && b.revIn) {
+        const w = c.createGain();
+        w.gain.value = 0.08 + 0.45 * Math.min(1, at.dist / 12) + (at.muffle ? 0.2 : 0);
+        w.connect(b.revIn);
+        const split = c.createGain();
+        split.connect(p);
+        split.connect(w);
+        node = split;
+      }
+    }
+    /* o ar come os agudos com a distância */
+    if (at.dist != null && at.dist > 2 && !at.muffle) {
+      const f = c.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = Math.max(2600, 18000 * Math.pow(0.84, at.dist));
+      f.Q.value = 0.4;
+      f.connect(node);
+      node = f;
     }
     if (at.muffle) {
       const f = c.createBiquadFilter();
@@ -590,6 +634,21 @@
     listen(sc) {
       scene = sc || null;
       refresh();
+      if (sc && ctx && bus && bus.rooms) {
+        const kind = !sc.alive ? 'salao' : ACOUSTIC[sc.area] || (sc.area && /^hall/.test(sc.area) ? 'corredor' : 'sala');
+        if (kind !== acoustic) {
+          acoustic = kind;
+          for (const [k, g] of Object.entries(bus.rooms)) g.gain.setTargetAtTime(k === kind ? 1 : 0, ctx.currentTime, 0.45);
+        }
+      }
+    },
+    /* passo de outra pessoa, vindo de onde ela está */
+    stepAt(surface, at) {
+      if (!enabled) return;
+      const now = performance.now();
+      if (now - lastOther < 60) return;
+      lastOther = now;
+      AU.Audio.play(surface === 'tile' ? 'stepTile' : surface === 'carpet' ? 'stepCarpet' : 'stepMetal', 0, at);
     },
     /* compatibilidade: ambience(null) desliga o ambiente */
     ambience(kind) {

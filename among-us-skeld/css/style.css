@@ -816,3 +816,25 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
 }
 @media (max-width: 360px) { .act .lbl { font-size: 8.5px; letter-spacing: 0; max-width: 54px; } }
 @media (pointer: coarse) { button.mt-ai { min-height: 32px; } }
+
+/* ---------- jogar online ---------- */
+#screen-online { overflow-y: auto; }
+.online-wrap { min-height: 100%; display: flex; justify-content: center; padding: 24px 16px 40px; }
+.online-card { width: 100%; max-width: 720px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px 24px; align-self: flex-start; }
+.online-card h2 { font-size: 24px; }
+.online-card h3 { font-size: 15px; margin-top: 22px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.online-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.online-msg { margin: 12px 0 0; }
+.online-msg.bad { color: var(--imp); }
+.online-list { margin: 10px 0 0; padding-left: 20px; }
+.online-list li { margin-top: 4px; }
+.online-card input[type="text"] { background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 9px 11px; min-width: 0; }
+.code-in { width: 92px; text-transform: uppercase; letter-spacing: 0.2em; font-family: var(--display); font-weight: 700; }
+.online-rooms, .online-hist { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.room-row { display: flex; align-items: center; gap: 12px; padding: 8px 10px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; min-width: 0; flex-wrap: wrap; }
+.room-row .btn { margin-left: auto; padding: 6px 12px; min-height: 0; }
+.room-code { font-family: var(--display); font-weight: 700; letter-spacing: 0.18em; color: var(--task); }
+.big-code { font-family: var(--display); font-weight: 700; font-size: 56px; letter-spacing: 0.3em; color: var(--task); text-align: center; margin: 14px 0 4px; }
+.win-crew { color: var(--crew); }
+.win-imp { color: var(--imp); }
+@media (max-width: 560px) { .big-code { font-size: 40px; } .online-card { padding: 16px; } }
