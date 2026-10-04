@@ -1,8 +1,10 @@
 # Impostor a Bordo
 
-Jogo de dedução social no mapa **The Skeld**, inspirado em *Among Us*, para jogar sozinho no navegador contra tripulantes controlados por IA. Os bots têm visão limitada, memória, personalidade própria e conversam no chat das reuniões. Nenhum bot sabe a função dos outros; só os impostores se conhecem.
+Jogo de dedução social no mapa **The Skeld**, inspirado em *Among Us*, para jogar no navegador contra tripulantes controlados por IA — sozinho ou **online com amigos** (os lugares que sobram ficam com bots). Os bots têm visão limitada, memória, personalidade própria e conversam no chat das reuniões. Nenhum bot sabe a função dos outros; só os impostores se conhecem.
 
-> Jogo de fã, sem vínculo com a Innersloth. Todo o visual é desenhado em código (canvas e SVG) e os sons são sintetizados com WebAudio.
+O mapa pode ser jogado em **3D** (padrão: luz, sombra e reflexo de verdade, feito com three.js) ou no **2D** de sempre.
+
+> Jogo de fã, sem vínculo com a Innersloth. Todo o visual é desenhado em código (WebGL, canvas e SVG, sem imagens prontas) e os sons são sintetizados com WebAudio. O three.js (licença MIT) vai junto em `vendor/three.min.js`.
 
 ## Como jogar
 
@@ -33,6 +35,40 @@ No **lobby** tem um chat de verdade: os bots se cumprimentam, comentam as regras
 Na reunião, um **mapinha mostra onde você estava** quando ela começou (só o seu lugar, sem corpo nem os outros).
 
 Durante a reunião você pode **pausar** o relógio para ler com calma, rolar o chat para cima (as mensagens novas ficam num aviso "↓ novas mensagens" em vez de puxar a tela) e abrir o **Quadro de álibis**, que resume quem disse onde estava, quem confirma e quem acusa quem. O histórico de todas as reuniões fica no botão 📜 (ou tecla H) durante a partida e no relatório final.
+
+## Mapa 3D
+
+Feito do zero: a nave inteira é montada em código a partir da mesma planta do 2D (mesmas paredes, portas, dutos, consoles e móveis, com a mesma colisão), então nada muda nas regras — só o que você vê.
+
+- **Materiais com aparência física** (metal, azulejo, carpete, grade, borracha, vidro, plástico com verniz), com texturas geradas no próprio jogo: cor, relevo e aspereza de cada piso e parede, mais uma camada larga de sujeira e variação de tom para não parecer azulejo repetido.
+- **Luz de verdade**: luminárias de cada sala acendem a área em volta (as mais perto da câmera ganham luz própria), luz de cor dos consoles e telas, reflexos do ambiente nos metais, sombras que acompanham a câmera e sombra de contato no pé das paredes e móveis. Brilho suave nas luzes fortes, tom de cinema, vinheta e um grão leve.
+- **Névoa de visão** igual à regra do jogo: o que o seu personagem não enxerga fica escuro e sem cor, com o recorte feito pelas paredes. No apagão, as luminárias apagam junto. Fantasma vê tudo, em tom frio.
+- **Paredes da frente ficam transparentes** em pontilhado quando você passa atrás delas.
+- Personagens 3D com mochila, visor que reflete, chapéus e pets; andam, viram para onde vão, somem no duto, deixam o corpo com o osso, viram fantasma translúcido.
+- Animações do mapa: portas que abrem e fecham, tampas dos dutos, reator girando, telas animadas, alarme vermelho na sabotagem crítica, asteroides na janela das Armas, scanner da MedBay, partículas e fumaça.
+- **Câmeras de segurança** em 3D de verdade: cada uma desenha a nave do ponto onde está.
+- **Qualidade**: Automática (escolhe pelo aparelho e baixa a resolução sozinha se ficar lento), Baixa, Média, Alta e Ultra (sombras maiores, mais luzes, suavização de bordas e sombra de ambiente). Fica em *Narração e interface* e na pausa; dá para trocar no meio da partida.
+- **Sem travar**: o 3D é montado aos poucos enquanto você está nos menus (texturas, nave e os programas da placa de vídeo, um pedaço por vez), e a partida já começa com ele pronto. Se você for rápido demais, a tela de revelação espera alguns segundos ("Preparando a nave em 3D…") e, se ainda faltar, a partida começa no 2D e troca sozinha.
+- Sem WebGL 2, o jogo fica no 2D. Em aparelho que desenha **sem placa de vídeo** (no processador), o jogo abre no 2D, que fica bem mais leve; o 3D ainda pode ser escolhido nas opções.
+
+## Jogar online
+
+Funciona quando o jogo está aberto **pelo link do claude.ai** (a sala ao vivo e o banco de dados são do próprio claude.ai; abrindo o arquivo direto no computador, a tela do online explica como jogar pelo link).
+
+1. Quem vai criar a sala clica em **Jogar online → Criar sala** e passa o código de 4 letras para os amigos.
+2. Os amigos abrem o mesmo link, vão em **Jogar online** e entram pelo código (ou pela lista de salas abertas).
+3. Quem criou a sala clica em **Começar partida**. Os lugares que sobrarem até o tamanho da sala ficam com bots (com as configurações de quem criou a sala).
+
+Como funciona:
+- **Quem cria a sala roda a partida** (regras, bots, abates, sabotagens, reuniões). Cada amigo manda a posição dele e as ações (abater, reportar, usar duto, sabotar, votar, falar no chat) e recebe o estado da nave umas 12 vezes por segundo; o próprio personagem anda na hora, sem esperar.
+- O anfitrião confere tudo: um amigo não atravessa parede nem anda mais rápido que o permitido, e uma ação só vale se for possível naquele momento.
+- **Segredos ficam secretos**: a função, as tarefas e o parceiro de cada um vão cifrados só para aquela pessoa (chave combinada entre os dois aparelhos).
+- Mensagens perdidas são reenviadas (testado com 25% de perda); quem atrasa recebe de novo o que faltou.
+- Se um amigo sai no meio, **um bot assume o lugar** dele (com mente própria, inclusive no meio da votação). Se quem criou a sala sai, a partida acaba e os amigos voltam ao menu com aviso.
+- O chat da reunião é o mesmo: bots e amigos conversam juntos, e os bots leem o que os amigos escrevem (onde estavam, quem acusam, quem confirmam), como leem as falas uns dos outros.
+- O **banco de dados** guarda a lista de salas abertas (some quando a sala fecha; salas abandonadas são apagadas sozinhas depois de 15 minutos) e o histórico das últimas partidas online, mostrado na tela do online.
+- Permissões do claude.ai: **criar sala** (e gravar no banco) pede acesso de **Colaborador** ou mais ao jogo; **entrar** numa sala funciona para quem pode abrir o link.
+- Limites: o simulador da partida é o aparelho de quem criou a sala (se ele travar, todo mundo espera); fantasmas que estão em outro aparelho não têm o chat dos mortos; o relatório final de quem não é o anfitrião é resumido.
 
 ## IA das conversas (modelo de linguagem)
 
@@ -119,7 +155,7 @@ Dentro do claude.ai a página roda sem acesso à internet, por isso lá só o Cl
 - **Móveis sólidos**: não dá para atravessar o botão, as mesas, os motores, as macas nem os consoles; você desliza encostado neles, e os bots desviam pelo mesmo mapa de colisão.
 - **Animações** no estilo do original: entrar e sair do duto (tampa abre e o personagem afunda ou salta), portas deslizando, respingo do abate e o corpo cortado com o osso, passada com as pernas alternando, cena da sua morte (o impostor ataca com faca ou língua) e aberturas animadas de "Reunião de emergência" e "Corpo reportado". As cenas tocam inteiras: o corpo só pode ser reportado quando a animação do abate acaba (1,1 s), e se alguém reporta enquanto a cena da sua morte ainda passa, a reunião espera ela terminar para abrir.
 - Tarefas visuais que os outros veem acontecer: coluna de luz e faixa do scan, lasers saindo dos canhões pela janela de Armas, colmeia dos escudos acendendo e o lixo despencando no compactador.
-- **Sons** sintetizados sem arquivos: passos que mudam com o piso (metal, azulejo, carpete), ambiente próprio de cada sala (motores, reator, elétrica, MedBay…), duto, abate, portas, sirene de crise, buzina de emergência, sirene de corpo reportado e sons dos painéis de tarefa. **Som 3D**: o que acontece no mapa só se ouve de perto, como no original — duto a até ~10 tiles, portas batendo a até ~14 (da porta mais perto de você), abate e escudo do anjo só quando você enxerga — mais baixo com a distância, vindo da direção certa (no computador com HRTF: de fone, dá para perceber frente e trás) e abafado atrás de parede. Vale também para o fantasma, que antes ouvia os dutos da nave inteira. O ambiente também é 3D: cada sala com máquina (reator, motores, elétrica, escudos, MedBay, comunicações, O2, cafeteria) é uma fonte no mapa, que cresce quando você chega perto, vem do lado dela e sai abafada se há parede ou porta fechada no caminho; por baixo, o zumbido baixo da nave. Sirenes, sabotagens, reunião e votos continuam valendo para todos. Volume geral, som ligado/desligado e som ambiente das salas ligado/desligado ficam nas configurações (Narração e interface) e na pausa, e valem na hora; o botão Som do jogo também fica salvo para as próximas partidas.
+- **Sons** sintetizados sem arquivos: passos que mudam com o piso (metal, azulejo, carpete), ambiente próprio de cada sala (motores, reator, elétrica, MedBay…), duto, abate, portas, sirene de crise, buzina de emergência, sirene de corpo reportado e sons dos painéis de tarefa. **Som 3D**: o que acontece no mapa só se ouve de perto, como no original — duto a até ~10 tiles, portas batendo a até ~14 (da porta mais perto de você), abate e escudo do anjo só quando você enxerga — mais baixo com a distância, vindo da direção certa (no computador com HRTF: de fone, dá para perceber frente e trás) e abafado atrás de parede. Vale também para o fantasma, que antes ouvia os dutos da nave inteira. O ambiente também é 3D: cada sala com máquina (reator, motores, elétrica, escudos, MedBay, comunicações, O2, cafeteria) é uma fonte no mapa, que cresce quando você chega perto, vem do lado dela e sai abafada se há parede ou porta fechada no caminho; por baixo, o zumbido baixo da nave. Sirenes, sabotagens, reunião e votos continuam valendo para todos. No 3D o som ficou ainda mais 3D: cada som tem altura (a porta bate na altura dela, o duto vem do chão), ganha eco conforme o lugar onde **você** está (salas pequenas, salões grandes e corredores têm reverberação própria, e quanto mais longe a fonte, mais eco e menos som direto), perde os agudos com a distância como no ar, e o que está atrás de parede chega **pelo caminho de verdade**: o som vem da direção da porta por onde ele passaria, mais baixo e abafado conforme o tamanho do desvio. Os passos de bots e amigos também soam assim. Volume geral, som ligado/desligado e som ambiente das salas ligado/desligado ficam nas configurações (Narração e interface) e na pausa, e valem na hora; o botão Som do jogo também fica salvo para as próximas partidas.
 - Visão com linha de visada, como no original: paredes e portas bloqueiam; o raio é 7 tiles vezes a visão configurada (0,25x a 5x, separada para tripulação e impostor); o apagão leva a luz da tripulação a 25% aos poucos (cerca de 1,5 s) e ela volta aos poucos quando consertam; o impostor enxerga normalmente no escuro; o fantasma vê a tela inteira. A borda da luz é suave, e quem está nela aparece escurecido — o nome também, para não entregar quem está no escuro. Você e os bots usam exatamente o mesmo raio.
 - 17 tarefas interativas, com painéis de metal desenhados à mão (rebites, faixas de perigo, telas de fósforo) e física onde faz sentido — no lixo, a alavanca abre o alçapão e o lixo despenca de verdade:
   - Passar cartão, fiação, calibrar distribuidor, traçar rota e estabilizar direção.
@@ -235,7 +271,13 @@ js/meeting.js     fluxo e interface da reunião (tablet), quadro de álibis e hi
 js/props.js       móveis sólidos e consoles: colisão, grade de navegação e posição dos consoles
 js/audio.js       sons sintetizados: passos por piso, ambiente de cada sala e efeitos
 js/decor.js       desenho das salas: pisos, paredes, móveis, consoles e partes animadas
-js/render.js      desenho dos tripulantes, efeitos, tarefas visuais e névoa
+js/render.js      desenho dos tripulantes, efeitos, tarefas visuais e névoa (2D)
+js/render3d.js    mapa 3D: montagem em etapas, câmera, luzes, névoa de visão, efeitos, câmeras de segurança
+js/r3d/kit.js     3D: texturas geradas, materiais e o montador que junta peças por material
+js/r3d/world.js   3D: pisos, paredes, casco, portas, dutos, janelas e todos os móveis e consoles
+js/r3d/actors.js  3D: tripulantes, fantasmas, corpos e pets
+js/net.js         online: salas, anfitrião que roda a partida, amigos, segredos cifrados e banco
+vendor/three.min.js  three.js (MIT), embutido
 js/scenes.js      cenas de tela cheia: a sua morte e as aberturas das reuniões
 js/minigames.js   tarefas e consertos de sabotagem
 js/hud.js         HUD, mapa, câmeras, Admin, vitais e joystick
@@ -245,6 +287,9 @@ tools/build.py    gera a versão de arquivo único em dist/
 ```
 
 ## Testes
+
+- **3D** (medido sem placa de vídeo, o pior caso): antes, clicar em começar travava a tela por 8 a 11 s enquanto a nave era montada; agora ela é montada nos menus e o 3D aparece 0,2–0,3 s depois do clique, com o pior quadro do início em 0,1–0,15 s. Trocar a qualidade no meio da partida desligava o 3D (a tela de desenho ficava presa ao contexto descartado) — corrigido.
+- **Online**: duas e três abas com uma imitação da sala ao vivo: listar e entrar na sala, papéis e tarefas iguais nos dois lados, movimento (mesma posição no anfitrião e no amigo), tarefa feita pelo amigo, efeitos, reunião com chat e voto do amigo, fim de jogo com as mesmas funções, histórico gravado; o mesmo com 25% das mensagens perdidas; amigo saindo na votação (o bot assume e vota) e anfitrião fechando a aba (o amigo volta ao menu). A presença maior ficou em ~0,5 KB (limite de 4 KB).
 
 `AU.debug.simulate({ preset, players, impostors })` roda uma partida inteira só entre bots, sem interface, e devolve o resultado. Medido nesta versão (Clássico e Hardcore com 600 partidas cada, variação de uns ±2 pontos; amostras de 300 variam uns ±3):
 - Clássico (10 jogadores, 2 impostores, nível Competente): a tripulação vence cerca de 38–40% (várias rodadas de 300 partidas); ~57–59% dos ejetados são impostores. As regras são as padrão do Among Us. Era ~44% até a correção da caçada: o impostor que decidia matar alguém parado a menos de ~2,2 tiles não fechava a distância até o alcance do abate (1,9) e desistia — agora chega perto e mata.
