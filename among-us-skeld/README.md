@@ -36,7 +36,22 @@ Durante a reunião você pode **pausar** o relógio para ler com calma, rolar o 
 
 ## IA das conversas (modelo de linguagem)
 
-Sem nenhum modelo, os bots já conversam com frases próprias. Com um modelo de linguagem ligado:
+Sem nenhum modelo, os bots já conversam com frases próprias. Com um modelo de linguagem ligado, há dois jeitos de os bots pensarem.
+
+### Mente própria (padrão)
+
+Cada bot é uma IA separada, chamada sozinha (nunca dois personagens na mesma chamada). Ela joga como um jogador humano joga:
+
+- **Só sabe o que o personagem viveu**: por quais salas passou e quem estava lá, quem viu e onde, o que viu acontecer (abate, duto, transformação, tarefa visual), os corpos que achou, o resultado e os votos de cada reunião, o que foi dito na reunião anterior e as anotações que ela mesma escreveu. O impostor sabe quem é o parceiro; ninguém mais sabe nada de funções.
+- **Decide sozinha o que fazer no mapa**: um plano de alguns passos (fazer tal tarefa, ir a uma sala, seguir, vigiar ou evitar alguém, olhar câmeras ou Admin, patrulhar, reportar, apertar o botão com um motivo, consertar sabotagem; o impostor caça, mata, procura alguém sozinho, finge tarefa, sabota, tranca portas, usa duto). Também faz a **chamadinha**: o zigue-zague de "vem comigo" para mostrar uma tarefa visual, e responde quando alguém faz para ela.
+- **Fala e vota sozinha na reunião**: lê o chat e decide se fala (até duas mensagens curtas por vez, no jeito de escrever do personagem) ou fica quieta, responde quando é citada e vota quando quiser durante a votação.
+- **O corpo continua sendo o jogo**: andar, desviar, as regras (recarga do abate, portas, dutos) e os reflexos de qualquer pessoa (levar susto e fugir de quem matou na frente, sair de perto do próprio abate). Quando acha um corpo ou começa uma sabotagem crítica, o corpo avisa a mente; se ela não responder em alguns segundos, faz o óbvio (reportar, ir consertar).
+- Enquanto a próxima decisão não chega, o bot segue o que a própria mente disse para fazer nesse meio tempo (por exemplo, continuar as tarefas).
+- **Custo**: usa bem mais IA (cerca de 12 a 15 chamadas por minuto de partida e umas 15 por reunião, uma por vez no Claude). Se a IA cair, atingir o limite ou falhar várias vezes seguidas, os bots voltam ao sistema de regras sozinhos e a mente volta quando a IA voltar. Dá para desligar em **Mente dos bots**.
+
+### IA ajudando o motor
+
+Com a mente própria desligada:
 
 - **A IA escreve a reunião inteira**: as falas de abertura, as respostas ao que você digita, as brigas e defesas entre os bots, as cobranças a quem está quieto e os anúncios de voto. Cada bot tem um jeito próprio de escrever (uns certinhos, outros abreviando, poucos com gíria), sem repetir o que já foi dito.
 - **A IA decide os votos**: cada bot vota com base no que ele sabe e no que ouviu no chat. Em situação crítica, ele vota em vez de pular.
@@ -213,6 +228,7 @@ js/talk.js        frases, tom do chat e leitura das mensagens do jogador
 js/llm.js         provedores de modelo de linguagem (Claude, WebLLM, APIs)
 js/voice.js       diretor da reunião: o que cada bot sabe, falas e votos pela IA
 js/tactics.js     estrategista: ações no mapa decididas pela IA
+js/minds.js       mente própria: cada bot é uma IA separada (memória, plano no mapa, fala e voto)
 js/ghosts.js      chat dos fantasmas: o que cada morto sabe e as falas deles
 js/lobby.js       chat do lobby antes da partida
 js/meeting.js     fluxo e interface da reunião (tablet), quadro de álibis e histórico

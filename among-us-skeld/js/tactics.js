@@ -38,6 +38,8 @@
       return new Strategist(g);
     },
     active(g) {
+      /* com mente própria, cada bot decide por si (o estrategista do time fica de fora) */
+      if (g.minds && g.minds.online()) return false;
       return !g.headless && g.S.ui.aiChat !== 'off' && g.S.ui.aiActions !== 'off' && AU.LLM.ready();
     },
   };

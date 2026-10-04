@@ -104,6 +104,9 @@
       this.players.forEach((p) => {
         if (!p.isHuman || opts.autopilot) p.brain = new AU.Brain(this, p);
       });
+      /* mente própria: cada bot com uma IA só dele (liga e desliga sozinha conforme a IA está disponível) */
+      this.minds = AU.Minds && (!this.headless || opts.minds) ? AU.Minds.create(this) : null;
+      if (this.minds && opts.minds) this.forceMinds = true;
       this.log({ type: 'start' });
     }
 
@@ -455,6 +458,7 @@
         this.perceive();
         this.trackMotion();
         if (this.tactics) this.tactics.tick();
+        if (this.minds) this.minds.tick();
       }
       for (const p of this.players) {
         const tx = p.x - p.facing * 0.9, ty = p.y + 0.25;
@@ -712,6 +716,7 @@
       this.sabCd = Math.max(this.sabCd, 12);
       this.emergencyCdUntil = this.t + this.S.rules.emergencyCooldown;
       this.roundStart = this.t;
+      if (this.minds && this.meeting) this.minds.afterMeeting(this.meeting, result);
       for (const p of this.players) if (p.brain) p.brain.onMeetingEnd(result);
       if (this.tactics) this.tactics.poke('both', 5);
       this.meeting = null;

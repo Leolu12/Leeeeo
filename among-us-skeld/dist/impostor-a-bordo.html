@@ -1128,6 +1128,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   };
   C.CHAT_PACE = { calmo: { name: 'Calmo', mult: 1.6 }, normal: { name: 'Normal', mult: 1 }, frenetico: { name: 'Frenético', mult: 0.6 } };
   C.AI_ACTIONS = { on: 'IA decide votos e ações no mapa', off: 'Só a conversa (votos e ações pelo motor)' };
+  C.AI_MIND = { on: 'Mente própria: cada bot é uma IA separada', off: 'Motor do jogo (a IA só ajuda)' };
   C.AI_CHAT = { full: 'Respostas e conversa entre bots', replies: 'Só respostas ao que você escreve', off: 'Desligada (só regras)' };
   C.NARRATION = { conciso: 'Conciso', padrao: 'Padrão', cinematografico: 'Cinematográfico' };
 
@@ -1182,7 +1183,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       names: 'auto', customNames: '', personalities: 'sorteadas', allowed: C.PERSONALITY_IDS.slice(),
       impostorLevel: 'competente', humanError: 'medio', chatTone: 'casual', chatPace: 'normal',
     },
-    ui: { narration: 'cinematografico', hud: true, finalReport: true, sound: true, volume: 100, ambience: true, ghostsSilent: true, aiChat: 'full', aiActions: 'on' },
+    ui: { narration: 'cinematografico', hud: true, finalReport: true, sound: true, volume: 100, ambience: true, ghostsSilent: true, aiChat: 'full', aiActions: 'on', aiMind: 'on' },
     house: { noDoubleKill: false, noVentChase: false, critAfterFirstBody: false, noVisualHardClear: false, noSelfReport: false, custom: '' },
   };
 
@@ -4054,6 +4055,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.players.forEach((p) => {
         if (!p.isHuman || opts.autopilot) p.brain = new AU.Brain(this, p);
       });
+      /* mente própria: cada bot com uma IA só dele (liga e desliga sozinha conforme a IA está disponível) */
+      this.minds = AU.Minds && (!this.headless || opts.minds) ? AU.Minds.create(this) : null;
+      if (this.minds && opts.minds) this.forceMinds = true;
       this.log({ type: 'start' });
     }
 
@@ -4405,6 +4409,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         this.perceive();
         this.trackMotion();
         if (this.tactics) this.tactics.tick();
+        if (this.minds) this.minds.tick();
       }
       for (const p of this.players) {
         const tx = p.x - p.facing * 0.9, ty = p.y + 0.25;
@@ -4662,6 +4667,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.sabCd = Math.max(this.sabCd, 12);
       this.emergencyCdUntil = this.t + this.S.rules.emergencyCooldown;
       this.roundStart = this.t;
+      if (this.minds && this.meeting) this.minds.afterMeeting(this.meeting, result);
       for (const p of this.players) if (p.brain) p.brain.onMeetingEnd(result);
       if (this.tactics) this.tactics.poke('both', 5);
       this.meeting = null;
@@ -5348,9 +5354,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.thinkT -= dt;
       if (this.thinkT <= 0) {
         this.thinkT = 0.22 + Math.random() * 0.12;
-        if (p.isImp) this.thinkImp();
-        else this.thinkCrew();
-        this.thinkRoles();
+        /* mente própria: a IA deste personagem decide; o corpo só executa e tem os reflexos */
+        if (this.mindOn()) this.mindThink();
+        else {
+          if (p.isImp) this.thinkImp();
+          else this.thinkCrew();
+          this.thinkRoles();
+        }
       }
       /* dentro do duto ninguém anda (o corpo fica escondido no duto até sair) */
       if (!p.inVent) this.act(dt);
@@ -6005,7 +6015,17 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         case 'task': {
           const avail = p.tasks.filter((tk) => !tk.done && g.taskAvailable(tk));
           const w = U.norm(o.task || '');
-          const tk = w && avail.find((x) => U.norm(x.def.name).split(' ').some((part) => part.length > 3 && w.includes(part)));
+          let tk = w && avail.find((x) => U.norm(x.def.name).split(' ').some((part) => part.length > 3 && w.includes(part)));
+          /* "tarefa na Elétrica": a que estiver naquela sala */
+          if (!tk && o.room) tk = avail.find((x) => {
+            const st = M.STATIONS[x.steps[x.step]];
+            return st && st.area && M.AREA[st.area] && M.roomOf(M.AREA[st.area], st.x, st.y).id === o.room;
+          });
+          /* mente própria: "tarefa" sem nome (ou uma que já acabou) = a mais perto */
+          if (!tk && o.mind && !o.room) tk = avail.slice().sort((a, c) => {
+            const sa = g.stationOfTask(a), sc = g.stationOfTask(c);
+            return U.d2(p.x, p.y, sa.x, sa.y) - U.d2(p.x, p.y, sc.x, sc.y);
+          })[0];
           return tk ? this.planTask(tk) : false;
         }
         case 'follow':
@@ -6015,8 +6035,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           if (!q || !q.alive) return false;
           return fresh ? this.planFollow(q, U.rf(12, 20), U.rf(4.2, 5.5)) : goToward();
         case 'avoid':
-          if (q) this.avoid = { who: q.id, until: o.until };
+          if (q) this.avoid = { who: q.id, until: o.until, mind: !!o.mind };
           return false;
+        case 'reply':
+          if (!q || !q.alive) return false;
+          if (fresh && U.dist(p, q) < 8) return this.planWiggle('ok', () => q.alive && this.planFollow(q, U.rf(20, 35), 2.4, 'pact'), q, 'reply');
+          o.done = false;
+          return goToward();
         case 'signal': {
           if (!q || !q.alive) return false;
           if (fresh && U.dist(p, q) < 6) {
@@ -6043,10 +6068,70 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           return this.planPatrol(U.rint(2, 4));
         case 'button':
           if (p.emergencyLeft <= 0) return false;
+          if (o.mind) {
+            this.wantButton = { reason: 'mind', why: o.why || '', mind: true };
+            return false;
+          }
           {
             const top = this.topSuspectLive();
             this.wantButton = top && top.s >= 30 ? { reason: 'sus', who: top.id } : { reason: 'info' };
           }
+          return false;
+        /* passos que só a mente própria usa */
+        case 'wait':
+          return this.setPlan({ type: 'pause', stage: 'do', until: g.t + U.rf(4, 7) });
+        case 'report': {
+          let body = this.bodiesNow.find((bd) => !bd.reported && !bd.gone);
+          if (!body) {
+            const k = this.mem.bodies.slice().reverse().find((x) => g.bodies.some((y) => y.id === x.id && !y.reported && !y.gone));
+            body = k ? g.bodies.find((y) => y.id === k.id) : null;
+          }
+          if (!body) return false;
+          return this.planReport(body);
+        }
+        case 'fix': {
+          const need = g.sab ? g.sabStationsNeeded() : [];
+          if (!need.length) return false;
+          this.mindFix = g.t;
+          const st = need.slice().sort((a, c) => U.d2(p.x, p.y, M.SAB_STATIONS[a].x, M.SAB_STATIONS[a].y) - U.d2(p.x, p.y, M.SAB_STATIONS[c].x, M.SAB_STATIONS[c].y))[0];
+          if (!this.fix) this.fix = st;
+          return false;
+        }
+        case 'vitals':
+          if (p.special !== 'cientista' || (p.battery || 0) < 2) return false;
+          p.battery -= 2;
+          for (const q of g.players) {
+            if (!q.alive && !q.ejected && !this.mem.vitals[q.id]) {
+              this.mem.vitals[q.id] = { from: this.lastVitals, to: g.t };
+              const mind = g.minds && g.minds.mind(p);
+              if (mind) mind.log('nos sinais vitais: ' + q.name + ' está morto (e ainda não houve reunião sobre isso)' + (g.bodies.some((bd) => bd.pid === q.id && !bd.reported && !bd.gone) ? ' — ninguém reportou o corpo ainda' : ''));
+            }
+          }
+          this.lastVitals = g.t;
+          return this.setPlan({ type: 'pause', stage: 'do', until: g.t + 2 });
+        case 'track':
+          if (!q || !q.alive) return false;
+          if (U.dist(p, q) < 3.4 && Nav.los(p.x, p.y, q.x, q.y)) {
+            g.track(p, q.id);
+            return false;
+          }
+          o.done = false;
+          return fresh ? this.planFollow(q, 6, 1.4) : goToward();
+        case 'kill':
+          if (!q || !q.alive || q.isImp) return false;
+          this.prey = { id: q.id, until: o.until, force: true };
+          return fresh ? this.planHunt(q) : goToward();
+        case 'shift':
+          if (q && q.alive) g.shapeshift(p, q.id);
+          return false;
+        case 'unshift':
+          if (p.shiftAs != null) g.unshift(p);
+          return false;
+        case 'vanish':
+          g.vanish(p);
+          return false;
+        case 'appear':
+          if (p.invisUntil > g.t) g.reappear(p);
           return false;
         /* impostor */
         case 'hunt':
@@ -6054,9 +6139,18 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           this.prey = { id: q.id, until: o.until };
           if (fresh) return this.planStalk(q);
           return goToward();
-        case 'fake':
-          return this.planFakeTask(o.room || undefined);
+        case 'fake': {
+          let room = o.room;
+          if (!room && o.task) {
+            const w = U.norm(o.task);
+            const tk = p.tasks.find((x) => U.norm(x.def.name).split(' ').some((part) => part.length > 3 && w.includes(part)));
+            const st = tk && M.STATIONS[tk.steps[tk.step]];
+            if (st && st.area && M.AREA[st.area]) room = M.roomOf(M.AREA[st.area], st.x, st.y).id;
+          }
+          return this.planFakeTask(room || undefined);
+        }
         case 'prowl':
+          if (o.mind) this.mindProwl = g.t + 25;
           return this.planProwl();
         case 'group': {
           const crowd = this.seenNow.filter((x) => !x.isImp && x.alive);
@@ -6072,7 +6166,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         case 'vent': {
           const v = g.nearestVent(p);
           if (v && g.enterVent(p, v)) {
-            this.ventPlan = { steps: [U.pick(v.links)], nextT: g.t + U.rf(0.6, 1)};
+            /* para onde a mente quis ir pelo duto (se a sala tem duto ligado), senão um salto qualquer */
+            const route = o.room ? this.ventRoute(v.id, o.room) : null;
+            this.ventPlan = { steps: route && route.length ? route : [U.pick(v.links)], nextT: g.t + U.rf(0.6, 1), mind: !!o.mind };
             return true;
           }
           const vv = M.VENTS.slice().sort((a, b) => U.d2(p.x, p.y, a.x, a.y) - U.d2(p.x, p.y, b.x, b.y))[0];
@@ -6097,6 +6193,176 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         default:
           return false;
       }
+    }
+    /* ---------- mente própria (cada bot é uma IA) ---------- */
+    mindOn() {
+      const h = this.g.minds;
+      return !!(h && h.controls(this.p));
+    }
+    /* caminho de dutos até uma sala (os dutos só ligam salas vizinhas) */
+    ventRoute(from, room) {
+      const prev = { [from]: null }, q = [from];
+      while (q.length) {
+        const id = q.shift(), v = M.VENT[id];
+        if (id !== from && v.area && M.AREA[v.area] && M.roomOf(M.AREA[v.area], v.x, v.y).id === room) {
+          const path = [];
+          for (let k = id; k !== from; k = prev[k]) path.unshift(k);
+          return path;
+        }
+        for (const n of v.links) if (!(n in prev)) {
+          prev[n] = id;
+          q.push(n);
+        }
+      }
+      return null;
+    }
+    /* O corpo com mente própria: executa o plano que a mente escolheu e só age sozinho nos reflexos (susto, fugir
+       de quem acabou de matar na frente, sair de perto do próprio abate). Quando algo pede decisão (achou corpo,
+       sabotagem), avisa a mente; se ela demorar demais, faz o óbvio. */
+    mindThink() {
+      const g = this.g, p = this.p, t = g.t;
+      const mind = g.minds.mind(p);
+      if (!mind) return;
+      if (p.inVent) {
+        const vp = this.ventPlan;
+        if (vp && vp.steps.length) {
+          if (t >= vp.nextT) {
+            g.ventTo(p, vp.steps.shift());
+            vp.nextT = t + U.rf(0.6, 1.0);
+          }
+        } else if (!vp || t >= vp.nextT) {
+          g.exitVent(p);
+          this.ventPlan = null;
+          this.engVent = null;
+          this.plan = null;
+        }
+        return;
+      }
+      if (this.shock) {
+        const sh = this.shock, k = g.players[sh.killer];
+        if (t < sh.until) return;
+        const kNear = k && k.alive && !k.inVent && this.seenNow.includes(k) && U.dist(p, k) < 5.5;
+        if (kNear && !sh.fled) {
+          sh.fled = true;
+          this.fear = { who: sh.killer, t };
+          this.planFlee(k);
+          return;
+        }
+        this.shock = null;
+      }
+      if (this.plan && this.plan.type === 'flee') return;
+      /* a mente pediu para evitar alguém: chegou perto, o corpo se afasta */
+      if (this.avoid && this.avoid.mind && t < this.avoid.until) {
+        const q = this.seenNow.find((x) => g.appearId(x) === this.avoid.who);
+        if (q && U.dist(p, q) < 3.5 && !(this.plan && ['report', 'button', 'fix'].includes(this.plan.type))) {
+          this.planFlee(q);
+          return;
+        }
+      }
+      if (p.isImp && this.escape) {
+        const e = this.escape;
+        if (!e.moved) {
+          e.moved = true;
+          this.planEscape();
+          return;
+        }
+        if (t - e.t0 > 12) this.escape = null;
+      }
+      const u = mind.urgent;
+      if (u && t >= u.until) {
+        mind.urgent = null;
+        if (u.def === 'report') {
+          const body = g.bodies.find((x) => x.id === u.data && !x.reported && !x.gone);
+          if (body) this.planReport(body);
+        } else if (u.def === 'leave') {
+          const body = g.bodies.find((x) => x.id === u.data);
+          if (body) {
+            const far = M.ROOMS.filter((r) => U.d2(r.cx, r.cy, body.x, body.y) > 18);
+            const pos = M.randomPointIn(U.pick(far.length ? far : M.ROOMS).id);
+            this.setPlan({ type: 'leave', x: pos.x, y: pos.y, onArrive: (pl) => (pl.until = g.t + 1) });
+          }
+        } else if (u.def === 'fix' || u.def === 'fixMaybe') this.mindFix = t;
+      }
+      if (this.plan && this.plan.type === 'report') {
+        if (this.plan.body.reported || this.plan.body.gone) this.plan = null;
+        else {
+          g.tryReport(p, this.plan.body);
+          return;
+        }
+      }
+      if (this.wantButton && this.wantButton.mind) {
+        if (p.emergencyLeft <= 0) this.wantButton = null;
+        else if (!g.sabCritical()) {
+          mind.callWhy = this.wantButton.why || mind.callWhy;
+          if (!this.plan || (this.plan.type !== 'button' && !this.plan.buttonWait)) this.planButton();
+          return;
+        }
+      }
+      if (this.fix) {
+        if (!g.sab || !g.sabStationsNeeded().includes(this.fix)) {
+          this.fix = null;
+          if (this.plan && this.plan.type === 'fix') this.plan = null;
+        } else {
+          if (!this.plan || this.plan.type !== 'fix') this.planFix(this.fix);
+          return;
+        }
+      }
+      if (p.isImp && this.mindKill()) return;
+      if (this.plan) return;
+      const o = mind.nextOrder();
+      if (o) {
+        mind.cur = o;
+        this.aiOrder = o;
+        this.runOrder();
+        /* passo que não deu para fazer agora (ou que não anda): segue para o próximo logo */
+        if (!this.plan && !p.inVent) this.thinkT = 0.05;
+        return;
+      }
+      mind.cur = null;
+      mind.ask(2, '');
+      /* enquanto a próxima decisão não vem, faz o que a mente disse para fazer nesse meio tempo */
+      if (!this.idleFail || t >= this.idleFail) {
+        const io = mind.idleOrder();
+        mind.cur = io;
+        this.aiOrder = io;
+        this.runOrder();
+        if (this.plan) return;
+        mind.cur = null;
+        this.idleFail = t + 4;
+      }
+      /* pensando no que fazer: fica onde está um instante, olhando em volta */
+      this.setPlan({ type: 'pause', stage: 'do', until: t + U.rf(1.2, 2.4) });
+    }
+    /* a mente mandou matar ("matar"), caçar ("cacar": só sozinho e sem testemunha) ou procurar alguém sozinho */
+    mindKill() {
+      const g = this.g, p = this.p, t = g.t;
+      if (p.killCd > 0 || p.inVent || p.invisUntil > t) return false;
+      if (g.S.house.noDoubleKill && g.partnerKilledRecently(p)) return false;
+      const others = this.crewVisible();
+      let tgt = null, force = false;
+      const pr = this.prey;
+      if (pr && t < pr.until) {
+        const q = g.players[pr.id];
+        if (q && q.alive && others.includes(q)) {
+          tgt = q;
+          force = !!pr.force;
+        }
+      } else if (this.mindProwl && t < this.mindProwl && others.length === 1) tgt = others[0];
+      if (!tgt) return false;
+      if (!force) {
+        const camsOnMe = g.anyoneOnCams() && M.CAMS.some((c) => U.d2(c.x, c.y, p.x, p.y) <= M.CAM_R && Nav.los(c.x, c.y, p.x, p.y));
+        if (others.length > 1 || !this.noWitness(tgt, others) || camsOnMe) return false;
+      }
+      if (U.dist(p, tgt) <= g.killDist) {
+        if (g.tryKill(p, tgt)) {
+          this.prey = null;
+          this.mindProwl = 0;
+          return true;
+        }
+        return false;
+      }
+      if (!this.plan || this.plan.type !== 'hunt' || this.plan.target !== tgt.id) this.planHunt(tgt);
+      return true;
     }
     topSuspectLive() {
       let best = null;
@@ -6235,6 +6501,20 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const g = this.g, p = this.p, t = g.t;
       opts = opts || {};
       if (kind !== 'wiggle' || !p.alive || p.inVent || g.phase !== 'play') return;
+      /* mente própria: ela vê o sinal e decide sozinha (responder, ir junto, ignorar) */
+      if (this.mindOn()) {
+        const mind = g.minds.mind(p), ap = g.appear(q);
+        const nm = ap.name + ' (' + C.COLOR[ap.color].name + ')';
+        if (!mind) return;
+        if (opts.reply) {
+          mind.log(nm + ' respondeu ao seu sinal com o zigue-zague (combinado: vem com você)');
+          mind.ask(1, nm + ' respondeu ao seu sinal');
+        } else {
+          mind.log(nm + ' fez o sinal de "vem comigo" (zigue-zague) ' + (opts.to === p.id ? 'para você' : 'perto de você'));
+          mind.ask(3, nm + ' fez o zigue-zague ' + (opts.to === p.id ? 'para você' : 'perto de você'));
+        }
+        return;
+      }
       if (this.plan && ['report', 'flee', 'fix', 'button', 'hunt', 'wiggle'].includes(this.plan.type)) return;
       if (this.wantButton || this.fix || this.escape) return;
       const aid = g.appearId(q);
@@ -7746,11 +8026,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           else this.followWatch[aid] = Math.max(0, (this.followWatch[aid] || 0) - 0.08);
           const invited = this.invite && this.invite.who === aid && t < this.invite.until;
           const friendly = invited || (this.susp[aid] || 0) < 8;
-          if (this.followWatch[aid] >= 3 && friendly && !this.shownVisual && U.chance(invited ? 1 : 0.35) && this.showVisual(q)) {
+          const own = this.mindOn();
+          if (!own && this.followWatch[aid] >= 3 && friendly && !this.shownVisual && U.chance(invited ? 1 : 0.35) && this.showVisual(q)) {
             this.followWatch[aid] = 0;
           }
           if (invited && this.followWatch[aid] >= 7) this.followWatch[aid] = 0;
-          if (!invited && this.followWatch[aid] >= 4 && this.liveSusp(aid) >= 20 && !(this.plan && ['flee', 'report', 'fix', 'button'].includes(this.plan.type))) {
+          if (!own && !invited && this.followWatch[aid] >= 4 && this.liveSusp(aid) >= 20 && !(this.plan && ['flee', 'report', 'fix', 'button'].includes(this.plan.type))) {
             this.followWatch[aid] = 0;
             this.fieldSus[aid] = (this.fieldSus[aid] || 0) + 6;
             this.emote('?');
@@ -7762,7 +8043,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
             /* quem já provou ser tripulante (tarefa visual) andando atrás é só companhia; e quem ficou a sós comigo
                um bom tempo e não fez nada teve a chance: seguir assim é escolta, não caça */
             const hadChance = ((this.aloneWith || {})[aid] || 0) >= 4;
-            if (!this.hardCleared(aid) && !hadChance && mem.event({ type: 'follow', t, who: aid, area }, 'follow:' + aid + ':' + g.meetings) && pers.panic) {
+            if (!this.hardCleared(aid) && !hadChance && mem.event({ type: 'follow', t, who: aid, area }, 'follow:' + aid + ':' + g.meetings) && pers.panic && !own) {
               this.fear = { who: aid, t };
               this.planFlee(q);
             }
@@ -8024,13 +8305,19 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (!p.alive || p.isImp) return;
       if (U.d2(p.x, p.y, body.x, body.y) < 45 && U.chance(0.75)) {
         this.mem.event({ type: 'noise', t: this.g.t, victim: body.pid, area: body.area });
+        /* mente própria: ela decide se vai ver; se não responder, o corpo vai reportar */
+        const mind = this.mindOn() ? this.g.minds.mind(p) : null;
+        if (mind) {
+          mind.urgent = { kind: 'noise', data: body.id, at: this.g.t, until: this.g.t + 8, def: 'report' };
+          return;
+        }
         this.planReport(body);
       }
     }
     /* Parceiro acabou de matar perto: se combinado (ou se dá), mata a testemunha que sobrou. */
     onPartnerKill(k, v, wit) {
       const g = this.g, p = this.p, L = this.lvl;
-      if (p.killCd > 0 || U.dist(p, k) > 7) return;
+      if (p.killCd > 0 || U.dist(p, k) > 7 || this.mindOn()) return;
       const agreed = this.dk && g.t < this.dk.until && this.dk.with === k.id;
       const cands = wit.map((w) => w.p).filter((q) => q.alive && !q.isImp && q !== p && U.dist(p, q) < 5 && q.id !== v.id);
       if (!cands.length) return;
@@ -8067,6 +8354,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     }
     canHelpFix() {
       if (!this.p.alive || this.p.inVent) return false;
+      /* mente própria: só vai consertar quem decidiu ir (ou quem não respondeu a tempo numa sabotagem crítica) */
+      const g = this.g;
+      if (this.mindOn() && !(g.sab && this.mindFix != null && this.mindFix >= g.sab.t0)) return false;
       return !(this.plan && (this.plan.type === 'report' || this.plan.type === 'button' || this.plan.type === 'flee'));
     }
     assignFix(st) {
@@ -11848,6 +12138,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       return new Strategist(g);
     },
     active(g) {
+      /* com mente própria, cada bot decide por si (o estrategista do time fica de fora) */
+      if (g.minds && g.minds.online()) return false;
       return !g.headless && g.S.ui.aiChat !== 'off' && g.S.ui.aiActions !== 'off' && AU.LLM.ready();
     },
   };
@@ -12045,6 +12337,832 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   }
 
   AU.Tactics = T;
+})();
+
+</script>
+  <script>
+/* Mente própria: cada bot é uma IA separada. Ela só sabe o que o próprio personagem viveu (o que viu, por onde
+   andou, o que ouviu na reunião) e as anotações que ela mesma escreveu; decide sozinha o que fazer na nave, o que
+   falar e em quem votar. Uma chamada ao modelo por personagem, nunca juntando dois personagens na mesma chamada.
+   O "corpo" continua sendo o motor do jogo: andar, desviar, executar o que a mente decidiu e os reflexos (levar
+   susto, fugir de quem acabou de matar na frente). Sem IA (ou se ela cair), o motor volta a jogar sozinho. */
+(function () {
+  'use strict';
+  const AU = window.AU;
+  const U = AU.U, C = AU.C, M = AU.Map;
+
+  const Minds = {
+    /* a pessoa deixou a mente própria ligada (é o padrão quando há IA) */
+    wanted(g) {
+      return g.S.ui.aiMind !== 'off' && g.S.ui.aiChat !== 'off';
+    },
+    online(g) {
+      return Minds.wanted(g) && !!AU.LLM && AU.LLM.ready() && (!g.headless || !!g.forceMinds);
+    },
+    create(g) {
+      return new Hub(g);
+    },
+  };
+
+  const who = (g, id) => {
+    const q = g.players[id];
+    return q ? `${q.name} (${C.COLOR[q.color].name})` : 'alguém';
+  };
+  const area = (a) => (M.AREA[a] ? M.AREA[a].name : a || '?');
+  const roomName = (x, y) => {
+    const a = M.areaAt(x, y);
+    return a.kind === 'hall' ? a.name : M.roomOf(a, x, y).name;
+  };
+  const clock = (g, t) => U.fmtTime(Math.max(0, t));
+  const SAB = { lights: 'luzes apagadas', comms: 'comunicações cortadas (sem câmeras e sem admin)', reactor: 'REATOR derretendo', o2: 'O2 acabando' };
+
+  /* Como a nave é (para planejar caminhos e entender o que viu) */
+  const MAP_TXT = [
+    'A nave (The Skeld):',
+    '- Cafeteria no centro de cima (botão de emergência na mesa do meio). Dela saem: corredor de cima para oeste (MedBay e Motor Superior), Armas a leste e o corredor do Admin para o sul (Admin e Depósito).',
+    '- Lado oeste: Motor Superior, Reator (no meio, extremo oeste), Segurança (entre os motores, ao lado do Reator, com as câmeras) e Motor Inferior.',
+    '- Centro: MedBay (perto do corredor de cima), Elétrica (embaixo, entrada estreita, perigosa), Admin (ao lado da Cafeteria, mapa da nave), Depósito (grande, no centro-sul).',
+    '- Lado leste: Armas (em cima), O2, Navegação (extremo leste), Escudos (embaixo à direita) e Comunicações (embaixo, entre Depósito e Escudos).',
+  ].join('\n');
+
+  const CREW_ACTS = [
+    'tarefa NOME — ir fazer uma das suas tarefas (use o nome dela)',
+    'ir SALA — andar até uma sala',
+    'seguir NOME — andar junto de alguém',
+    'vigiar NOME — seguir alguém de longe',
+    'evitar NOME — não ficar perto dessa pessoa',
+    'sinal NOME — chamar a pessoa com o zigue-zague ("vem comigo") e mostrar uma tarefa visual a ela',
+    'responder NOME — devolver o zigue-zague (ok, tô indo) e ir junto de quem te chamou',
+    'esperar — ficar onde está uns segundos olhando',
+    'patrulhar — rodar pelas salas vazias',
+    'cameras — olhar as câmeras na Segurança',
+    'admin — olhar o mapa no Admin',
+    'reportar — reportar o corpo que você vê (ou que acabou de achar)',
+    'botao MOTIVO — ir apertar o botão de emergência e chamar uma reunião',
+    'consertar — ir consertar a sabotagem',
+  ];
+  const IMP_ACTS = [
+    'fingir TAREFA_OU_SALA — fingir que faz tarefa (álibi)',
+    'ir SALA — andar até uma sala',
+    'seguir NOME — andar junto de alguém (parecer inocente)',
+    'grupo — ficar no meio do pessoal',
+    'esperar — ficar onde está uns segundos',
+    'cacar NOME — ir atrás da pessoa e matar quando ela estiver sozinha e ninguém estiver vendo',
+    'matar NOME — matar assim que alcançar, mesmo com risco de alguém ver',
+    'procurar — matar o primeiro que encontrar sozinho, sem testemunha',
+    'atrair NOME — chamar a pessoa sozinha para um canto',
+    'responder NOME — devolver o zigue-zague de quem te chamou e ir junto',
+    'sabotar luzes|comms|reator|o2 — sabotar',
+    'portas SALA — trancar as portas de uma sala (Cafeteria, MedBay, Segurança, Elétrica, Depósito, Motor Superior, Motor Inferior)',
+    'duto SALA — entrar no duto e sair em outra sala ligada por ele',
+    'reportar — reportar um corpo que você vê (até o seu)',
+    'botao MOTIVO — ir apertar o botão de emergência',
+    'consertar — ir consertar a sabotagem (impostor também pode, para parecer inocente)',
+  ];
+  const ROLE_ACTS = {
+    cientista: ['vitals — olhar os sinais vitais (gasta bateria)'],
+    rastreador: ['rastrear NOME — marcar alguém que está pertinho e acompanhar por onde anda'],
+    engenheiro: ['duto SALA — usar o duto como atalho para outra sala'],
+    metamorfo: ['transformar NOME — ficar com a aparência de outra pessoa', 'desfazer — voltar à sua aparência'],
+    fantasma: ['sumir — ficar invisível por uns segundos (invisível não mata nem entra no duto)', 'aparecer — voltar a ficar visível'],
+  };
+
+  /* Extrai o JSON da resposta (o modelo às vezes escreve algo antes ou depois). */
+  function parseJSON(text) {
+    if (!text) return null;
+    const s = String(text);
+    const a = s.indexOf('{'), b = s.lastIndexOf('}');
+    if (a < 0 || b <= a) return null;
+    const raw = s.slice(a, b + 1);
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      try {
+        return JSON.parse(raw.replace(/[“”]/g, '"').replace(/,\s*([}\]])/g, '$1'));
+      } catch (e2) {
+        return null;
+      }
+    }
+  }
+  const tidy = (s, n) => String(s == null ? '' : s).replace(/\s+/g, ' ').replace(/^["'\s]+|["'\s]+$/g, '').slice(0, n || 160);
+
+  /* ---------------------------------------------------------------------------------------------------------- */
+  class Mind {
+    constructor(hub, p) {
+      this.hub = hub;
+      this.g = hub.g;
+      this.p = p;
+      this.notes = '';
+      this.diary = [];
+      this.queue = [];
+      this.thought = '';
+      this.want = 0; /* 0 nada; 1 revisar o plano; 2 sem plano; 3 urgente */
+      this.why = [];
+      this.lastAsk = -99;
+      this.lastPlanAt = -99;
+      this.inflight = false;
+      this.urgent = null;
+      this.ix = { seen: 0, ev: 0, bodies: 0, trail: 0 };
+      this.lastRoom = null;
+      this.doneTasks = new Set();
+      this.calls = 0;
+      this.planned = 0;
+      this.idle = null;
+    }
+    get b() {
+      return this.p.brain;
+    }
+    log(text, t) {
+      const g = this.g;
+      this.diary.push({ t: t != null ? t : g.t, round: g.meetings, text });
+      if (this.diary.length > 90) this.diary.splice(0, this.diary.length - 90);
+    }
+    ask(level, why) {
+      if (level > this.want) this.want = level;
+      if (why && !this.why.includes(why)) this.why.push(why);
+      if (this.why.length > 4) this.why.shift();
+    }
+    /* próximo passo do plano para o corpo executar */
+    nextOrder() {
+      while (this.queue.length) {
+        const o = this.queue.shift();
+        if (!o) continue;
+        o.until = this.g.t + (o.kind === 'task' || o.kind === 'fake' ? 70 : o.kind === 'go' || o.kind === 'patrol' ? 40 : 28);
+        o.at = this.g.t;
+        return o;
+      }
+      return null;
+    }
+    /* o plano acabou e a próxima decisão ainda não veio: segue o que a própria mente disse para fazer nesse meio
+       tempo ("depois"), como quem continua fazendo tarefa enquanto pensa */
+    idleOrder() {
+      const g = this.g, p = this.p;
+      let base = this.idle;
+      if (!base) base = p.isImp ? { kind: 'fake', mind: true, label: 'fingir tarefa' } : p.tasks.some((tk) => !tk.done && g.taskAvailable(tk)) ? { kind: 'task', mind: true, label: 'tarefas' } : { kind: 'patrol', mind: true, label: 'patrulhar' };
+      const o = Object.assign({}, base, { done: false, at: g.t, idle: true });
+      o.until = g.t + (o.kind === 'task' || o.kind === 'fake' ? 70 : 30);
+      return o;
+    }
+    /* o corpo encontrou algo que pede decisão agora; se a mente não responder a tempo, o corpo faz o óbvio */
+    urge(kind, data, text, def, wait) {
+      const g = this.g;
+      this.urgent = { kind, data, at: g.t, until: g.t + (wait || 6), def };
+      if (text) this.log(text);
+      this.ask(3, text || kind);
+    }
+
+    /* --- o que a mente lembra --- */
+    observe() {
+      const g = this.g, b = this.b, p = this.p, mem = b.mem;
+      /* por onde eu andei (só salas, para não encher de corredor) */
+      const a = M.areaAt(p.x, p.y);
+      const rm = M.roomOf(a, p.x, p.y);
+      if (a.kind === 'room' && rm.id !== this.lastRoom) {
+        this.lastRoom = rm.id;
+        const there = b.seenNow.filter((q) => q.alive && M.roomOf(M.areaAt(q.x, q.y), q.x, q.y).id === rm.id).map((q) => who(g, g.appearId(q)));
+        this.log('você entrou em ' + rm.name + (there.length ? ' (estavam lá: ' + there.join(', ') + ')' : ' (vazia)'));
+      }
+      for (const tk of p.tasks) {
+        if (tk.done && !this.doneTasks.has(tk.id) && !p.isImp) {
+          this.doneTasks.add(tk.id);
+          this.log('você terminou a tarefa ' + tk.def.name);
+        }
+      }
+      /* fatos que viu acontecer */
+      for (; this.ix.ev < mem.events.length; this.ix.ev++) {
+        const e = mem.events[this.ix.ev];
+        const line = this.eventLine(e);
+        if (!line) continue;
+        this.log(line.text, e.t);
+        if (line.urgent) this.ask(line.urgent, line.text);
+      }
+      for (; this.ix.bodies < mem.bodies.length; this.ix.bodies++) {
+        const bd = mem.bodies[this.ix.bodies];
+        const body = g.bodies.find((x) => x.id === bd.id);
+        if (!body || body.reported || body.gone) continue;
+        /* o próprio abate já está na memória (e o corpo sai de perto sozinho) */
+        if (p.isImp && body.killer === p.id) continue;
+        const near = (bd.near || []).filter((id) => id !== p.id && id !== bd.pid).map((id) => who(g, id));
+        const mate = p.isImp && g.players[body.killer] && g.players[body.killer].isImp;
+        const txt = (mate ? 'você viu o corpo de ' + who(g, bd.pid) + ' (abate do seu parceiro)' : 'você ACHOU O CORPO de ' + who(g, bd.pid)) + ' em ' + area(bd.area) + (bd.via === 'cams' ? ' (pelas câmeras)' : '') + (near.length ? '; perto do corpo estavam: ' + near.join(', ') : '');
+        if (bd.via === 'cams') {
+          this.log(txt, bd.t);
+          this.ask(3, txt);
+        } else this.urge('body', body.id, txt, p.isImp ? 'leave' : 'report', p.isImp ? 7 : 5);
+      }
+    }
+    eventLine(e) {
+      const g = this.g, p = this.p;
+      const W = (id) => (id === p.id ? 'você' : who(g, id));
+      const via = e.via === 'cams' ? ' (pelas câmeras)' : '';
+      switch (e.type) {
+        case 'kill':
+          return { text: 'VOCÊ VIU ' + W(e.who) + ' MATAR ' + W(e.victim) + ' em ' + area(e.area) + via, urgent: 3 };
+        case 'vent':
+          return { text: 'viu ' + W(e.who) + (e.dir === 'out' ? ' SAIR de um duto' : ' ENTRAR num duto') + ' em ' + area(e.area) + via, urgent: 3 };
+        case 'shift':
+          return { text: 'viu ' + W(e.who) + ' SE TRANSFORMAR em outra pessoa em ' + area(e.area) + via, urgent: 3 };
+        case 'vanish':
+          return { text: 'viu ' + W(e.who) + ' FICAR INVISÍVEL em ' + area(e.area) + via, urgent: 3 };
+        case 'oddAbility':
+          return { text: 'viu de longe algo estranho com ' + W(e.who) + ' em ' + area(e.area) + ' (pareceu ' + (e.kind === 'shift' ? 'mudar de aparência' : 'sumir') + '; não deu para ter certeza)', urgent: 2 };
+        case 'visual':
+          return { text: 'viu ' + W(e.who) + ' fazendo ' + (M.VISUAL_NAMES[e.task] || 'tarefa visual') + ' com a animação aparecendo (só tripulante consegue)' + via };
+        case 'noscan':
+          return { text: 'viu ' + W(e.who) + ' parado ' + ({ scan: 'no scanner da MedBay', asteroids: 'na arma de asteroides' }[e.task] || 'numa tarefa visual') + ' sem a animação aparecer', urgent: 2 };
+        case 'fakeTask':
+          return { text: 'viu ' + W(e.who) + ' ficar numa tarefa em ' + area(e.area) + ' pelo tempo dela, sair, e a barra de tarefas não subiu', urgent: 2 };
+        case 'follow':
+          return { text: W(e.who) + ' ficou andando atrás de você em ' + area(e.area), urgent: 1 };
+        case 'noise':
+          return { text: 'tocou o alarme do barulhento: alguém morreu em ' + area(e.area), urgent: 3 };
+        case 'twin':
+          return { text: e.self ? 'viu alguém com a SUA cara em ' + area(e.a1) + (e.kill != null ? ', matando ' + W(e.kill) : '') + ' (era o metamorfo disfarçado de você)' : 'viu DOIS ' + W(e.who) + ' ao mesmo tempo (' + area(e.a1) + (e.a2 && e.a2 !== e.a1 ? ' e ' + area(e.a2) : '') + '): um deles era o metamorfo disfarçado' + (e.kill != null ? '; um deles matou ' + W(e.kill) : ''), urgent: 3 };
+        case 'myKill': {
+          const sb = (e.seenBy || []).filter((id) => id !== e.victim && id !== p.id);
+          return { text: 'VOCÊ MATOU ' + W(e.victim) + ' em ' + area(e.area) + (sb.length ? '; quem podia ter visto: ' + sb.map(W).join(', ') : '; ninguém à vista'), urgent: 3 };
+        }
+        case 'partnerKill':
+          return { text: 'seu parceiro ' + W(e.who) + ' matou ' + W(e.victim) + ' em ' + area(e.area), urgent: 2 };
+        case 'escortVisual':
+          return { text: 'você acompanhou ' + W(e.who) + ' e viu a tarefa visual' };
+        default:
+          return null;
+      }
+    }
+    /* última vez que viu cada pessoa nesta rodada e quanto tempo ficou perto dela */
+    sightings() {
+      const g = this.g, b = this.b, p = this.p, out = [];
+      const t0 = g.roundStart;
+      for (const q of g.players) {
+        if (q === p || !q.alive) continue;
+        const ls = b.lastSeenAt[q.id];
+        const near = b.mem.seen.filter((s) => s.who === q.id && s.t1 >= t0 && s.via === 'eyes').reduce((a, s) => a + (s.t1 - s.t0), 0);
+        if (!ls || ls.t < t0) {
+          out.push(who(g, q.id) + ': não viu nesta rodada');
+          continue;
+        }
+        out.push(who(g, q.id) + ': ' + area(ls.area) + ', há ' + Math.max(1, Math.round(g.t - ls.t)) + 's' + (near >= 8 ? ' (vocês ficaram perto uns ' + Math.round(near) + 's nesta rodada)' : ''));
+      }
+      return out;
+    }
+    memoryLines(n) {
+      const g = this.g;
+      const lines = [];
+      let round = -1;
+      for (const d of this.diary.slice(-n)) {
+        if (d.round !== round) {
+          round = d.round;
+          lines.push(round === 0 ? '(começo da partida)' : '(depois da reunião ' + round + ')');
+        }
+        lines.push('[' + clock(g, d.t) + '] ' + d.text);
+      }
+      return lines;
+    }
+
+    pastChatLines(n) {
+      const g = this.g, pc = this.hub.pastChat;
+      if (!pc.length) return [];
+      return ['', 'O que foi dito na reunião ' + pc[0].index + ' (as últimas falas):', ...pc.slice(-n).map((x) => (x.from === this.p.id ? 'VOCÊ' : who(g, x.from)) + ': ' + x.text)];
+    }
+
+    /* --- quem sou eu --- */
+    identity() {
+      const g = this.g, p = this.p, b = this.b;
+      const V = AU.Voice;
+      const lines = [];
+      lines.push('Você é ' + who(g, p.id) + ', um dos ' + g.players.length + ' jogadores de uma partida de Among Us na nave The Skeld. Você controla só esse personagem: decide sozinho para onde ir, o que fazer, o que falar e em quem votar. Ninguém te dá ordens.');
+      lines.push('Seu jeito: ' + (V && V.persona ? V.persona(b) : (C.PERSONALITIES[p.personality] || {}).desc || ''));
+      if (p.isImp) {
+        const mates = g.players.filter((q) => q.isImp && q !== p).map((q) => who(g, q.id) + (q.alive ? '' : ' (morto)'));
+        lines.push('SEGREDO: você é IMPOSTOR.' + (mates.length ? ' Seu parceiro: ' + mates.join(', ') + '.' : ' Você é o único impostor.') + ' Ninguém mais sabe. Você vence quando os impostores ficarem em número igual ao de tripulantes (ou se uma sabotagem crítica não for consertada).');
+      } else lines.push('Você é TRIPULANTE. Você vence terminando as tarefas ou tirando todos os impostores na votação. Você não sabe quem são os impostores.');
+      if (p.special && C.ROLES[p.special]) lines.push('Sua função: ' + C.ROLES[p.special].name + ' — ' + C.roleDesc(p.special, g.S) + '.');
+      lines.push('Jogue como um jogador humano joga Among Us de verdade: preste atenção em quem anda com quem e onde, lembre do que viu, desconfie com motivo, chame reunião (aperte o botão) quando tiver um motivo forte, reporte corpo, ande com quem confia, faça a "chamadinha" (sinal de vem comigo) para mostrar tarefa visual, e na reunião defenda-se, acuse e vote. ' + (p.isImp ? 'Como impostor, finja tarefas, mate quando ninguém estiver vendo, fuja da cena, use dutos e sabotagens, e minta com cuidado na reunião.' : 'Como tripulante, faça suas tarefas, mas fique de olho.'));
+      lines.push('Você só sabe o que o seu personagem viveu (a sua memória abaixo) e o que for dito no chat. Não invente o que não viu.');
+      return lines.join('\n');
+    }
+    rules() {
+      const V = AU.Voice;
+      return MAP_TXT + '\n' + (V && V.rules ? V.rules(this.g) : '');
+    }
+
+    /* --- o que está acontecendo agora --- */
+    now() {
+      const g = this.g, p = this.p, b = this.b, out = [];
+      out.push('Agora: ' + Math.round(g.t - g.roundStart) + 's desde ' + (g.meetings ? 'a última reunião' : 'o começo') + '. Você está em ' + roomName(p.x, p.y) + (p.busy ? ', no meio de uma tarefa' : '') + '.');
+      const seen = b.seenNow.filter((q) => q.alive);
+      if (seen.length) {
+        out.push('Você vê agora: ' + seen.map((q) => {
+          const aid = g.appearId(q);
+          const d = U.dist(p, q);
+          const act = q.visual && g.S.rules.visualTasks ? 'fazendo ' + (M.VISUAL_NAMES[q.visual.type] || 'tarefa visual') + ' (animação aparecendo)' : q.busy ? 'parado mexendo num painel' : q.moving ? 'andando' : 'parado';
+          return who(g, aid) + ' a ' + Math.max(1, Math.round(d)) + 'm, ' + act;
+        }).join('; ') + '.');
+      } else out.push('Não tem ninguém à sua vista.');
+      const bodies = b.bodiesNow.filter((x) => !x.reported && !x.gone);
+      if (bodies.length) out.push('CORPO à vista: ' + bodies.map((x) => who(g, x.pid) + ' em ' + area(x.area)).join(', ') + '.');
+      if (g.sab) out.push('SABOTAGEM ATIVA: ' + (SAB[g.sab.type] || g.sab.type) + (g.sab.timer != null ? ' (faltam ' + Math.ceil(g.sab.timer) + 's)' : '') + '.');
+      if (!p.isImp) {
+        const open = p.tasks.filter((tk) => !tk.done);
+        if (open.length) out.push('Suas tarefas que faltam: ' + open.map((tk) => {
+          const st = M.STATIONS[tk.steps[tk.step]];
+          return tk.def.name + ' (' + (st && st.area ? area(st.area) : '?') + ')' + (tk.def.visual && g.S.rules.visualTasks ? ' [visual]' : '') + (g.taskAvailable(tk) ? '' : ' [indisponível agora]');
+        }).join(', ') + '.');
+        else out.push('Você já terminou todas as suas tarefas.');
+      } else {
+        out.push('Recarga do abate: ' + (p.killCd > 0 ? Math.ceil(p.killCd) + 's' : 'PRONTO') + '. Sabotagem: ' + (g.sab ? 'já tem uma ativa' : g.canSabotage(p) ? 'disponível' : 'em recarga') + '.');
+        const fake = p.tasks.filter((tk) => !tk.done).slice(0, 5).map((tk) => {
+          const st = M.STATIONS[tk.steps[tk.step]];
+          return tk.def.name + ' (' + (st && st.area ? area(st.area) : '?') + ')';
+        });
+        if (fake.length) out.push('Tarefas de fachada (para fingir): ' + fake.join(', ') + '.');
+        const vents = M.VENTS.filter((v) => U.d2(v.x, v.y, p.x, p.y) < 7);
+        if (vents.length) out.push('Duto aqui perto (' + area(vents[0].area) + '), liga com: ' + vents[0].links.map((id) => area(M.VENT[id].area)).join(', ') + '.');
+      }
+      if (p.special === 'cientista') out.push('Bateria dos sinais vitais: ' + Math.round(p.battery || 0) + 's.');
+      if (p.special === 'metamorfo') out.push(p.shiftAs != null ? 'Você está disfarçado de ' + who(g, p.shiftAs) + '.' : 'Transformação: ' + (p.abilityCd > 0 ? 'em recarga (' + Math.ceil(p.abilityCd) + 's)' : 'pronta') + '.');
+      if (p.special === 'fantasma') out.push(p.invisUntil > g.t ? 'Você está invisível.' : 'Sumir: ' + (p.abilityCd > 0 ? 'em recarga (' + Math.ceil(p.abilityCd) + 's)' : 'pronto') + '.');
+      if (p.special === 'rastreador') out.push('Rastrear: ' + (p.abilityCd > 0 ? 'em recarga (' + Math.ceil(p.abilityCd) + 's)' : 'pronto (precisa estar pertinho da pessoa)') + '.');
+      if (p.special === 'engenheiro') out.push('Duto de engenheiro: ' + (p.abilityCd > 0 ? 'em recarga' : 'pronto') + '.');
+      const gone = g.players.filter((q) => !q.alive).map((q) => who(g, q.id) + (q.ejected ? ' (ejetado)' : ''));
+      if (gone.length) out.push('Fora do jogo: ' + gone.join(', ') + '.');
+      out.push('Botões de emergência que você ainda tem: ' + p.emergencyLeft + '.');
+      const pl = b.plan;
+      if (pl && this.cur) out.push('Você estava fazendo: ' + this.cur.label + '.');
+      return out;
+    }
+
+    fieldPrompt() {
+      const p = this.p;
+      const acts = (p.isImp ? IMP_ACTS : CREW_ACTS).concat(ROLE_ACTS[p.special] || []);
+      const lines = [];
+      lines.push(...this.now());
+      lines.push('', 'Última vez que você viu cada um:', ...this.sightings().map((l) => '- ' + l));
+      lines.push('', 'Sua memória desta partida (o que você viveu):', ...this.memoryLines(26));
+      lines.push('', 'Suas anotações (você mesmo escreveu): ' + (this.notes || '(nenhuma ainda)'));
+      if (this.g.t - this.g.roundStart < 45) lines.push(...this.pastChatLines(10));
+      if (this.why.length) lines.push('', 'O que acabou de acontecer: ' + this.why.join('; ') + '.');
+      lines.push('', 'O que você pode fazer (escreva cada passo do plano assim):', ...acts.map((a) => '- ' + a));
+      lines.push('', 'Decida o que fazer agora, como você jogaria. Responda SÓ com um JSON neste formato:');
+      lines.push('{"pensamento": "o que você está pensando, curto", "plano": ["primeiro passo", "segundo passo", "terceiro passo"], "depois": "o que fazer quando o plano acabar, enquanto pensa no próximo (um passo, ex.: ' + (p.isImp ? '\'fingir\', \'grupo\'' : '\'tarefa\', \'patrulhar\'') + ' ou \'seguir NOME\')", "notas": "o que quer lembrar daqui pra frente (suspeitas, álibis, planos); deixe vazio para manter as anteriores"}');
+      lines.push('O plano tem de 1 a 5 passos, na ordem (pense uns 30 a 60 segundos à frente). "tarefa" sem nome = a tarefa mais perto.');
+      return lines.join('\n');
+    }
+
+    /* "tarefa Fios", "vigiar Rafa", "sabotar luzes" → ordem para o corpo */
+    parseStep(raw) {
+      const g = this.g, p = this.p;
+      const txt = tidy(raw, 120);
+      const n = U.norm(txt).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!n) return null;
+      const verb = n.split(' ')[0];
+      const rest = n.slice(verb.length).trim();
+      const findP = () => {
+        const alive = g.players.filter((q) => q.alive && q !== p);
+        const words = rest.split(' ');
+        return alive.find((q) => words.includes(U.norm(q.name)) || rest.includes(U.norm(q.name))) || alive.find((q) => rest.includes(U.norm(C.COLOR[q.color].name)));
+      };
+      const findRoom = () => {
+        for (const r of M.ROOMS) if (rest.includes(U.norm(r.name)) || (r.aliases || []).some((a) => rest.includes(U.norm(a)))) return r.id;
+        return null;
+      };
+      const K = {
+        tarefa: 'task', tarefas: 'task', task: 'task', fazer: 'task', ir: 'go', andar: 'go', seguir: 'follow', acompanhar: 'follow', vigiar: 'tail', evitar: 'avoid',
+        sinal: 'signal', chamar: 'signal', responder: 'reply', esperar: 'wait', parar: 'wait', patrulhar: 'patrol', rondar: 'patrol', cameras: 'cams', camera: 'cams', admin: 'admin',
+        reportar: 'report', botao: 'button', emergencia: 'button', consertar: 'fix', fingir: 'fake', grupo: 'group', cacar: 'hunt', matar: 'kill', procurar: 'prowl',
+        atrair: 'lure', sabotar: 'sab', portas: 'doors', porta: 'doors', trancar: 'doors', duto: 'vent', ventar: 'vent', vitals: 'vitals', sinais: 'vitals',
+        rastrear: 'track', transformar: 'shift', desfazer: 'unshift', sumir: 'vanish', aparecer: 'appear',
+      }[verb];
+      if (!K) return null;
+      const o = { kind: K, mind: true, label: txt };
+      if (['follow', 'tail', 'avoid', 'signal', 'reply', 'hunt', 'kill', 'lure', 'track', 'shift'].includes(K)) {
+        const q = findP();
+        if (!q) return null;
+        o.target = q.id;
+      }
+      if (['task', 'fake'].includes(K)) {
+        o.task = rest;
+        o.room = findRoom();
+      }
+      if (['go', 'doors', 'vent'].includes(K)) o.room = findRoom();
+      if (K === 'button') o.why = tidy(txt.replace(/^\S+\s*/, ''), 100);
+      if (K === 'sab') {
+        o.sab = /luz|luzes|light/.test(rest) ? 'lights' : /comm|comunic|coms/.test(rest) ? 'comms' : /reator|reactor/.test(rest) ? 'reactor' : /o2|oxigen/.test(rest) ? 'o2' : null;
+        if (!o.sab) return null;
+      }
+      /* o que cada lado pode fazer (regras do jogo) */
+      const impOnly = ['fake', 'group', 'hunt', 'kill', 'prowl', 'lure', 'sab', 'doors'];
+      const crewOnly = ['task', 'signal', 'cams', 'admin', 'patrol'];
+      if (!p.isImp && impOnly.includes(K)) return null;
+      if (p.isImp && crewOnly.includes(K) && K !== 'cams' && K !== 'admin' && K !== 'patrol') return K === 'task' ? Object.assign(o, { kind: 'fake' }) : null;
+      if (K === 'vent' && !p.isImp && p.special !== 'engenheiro') return null;
+      if (K === 'vitals' && p.special !== 'cientista') return null;
+      if (K === 'track' && p.special !== 'rastreador') return null;
+      if ((K === 'shift' || K === 'unshift') && p.special !== 'metamorfo') return null;
+      if ((K === 'vanish' || K === 'appear') && p.special !== 'fantasma') return null;
+      return o;
+    }
+    applyField(j) {
+      const g = this.g;
+      if (!j) return false;
+      if (typeof j.notas === 'string' && tidy(j.notas, 700)) this.notes = tidy(j.notas, 700);
+      if (typeof j.pensamento === 'string') this.thought = tidy(j.pensamento, 200);
+      const steps = Array.isArray(j.plano) ? j.plano : typeof j.plano === 'string' ? [j.plano] : [];
+      const orders = steps.slice(0, 5).map((s) => this.parseStep(typeof s === 'string' ? s : s && (s.acao || s.passo || ''))).filter(Boolean);
+      if (!orders.length) return false;
+      const idle = typeof j.depois === 'string' ? this.parseStep(j.depois) : null;
+      this.idle = idle && !['button', 'report', 'kill', 'sab', 'doors', 'vent', 'vitals', 'shift', 'unshift', 'vanish', 'appear', 'track', 'signal', 'lure', 'reply'].includes(idle.kind) ? idle : null;
+      this.queue = orders;
+      this.planned++;
+      this.lastPlanAt = g.t;
+      /* o plano novo vale já: larga o que estava fazendo (menos uma tarefa no meio, que termina) */
+      const b = this.b;
+      if (b && !(this.p.busy && b.plan && b.plan.type === 'task')) {
+        if (b.plan && !['flee', 'report', 'button'].includes(b.plan.type)) b.plan = null;
+      }
+      this.urgent = null;
+      return true;
+    }
+
+    /* --- reunião --- */
+    meetPrompt(mt) {
+      const g = this.g, p = this.p, info = mt.info;
+      const lines = [];
+      const reason = info.kind === 'report'
+        ? who(g, info.caller) + ' REPORTOU O CORPO de ' + who(g, info.body.pid) + (mt.facts.bodyArea ? ' (achado em ' + area(mt.facts.bodyArea) + ')' : info.caller === p.id ? ' (achado em ' + area(info.body.area) + ')' : '')
+        : who(g, info.caller) + ' apertou o BOTÃO DE EMERGÊNCIA';
+      lines.push('REUNIÃO ' + (info.index || g.meetings) + ': ' + reason + '.');
+      if (info.caller === p.id) lines.push('Foi VOCÊ que chamou esta reunião' + (this.callWhy ? ' (motivo que você tinha: ' + this.callWhy + ')' : '') + '. Comece explicando.');
+      const alive = mt.alive.map((id) => who(g, id));
+      const dead = g.players.filter((q) => !q.alive).map((q) => who(g, q.id) + (q.ejected ? ' (ejetado)' : ''));
+      lines.push('Vivos: ' + alive.join(', ') + '.');
+      if (dead.length) lines.push('Fora do jogo: ' + dead.join(', ') + '.');
+      if (mt.phase === 'voting') {
+        const left = Math.max(0, Math.round(mt.votingEnd - mt.t));
+        const voted = mt.alive.filter((id) => mt.votes[id] !== undefined).map((id) => g.players[id].name);
+        lines.push('VOTAÇÃO aberta (faltam ' + left + 's). Já votaram: ' + (voted.length ? voted.join(', ') : 'ninguém') + '. Você ' + (mt.votes[p.id] !== undefined ? 'já votou.' : 'ainda NÃO votou: decida o seu voto agora.'));
+      } else lines.push('Discussão (a votação abre em ' + Math.max(0, Math.round(mt.votingStart - mt.t)) + 's).');
+      lines.push('', 'Última vez que você viu cada um nesta rodada:', ...this.sightings().map((l) => '- ' + l));
+      lines.push('', 'Sua memória (o que você viveu):', ...this.memoryLines(24));
+      lines.push('', 'Suas anotações: ' + (this.notes || '(nenhuma)'));
+      lines.push(...this.pastChatLines(12));
+      lines.push('', 'Chat da reunião (mais antigo primeiro):');
+      const msgs = mt.msgs.filter((m) => !m.ghost).slice(-40);
+      if (!msgs.length) lines.push('(ninguém falou ainda)');
+      for (const m of msgs) lines.push((m.from === p.id ? 'VOCÊ' : who(g, m.from)) + ': ' + m.text);
+      const mine = mt.msgs.filter((m) => m.from === p.id).length;
+      lines.push('');
+      lines.push('Escreva como no chat do jogo: mensagens curtas (até uns 100 caracteres), do seu jeito de escrever. Você já mandou ' + mine + ' mensagem(ns) nesta reunião. Mande de 0 a 2 mensagens novas: fale se tem algo a contar, perguntar, responder, acusar ou defender; se não tem nada útil, fique quieto (lista vazia). Não repita o que já foi dito.');
+      if (p.isImp) lines.push('Lembre: você é impostor e ninguém sabe. Não se entregue nem entregue o parceiro sem motivo.');
+      const voteTxt = mt.votes[p.id] !== undefined ? 'null (você já votou)'
+        : mt.phase === 'voting' ? '"Nome de quem você vota" ou "pular" (ou null se ainda quer esperar a conversa; o tempo acaba)'
+        : '"Nome" ou "pular": em quem você votaria se fosse agora (ou null se ainda não sabe)';
+      lines.push('Responda SÓ com um JSON: {"mensagens": ["..."], "voto": ' + voteTxt + ', "notas": "o que quer lembrar (vazio mantém as anteriores)"}');
+      return lines.join('\n');
+    }
+  }
+
+  /* ---------------------------------------------------------------------------------------------------------- */
+  class Hub {
+    constructor(g) {
+      this.g = g;
+      this.minds = new Map();
+      for (const p of g.players) if (p.brain) this.minds.set(p.id, new Mind(this, p));
+      this.inflight = 0;
+      this.stats = { calls: 0, ok: 0, fail: 0, ms: 0, field: 0, meet: 0, votes: 0 };
+      this.failStreak = 0;
+      this.lastSab = null;
+      this.table = null;
+      this.round = -1;
+      this.pauseUntil = -1;
+      this.wasOn = null;
+      this.pastChat = [];
+    }
+    mind(p) {
+      return p ? this.minds.get(p.id) : null;
+    }
+    online() {
+      return Minds.online(this.g) && this.g.t >= this.pauseUntil;
+    }
+    /* várias chamadas seguidas sem resposta: o motor joga por um minuto e depois a mente tenta de novo */
+    failed() {
+      this.failStreak++;
+      if (this.failStreak >= 4) {
+        this.failStreak = 0;
+        this.pauseUntil = this.g.t + 60;
+      }
+    }
+    /* a mente comanda este corpo agora? (fantasma continua com o motor) */
+    controls(p) {
+      return !!p && p.alive && this.minds.has(p.id) && this.online();
+    }
+    maxInflight() {
+      return AU.LLM.provider === 'api' ? 2 : 1;
+    }
+
+    tick() {
+      const g = this.g;
+      const on = this.online();
+      if (on !== this.wasOn) {
+        /* avisa quando liga e quando a IA cai no meio (só depois de ter ligado) */
+        const now = performance.now();
+        if (!g.headless && AU.HUD && AU.HUD.toast && (on || this.wasOn) && now - (this.toastAt || -1e9) > 60000) {
+          this.toastAt = now;
+          AU.HUD.toast(on ? 'Mente própria: cada bot é uma IA separada e decide sozinho o que fazer, falar e votar.' : 'IA indisponível agora: os bots voltaram a jogar pelo sistema de regras até ela voltar.', 4500);
+        }
+        this.wasOn = on;
+        if (on) this.round = -1;
+      }
+      if (!on) return;
+      if (this.round !== g.meetings) {
+        this.round = g.meetings;
+        for (const m of this.minds.values()) {
+          m.queue = [];
+          m.urgent = null;
+          m.want = 0;
+          m.why = [];
+          m.ask(2, g.meetings ? 'a reunião acabou e a rodada recomeçou' : 'a partida começou');
+        }
+      }
+      /* sabotagem começou/terminou: todo mundo percebe (alarme e luzes) */
+      const s = g.sab ? g.sab.type + ':' + g.sab.t0 : null;
+      if (s !== this.lastSab) {
+        const prev = this.lastSab;
+        this.lastSab = s;
+        for (const m of this.minds.values()) {
+          if (!m.p.alive) continue;
+          if (g.sab) {
+            const crit = g.sab.type === 'reactor' || g.sab.type === 'o2';
+            const txt = 'SABOTAGEM: ' + (SAB[g.sab.type] || g.sab.type);
+            if (m.p.isImp) {
+              m.log(txt);
+              m.ask(1, txt);
+            } else m.urge('sab', g.sab.type, txt, crit ? 'fix' : g.sab.type === 'lights' ? 'fixMaybe' : null, crit ? 6 : 10);
+          } else if (prev) m.log('a sabotagem foi consertada');
+        }
+      }
+      for (const m of this.minds.values()) {
+        if (!m.p.alive || !m.p.brain) continue;
+        m.observe();
+        /* plano antigo: dá uma chance de rever (gente muda de ideia) */
+        if (!m.want && g.t - m.lastPlanAt > 45 && g.t - m.lastAsk > 20) m.ask(1, '');
+      }
+      if (g.phase !== 'play') return;
+      while (this.inflight < this.maxInflight()) {
+        const m = this.pickField();
+        if (!m) break;
+        this.thinkField(m);
+      }
+    }
+    pickField() {
+      const g = this.g;
+      let best = null, bs = 0;
+      for (const m of this.minds.values()) {
+        if (!m.p.alive || m.inflight || !m.want) continue;
+        if (g.t - m.lastAsk < (m.want >= 3 ? 1.5 : m.want >= 2 ? 3 : 15)) continue;
+        if (g.t - g.roundStart < 2) continue;
+        const s = m.want * 100 + Math.min(60, g.t - m.lastAsk);
+        if (s > bs) {
+          bs = s;
+          best = m;
+        }
+      }
+      return best;
+    }
+    async call(system, prompt, maxTokens) {
+      const t0 = performance.now();
+      this.inflight++;
+      this.stats.calls++;
+      let text = null;
+      /* resposta que não chega não pode prender a vez de todo mundo */
+      const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = ctl ? setTimeout(() => ctl.abort(), 40000) : null;
+      try {
+        text = await AU.LLM.complete(system, prompt, { maxTokens, temperature: 0.9, timeout: 30000, signal: ctl ? ctl.signal : undefined });
+      } catch (e) {
+        text = null;
+      } finally {
+        if (timer) clearTimeout(timer);
+        this.inflight--;
+      }
+      const ms = performance.now() - t0;
+      this.stats.ms = this.stats.ms ? this.stats.ms * 0.8 + ms * 0.2 : ms;
+      return text;
+    }
+    async thinkField(m) {
+      const g = this.g;
+      m.inflight = true;
+      m.lastAsk = g.t;
+      const round = g.meetings, level = m.want;
+      m.want = 0;
+      const prompt = m.fieldPrompt();
+      m.why = [];
+      m.calls++;
+      this.stats.field++;
+      const text = await this.call(m.identity() + '\n\n' + m.rules(), prompt, 260);
+      m.inflight = false;
+      if (g.meetings !== round || g.phase !== 'play' || !m.p.alive) return;
+      const j = parseJSON(text);
+      if (j && m.applyField(j)) {
+        this.stats.ok++;
+        this.failStreak = 0;
+      } else {
+        this.stats.fail++;
+        if (!text) this.failed();
+        /* sem resposta útil: pede de novo daqui a pouco */
+        m.ask(Math.max(level, 2), '');
+      }
+    }
+    /* reunião: devolve a "mesa" que faz cada mente falar e votar sozinha */
+    meeting(mt) {
+      this.table = new Table(this, mt);
+      return this.table;
+    }
+    /* o que ficou da reunião na memória de cada um */
+    afterMeeting(mt, result) {
+      const g = this.g;
+      const ej = result && result.ejected != null ? g.players[result.ejected] : null;
+      let txt = 'REUNIÃO ' + (mt.info.index || g.meetings) + ' terminou: ';
+      if (ej) txt += who(g, ej.id) + ' foi ejetado' + (g.S.rules.confirmEjects ? (ej.isImp ? ' — ERA impostor' : ' — NÃO era impostor') : ' (não confirmam se era impostor)');
+      else txt += 'ninguém foi ejetado' + (result && result.tie ? ' (empate)' : '');
+      if (!g.S.rules.anonymousVotes && result && result.votes) {
+        const v = Object.keys(result.votes).map((id) => g.players[+id].name + '→' + (result.votes[id] === 'skip' ? 'pulou' : g.players[result.votes[id]] ? g.players[result.votes[id]].name : '?'));
+        if (v.length) txt += '. Votos: ' + v.join(', ');
+      }
+      for (const m of this.minds.values()) {
+        if (!m.p.alive) continue;
+        m.log(txt, g.t);
+        m.callWhy = null;
+      }
+      /* o que foi dito (todo mundo ouviu): as últimas falas ficam para a rodada seguinte e a próxima reunião */
+      this.pastChat = mt.msgs.filter((x) => !x.ghost).slice(-16).map((x) => ({ from: x.from, text: tidy(x.text, 110), index: mt.info.index || g.meetings }));
+    }
+  }
+
+  /* ---------------------------------------------------------------------------------------------------------- */
+  /* A mesa da reunião: cada mente é chamada sozinha, lê o chat e decide se fala (e, na votação, em quem vota). */
+  class Table {
+    constructor(hub, mt) {
+      this.hub = hub;
+      this.mt = mt;
+      this.g = mt.g;
+      this.aiVotes = {};
+      this.aiLines = 0;
+      this.calls = 0;
+      this.fails = 0;
+      this.last = {};
+      this.want = {};
+      this.talking = new Set();
+      this.started = false;
+      this.intent = {};
+      this.voteAsks = {};
+      this.mind = true;
+    }
+    on() {
+      return this.hub.online() && this.fails < 4;
+    }
+    /* este personagem fala por conta própria agora (o motor não fala por ele) */
+    speaksFor(p) {
+      return !!p && p.alive && this.hub.minds.has(p.id) && this.on();
+    }
+    /* falas do motor não passam por aqui (a mente fala por si) */
+    accepts() {
+      return false;
+    }
+    enqueue() {}
+    flush() {}
+    maxCalls() {
+      return 48;
+    }
+    pendingLines() {
+      return 0;
+    }
+    opening() {
+      const mt = this.mt, g = this.g;
+      this.started = true;
+      const c = g.players[mt.info.caller];
+      if (c && c.brain && c.alive) this.want[c.id] = 3;
+    }
+    /* alguém falou: quem foi citado ou cobrado quer responder */
+    onPost(msg) {
+      const mt = this.mt, g = this.g;
+      if (!msg || msg.ghost) return;
+      const n = ' ' + U.norm(msg.text) + ' ';
+      for (const id of mt.alive) {
+        const q = g.players[id];
+        if (!q.brain || id === msg.from) continue;
+        const named = n.includes(' ' + U.norm(q.name) + ' ') || n.includes(U.norm(q.name) + ',') || n.includes(' ' + U.norm(C.COLOR[q.color].name));
+        this.want[id] = Math.max(this.want[id] || 0, named ? 3 : 1);
+      }
+    }
+    /* o que o jogador escreve já passa por onPost */
+    onHuman() {}
+    /* o voto espera a mente decidir; se o tempo acabar, vale o que ela disse que votaria na discussão */
+    waitVote(id) {
+      if (!this.on() || this.aiVotes[id]) return false;
+      const mt = this.mt, g = this.g;
+      if (mt.t < mt.votingEnd - 4 && (this.voteAsks[id] || 0) < 4) return true;
+      const it = this.intent[id];
+      if (it != null && (it === 'skip' || (g.players[it] && g.players[it].alive))) this.aiVotes[id] = { target: it, reason: '' };
+      return false;
+    }
+    voteTick() {}
+    tick() {
+      const mt = this.mt, hub = this.hub;
+      if (!this.on() || !this.started || mt.closed) return;
+      if (mt.phase !== 'discussion' && mt.phase !== 'voting') return;
+      if (mt.paused) return;
+      while (hub.inflight < hub.maxInflight()) {
+        const p = this.pick();
+        if (!p) break;
+        this.speak(p);
+      }
+    }
+    pick() {
+      const mt = this.mt, g = this.g, t = mt.t;
+      let best = null, bs = 0;
+      for (const id of mt.alive) {
+        const p = g.players[id];
+        if (!p.brain || this.talking.has(id) || !this.hub.minds.has(id)) continue;
+        const since = t - (this.last[id] != null ? this.last[id] : -99);
+        const w = this.want[id] || 0;
+        const voteDue = mt.phase === 'voting' && mt.votes[id] === undefined && !this.aiVotes[id] && (this.voteAsks[id] || 0) < 4;
+        if (since < (w >= 3 ? 2.5 : 7) && !(voteDue && since > 4)) continue;
+        /* já falou e nada novo aconteceu (ninguém escreveu nada desde então): não chama de novo à toa */
+        if (this.last[id] != null && !w && !voteDue) continue;
+        if (this.calls >= this.maxCalls() && !voteDue) continue;
+        const spoke = mt.msgs.filter((m) => m.from === id).length;
+        const talk = p.brain.pers ? p.brain.pers.talk : 0.5;
+        let s = w * 20 + (this.last[id] == null ? 14 : 0) + Math.min(25, since) * 0.6 + talk * 6 - spoke * 2 + (voteDue ? 18 : 0);
+        if (s > bs) {
+          bs = s;
+          best = p;
+        }
+      }
+      return best && bs >= 8 ? best : null;
+    }
+    async speak(p) {
+      const mt = this.mt, g = this.g, hub = this.hub, m = hub.minds.get(p.id);
+      if (!m) return;
+      this.talking.add(p.id);
+      this.last[p.id] = mt.t;
+      this.want[p.id] = 0;
+      this.calls++;
+      hub.stats.meet++;
+      const phase = mt.phase;
+      if (phase === 'voting' && mt.votes[p.id] === undefined) this.voteAsks[p.id] = (this.voteAsks[p.id] || 0) + 1;
+      const text = await hub.call(m.identity() + '\n\n' + m.rules(), m.meetPrompt(mt), 280);
+      this.talking.delete(p.id);
+      if (mt.closed || !p.alive) return;
+      const j = parseJSON(text);
+      if (!j) {
+        this.fails++;
+        if (!text) hub.failed();
+        return;
+      }
+      this.fails = 0;
+      hub.failStreak = 0;
+      hub.stats.ok++;
+      if (typeof j.notas === 'string' && tidy(j.notas, 700)) m.notes = tidy(j.notas, 700);
+      const said = new Set(mt.msgs.filter((x) => x.from === p.id).map((x) => U.norm(x.text)));
+      const msgs = (Array.isArray(j.mensagens) ? j.mensagens : typeof j.mensagens === 'string' ? [j.mensagens] : []).map((s) => tidy(s, 160)).filter((s) => s && !said.has(U.norm(s)) && !(AU.Voice && AU.Voice.misrule && AU.Voice.misrule(s, g.S, p))).slice(0, 2);
+      let delay = 0.4;
+      for (const s of msgs) {
+        const typing = 0.6 + Math.min(3.5, s.length / 28);
+        delay += typing;
+        mt.schedule(delay, p.brain, () => {
+          if (mt.closed || !p.alive) return;
+          const intents = AU.Talk.parse(s, g, { self: p.id, addressed: mt.lastSpeaker });
+          mt.post(p, AU.Talk.toneFilter ? AU.Talk.toneFilter(s, g.S.bots.chatTone) : s, intents, { ai: true, mind: true });
+          this.aiLines++;
+        }, { ttl: 40, dir: true });
+      }
+      /* voto: na discussão é só a intenção (vale se o tempo acabar antes de ela decidir); na votação, vale */
+      const v = j.voto;
+      if (typeof v === 'string' && v.trim() && mt.votes[p.id] === undefined) {
+        const vn = U.norm(v).replace(/[^a-z0-9 ]/g, ' ').trim();
+        let target = null;
+        if (/^(pular|pulo|pula|skip|ninguem|nenhum|branco)/.test(vn)) target = 'skip';
+        else {
+          const q = mt.alive.map((id) => g.players[id]).find((x) => x.id !== p.id && (vn === U.norm(x.name) || vn.split(' ').includes(U.norm(x.name)) || vn.includes(U.norm(C.COLOR[x.color].name))));
+          if (q) target = q.id;
+        }
+        if (target != null) this.intent[p.id] = target;
+        if (phase === 'voting' || mt.phase === 'voting') {
+          if (target != null) {
+            this.aiVotes[p.id] = { target, reason: '' };
+            hub.stats.votes++;
+            /* o clique vem logo depois da decisão (e depois das mensagens que ela quis mandar) */
+            mt.voteAt[p.id] = Math.min(mt.voteAt[p.id] != null ? mt.voteAt[p.id] : 1e9, mt.t + delay + U.rf(0.4, 1.6));
+          }
+        }
+      }
+    }
+  }
+
+  Minds.parseJSON = parseJSON;
+  AU.Minds = Minds;
 })();
 
 </script>
@@ -12973,7 +14091,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.answered = {};
       /* a IA (se houver) conduz a conversa; sem ela, as falas saem direto do motor */
       if (!g.headless && g.S.ui.aiChat !== 'off' && AU.LLM) AU.LLM.ensure();
-      this.dir = !g.headless && AU.Voice ? AU.Voice.director(this) : null;
+      /* mente própria: cada bot fala e vota por si (a "mesa" chama a IA de um personagem por vez) */
+      this.dir = g.minds && g.minds.online() ? g.minds.meeting(this) : !g.headless && AU.Voice ? AU.Voice.director(this) : null;
       this.ui = g.headless ? null : new MeetingUI(this);
       /* preparo de cada bot (evidências, pauta, primeiras falas). Com interface, um bot por quadro durante a abertura
          (quase 3 s em que ninguém fala nem vota), para a reunião não abrir com uma travada; sem interface, tudo de uma
@@ -13018,6 +14137,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     say(brain, m, meta) {
       if (!m || !m.text || this.closed) return;
       meta = meta || {};
+      /* com mente própria ligada, o motor não fala por quem tem mente: ela decide o que dizer */
+      if (this.dir && this.dir.mind && brain && this.dir.speaksFor(brain.p)) return;
       if (brain && brain.vet) {
         m = brain.vet(m, meta);
         if (!m) return;
@@ -13090,11 +14211,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           }
           /* com IA, o voto espera a decisão dela (o motor só decide se a IA não responder) */
           const dir = this.dir;
-          const ai = dir && dir.aiVotes[+id];
+          let ai = dir && dir.aiVotes[+id];
           if (!ai && dir && dir.waitVote(+id)) {
             this.voteAt[id] = t + 1;
             continue;
           }
+          if (!ai && dir) ai = dir.aiVotes[+id];
           delete this.voteAt[id];
           let v = 'skip';
           try {
@@ -13306,6 +14428,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (it.type === 'claimLoc') this.answered[p.id] = msg.id;
       }
       if (this.ui) this.ui.addMsg(msg);
+      if (this.dir && this.dir.onPost) this.dir.onPost(msg);
       for (const q of g.players) {
         if (q.brain && q.alive && q.id !== p.id && q.brain.mOnMessage) {
           try {
@@ -13671,6 +14794,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         /* sem nenhuma IA configurada não é erro: as conversas usam o sistema de regras (igual ao lobby) */
         txt = 'IA desligada';
         tip = L.detail || 'Sem IA configurada: as conversas usam o sistema de regras.';
+      } else if (mt.dir && mt.dir.mind && mt.dir.on()) {
+        cls += ' on';
+        txt = 'Mente própria';
+        tip = 'Cada bot é uma IA separada (' + L.label() + '): lê o chat, decide sozinho o que falar e em quem votar' + (mt.dir.aiLines ? ' (' + mt.dir.aiLines + ' mensagens nesta reunião).' : '.');
       } else if (AU.Voice && AU.Voice.active(mt) && (!mt.dir || mt.dir.on())) {
         cls += ' on';
         txt = 'IA: ' + L.label();
@@ -21261,6 +22388,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       return el;
     },
 
+    /* mente própria: cada bot com uma IA só dele (vale mais que "votos e ações", que é a IA comandando o time) */
+    mindField(UI, change) {
+      return this.field('Mente dos bots', this.seg('ai-mind', Object.keys(C.AI_MIND).map((k) => [k, C.AI_MIND[k]]), () => UI.aiMind || 'on', (v) => { UI.aiMind = v; change(); }),
+        'Com mente própria, cada bot é uma IA separada: só sabe o que viu, decide sozinho para onde ir, quem seguir, quando chamar reunião ou fazer o sinal de "vem comigo", o que falar e em quem votar. O corpo (andar, regras) continua sendo o jogo. Usa bem mais IA; se ela cair ou atingir o limite, os bots voltam ao sistema de regras sozinhos.');
+    },
+
     secAI(change) {
       const L = AU.LLM, cfg = L.cfg, UI = this.S.ui;
       const inClaude = L.inClaude;
@@ -21287,7 +22420,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
               L.test();
             } }, 'Ativar e testar o Claude')));
           body.appendChild(this.field('Uso da IA nas reuniões', this.seg('ai-use', Object.keys(C.AI_CHAT).map((k) => [k, C.AI_CHAT[k]]), () => UI.aiChat, (v) => { UI.aiChat = v; change(); })));
-          body.appendChild(this.field('Votos e ações dos bots', this.seg('ai-act', Object.keys(C.AI_ACTIONS).map((k) => [k, C.AI_ACTIONS[k]]), () => UI.aiActions || 'on', (v) => { UI.aiActions = v; change(); }), 'Com a IA decidindo, os bots escolhem em quem votar, o que fazer, quem seguir e (os impostores) quando sabotar e quem caçar. Usa mais o seu Claude.'));
+          body.appendChild(this.mindField(UI, change));
+          body.appendChild(this.field('Votos e ações dos bots', this.seg('ai-act', Object.keys(C.AI_ACTIONS).map((k) => [k, C.AI_ACTIONS[k]]), () => UI.aiActions || 'on', (v) => { UI.aiActions = v; change(); }), 'Vale com a mente própria desligada: a IA escolhe em quem votar, o que fazer, quem seguir e (os impostores) quando sabotar e quem caçar. Usa mais o seu Claude.'));
           return;
         }
         const modes = [['auto', 'Automático', 'Usa o que estiver configurado abaixo']];
@@ -21371,7 +22505,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
             h('div', { class: 'row-btns' }, listBtn, testBtn, msg));
         }
         body.appendChild(this.field('Uso da IA nas reuniões', this.seg('ai-use', Object.keys(C.AI_CHAT).map((k) => [k, C.AI_CHAT[k]]), () => UI.aiChat, (v) => { UI.aiChat = v; change(); })));
-        body.appendChild(this.field('Votos e ações dos bots', this.seg('ai-act', Object.keys(C.AI_ACTIONS).map((k) => [k, C.AI_ACTIONS[k]]), () => UI.aiActions || 'on', (v) => { UI.aiActions = v; change(); }), 'Com a IA decidindo, os bots escolhem em quem votar, o que fazer, quem seguir e (os impostores) quando sabotar e quem caçar.'));
+        body.appendChild(this.mindField(UI, change));
+        body.appendChild(this.field('Votos e ações dos bots', this.seg('ai-act', Object.keys(C.AI_ACTIONS).map((k) => [k, C.AI_ACTIONS[k]]), () => UI.aiActions || 'on', (v) => { UI.aiActions = v; change(); }), 'Vale com a mente própria desligada: a IA escolhe em quem votar, o que fazer, quem seguir e (os impostores) quando sabotar e quem caçar.'));
       };
       draw();
       const off = L.onChange(() => {

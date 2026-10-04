@@ -111,6 +111,7 @@
   };
   C.CHAT_PACE = { calmo: { name: 'Calmo', mult: 1.6 }, normal: { name: 'Normal', mult: 1 }, frenetico: { name: 'Frenético', mult: 0.6 } };
   C.AI_ACTIONS = { on: 'IA decide votos e ações no mapa', off: 'Só a conversa (votos e ações pelo motor)' };
+  C.AI_MIND = { on: 'Mente própria: cada bot é uma IA separada', off: 'Motor do jogo (a IA só ajuda)' };
   C.AI_CHAT = { full: 'Respostas e conversa entre bots', replies: 'Só respostas ao que você escreve', off: 'Desligada (só regras)' };
   C.NARRATION = { conciso: 'Conciso', padrao: 'Padrão', cinematografico: 'Cinematográfico' };
 
@@ -165,7 +166,7 @@
       names: 'auto', customNames: '', personalities: 'sorteadas', allowed: C.PERSONALITY_IDS.slice(),
       impostorLevel: 'competente', humanError: 'medio', chatTone: 'casual', chatPace: 'normal',
     },
-    ui: { narration: 'cinematografico', hud: true, finalReport: true, sound: true, volume: 100, ambience: true, ghostsSilent: true, aiChat: 'full', aiActions: 'on' },
+    ui: { narration: 'cinematografico', hud: true, finalReport: true, sound: true, volume: 100, ambience: true, ghostsSilent: true, aiChat: 'full', aiActions: 'on', aiMind: 'on' },
     house: { noDoubleKill: false, noVentChase: false, critAfterFirstBody: false, noVisualHardClear: false, noSelfReport: false, custom: '' },
   };
 

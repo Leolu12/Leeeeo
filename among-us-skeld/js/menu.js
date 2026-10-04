@@ -394,6 +394,12 @@
       return el;
     },
 
+    /* mente própria: cada bot com uma IA só dele (vale mais que "votos e ações", que é a IA comandando o time) */
+    mindField(UI, change) {
+      return this.field('Mente dos bots', this.seg('ai-mind', Object.keys(C.AI_MIND).map((k) => [k, C.AI_MIND[k]]), () => UI.aiMind || 'on', (v) => { UI.aiMind = v; change(); }),
+        'Com mente própria, cada bot é uma IA separada: só sabe o que viu, decide sozinho para onde ir, quem seguir, quando chamar reunião ou fazer o sinal de "vem comigo", o que falar e em quem votar. O corpo (andar, regras) continua sendo o jogo. Usa bem mais IA; se ela cair ou atingir o limite, os bots voltam ao sistema de regras sozinhos.');
+    },
+
     secAI(change) {
       const L = AU.LLM, cfg = L.cfg, UI = this.S.ui;
       const inClaude = L.inClaude;
@@ -420,7 +426,8 @@
               L.test();
             } }, 'Ativar e testar o Claude')));
           body.appendChild(this.field('Uso da IA nas reuniões', this.seg('ai-use', Object.keys(C.AI_CHAT).map((k) => [k, C.AI_CHAT[k]]), () => UI.aiChat, (v) => { UI.aiChat = v; change(); })));
-          body.appendChild(this.field('Votos e ações dos bots', this.seg('ai-act', Object.keys(C.AI_ACTIONS).map((k) => [k, C.AI_ACTIONS[k]]), () => UI.aiActions || 'on', (v) => { UI.aiActions = v; change(); }), 'Com a IA decidindo, os bots escolhem em quem votar, o que fazer, quem seguir e (os impostores) quando sabotar e quem caçar. Usa mais o seu Claude.'));
+          body.appendChild(this.mindField(UI, change));
+          body.appendChild(this.field('Votos e ações dos bots', this.seg('ai-act', Object.keys(C.AI_ACTIONS).map((k) => [k, C.AI_ACTIONS[k]]), () => UI.aiActions || 'on', (v) => { UI.aiActions = v; change(); }), 'Vale com a mente própria desligada: a IA escolhe em quem votar, o que fazer, quem seguir e (os impostores) quando sabotar e quem caçar. Usa mais o seu Claude.'));
           return;
         }
         const modes = [['auto', 'Automático', 'Usa o que estiver configurado abaixo']];
@@ -504,7 +511,8 @@
             h('div', { class: 'row-btns' }, listBtn, testBtn, msg));
         }
         body.appendChild(this.field('Uso da IA nas reuniões', this.seg('ai-use', Object.keys(C.AI_CHAT).map((k) => [k, C.AI_CHAT[k]]), () => UI.aiChat, (v) => { UI.aiChat = v; change(); })));
-        body.appendChild(this.field('Votos e ações dos bots', this.seg('ai-act', Object.keys(C.AI_ACTIONS).map((k) => [k, C.AI_ACTIONS[k]]), () => UI.aiActions || 'on', (v) => { UI.aiActions = v; change(); }), 'Com a IA decidindo, os bots escolhem em quem votar, o que fazer, quem seguir e (os impostores) quando sabotar e quem caçar.'));
+        body.appendChild(this.mindField(UI, change));
+        body.appendChild(this.field('Votos e ações dos bots', this.seg('ai-act', Object.keys(C.AI_ACTIONS).map((k) => [k, C.AI_ACTIONS[k]]), () => UI.aiActions || 'on', (v) => { UI.aiActions = v; change(); }), 'Vale com a mente própria desligada: a IA escolhe em quem votar, o que fazer, quem seguir e (os impostores) quando sabotar e quem caçar.'));
       };
       draw();
       const off = L.onChange(() => {

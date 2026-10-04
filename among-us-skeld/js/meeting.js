@@ -54,7 +54,8 @@
       this.answered = {};
       /* a IA (se houver) conduz a conversa; sem ela, as falas saem direto do motor */
       if (!g.headless && g.S.ui.aiChat !== 'off' && AU.LLM) AU.LLM.ensure();
-      this.dir = !g.headless && AU.Voice ? AU.Voice.director(this) : null;
+      /* mente própria: cada bot fala e vota por si (a "mesa" chama a IA de um personagem por vez) */
+      this.dir = g.minds && g.minds.online() ? g.minds.meeting(this) : !g.headless && AU.Voice ? AU.Voice.director(this) : null;
       this.ui = g.headless ? null : new MeetingUI(this);
       /* preparo de cada bot (evidências, pauta, primeiras falas). Com interface, um bot por quadro durante a abertura
          (quase 3 s em que ninguém fala nem vota), para a reunião não abrir com uma travada; sem interface, tudo de uma
@@ -99,6 +100,8 @@
     say(brain, m, meta) {
       if (!m || !m.text || this.closed) return;
       meta = meta || {};
+      /* com mente própria ligada, o motor não fala por quem tem mente: ela decide o que dizer */
+      if (this.dir && this.dir.mind && brain && this.dir.speaksFor(brain.p)) return;
       if (brain && brain.vet) {
         m = brain.vet(m, meta);
         if (!m) return;
@@ -171,11 +174,12 @@
           }
           /* com IA, o voto espera a decisão dela (o motor só decide se a IA não responder) */
           const dir = this.dir;
-          const ai = dir && dir.aiVotes[+id];
+          let ai = dir && dir.aiVotes[+id];
           if (!ai && dir && dir.waitVote(+id)) {
             this.voteAt[id] = t + 1;
             continue;
           }
+          if (!ai && dir) ai = dir.aiVotes[+id];
           delete this.voteAt[id];
           let v = 'skip';
           try {
@@ -387,6 +391,7 @@
         if (it.type === 'claimLoc') this.answered[p.id] = msg.id;
       }
       if (this.ui) this.ui.addMsg(msg);
+      if (this.dir && this.dir.onPost) this.dir.onPost(msg);
       for (const q of g.players) {
         if (q.brain && q.alive && q.id !== p.id && q.brain.mOnMessage) {
           try {
@@ -752,6 +757,10 @@
         /* sem nenhuma IA configurada não é erro: as conversas usam o sistema de regras (igual ao lobby) */
         txt = 'IA desligada';
         tip = L.detail || 'Sem IA configurada: as conversas usam o sistema de regras.';
+      } else if (mt.dir && mt.dir.mind && mt.dir.on()) {
+        cls += ' on';
+        txt = 'Mente própria';
+        tip = 'Cada bot é uma IA separada (' + L.label() + '): lê o chat, decide sozinho o que falar e em quem votar' + (mt.dir.aiLines ? ' (' + mt.dir.aiLines + ' mensagens nesta reunião).' : '.');
       } else if (AU.Voice && AU.Voice.active(mt) && (!mt.dir || mt.dir.on())) {
         cls += ' on';
         txt = 'IA: ' + L.label();
