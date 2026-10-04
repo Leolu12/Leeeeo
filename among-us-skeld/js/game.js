@@ -374,8 +374,8 @@
       return moved;
     }
 
-    /* passos no ritmo da passada e com o som do piso: os seus, e os de quem anda perto (baixinho, de onde a pessoa
-       está, abafados atrás da parede) */
+    /* passos no ritmo da passada e com o som do piso: os seus, e os de quem você vê andando perto (baixinho, de onde
+       a pessoa está). Atrás da parede não: sem ver quem é, soavam como batidas soltas */
     footstep(p) {
       if (this.headless || !p.alive) return;
       const k = Math.floor((p.walkT * 11) / Math.PI);
@@ -389,9 +389,8 @@
       if (p.invisUntil > this.t || !h || h.inVent) return;
       p.stepK = k;
       const d = U.d2(h.x, h.y, p.x, p.y);
-      if (d < 7) {
-        const clear = Nav.los(h.x, h.y, p.x, p.y);
-        if (clear || d < 4.5) AU.Audio.stepAt(AU.Audio.surfaceOf((M.areaAt(p.x, p.y) || {}).id), { gain: (clear ? 0.42 : 0.2) * (1 - d / 8), dx: p.x - h.x, dy: p.y - h.y, muffle: !clear, dist: d, h: 0.05 });
+      if (d < 6 && this.canSeePoint(h, p.x, p.y)) {
+        AU.Audio.stepAt(AU.Audio.surfaceOf((M.areaAt(p.x, p.y) || {}).id), { gain: 0.4 * (1 - d / 7.5), dx: p.x - h.x, dy: p.y - h.y, dist: d, h: 0.05 });
       }
     }
 

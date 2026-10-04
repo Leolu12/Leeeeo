@@ -296,20 +296,28 @@
   };
   /* ---------- som 3D ----------
      O ouvinte fica no jogador olhando para o alto da tela: o que está acima no mapa soa à frente, abaixo soa atrás,
-     à direita soa à direita. No computador usa HRTF (com fone dá para perceber frente e trás); no celular, o
-     panorama mais leve. A distância e a parede são tratadas à parte (ganho e filtro), o panner só dá a direção. */
-  const HRTF = typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(pointer: coarse)').matches;
-  /* lite: só a direção, sem HRTF (passos dos outros: muitos e curtos, não valem o custo) */
+     à direita soa à direita. A distância e a parede são tratadas à parte (ganho e filtro), o panner só dá a direção. */
+  /* fone de ouvido: o 3D completo (HRTF, com frente, trás e altura). Na caixa de som e no celular o HRTF muda o
+     timbre (mede 10 a 12 dB de diferença entre graves e agudos) e soa abafado e estranho: lá vai só o estéreo,
+     limpo. lite: só a direção mesmo de fone (passos dos outros: muitos e curtos, não valem o custo) */
+  let phones = false;
   function panner3d(c, lite) {
     const p = c.createPanner();
-    p.panningModel = HRTF && !lite ? 'HRTF' : 'equalpower';
+    p.panningModel = phones && !lite ? 'HRTF' : 'equalpower';
     p.distanceModel = 'linear';
     p.rolloffFactor = 0;
     return p;
   }
   function place(p, dx, dy, now, h) {
-    /* 1 tile = 1 metro; a cabeça do ouvinte fica a 1,2 m do chão: um duto soa embaixo, uma porta na altura do ouvido */
-    const x = dx, y = h == null ? 0.8 : h - 1.2, z = dy;
+    /* 1 tile = 1 metro; com fone, a cabeça do ouvinte fica a 1,2 m do chão: um duto soa embaixo, uma porta na altura
+       do ouvido. Sem fone, tudo na altura do ouvido (no estéreo a altura só atrapalha a direção) */
+    let x = dx, z = dy;
+    const y = phones ? (h == null ? 0.8 : h - 1.2) : 0;
+    /* em cima do ouvinte a direção fica indefinida e pula de um lado para o outro: põe um pouco à frente */
+    if (Math.hypot(x, z) < 0.35) {
+      x = x || 0;
+      z = -0.35;
+    }
     if (p.positionX) {
       if (now == null) {
         p.positionX.value = x;
@@ -592,6 +600,8 @@
       } else place(e.pn, w.h.dx, w.h.dy, now);
       e.quietT = 0;
       e.on = true;
+      e.muffle = w.h.muffle;
+      e.want = w.h.gain;
       e.g.gain.setTargetAtTime(w.h.gain, now, 0.25);
       e.lp.frequency.setTargetAtTime(w.h.muffle ? 480 : 16000, now, 0.2);
     }
@@ -673,6 +683,12 @@
       refresh();
     },
     get enabled() { return enabled; },
+    /* fone de ouvido (3D completo) ou caixa de som / celular (estéreo limpo) */
+    setHeadphones(on) {
+      phones = !!on;
+      for (const e of live.values()) e.pn.panningModel = phones ? 'HRTF' : 'equalpower';
+    },
+    get headphones() { return phones; },
     /* volume geral, de 0 a 1 */
     setVolume(v) {
       volume = Math.max(0, Math.min(1, +v || 0));
@@ -701,22 +717,38 @@
       }
     },
     /* para conferir níveis: renderiza um som num contexto offline e devolve pico, RMS e duração audível */
-    async analyze(name, secs) {
+    /* opts: { at } = como no mapa (posição, distância, parede), { dry } = sem eco nenhum, { raw } = devolve as amostras */
+    async analyze(name, secs, opts) {
+      opts = opts || {};
       const OC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-      const c = new OC(1, Math.floor(44100 * (secs || 3)), 44100);
+      const c = new OC(2, Math.floor(44100 * (secs || 3)), 44100);
       const b = makeBus(c);
-      S[name](c, b, route(c, b, name), 0.01);
+      if (opts.env && ENV[opts.env]) b.env.gain.value = ENV[opts.env].send;
+      const dest = opts.dry ? b.dry : !opts.at && DRY.has(name) ? b.dry : spatial(c, b, opts.at);
+      S[name](c, b, route(c, b, name, dest), 0.01);
       const buf = await c.startRendering();
-      const d = buf.getChannelData(0);
+      const L = buf.getChannelData(0), R = buf.getChannelData(1);
       let peak = 0, sum = 0, last = 0;
-      for (let i = 0; i < d.length; i++) {
-        const a = Math.abs(d[i]);
+      for (let i = 0; i < L.length; i++) {
+        const a = Math.max(Math.abs(L[i]), Math.abs(R[i]));
         if (a > peak) peak = a;
-        sum += d[i] * d[i];
+        sum += L[i] * L[i] + R[i] * R[i];
         if (a > 0.003) last = i;
       }
-      return { peak: +peak.toFixed(3), rms: +Math.sqrt(sum / d.length).toFixed(4), dur: +(last / 44100).toFixed(2) };
+      /* energia da cauda: depois de 0,35 s do começo, em dB em relação ao total */
+      let tail = 0;
+      for (let i = Math.floor(0.36 * 44100); i < L.length; i++) tail += L[i] * L[i] + R[i] * R[i];
+      const r = { peak: +peak.toFixed(3), rms: +Math.sqrt(sum / (2 * L.length)).toFixed(4), dur: +(last / 44100).toFixed(2), energy: sum, tail: +(10 * Math.log10(tail / (sum + 1e-12) + 1e-12)).toFixed(1) };
+      if (opts.raw) r.samples = [L, R];
+      return r;
     },
     names: () => Object.keys(S),
+    /* para os testes: o que o ambiente está fazendo agora */
+    get _debug() {
+      return {
+        acoustic,
+        live: [...live].map(([d, e]) => ({ area: d.area, on: !!e.on, muffle: !!e.muffle, gain: +(e.want || 0).toFixed(3) })),
+      };
+    },
   };
 })();

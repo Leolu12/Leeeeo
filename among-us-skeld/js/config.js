@@ -168,7 +168,7 @@
       names: 'auto', customNames: '', personalities: 'sorteadas', allowed: C.PERSONALITY_IDS.slice(),
       impostorLevel: 'competente', humanError: 'medio', chatTone: 'casual', chatPace: 'normal',
     },
-    ui: { narration: 'cinematografico', hud: true, finalReport: true, sound: true, volume: 100, ambience: true, ghostsSilent: true, aiChat: 'full', aiActions: 'on', aiMind: 'on', graphics: '3d', quality: 'auto' },
+    ui: { narration: 'cinematografico', hud: true, finalReport: true, sound: true, volume: 100, ambience: true, sound3d: 'caixa', ghostsSilent: true, aiChat: 'full', aiActions: 'on', aiMind: 'on', graphics: '3d', quality: 'auto' },
     house: { noDoubleKill: false, noVentChase: false, critAfterFirstBody: false, noVisualHardClear: false, noSelfReport: false, custom: '' },
   };
 

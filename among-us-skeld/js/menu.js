@@ -30,6 +30,7 @@
       AU.Audio.setEnabled(ui.sound !== false);
       AU.Audio.setVolume((ui.volume == null ? 100 : ui.volume) / 100);
       AU.Audio.setAmbienceOn(ui.ambience !== false);
+      AU.Audio.setHeadphones(ui.sound3d === 'fone');
     },
     setSound(patch) {
       Object.assign(this.S.ui, patch);
@@ -49,6 +50,8 @@
       return h('div', { class: 'grid2 sound-ctl' },
         this.toggle(prefix + '-sound', 'Som', () => ui.sound !== false, (v) => { this.setSound({ sound: v }); done(); }),
         this.toggle(prefix + '-amb', 'Som ambiente das salas', () => ui.ambience !== false, (v) => { this.setSound({ ambience: v }); done(); }, 'Motores, reator, bipes; os efeitos continuam'),
+        this.field('Ouvindo por', this.seg(prefix + '-s3d', [['caixa', 'Caixa de som / celular'], ['fone', 'Fone de ouvido']], () => (ui.sound3d === 'fone' ? 'fone' : 'caixa'), (v) => { this.setSound({ sound3d: v }); done(); }),
+          'Com fone, o som 3D completo: frente, trás e altura. Na caixa de som ele deixa o som abafado, então lá fica só esquerda e direita.'),
         this.field('Volume', vol));
     },
 
