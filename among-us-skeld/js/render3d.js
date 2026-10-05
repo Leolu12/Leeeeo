@@ -1,6 +1,7 @@
-/* Mapa 3D: câmera em perspectiva que segue o jogador, luzes das salas (um conjunto fixo de luzes que vai para as
-   luminárias mais perto), sombras, névoa de visão (o que o seu personagem não vê fica escuro), brilho das lâmpadas e
-   telas, cor de cinema, efeitos (abate, duto, transformação, escudo, scan, asteroides) e marcadores das tarefas.
+/* Mapa 3D: câmera em perspectiva que segue o jogador, luz das salas (calculada uma vez para a nave inteira, mais
+   poucas luzes de verdade perto do jogador para o brilho no metal), sombras, névoa de visão (o que o seu personagem
+   não vê fica escuro), brilho das lâmpadas e telas, cor de cinema, efeitos (abate, duto, transformação, escudo, scan,
+   asteroides) e marcadores das tarefas.
    O 2D continua existindo: se o aparelho não tem WebGL ou a pessoa escolhe 2D, o desenho é o de render.js. */
 (function () {
   'use strict';
@@ -196,10 +197,13 @@
       mark('renderer');
       canvas.addEventListener('webglcontextlost', (e) => {
         e.preventDefault();
-        /* perda de verdade (não a do descarte, que troca a tela por outra) */
+        /* perda de verdade (não a do descarte, que troca a tela por outra): no celular acontece ao bloquear a tela ou
+           deixar a aba no fundo. Desliga e o jogo remonta o 3D (no 2D enquanto isso); se perder demais, fica no 2D */
         if (canvas !== this.canvas || !this.renderer) return;
-        this.failed = true;
         this.active = false;
+        this.lostN = (this.lostN || 0) + 1;
+        if (this.lostN > 3) this.failed = true;
+        else this.lost = true;
       });
       KIT.setQuality(lv.tex, Math.min(lv.aniso, renderer.capabilities.getMaxAnisotropy()));
       yield;
@@ -288,7 +292,10 @@
       const A = AU.R3DActors, dummy = [];
       try {
         const c = A.makeCrew('red', 'nenhum', 'classico');
-        dummy.push(c.group, A.makeGhost('blue'), A.makeBody('green'));
+        /* e um invisível (transparente), como o impostor aparece para o parceiro */
+        const f = A.makeCrew('blue', 'nenhum', 'classico');
+        A.setAlpha(f, 0.3);
+        dummy.push(c.group, f.group, A.makeGhost('blue'), A.makeBody('green'));
       } catch (e) {
         /* sem personagens de mentira: compilam no primeiro quadro */
       }
@@ -889,7 +896,8 @@
       /* câmera */
       const tgt = h ? (h.inVent ? M.VENT[h.inVent] : h) : this.cam;
       const k = 1 - Math.pow(0.0005, dt);
-      if (this.snap) {
+      /* pulo grande (fim da reunião, duto para longe): corta direto, sem deslizar a câmera por cima do mapa */
+      if (this.snap || Math.hypot(tgt.x - this.cam.x, tgt.y - this.cam.y) > 7) {
         this.cam.x = tgt.x;
         this.cam.y = tgt.y;
         this.snap = false;

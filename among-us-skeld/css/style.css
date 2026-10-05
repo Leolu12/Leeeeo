@@ -732,8 +732,16 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   .mg-canvas { width: auto; height: auto; max-width: 100%; max-height: calc(100dvh - 150px); margin: 0 auto; }
 }
 @media (max-height: 500px) {
-  .hud-feed, body.touch .hud-feed { left: 170px; right: 170px; width: auto; bottom: 8px; }
+  .hud-feed, body.touch .hud-feed { left: 170px; right: 276px; width: auto; bottom: 8px; }
   .hud-feed > :nth-last-child(n + 3) { display: none; }
+}
+/* celular deitado: os botões de ação são menores (3 x 62 px); a narração fica no vão entre eles e o joystick, sem
+   passar por baixo dos botões, e mostra só a última fala (o vão é estreito) */
+@media (max-height: 500px) and (max-width: 860px) {
+  .hud-feed, body.touch .hud-feed { right: 226px; }
+}
+@media (max-height: 500px) and (max-width: 700px) {
+  .hud-feed > :nth-last-child(n + 2) { display: none; }
 }
 
 /* reunião: mapinha com o lugar onde o jogador estava */

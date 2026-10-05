@@ -742,6 +742,12 @@
     /* purpose 'verify': segue para ver a pessoa provar inocência; para depois de ver a tarefa visual. */
     planFollow(q, dur, keep, purpose) {
       const g = this.g;
+      /* acabei de ser escolhido para ir na frente desta pessoa (os dois se seguiam): não volto a segui-la já */
+      const nf = this.noFollow;
+      if (nf && nf.id === q.id && g.t < nf.until && purpose !== 'verify') {
+        const here = M.roomOf(M.areaAt(this.p.x, this.p.y), this.p.x, this.p.y).id;
+        return this.planWander(U.chance(0.5) ? here : U.pick(M.ROOMS).id, U.rf(1.5, 3));
+      }
       let sawAt = 0, leaveAt = 0;
       const hardEnd = g.t + dur + 25;
       const plan = {
@@ -793,6 +799,10 @@
             const leaders = ring.filter((x) => x.brain.plan && x.brain.plan.purpose !== 'verify');
             const lead = (leaders.length ? leaders : ring).reduce((a, b) => (a.id < b.id ? a : b));
             if (lead === this.p) {
+              /* em dupla combinada, os dois achavam que o outro ia na frente: agora vou eu (senão a regra da dupla
+                 me mandava seguir de novo no instante seguinte e os dois ficavam parados se olhando) */
+              if (this.pact && this.pact.who === q.id && this.pact.lead === 'them') this.pact.lead = 'me';
+              this.noFollow = { id: q.id, until: g.t + 8 };
               this.plan = null;
               return;
             }
@@ -1234,8 +1244,8 @@
     /* Viu fazer tarefa visual em QUALQUER rodada: é tripulante, e o bot não esquece. */
     /* fui eu que chamei essa pessoa (ou vou na frente na dupla): quem vem atrás é ela, não eu */
     leading(id) {
-      const g = this.g, c = this.call, pa = this.pact;
-      return !!((c && c.who === id && g.t < c.until) || (pa && pa.who === id && pa.lead === 'me'));
+      const g = this.g, c = this.call, pa = this.pact, nf = this.noFollow;
+      return !!((c && c.who === id && g.t < c.until) || (pa && pa.who === id && pa.lead === 'me') || (nf && nf.id === id && g.t < nf.until));
     }
     hardCleared(id) {
       if (this.twinCleared(id)) return true;

@@ -743,8 +743,16 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   .mg-canvas { width: auto; height: auto; max-width: 100%; max-height: calc(100dvh - 150px); margin: 0 auto; }
 }
 @media (max-height: 500px) {
-  .hud-feed, body.touch .hud-feed { left: 170px; right: 170px; width: auto; bottom: 8px; }
+  .hud-feed, body.touch .hud-feed { left: 170px; right: 276px; width: auto; bottom: 8px; }
   .hud-feed > :nth-last-child(n + 3) { display: none; }
+}
+/* celular deitado: os botões de ação são menores (3 x 62 px); a narração fica no vão entre eles e o joystick, sem
+   passar por baixo dos botões, e mostra só a última fala (o vão é estreito) */
+@media (max-height: 500px) and (max-width: 860px) {
+  .hud-feed, body.touch .hud-feed { right: 226px; }
+}
+@media (max-height: 500px) and (max-width: 700px) {
+  .hud-feed > :nth-last-child(n + 2) { display: none; }
 }
 
 /* reunião: mapinha com o lugar onde o jogador estava */
@@ -6084,6 +6092,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     /* purpose 'verify': segue para ver a pessoa provar inocência; para depois de ver a tarefa visual. */
     planFollow(q, dur, keep, purpose) {
       const g = this.g;
+      /* acabei de ser escolhido para ir na frente desta pessoa (os dois se seguiam): não volto a segui-la já */
+      const nf = this.noFollow;
+      if (nf && nf.id === q.id && g.t < nf.until && purpose !== 'verify') {
+        const here = M.roomOf(M.areaAt(this.p.x, this.p.y), this.p.x, this.p.y).id;
+        return this.planWander(U.chance(0.5) ? here : U.pick(M.ROOMS).id, U.rf(1.5, 3));
+      }
       let sawAt = 0, leaveAt = 0;
       const hardEnd = g.t + dur + 25;
       const plan = {
@@ -6135,6 +6149,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
             const leaders = ring.filter((x) => x.brain.plan && x.brain.plan.purpose !== 'verify');
             const lead = (leaders.length ? leaders : ring).reduce((a, b) => (a.id < b.id ? a : b));
             if (lead === this.p) {
+              /* em dupla combinada, os dois achavam que o outro ia na frente: agora vou eu (senão a regra da dupla
+                 me mandava seguir de novo no instante seguinte e os dois ficavam parados se olhando) */
+              if (this.pact && this.pact.who === q.id && this.pact.lead === 'them') this.pact.lead = 'me';
+              this.noFollow = { id: q.id, until: g.t + 8 };
               this.plan = null;
               return;
             }
@@ -6576,8 +6594,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     /* Viu fazer tarefa visual em QUALQUER rodada: é tripulante, e o bot não esquece. */
     /* fui eu que chamei essa pessoa (ou vou na frente na dupla): quem vem atrás é ela, não eu */
     leading(id) {
-      const g = this.g, c = this.call, pa = this.pact;
-      return !!((c && c.who === id && g.t < c.until) || (pa && pa.who === id && pa.lead === 'me'));
+      const g = this.g, c = this.call, pa = this.pact, nf = this.noFollow;
+      return !!((c && c.who === id && g.t < c.until) || (pa && pa.who === id && pa.lead === 'me') || (nf && nf.id === id && g.t < nf.until));
     }
     hardCleared(id) {
       if (this.twinCleared(id)) return true;
@@ -18159,6 +18177,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (!ctx) return;
       const h = g.human;
       if (h) {
+        /* pulo grande (fim da reunião, duto para longe): corta direto */
+        if (Math.hypot(h.x - this.cam.x, h.y - this.cam.y) > 7) {
+          this.cam.x = h.x;
+          this.cam.y = h.y;
+        }
         this.cam.x += (h.x - this.cam.x) * 0.25;
         this.cam.y += (h.y - this.cam.y) * 0.25;
       }
@@ -25305,7 +25328,12 @@ float auBayer(vec2 p) {
     shine.scale(0.07, 0.03, 0.02);
     const shadow = new THREE.CircleGeometry(0.5, 28);
     shadow.rotateX(-Math.PI / 2);
-    G = { body, ghost, half, leg, pack, visor, shine, shadow };
+    /* peças do corpo partido (uma vez só: cada morte reaproveita) */
+    const cap = new THREE.CircleGeometry(0.355, 32);
+    const shaft = new THREE.CylinderGeometry(0.05, 0.055, 0.32, 12);
+    const knob = new THREE.SphereGeometry(0.06, 12, 8);
+    const pool = new THREE.CircleGeometry(0.55, 28);
+    G = { body, ghost, half, leg, pack, visor, shine, shadow, cap, shaft, knob, pool };
     return G;
   }
 
@@ -25334,7 +25362,7 @@ float auBayer(vec2 p) {
     GHOST[colorId] = m;
     return m;
   }
-  let SHINE = null, SHADOW = null, FLESH = null, BONE = null;
+  let SHINE = null, SHADOW = null, FLESH = null, BONE = null, POOL = null;
   function shared() {
     if (SHINE) return;
     SHINE = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.8 });
@@ -25348,6 +25376,7 @@ float auBayer(vec2 p) {
     SHADOW = KIT.patch(new THREE.MeshBasicMaterial({ map: KIT.tex(c, true), transparent: true, depthWrite: false }), { ao: false });
     FLESH = KIT.patch(new THREE.MeshStandardMaterial({ color: '#7a0f1a', roughness: 0.35, metalness: 0, emissive: '#2a0006' }), { ao: false });
     BONE = KIT.patch(new THREE.MeshStandardMaterial({ color: '#f1ece0', roughness: 0.55 }), { ao: false });
+    POOL = KIT.patch(new THREE.MeshStandardMaterial({ color: '#3a0008', roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.85, depthWrite: false }), { ao: false });
   }
 
   /* ---------- chapéus em 3D ---------- */
@@ -25409,7 +25438,8 @@ float auBayer(vec2 p) {
     return HATS[hat].clone();
   }
 
-  /* ---------- mascotes ---------- */
+  /* ---------- mascotes (montados uma vez; cada jogador recebe uma cópia que divide a geometria) ---------- */
+  const PETS = {};
   function petMesh(pet, colorId) {
     if (!pet || pet === 'nenhum') return null;
     const g = new THREE.Group();
@@ -25419,20 +25449,26 @@ float auBayer(vec2 p) {
       g.add(a.group);
       g.userData.mini = a;
     } else if (pet === 'robo') {
-      const k = new KIT.Kit();
-      k.rbox(0.28, 0.24, 0.24, 0.05, KIT.MAT.metalLight, 0, 0.2, 0);
-      k.box(0.14, 0.05, 0.02, KIT.MAT.glow('#66ffff', 2), 0, 0.22, 0.125);
-      k.cyl(0.01, 0.01, 0.14, KIT.MAT.metalDark, 0, 0.38, 0, 6);
-      k.sphere(0.03, KIT.MAT.glow('#ff5a5a', 2), 0, 0.46, 0);
-      g.add(k.build({ receive: false }));
+      if (!PETS.robo) {
+        const k = new KIT.Kit();
+        k.rbox(0.28, 0.24, 0.24, 0.05, KIT.MAT.metalLight, 0, 0.2, 0);
+        k.box(0.14, 0.05, 0.02, KIT.MAT.glow('#66ffff', 2), 0, 0.22, 0.125);
+        k.cyl(0.01, 0.01, 0.14, KIT.MAT.metalDark, 0, 0.38, 0, 6);
+        k.sphere(0.03, KIT.MAT.glow('#ff5a5a', 2), 0, 0.46, 0);
+        PETS.robo = k.build({ receive: false });
+      }
+      g.add(PETS.robo.clone());
     } else if (pet === 'slime') {
-      const m = new THREE.MeshPhysicalMaterial({ color: '#7ee06b', roughness: 0.1, transmission: 0, transparent: true, opacity: 0.85, clearcoat: 1 });
-      KIT.patch(m, { ao: false });
-      const s = new THREE.Mesh(new THREE.SphereGeometry(0.17, 20, 14), m);
-      s.scale.set(1, 0.7, 1);
-      s.position.y = 0.12;
-      s.castShadow = true;
-      g.add(s);
+      if (!PETS.slime) {
+        const m = new THREE.MeshPhysicalMaterial({ color: '#7ee06b', roughness: 0.1, transmission: 0, transparent: true, opacity: 0.85, clearcoat: 1 });
+        KIT.patch(m, { ao: false });
+        const s = new THREE.Mesh(new THREE.SphereGeometry(0.17, 20, 14), m);
+        s.scale.set(1, 0.7, 1);
+        s.position.y = 0.12;
+        s.castShadow = true;
+        PETS.slime = s;
+      }
+      g.add(PETS.slime.clone());
     }
     return g;
   }
@@ -25518,7 +25554,7 @@ float auBayer(vec2 p) {
     const g = new THREE.Group();
     const sm = suit(colorId);
     const half = new THREE.Mesh(G.half, sm);
-    const cap = new THREE.Mesh(new THREE.CircleGeometry(0.355, 32), FLESH);
+    const cap = new THREE.Mesh(G.cap, FLESH);
     cap.rotation.x = -Math.PI / 2;
     cap.scale.set(1, 0.92, 1);
     cap.position.y = 0.515;
@@ -25526,9 +25562,9 @@ float auBayer(vec2 p) {
     pack.scale.set(1, 0.6, 1);
     pack.position.set(0, 0.36, -0.32);
     const bone = new THREE.Group();
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.055, 0.32, 12), BONE);
+    const shaft = new THREE.Mesh(G.shaft, BONE);
     shaft.position.y = 0.66;
-    const k1 = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), BONE);
+    const k1 = new THREE.Mesh(G.knob, BONE);
     k1.position.set(-0.05, 0.84, 0);
     const k2 = k1.clone();
     k2.position.x = 0.05;
@@ -25540,7 +25576,7 @@ float auBayer(vec2 p) {
       g.add(l);
     }
     /* poça escura no chão */
-    const pool = new THREE.Mesh(new THREE.CircleGeometry(0.55, 28), KIT.patch(new THREE.MeshStandardMaterial({ color: '#3a0008', roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.85, depthWrite: false }), { ao: false }));
+    const pool = new THREE.Mesh(G.pool, POOL);
     pool.rotation.x = -Math.PI / 2;
     pool.position.set(0.12, 0.012, 0.15);
     pool.scale.set(1.2, 0.8, 1);
@@ -25707,7 +25743,23 @@ float auBayer(vec2 p) {
       this.ghosts.clear();
     }
   }
-  /* alfa por ator: materiais clonados só quando precisa (invisível), para não mexer na cor dos outros */
+  /* alfa por ator: cópia transparente do material, feita só quando precisa (invisível) e guardada por material, para
+     não mexer na cor dos outros. A cópia leva o mesmo remendo de sombreamento (luz gravada, névoa): o clone do three
+     não copia o remendo, e sem ele o personagem ficava escuro e compilava um programa novo no meio da partida */
+  const FADE = new Map();
+  function fadeOf(base, alpha) {
+    let m = FADE.get(base);
+    if (!m) {
+      m = base.clone();
+      m.onBeforeCompile = base.onBeforeCompile;
+      m.customProgramCacheKey = base.customProgramCacheKey;
+      m.transparent = true;
+      m.depthWrite = false;
+      FADE.set(base, m);
+    }
+    m.opacity = alpha * base.opacity;
+    return m;
+  }
   function setAlpha(a, alpha) {
     const want = alpha < 0.99;
     if (want === !!a.faded && (!want || a.fadeA === alpha)) return;
@@ -25717,11 +25769,7 @@ float auBayer(vec2 p) {
       if (!o.isMesh) return;
       if (want) {
         if (!o.userData.base) o.userData.base = o.material;
-        const m = o.userData.base.clone();
-        m.transparent = true;
-        m.opacity = alpha;
-        m.depthWrite = false;
-        o.material = m;
+        o.material = fadeOf(o.userData.base, alpha);
       } else if (o.userData.base) {
         o.material = o.userData.base;
         o.userData.base = null;
@@ -25729,14 +25777,15 @@ float auBayer(vec2 p) {
     });
   }
 
-  AU.R3DActors = { Actors, makeCrew, makeBody, makeGhost };
+  AU.R3DActors = { Actors, makeCrew, makeBody, makeGhost, setAlpha };
 })();
 
 </script>
   <script>
-/* Mapa 3D: câmera em perspectiva que segue o jogador, luzes das salas (um conjunto fixo de luzes que vai para as
-   luminárias mais perto), sombras, névoa de visão (o que o seu personagem não vê fica escuro), brilho das lâmpadas e
-   telas, cor de cinema, efeitos (abate, duto, transformação, escudo, scan, asteroides) e marcadores das tarefas.
+/* Mapa 3D: câmera em perspectiva que segue o jogador, luz das salas (calculada uma vez para a nave inteira, mais
+   poucas luzes de verdade perto do jogador para o brilho no metal), sombras, névoa de visão (o que o seu personagem
+   não vê fica escuro), brilho das lâmpadas e telas, cor de cinema, efeitos (abate, duto, transformação, escudo, scan,
+   asteroides) e marcadores das tarefas.
    O 2D continua existindo: se o aparelho não tem WebGL ou a pessoa escolhe 2D, o desenho é o de render.js. */
 (function () {
   'use strict';
@@ -25932,10 +25981,13 @@ float auBayer(vec2 p) {
       mark('renderer');
       canvas.addEventListener('webglcontextlost', (e) => {
         e.preventDefault();
-        /* perda de verdade (não a do descarte, que troca a tela por outra) */
+        /* perda de verdade (não a do descarte, que troca a tela por outra): no celular acontece ao bloquear a tela ou
+           deixar a aba no fundo. Desliga e o jogo remonta o 3D (no 2D enquanto isso); se perder demais, fica no 2D */
         if (canvas !== this.canvas || !this.renderer) return;
-        this.failed = true;
         this.active = false;
+        this.lostN = (this.lostN || 0) + 1;
+        if (this.lostN > 3) this.failed = true;
+        else this.lost = true;
       });
       KIT.setQuality(lv.tex, Math.min(lv.aniso, renderer.capabilities.getMaxAnisotropy()));
       yield;
@@ -26024,7 +26076,10 @@ float auBayer(vec2 p) {
       const A = AU.R3DActors, dummy = [];
       try {
         const c = A.makeCrew('red', 'nenhum', 'classico');
-        dummy.push(c.group, A.makeGhost('blue'), A.makeBody('green'));
+        /* e um invisível (transparente), como o impostor aparece para o parceiro */
+        const f = A.makeCrew('blue', 'nenhum', 'classico');
+        A.setAlpha(f, 0.3);
+        dummy.push(c.group, f.group, A.makeGhost('blue'), A.makeBody('green'));
       } catch (e) {
         /* sem personagens de mentira: compilam no primeiro quadro */
       }
@@ -26625,7 +26680,8 @@ float auBayer(vec2 p) {
       /* câmera */
       const tgt = h ? (h.inVent ? M.VENT[h.inVent] : h) : this.cam;
       const k = 1 - Math.pow(0.0005, dt);
-      if (this.snap) {
+      /* pulo grande (fim da reunião, duto para longe): corta direto, sem deslizar a câmera por cima do mapa */
+      if (this.snap || Math.hypot(tgt.x - this.cam.x, tgt.y - this.cam.y) > 7) {
         this.cam.x = tgt.x;
         this.cam.y = tgt.y;
         this.snap = false;
@@ -31769,6 +31825,8 @@ float auBayer(vec2 p) {
   };
 
   /* ---------- estado público da nave (o anfitrião manda; todos aplicam) ---------- */
+  /* quanto o amigo desenha os outros no passado: um pouco mais que o intervalo entre estados (0,08 s) */
+  const NET_DELAY = 0.12;
   const FL = { alive: 1, vent: 2, moving: 4, invis: 8, shield: 16, busy: 32, cams: 64, pop: 128, morph: 256, ejected: 512 };
   function snapshot(g) {
     const t = g.t;
@@ -31816,6 +31874,10 @@ float auBayer(vec2 p) {
     const t = sn.t;
     g.hostT = t;
     g.hostAt = performance.now();
+    /* relógio do anfitrião visto daqui: segue o estado que chegou mais rápido (menos atraso de rede) e se ajusta
+       devagar quando todos começam a atrasar */
+    const off = t - g.hostAt / 1000;
+    g.netOff = g.netOff == null || off > g.netOff ? off : g.netOff + (off - g.netOff) * 0.02;
     if (g.t < t - 0.5 || g.t > t + 0.5) g.t = t;
     sn.pl.forEach((a, i) => {
       const p = g.players[i];
@@ -31845,15 +31907,17 @@ float auBayer(vec2 p) {
         }
         return;
       }
-      p.netX = x;
-      p.netY = y;
+      /* os outros: guarda o ponto com o relógio do anfitrião; o quadro desenha um pouco no passado, entre dois pontos
+         conhecidos (ver Client.update) */
+      const buf = p.netBuf || (p.netBuf = []);
+      if (!buf.length || t > buf[buf.length - 1][0]) buf.push([t, x, y, f & FL.moving ? 1 : 0, facing]);
+      if (buf.length > 12) buf.shift();
       if (p.netInit == null) {
         p.x = x;
         p.y = y;
+        p.facing = facing;
         p.netInit = 1;
       }
-      p.facing = facing;
-      p.netMoving = !!(f & FL.moving);
       if (Math.abs(walkT - p.walkT) > 1) p.walkT = walkT;
     });
     /* corpos */
@@ -32154,48 +32218,66 @@ float auBayer(vec2 p) {
       }
     }
     /* posição que o amigo mandou: aceita se dava para chegar lá andando no tempo que passou (sem atravessar parede);
-       longe demais, anda até o limite em linha reta, ou fica onde está (o aparelho dele é corrigido pelo estado) */
+       longe demais, anda até o limite em linha reta, ou fica onde está (o aparelho dele é corrigido pelo estado).
+       A posição aceita é um alvo: o boneco desliza até ela a cada quadro. A presença chega ~15 vezes por segundo e o
+       jogo roda a 60; pulando direto para ela, aqui o amigo andava aos trancos e as pernas piscavam entre andar e
+       parado (e isso ia no estado para os outros) */
     movePlayer(p, pr, dt) {
       const g = this.g;
       if (g.phase !== 'play' || p.inVent) {
         p.netLastT = g.t;
+        p.netAx = null;
         return;
       }
+      /* o jogo mudou a posição por conta própria (saiu do duto, matou e foi para o corpo, reunião): recomeça dali */
+      if (p.netAx == null || p.x !== p.netSx || p.y !== p.netSy) {
+        p.netAx = p.x;
+        p.netAy = p.y;
+      }
       const pos = Array.isArray(pr.pos) ? pr.pos : null;
-      if (!pos) return;
-      const x = +pos[0], y = +pos[1];
-      if (!isFinite(x) || !isFinite(y) || x < 0 || y < 0 || x > M.W || y > M.H) return;
-      const ghost = !p.alive;
-      const d = U.d2(p.x, p.y, x, y);
-      const since = Math.min(1, Math.max(dt, g.t - (p.netLastT == null ? g.t - dt : p.netLastT)));
-      const allowed = g.speedOf(p) * since * 1.35 + 0.35;
-      if (d < 0.002) {
-        p.netLastT = g.t;
-      } else if (d <= allowed && (ghost || g.canStand(x, y, false))) {
-        p.facing = x < p.x ? -1 : 1;
-        p.x = x;
-        p.y = y;
+      const x = pos ? +pos[0] : NaN, y = pos ? +pos[1] : NaN;
+      if (isFinite(x) && isFinite(y) && x >= 0 && y >= 0 && x <= M.W && y <= M.H) {
+        const ghost = !p.alive, ax = p.netAx, ay = p.netAy;
+        const d = U.d2(ax, ay, x, y);
+        const since = Math.min(1, Math.max(dt, g.t - (p.netLastT == null ? g.t - dt : p.netLastT)));
+        const allowed = g.speedOf(p) * since * 1.35 + 0.35;
+        if (d < 0.002) {
+          p.netLastT = g.t;
+        } else if (d <= allowed && (ghost || g.canStand(x, y, false))) {
+          p.netAx = x;
+          p.netAy = y;
+          p.netLastT = g.t;
+        } else if (ghost || AU.Nav.clearLine(ax, ay, x, y, false)) {
+          const k = allowed / d, nx = ax + (x - ax) * k, ny = ay + (y - ay) * k;
+          if (ghost || g.canStand(nx, ny, false)) {
+            p.netAx = nx;
+            p.netAy = ny;
+            p.netLastT = g.t;
+          }
+        }
+      }
+      /* desliza até o alvo (um pouco mais rápido que a passada, para não ficar para trás; atrasado, recupera). Entre
+         uma posição e outra o boneco chega antes da próxima: segue "andando" um instante, sem a perna parar e voltar */
+      const dx = p.netAx - p.x, dy = p.netAy - p.y, dd = Math.hypot(dx, dy);
+      if (dd > 0.002) {
+        const k = Math.min(1, Math.max(g.speedOf(p) * dt * 1.1, dd * Math.min(1, dt * 6)) / dd);
+        if (Math.abs(dx) > 0.01) p.facing = dx < 0 ? -1 : 1;
+        p.x += dx * k;
+        p.y += dy * k;
+        p.netWalkUntil = g.t + 0.14;
+      }
+      if (dd > 0.002 || g.t < (p.netWalkUntil || 0)) {
         p.moving = true;
         p.walkT += dt;
         g.footstep(p);
-        p.netLastT = g.t;
-      } else if (ghost || AU.Nav.clearLine(p.x, p.y, x, y, false)) {
-        const k = allowed / d, nx = p.x + (x - p.x) * k, ny = p.y + (y - p.y) * k;
-        if (ghost || g.canStand(nx, ny, false)) {
-          p.facing = x < p.x ? -1 : 1;
-          p.x = nx;
-          p.y = ny;
-          p.moving = true;
-          p.walkT += dt;
-          g.footstep(p);
-          p.netLastT = g.t;
-        }
       }
+      p.netSx = p.x;
+      p.netSy = p.y;
       const f = pr.f || {};
       p.onCams = !!f.cams && p.alive && U.d2(p.x, p.y, M.SECURITY.x, M.SECURITY.y) < 3;
       p.onAdmin = !!f.admin && U.d2(p.x, p.y, M.ADMIN_TABLE.x, M.ADMIN_TABLE.y) < 3;
       p.busy = f.busy ? { task: f.busy, until: g.t + 1, net: true } : null;
-      if (f.hold === 'A' || f.hold === 'B') {
+      if (p.alive && (f.hold === 'A' || f.hold === 'B')) {
         const st = M.SAB_STATIONS['reactor' + f.hold];
         if (st && U.d2(p.x, p.y, st.x, st.y) < 2.4) g.reactorHold(p, f.hold);
       }
@@ -32219,6 +32301,7 @@ float auBayer(vec2 p) {
     exec(p, k, a) {
       const g = this.g, mt = g.meeting;
       const P = (id) => (Number.isInteger(id) ? g.players[id] : null);
+      const near = (st) => U.d2(p.x, p.y, M.SAB_STATIONS[st].x, M.SAB_STATIONS[st].y) < 2.4;
       switch (k) {
         case 'kill': {
           const v = P(a);
@@ -32262,14 +32345,15 @@ float auBayer(vec2 p) {
           if (tk) g.resetInspect(tk);
           break;
         }
+        /* sabotagem: só vivo conserta (como no jogo local), e perto do painel */
         case 'lt':
-          if (Number.isInteger(a) && a >= 0 && a < 5 && U.d2(p.x, p.y, M.SAB_STATIONS.lights.x, M.SAB_STATIONS.lights.y) < 2.4) g.fixLightsToggle(a, p);
+          if (p.alive && Number.isInteger(a) && a >= 0 && a < 5 && near('lights')) g.fixLightsToggle(a, p);
           break;
         case 'o2':
-          if (Array.isArray(a) && (a[0] === 'A' || a[0] === 'B')) g.o2Enter(a[0], String(a[1]).slice(0, 5), p);
+          if (p.alive && Array.isArray(a) && (a[0] === 'A' || a[0] === 'B') && near('o2' + a[0])) g.o2Enter(a[0], String(a[1]).slice(0, 5), p);
           break;
         case 'comms':
-          if (U.d2(p.x, p.y, M.SAB_STATIONS.comms.x, M.SAB_STATIONS.comms.y) < 2.4) g.fixComms(p);
+          if (p.alive && near('comms')) g.fixComms(p);
           break;
         case 'shift': {
           const q = P(a);
@@ -32283,7 +32367,7 @@ float auBayer(vec2 p) {
           g.vanish(p);
           break;
         case 'appear':
-          g.reappear(p);
+          if (p.invisUntil > g.t) g.reappear(p);
           break;
         case 'track': {
           const q = P(a);
@@ -32558,19 +32642,30 @@ float auBayer(vec2 p) {
             if (hh.busy && !hh.busy.minigame) hh.busy = null;
           } else hh.moving = false;
         }
+        /* interpolação: desenha os outros NET_DELAY atrás do relógio do anfitrião, em linha reta entre os dois
+           estados em volta desse instante. Velocidade constante (perseguir o último ponto fazia o boneco acelerar e
+           frear 12 vezes por segundo) */
+        const rt = performance.now() / 1000 + (g.netOff || 0) - NET_DELAY;
         for (const p of g.players) {
           if (p === hh) continue;
-          if (p.netX != null) {
-            const k = Math.min(1, dt * 12);
-            const dx = p.netX - p.x, dy = p.netY - p.y;
-            if (Math.hypot(dx, dy) > 4) {
-              p.x = p.netX;
-              p.y = p.netY;
-            } else {
-              p.x += dx * k;
-              p.y += dy * k;
+          const buf = p.netBuf;
+          if (buf && buf.length) {
+            let j = 0;
+            while (j < buf.length && buf[j][0] < rt) j++;
+            let a, b, u = 0;
+            if (j === 0) a = b = buf[0];
+            else if (j === buf.length) a = b = buf[buf.length - 1];
+            else {
+              a = buf[j - 1];
+              b = buf[j];
+              u = (rt - a[0]) / Math.max(0.001, b[0] - a[0]);
             }
-            p.moving = p.netMoving;
+            /* salto grande (duto, reunião): troca de uma vez quando chega a hora */
+            if (Math.hypot(b[1] - a[1], b[2] - a[2]) > 3) u = u < 1 ? 0 : 1;
+            p.x = a[1] + (b[1] - a[1]) * u;
+            p.y = a[2] + (b[2] - a[2]) * u;
+            p.facing = b[4];
+            p.moving = !!(a[3] || b[3]) && (b !== a || buf.length < 2 || rt - b[0] < 0.2);
             if (p.moving) {
               p.walkT += dt;
               g.footstep(p);
@@ -33269,6 +33364,13 @@ float auBayer(vec2 p) {
         this.applyGraphics();
       }
     },
+    /* o navegador perdeu o contexto de vídeo (aba no fundo, tela bloqueada): remonta o 3D; enquanto isso, 2D */
+    check3dLost() {
+      const R3 = AU.R3D;
+      if (!this.mode3d || !R3 || !R3.lost || R3.job) return;
+      R3.lost = false;
+      this.applyGraphics(true);
+    },
     /* monta o 3D aos poucos enquanto você está nos menus (a partida já começa com ele pronto) */
     prewarm(now) {
       const R3 = AU.R3D, ui = AU.Menu.S.ui;
@@ -33388,14 +33490,13 @@ float auBayer(vec2 p) {
        são freados como os da página); se o navegador não deixar, fica num setInterval comum. */
     startTicker() {
       if (this.ticker) return;
-      let last = performance.now();
       const tick = () => {
-        const now = performance.now();
-        const dt = Math.min(0.25, (now - last) / 1000);
-        last = now;
         const g = this.game;
         if (!g || !this.online || (this.screen !== 'game' && this.screen !== 'end')) return;
-        this.stepSim(g, dt);
+        /* aba visível: a simulação anda junto com o desenho (60 por segundo, movimento liso); o relógio só assume
+           quando o navegador para de dar quadros */
+        if (this.screen === 'game' && performance.now() - (this.rafSimAt || 0) < 150) return;
+        this.simNow(g);
       };
       try {
         const src = URL.createObjectURL(new Blob(['setInterval(function(){postMessage(0)},33);'], { type: 'text/javascript' }));
@@ -33410,6 +33511,14 @@ float auBayer(vec2 p) {
     stopTicker() {
       if (this.ticker) this.ticker.stop();
       this.ticker = null;
+    },
+    /* um passo da simulação online até agora (o relógio e os quadros usam o mesmo marcador: nunca contam o mesmo
+       tempo duas vezes) */
+    simNow(g) {
+      const now = performance.now();
+      const dt = this.simAt ? Math.min(0.25, (now - this.simAt) / 1000) : 0;
+      this.simAt = now;
+      if (dt > 0) this.stepSim(g, dt);
     },
     stepSim(g, dt) {
       const k = this.keys;
@@ -33438,8 +33547,11 @@ float auBayer(vec2 p) {
       this.last = ts;
       const g = this.game;
       if (!g || this.screen !== 'game') return;
-      /* online: a simulação anda no relógio próprio; aqui só desenha */
+      /* online: com a aba visível a simulação anda aqui, quadro a quadro; escondida, no relógio próprio */
       if (this.online && this.ticker) {
+        this.simNow(g);
+        this.rafSimAt = performance.now();
+        this.check3dLost();
         if (g.phase !== 'meeting' || !g.meeting) {
           if (this.mode3d && AU.R3D.active) {
             try {
@@ -33475,6 +33587,7 @@ float auBayer(vec2 p) {
           rest -= step;
         }
       }
+      this.check3dLost();
       /* na reunião a tela dela (e a abertura, opaca) cobre o mapa: não gasta desenhando o que ninguém vê */
       if (g.phase !== 'meeting' || !g.meeting) {
         if (this.mode3d && AU.R3D.active) {

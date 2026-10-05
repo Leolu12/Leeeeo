@@ -35,7 +35,12 @@
     shine.scale(0.07, 0.03, 0.02);
     const shadow = new THREE.CircleGeometry(0.5, 28);
     shadow.rotateX(-Math.PI / 2);
-    G = { body, ghost, half, leg, pack, visor, shine, shadow };
+    /* peças do corpo partido (uma vez só: cada morte reaproveita) */
+    const cap = new THREE.CircleGeometry(0.355, 32);
+    const shaft = new THREE.CylinderGeometry(0.05, 0.055, 0.32, 12);
+    const knob = new THREE.SphereGeometry(0.06, 12, 8);
+    const pool = new THREE.CircleGeometry(0.55, 28);
+    G = { body, ghost, half, leg, pack, visor, shine, shadow, cap, shaft, knob, pool };
     return G;
   }
 
@@ -64,7 +69,7 @@
     GHOST[colorId] = m;
     return m;
   }
-  let SHINE = null, SHADOW = null, FLESH = null, BONE = null;
+  let SHINE = null, SHADOW = null, FLESH = null, BONE = null, POOL = null;
   function shared() {
     if (SHINE) return;
     SHINE = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.8 });
@@ -78,6 +83,7 @@
     SHADOW = KIT.patch(new THREE.MeshBasicMaterial({ map: KIT.tex(c, true), transparent: true, depthWrite: false }), { ao: false });
     FLESH = KIT.patch(new THREE.MeshStandardMaterial({ color: '#7a0f1a', roughness: 0.35, metalness: 0, emissive: '#2a0006' }), { ao: false });
     BONE = KIT.patch(new THREE.MeshStandardMaterial({ color: '#f1ece0', roughness: 0.55 }), { ao: false });
+    POOL = KIT.patch(new THREE.MeshStandardMaterial({ color: '#3a0008', roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.85, depthWrite: false }), { ao: false });
   }
 
   /* ---------- chapéus em 3D ---------- */
@@ -139,7 +145,8 @@
     return HATS[hat].clone();
   }
 
-  /* ---------- mascotes ---------- */
+  /* ---------- mascotes (montados uma vez; cada jogador recebe uma cópia que divide a geometria) ---------- */
+  const PETS = {};
   function petMesh(pet, colorId) {
     if (!pet || pet === 'nenhum') return null;
     const g = new THREE.Group();
@@ -149,20 +156,26 @@
       g.add(a.group);
       g.userData.mini = a;
     } else if (pet === 'robo') {
-      const k = new KIT.Kit();
-      k.rbox(0.28, 0.24, 0.24, 0.05, KIT.MAT.metalLight, 0, 0.2, 0);
-      k.box(0.14, 0.05, 0.02, KIT.MAT.glow('#66ffff', 2), 0, 0.22, 0.125);
-      k.cyl(0.01, 0.01, 0.14, KIT.MAT.metalDark, 0, 0.38, 0, 6);
-      k.sphere(0.03, KIT.MAT.glow('#ff5a5a', 2), 0, 0.46, 0);
-      g.add(k.build({ receive: false }));
+      if (!PETS.robo) {
+        const k = new KIT.Kit();
+        k.rbox(0.28, 0.24, 0.24, 0.05, KIT.MAT.metalLight, 0, 0.2, 0);
+        k.box(0.14, 0.05, 0.02, KIT.MAT.glow('#66ffff', 2), 0, 0.22, 0.125);
+        k.cyl(0.01, 0.01, 0.14, KIT.MAT.metalDark, 0, 0.38, 0, 6);
+        k.sphere(0.03, KIT.MAT.glow('#ff5a5a', 2), 0, 0.46, 0);
+        PETS.robo = k.build({ receive: false });
+      }
+      g.add(PETS.robo.clone());
     } else if (pet === 'slime') {
-      const m = new THREE.MeshPhysicalMaterial({ color: '#7ee06b', roughness: 0.1, transmission: 0, transparent: true, opacity: 0.85, clearcoat: 1 });
-      KIT.patch(m, { ao: false });
-      const s = new THREE.Mesh(new THREE.SphereGeometry(0.17, 20, 14), m);
-      s.scale.set(1, 0.7, 1);
-      s.position.y = 0.12;
-      s.castShadow = true;
-      g.add(s);
+      if (!PETS.slime) {
+        const m = new THREE.MeshPhysicalMaterial({ color: '#7ee06b', roughness: 0.1, transmission: 0, transparent: true, opacity: 0.85, clearcoat: 1 });
+        KIT.patch(m, { ao: false });
+        const s = new THREE.Mesh(new THREE.SphereGeometry(0.17, 20, 14), m);
+        s.scale.set(1, 0.7, 1);
+        s.position.y = 0.12;
+        s.castShadow = true;
+        PETS.slime = s;
+      }
+      g.add(PETS.slime.clone());
     }
     return g;
   }
@@ -248,7 +261,7 @@
     const g = new THREE.Group();
     const sm = suit(colorId);
     const half = new THREE.Mesh(G.half, sm);
-    const cap = new THREE.Mesh(new THREE.CircleGeometry(0.355, 32), FLESH);
+    const cap = new THREE.Mesh(G.cap, FLESH);
     cap.rotation.x = -Math.PI / 2;
     cap.scale.set(1, 0.92, 1);
     cap.position.y = 0.515;
@@ -256,9 +269,9 @@
     pack.scale.set(1, 0.6, 1);
     pack.position.set(0, 0.36, -0.32);
     const bone = new THREE.Group();
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.055, 0.32, 12), BONE);
+    const shaft = new THREE.Mesh(G.shaft, BONE);
     shaft.position.y = 0.66;
-    const k1 = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), BONE);
+    const k1 = new THREE.Mesh(G.knob, BONE);
     k1.position.set(-0.05, 0.84, 0);
     const k2 = k1.clone();
     k2.position.x = 0.05;
@@ -270,7 +283,7 @@
       g.add(l);
     }
     /* poça escura no chão */
-    const pool = new THREE.Mesh(new THREE.CircleGeometry(0.55, 28), KIT.patch(new THREE.MeshStandardMaterial({ color: '#3a0008', roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.85, depthWrite: false }), { ao: false }));
+    const pool = new THREE.Mesh(G.pool, POOL);
     pool.rotation.x = -Math.PI / 2;
     pool.position.set(0.12, 0.012, 0.15);
     pool.scale.set(1.2, 0.8, 1);
@@ -437,7 +450,23 @@
       this.ghosts.clear();
     }
   }
-  /* alfa por ator: materiais clonados só quando precisa (invisível), para não mexer na cor dos outros */
+  /* alfa por ator: cópia transparente do material, feita só quando precisa (invisível) e guardada por material, para
+     não mexer na cor dos outros. A cópia leva o mesmo remendo de sombreamento (luz gravada, névoa): o clone do three
+     não copia o remendo, e sem ele o personagem ficava escuro e compilava um programa novo no meio da partida */
+  const FADE = new Map();
+  function fadeOf(base, alpha) {
+    let m = FADE.get(base);
+    if (!m) {
+      m = base.clone();
+      m.onBeforeCompile = base.onBeforeCompile;
+      m.customProgramCacheKey = base.customProgramCacheKey;
+      m.transparent = true;
+      m.depthWrite = false;
+      FADE.set(base, m);
+    }
+    m.opacity = alpha * base.opacity;
+    return m;
+  }
   function setAlpha(a, alpha) {
     const want = alpha < 0.99;
     if (want === !!a.faded && (!want || a.fadeA === alpha)) return;
@@ -447,11 +476,7 @@
       if (!o.isMesh) return;
       if (want) {
         if (!o.userData.base) o.userData.base = o.material;
-        const m = o.userData.base.clone();
-        m.transparent = true;
-        m.opacity = alpha;
-        m.depthWrite = false;
-        o.material = m;
+        o.material = fadeOf(o.userData.base, alpha);
       } else if (o.userData.base) {
         o.material = o.userData.base;
         o.userData.base = null;
@@ -459,5 +484,5 @@
     });
   }
 
-  AU.R3DActors = { Actors, makeCrew, makeBody, makeGhost };
+  AU.R3DActors = { Actors, makeCrew, makeBody, makeGhost, setAlpha };
 })();

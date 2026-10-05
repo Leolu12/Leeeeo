@@ -268,6 +268,13 @@
         this.applyGraphics();
       }
     },
+    /* o navegador perdeu o contexto de vídeo (aba no fundo, tela bloqueada): remonta o 3D; enquanto isso, 2D */
+    check3dLost() {
+      const R3 = AU.R3D;
+      if (!this.mode3d || !R3 || !R3.lost || R3.job) return;
+      R3.lost = false;
+      this.applyGraphics(true);
+    },
     /* monta o 3D aos poucos enquanto você está nos menus (a partida já começa com ele pronto) */
     prewarm(now) {
       const R3 = AU.R3D, ui = AU.Menu.S.ui;
@@ -387,14 +394,13 @@
        são freados como os da página); se o navegador não deixar, fica num setInterval comum. */
     startTicker() {
       if (this.ticker) return;
-      let last = performance.now();
       const tick = () => {
-        const now = performance.now();
-        const dt = Math.min(0.25, (now - last) / 1000);
-        last = now;
         const g = this.game;
         if (!g || !this.online || (this.screen !== 'game' && this.screen !== 'end')) return;
-        this.stepSim(g, dt);
+        /* aba visível: a simulação anda junto com o desenho (60 por segundo, movimento liso); o relógio só assume
+           quando o navegador para de dar quadros */
+        if (this.screen === 'game' && performance.now() - (this.rafSimAt || 0) < 150) return;
+        this.simNow(g);
       };
       try {
         const src = URL.createObjectURL(new Blob(['setInterval(function(){postMessage(0)},33);'], { type: 'text/javascript' }));
@@ -409,6 +415,14 @@
     stopTicker() {
       if (this.ticker) this.ticker.stop();
       this.ticker = null;
+    },
+    /* um passo da simulação online até agora (o relógio e os quadros usam o mesmo marcador: nunca contam o mesmo
+       tempo duas vezes) */
+    simNow(g) {
+      const now = performance.now();
+      const dt = this.simAt ? Math.min(0.25, (now - this.simAt) / 1000) : 0;
+      this.simAt = now;
+      if (dt > 0) this.stepSim(g, dt);
     },
     stepSim(g, dt) {
       const k = this.keys;
@@ -437,8 +451,11 @@
       this.last = ts;
       const g = this.game;
       if (!g || this.screen !== 'game') return;
-      /* online: a simulação anda no relógio próprio; aqui só desenha */
+      /* online: com a aba visível a simulação anda aqui, quadro a quadro; escondida, no relógio próprio */
       if (this.online && this.ticker) {
+        this.simNow(g);
+        this.rafSimAt = performance.now();
+        this.check3dLost();
         if (g.phase !== 'meeting' || !g.meeting) {
           if (this.mode3d && AU.R3D.active) {
             try {
@@ -474,6 +491,7 @@
           rest -= step;
         }
       }
+      this.check3dLost();
       /* na reunião a tela dela (e a abertura, opaca) cobre o mapa: não gasta desenhando o que ninguém vê */
       if (g.phase !== 'meeting' || !g.meeting) {
         if (this.mode3d && AU.R3D.active) {

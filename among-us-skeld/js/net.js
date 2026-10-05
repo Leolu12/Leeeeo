@@ -176,6 +176,8 @@
   };
 
   /* ---------- estado público da nave (o anfitrião manda; todos aplicam) ---------- */
+  /* quanto o amigo desenha os outros no passado: um pouco mais que o intervalo entre estados (0,08 s) */
+  const NET_DELAY = 0.12;
   const FL = { alive: 1, vent: 2, moving: 4, invis: 8, shield: 16, busy: 32, cams: 64, pop: 128, morph: 256, ejected: 512 };
   function snapshot(g) {
     const t = g.t;
@@ -223,6 +225,10 @@
     const t = sn.t;
     g.hostT = t;
     g.hostAt = performance.now();
+    /* relógio do anfitrião visto daqui: segue o estado que chegou mais rápido (menos atraso de rede) e se ajusta
+       devagar quando todos começam a atrasar */
+    const off = t - g.hostAt / 1000;
+    g.netOff = g.netOff == null || off > g.netOff ? off : g.netOff + (off - g.netOff) * 0.02;
     if (g.t < t - 0.5 || g.t > t + 0.5) g.t = t;
     sn.pl.forEach((a, i) => {
       const p = g.players[i];
@@ -252,15 +258,17 @@
         }
         return;
       }
-      p.netX = x;
-      p.netY = y;
+      /* os outros: guarda o ponto com o relógio do anfitrião; o quadro desenha um pouco no passado, entre dois pontos
+         conhecidos (ver Client.update) */
+      const buf = p.netBuf || (p.netBuf = []);
+      if (!buf.length || t > buf[buf.length - 1][0]) buf.push([t, x, y, f & FL.moving ? 1 : 0, facing]);
+      if (buf.length > 12) buf.shift();
       if (p.netInit == null) {
         p.x = x;
         p.y = y;
+        p.facing = facing;
         p.netInit = 1;
       }
-      p.facing = facing;
-      p.netMoving = !!(f & FL.moving);
       if (Math.abs(walkT - p.walkT) > 1) p.walkT = walkT;
     });
     /* corpos */
@@ -561,48 +569,66 @@
       }
     }
     /* posição que o amigo mandou: aceita se dava para chegar lá andando no tempo que passou (sem atravessar parede);
-       longe demais, anda até o limite em linha reta, ou fica onde está (o aparelho dele é corrigido pelo estado) */
+       longe demais, anda até o limite em linha reta, ou fica onde está (o aparelho dele é corrigido pelo estado).
+       A posição aceita é um alvo: o boneco desliza até ela a cada quadro. A presença chega ~15 vezes por segundo e o
+       jogo roda a 60; pulando direto para ela, aqui o amigo andava aos trancos e as pernas piscavam entre andar e
+       parado (e isso ia no estado para os outros) */
     movePlayer(p, pr, dt) {
       const g = this.g;
       if (g.phase !== 'play' || p.inVent) {
         p.netLastT = g.t;
+        p.netAx = null;
         return;
       }
+      /* o jogo mudou a posição por conta própria (saiu do duto, matou e foi para o corpo, reunião): recomeça dali */
+      if (p.netAx == null || p.x !== p.netSx || p.y !== p.netSy) {
+        p.netAx = p.x;
+        p.netAy = p.y;
+      }
       const pos = Array.isArray(pr.pos) ? pr.pos : null;
-      if (!pos) return;
-      const x = +pos[0], y = +pos[1];
-      if (!isFinite(x) || !isFinite(y) || x < 0 || y < 0 || x > M.W || y > M.H) return;
-      const ghost = !p.alive;
-      const d = U.d2(p.x, p.y, x, y);
-      const since = Math.min(1, Math.max(dt, g.t - (p.netLastT == null ? g.t - dt : p.netLastT)));
-      const allowed = g.speedOf(p) * since * 1.35 + 0.35;
-      if (d < 0.002) {
-        p.netLastT = g.t;
-      } else if (d <= allowed && (ghost || g.canStand(x, y, false))) {
-        p.facing = x < p.x ? -1 : 1;
-        p.x = x;
-        p.y = y;
+      const x = pos ? +pos[0] : NaN, y = pos ? +pos[1] : NaN;
+      if (isFinite(x) && isFinite(y) && x >= 0 && y >= 0 && x <= M.W && y <= M.H) {
+        const ghost = !p.alive, ax = p.netAx, ay = p.netAy;
+        const d = U.d2(ax, ay, x, y);
+        const since = Math.min(1, Math.max(dt, g.t - (p.netLastT == null ? g.t - dt : p.netLastT)));
+        const allowed = g.speedOf(p) * since * 1.35 + 0.35;
+        if (d < 0.002) {
+          p.netLastT = g.t;
+        } else if (d <= allowed && (ghost || g.canStand(x, y, false))) {
+          p.netAx = x;
+          p.netAy = y;
+          p.netLastT = g.t;
+        } else if (ghost || AU.Nav.clearLine(ax, ay, x, y, false)) {
+          const k = allowed / d, nx = ax + (x - ax) * k, ny = ay + (y - ay) * k;
+          if (ghost || g.canStand(nx, ny, false)) {
+            p.netAx = nx;
+            p.netAy = ny;
+            p.netLastT = g.t;
+          }
+        }
+      }
+      /* desliza até o alvo (um pouco mais rápido que a passada, para não ficar para trás; atrasado, recupera). Entre
+         uma posição e outra o boneco chega antes da próxima: segue "andando" um instante, sem a perna parar e voltar */
+      const dx = p.netAx - p.x, dy = p.netAy - p.y, dd = Math.hypot(dx, dy);
+      if (dd > 0.002) {
+        const k = Math.min(1, Math.max(g.speedOf(p) * dt * 1.1, dd * Math.min(1, dt * 6)) / dd);
+        if (Math.abs(dx) > 0.01) p.facing = dx < 0 ? -1 : 1;
+        p.x += dx * k;
+        p.y += dy * k;
+        p.netWalkUntil = g.t + 0.14;
+      }
+      if (dd > 0.002 || g.t < (p.netWalkUntil || 0)) {
         p.moving = true;
         p.walkT += dt;
         g.footstep(p);
-        p.netLastT = g.t;
-      } else if (ghost || AU.Nav.clearLine(p.x, p.y, x, y, false)) {
-        const k = allowed / d, nx = p.x + (x - p.x) * k, ny = p.y + (y - p.y) * k;
-        if (ghost || g.canStand(nx, ny, false)) {
-          p.facing = x < p.x ? -1 : 1;
-          p.x = nx;
-          p.y = ny;
-          p.moving = true;
-          p.walkT += dt;
-          g.footstep(p);
-          p.netLastT = g.t;
-        }
       }
+      p.netSx = p.x;
+      p.netSy = p.y;
       const f = pr.f || {};
       p.onCams = !!f.cams && p.alive && U.d2(p.x, p.y, M.SECURITY.x, M.SECURITY.y) < 3;
       p.onAdmin = !!f.admin && U.d2(p.x, p.y, M.ADMIN_TABLE.x, M.ADMIN_TABLE.y) < 3;
       p.busy = f.busy ? { task: f.busy, until: g.t + 1, net: true } : null;
-      if (f.hold === 'A' || f.hold === 'B') {
+      if (p.alive && (f.hold === 'A' || f.hold === 'B')) {
         const st = M.SAB_STATIONS['reactor' + f.hold];
         if (st && U.d2(p.x, p.y, st.x, st.y) < 2.4) g.reactorHold(p, f.hold);
       }
@@ -626,6 +652,7 @@
     exec(p, k, a) {
       const g = this.g, mt = g.meeting;
       const P = (id) => (Number.isInteger(id) ? g.players[id] : null);
+      const near = (st) => U.d2(p.x, p.y, M.SAB_STATIONS[st].x, M.SAB_STATIONS[st].y) < 2.4;
       switch (k) {
         case 'kill': {
           const v = P(a);
@@ -669,14 +696,15 @@
           if (tk) g.resetInspect(tk);
           break;
         }
+        /* sabotagem: só vivo conserta (como no jogo local), e perto do painel */
         case 'lt':
-          if (Number.isInteger(a) && a >= 0 && a < 5 && U.d2(p.x, p.y, M.SAB_STATIONS.lights.x, M.SAB_STATIONS.lights.y) < 2.4) g.fixLightsToggle(a, p);
+          if (p.alive && Number.isInteger(a) && a >= 0 && a < 5 && near('lights')) g.fixLightsToggle(a, p);
           break;
         case 'o2':
-          if (Array.isArray(a) && (a[0] === 'A' || a[0] === 'B')) g.o2Enter(a[0], String(a[1]).slice(0, 5), p);
+          if (p.alive && Array.isArray(a) && (a[0] === 'A' || a[0] === 'B') && near('o2' + a[0])) g.o2Enter(a[0], String(a[1]).slice(0, 5), p);
           break;
         case 'comms':
-          if (U.d2(p.x, p.y, M.SAB_STATIONS.comms.x, M.SAB_STATIONS.comms.y) < 2.4) g.fixComms(p);
+          if (p.alive && near('comms')) g.fixComms(p);
           break;
         case 'shift': {
           const q = P(a);
@@ -690,7 +718,7 @@
           g.vanish(p);
           break;
         case 'appear':
-          g.reappear(p);
+          if (p.invisUntil > g.t) g.reappear(p);
           break;
         case 'track': {
           const q = P(a);
@@ -965,19 +993,30 @@
             if (hh.busy && !hh.busy.minigame) hh.busy = null;
           } else hh.moving = false;
         }
+        /* interpolação: desenha os outros NET_DELAY atrás do relógio do anfitrião, em linha reta entre os dois
+           estados em volta desse instante. Velocidade constante (perseguir o último ponto fazia o boneco acelerar e
+           frear 12 vezes por segundo) */
+        const rt = performance.now() / 1000 + (g.netOff || 0) - NET_DELAY;
         for (const p of g.players) {
           if (p === hh) continue;
-          if (p.netX != null) {
-            const k = Math.min(1, dt * 12);
-            const dx = p.netX - p.x, dy = p.netY - p.y;
-            if (Math.hypot(dx, dy) > 4) {
-              p.x = p.netX;
-              p.y = p.netY;
-            } else {
-              p.x += dx * k;
-              p.y += dy * k;
+          const buf = p.netBuf;
+          if (buf && buf.length) {
+            let j = 0;
+            while (j < buf.length && buf[j][0] < rt) j++;
+            let a, b, u = 0;
+            if (j === 0) a = b = buf[0];
+            else if (j === buf.length) a = b = buf[buf.length - 1];
+            else {
+              a = buf[j - 1];
+              b = buf[j];
+              u = (rt - a[0]) / Math.max(0.001, b[0] - a[0]);
             }
-            p.moving = p.netMoving;
+            /* salto grande (duto, reunião): troca de uma vez quando chega a hora */
+            if (Math.hypot(b[1] - a[1], b[2] - a[2]) > 3) u = u < 1 ? 0 : 1;
+            p.x = a[1] + (b[1] - a[1]) * u;
+            p.y = a[2] + (b[2] - a[2]) * u;
+            p.facing = b[4];
+            p.moving = !!(a[3] || b[3]) && (b !== a || buf.length < 2 || rt - b[0] < 0.2);
             if (p.moving) {
               p.walkT += dt;
               g.footstep(p);

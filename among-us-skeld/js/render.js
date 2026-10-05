@@ -586,6 +586,11 @@
       if (!ctx) return;
       const h = g.human;
       if (h) {
+        /* pulo grande (fim da reunião, duto para longe): corta direto */
+        if (Math.hypot(h.x - this.cam.x, h.y - this.cam.y) > 7) {
+          this.cam.x = h.x;
+          this.cam.y = h.y;
+        }
         this.cam.x += (h.x - this.cam.x) * 0.25;
         this.cam.y += (h.y - this.cam.y) * 0.25;
       }
