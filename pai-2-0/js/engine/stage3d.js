@@ -1314,9 +1314,14 @@
     last = now;
     if (!(dt > 0)) dt = 0;
     adaptQuality(dt);
-    if (dt > 0.1) dt = 0.1;
+    // no modo de teste (q=low) o tempo segue o relógio mesmo com poucos quadros por segundo
+    if (dt > (P2.lowQuality ? 0.5 : 0.1)) dt = P2.lowQuality ? 0.5 : 0.1;
     P2.realTime += dt;
-    if (!P2.paused) update(dt);
+    if (!P2.paused) {
+      // passos de no máximo 0,1 s (colisões e animações estáveis mesmo quando o quadro demora)
+      const n = Math.max(1, Math.ceil(dt / 0.1 - 1e-6));
+      for (let k = 0; k < n; k++) update(dt / n);
+    }
     nextFrame.splice(0).forEach((fn) => { try { fn(); } catch (e) { console.error(e); } });
     try {
       updateCamera(P2.paused ? 0 : dt);
