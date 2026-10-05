@@ -9,7 +9,7 @@
   const ui = P2.ui;
 
   P2.chapters = P2.chapters || {};
-  P2.CHAPTER_ORDER = ['prologo', 'cap1', 'cap2', 'cap3', 'cap4', 'cap5', 'cap6', 'cap7', 'cap8', 'cap9', 'epilogo'];
+  P2.CHAPTER_ORDER = ['prologo', 'cap1', 'cap2', 'cap3', 'cap4', 'cap5', 'cap6', 'cap7', 'cap8', 'cap9', 'cap10', 'cap11', 'epilogo'];
   P2.chapter = function (def) {
     if (!def || !def.id) return;
     P2.chapters[def.id] = def;
