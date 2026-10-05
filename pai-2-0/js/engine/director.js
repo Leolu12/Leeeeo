@@ -564,10 +564,17 @@
     running = null;
   };
 
+  // Só contam os capítulos carregados (uma versão de teste pode não ter todos).
   D.nextId = function (id) {
     const i = P2.CHAPTER_ORDER.indexOf(id);
-    return i >= 0 && i < P2.CHAPTER_ORDER.length - 1 ? P2.CHAPTER_ORDER[i + 1] : null;
+    if (i < 0) return null;
+    for (let j = i + 1; j < P2.CHAPTER_ORDER.length; j++) if (P2.chapters[P2.CHAPTER_ORDER[j]]) return P2.CHAPTER_ORDER[j];
+    return null;
   };
+  function prevLoaded(i) {
+    for (let j = i - 1; j >= 0; j--) if (P2.chapters[P2.CHAPTER_ORDER[j]]) return P2.CHAPTER_ORDER[j];
+    return null;
+  }
   D.isUnlocked = function (id) {
     const data = P2.save.data;
     const i = P2.CHAPTER_ORDER.indexOf(id);
@@ -575,7 +582,8 @@
     if (data.settings.unlockAll) return true;
     if (data.progress.completed[id]) return true;
     if (data.progress.current && data.progress.current.id === id) return true;
-    return !!data.progress.completed[P2.CHAPTER_ORDER[i - 1]];
+    const prev = prevLoaded(i);
+    return !prev || !!data.progress.completed[prev];
   };
 
   D.start = async function (id, part) {
