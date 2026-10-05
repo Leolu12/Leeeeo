@@ -62,7 +62,7 @@
         await G.fadeIn(0.8);
         G.music('manha');
         await G.cutscene(async () => {
-          await G.narrate('Este é {pai}. Trinta anos de estrada, uma empresa nas costas e um bigode que já viu de tudo.');
+          await G.narrate('Este é {pai}. Muitos anos de estrada, uma empresa nas costas e um bigode que já viu de tudo.');
           G.pai.play('stretch', 1.6);
           await G.wait(1.2);
           await G.narrate('Ele não é contra novidade. Ele é contra perder tempo. São coisas diferentes — e ele faz questão de lembrar.');
@@ -150,7 +150,7 @@
         } else if (ceticismo === 'inventou') {
           await G.say('pai', 'Já testei. Inventou um número que não existia.', { expr: 'bravo' });
           await G.say('filho', 'Inventa mesmo. Acontece. Por isso eu não quero que você acredite nela.', { expr: 'sem_graca' });
-          await G.say('filho', 'Quero que você aprenda a conferir ela. Do jeito que você confere relatório de diretor novo.');
+          await G.say('filho', 'Quero que você aprenda a conferir o que ela diz. Do jeito que você confere relatório de diretor novo.');
         } else {
           await G.say('pai', 'Não sou dessas coisas, não. Sou do papel e da caneta.', { expr: 'orgulhoso' });
           await G.say('filho', 'Então você vai gostar: dá para pedir falando, em português normal, sem comando nenhum.');
@@ -218,7 +218,7 @@
             { k: 'assino', t: 'Eu assino.', s: 'O que sai com o meu nome passou pelos meus olhos.' },
           ];
           const assinadas = {};
-          api.say('Assine as regras do seu dia. Clique em cada uma para assinar com a sua caneta.', 'faisca');
+          api.say('Assine as regras do seu dia: toque em cada uma para assinar com a sua caneta.', 'faisca');
           const grid = api.el('div', 'mg-col');
           regras.forEach((r, i) => {
             const b = api.el('button', 'mg-card', [api.el('b', null, '✍️ ' + r.t), api.el('small', null, r.s)]);
@@ -274,12 +274,17 @@
           G.faisca.play('jump', 1);
           await G.say('faisca', '"Dessa vez" é exatamente o espírito. Gostei do seu jeito de conferir.');
         } else {
-          await G.say('faisca', 'Hoje passa. Mas, entre nós: o seu "deixa eu ver" vale mais do que a minha lista. Confere um, só para criar o hábito.');
           G.faisca.play('doubt', 1.2);
-          await G.narrate('Ele abre a mensagem do cliente, por via das dúvidas. É urgente mesmo.');
-          await G.say('pai', 'Está bem. Acertou. Dessa vez.', { expr: 'desconfiado' });
+          await G.say('faisca', 'Pode. Mas, entre nós: o seu "deixa eu ver" vale mais do que a minha lista. Que tal conferir um, só para criar o hábito?');
+          await G.say('pai', 'Um só. Para você não ficar se achando.', { expr: 'rindo' });
+          await G.narrate('Ele abre a mensagem do cliente. É urgente mesmo: resposta até o meio-dia.');
+          await G.say('pai', 'Acertou. Dessa vez.', { expr: 'desconfiado' });
         }
-        await G.say('pai', 'Vinte segundos para separar quarenta e sete e-mails. Isso eu levaria uns quinze minutos.', { expr: 'pensativo' });
+        if (mostrar === 'assuntos') {
+          await G.say('pai', 'Vinte segundos para separar quarenta e sete e-mails. Eu levaria uns quinze minutos.', { expr: 'pensativo' });
+        } else {
+          await G.say('pai', 'O dia inteiro arrumado em meio minuto. E ainda me disse o que não sabia. Isso é raro até em gente.', { expr: 'pensativo' });
+        }
         await G.say('filho', 'E foi só o aquecimento.', { expr: 'orgulhoso' });
         await G.say('filho', 'Eu vou trabalhar daqui a pouco. Hoje à noite você me conta, tá?');
         await G.say('pai', 'Vou contar. Se tiver o que contar.', { expr: 'desconfiado' });
