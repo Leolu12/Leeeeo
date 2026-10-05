@@ -142,6 +142,7 @@
           { text: '"Não sou dessas coisas. Sou do papel e da caneta."', value: 'caneta' },
         ], { prompt: 'O que você responde?', who: 'pai' });
         G.v.ceticismo = ceticismo;
+        G.flag('ceticismo', ceticismo); // global: outros capítulos e o chefão podem lembrar disso
         if (ceticismo === 'modinha') {
           await G.say('pai', 'Isso aí é modinha. Daqui a pouco passa.', { expr: 'desconfiado' });
           await G.say('filho', 'Pode ser que muita coisa em volta dela passe. Mas o pessoal que eu conheço não usa para aparecer: usa para ganhar tempo em tarefa chata.');
