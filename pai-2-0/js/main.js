@@ -1,6 +1,7 @@
 /* PAI 2.0 — main.js
- * Início do jogo: tela de título, preparação (feita pelo filho/filha),
- * entrega, seleção de capítulos, conquistas, opções, fontes e créditos.
+ * Início: carregamento, tela de título em 3D, preparação (feita pelo
+ * filho/filha), entrega, capítulos, conquistas, opções, Guia do CEO,
+ * fontes e créditos. Também cuida do layout (painel sobre a cena).
  */
 (function () {
   'use strict';
@@ -13,6 +14,7 @@
 
   const main = (P2.main = {});
   let screenEl = null;
+  let onTitle = false;
 
   // ------------------------------------------------------------------
   // Utilidades de tela
@@ -31,44 +33,47 @@
     screenEl.hidden = true;
     screenEl.innerHTML = '';
   }
+  main.openScreen = openScreen;
+  main.closeScreen = closeScreen;
   function sfx(n) { if (P2.audio) P2.audio.sfx(n); }
-  function chapterLabel(def) {
-    if (!def) return '';
-    return (def.num ? def.num + ' · ' : '') + def.title;
-  }
-  function setTopLabel(text) {
-    const l = $('#chap-label');
-    if (l) l.textContent = text || 'Pai 2.0';
-  }
+  function chapterLabel(def) { return def ? (def.num ? def.num + ' · ' : '') + def.title : ''; }
+  function setTopLabel(text) { const l = $('#chap-label'); if (l) l.textContent = text || 'Pai 2.0'; }
   function confirmCard(titulo, texto, sim, nao) {
     return ui.card({ kind: 'warn', kicker: 'Confirmar', icon: '⚠️', titulo, texto, botoes: [{ label: nao || 'Cancelar', value: false }, { label: sim || 'Sim', value: true, primary: true }] }).catch(() => false);
   }
+  const backBtn = (fn) => ui.btn('◀ Voltar', fn || (() => { closeScreen(); main.showTitle(); }), { cls: 'ghost' });
 
   // ------------------------------------------------------------------
-  // Tela de título
+  // Tela de título (cena 3D girando devagar)
   // ------------------------------------------------------------------
   main.inChapter = () => !!D.running();
   main.showTitle = function () {
     D.abort();
     closeScreen();
     setTopLabel('Pai 2.0');
+    onTitle = true;
     core.clearActors();
     core.resetCamera();
     core.tint(null);
-    core.setScene('titulo', {});
+    const envId = P2.envs.titulo ? 'titulo' : P2.envs.escritorio ? 'escritorio' : 'void';
+    core.setScene(envId, envId === 'escritorio' ? { time: 'tarde', screen: 'chat', papers: 0.3 } : {});
     core.setFade(1);
-    core.fadeIn(0.8).catch(() => {});
-    const fa = core.actor('faisca', { x: 160, dir: 1 });
+    core.fadeIn(1.2).catch(() => {});
+    const env = core.world.env;
+    const fs = env && env.spots && (env.spots.faisca || env.spots.centro);
+    const fa = core.actor('faisca');
+    fa.at(fs || { x: 0, z: 0 });
+    fa.y = fs && fs.y != null ? fs.y : 1.2;
     fa.setAnim('idle');
-    fa.y = core.floorY();
+    fa.face('camera', true);
     if (P2.audio && P2.audio.current !== 'titulo') P2.audio.music('titulo');
     // logo
     const ov = ui.refs().stageOverlay;
     ov.innerHTML = '';
     ov.hidden = false;
     ov.appendChild(el('div', 'logo-wrap', [
-      el('div', 'logo', [document.createTextNode('PAI '), el('span', 'two', '2.0')]),
-      el('div', 'logo-sub', 'um dia com a IA'),
+      el('div', 'logo', [document.createTextNode('Pai '), el('span', 'two', '2.0')]),
+      el('div', 'logo-sub', 'um dia de CEO com a IA'),
     ]));
     // menu no painel
     ui.setMode('menuPanel');
@@ -84,34 +89,33 @@
     }
     menu.appendChild(ui.btn(data.profile ? 'Novo jogo' : '▶ Começar', () => newGame(), { cls: data.profile ? '' : 'primary big', key: String(k++) }));
     if (data.profile) menu.appendChild(ui.btn('Capítulos', () => showChapters(), { key: String(k++) }));
+    menu.appendChild(ui.btn('📘 Guia do CEO', () => openGuide(), { key: String(k++) }));
     menu.appendChild(ui.btn('Conquistas', () => showAchievements(), { key: String(k++) }));
     menu.appendChild(ui.btn('Opções', () => showOptions(), { key: String(k++) }));
     menu.appendChild(ui.btn('Fontes e créditos', () => showCredits(), { key: String(k++) }));
     box.appendChild(menu);
     const foot = el('div', 'title-foot');
-    if (data.profile) foot.textContent = 'Preparado com carinho para ' + D.profile().pai + '.';
-    else foot.textContent = 'Uma aventura de 60 a 90 minutos. Dá para parar e continuar depois.';
+    foot.textContent = data.profile ? 'Preparado com carinho para ' + D.profile().pai + '.' : 'Uma aventura de 60 a 90 minutos, em capítulos curtos. Dá para parar e continuar depois.';
     box.appendChild(foot);
     if (!P2.save.available) box.appendChild(el('p', 'title-foot', 'Aviso: este navegador não está permitindo salvar o progresso.'));
-    if (window.innerHeight > window.innerWidth && window.innerWidth < 600) box.appendChild(el('p', 'title-foot', '📱 Dica: com o celular deitado, a cena fica maior.'));
-    // teclado: números acionam botões do menu
     if (titleInput) ui.popInput(titleInput);
     titleInput = ui.pushInput({ root: box });
   };
   let titleInput = null;
   function leaveTitle() {
+    onTitle = false;
     if (titleInput) { ui.popInput(titleInput); titleInput = null; }
     const ov = ui.refs().stageOverlay;
     ov.innerHTML = '';
     ov.hidden = true;
   }
-
   function startChapter(id, part) {
     leaveTitle();
     closeScreen();
     if (P2.audio) P2.audio.init();
     D.start(id, part || 0);
   }
+  main.startChapter = startChapter;
 
   // ------------------------------------------------------------------
   // Preparação (feita por quem dá o presente)
@@ -124,33 +128,19 @@
     }
     showSetup(false);
   }
-
-  const SKINS = [
-    ['claro', 'Claro', '#f7c9a8'],
-    ['medio', 'Médio', '#d9a07a'],
-    ['escuro', 'Escuro', '#8a5a3c'],
-  ];
+  const SKINS = [['claro', 'Claro', '#f2c9a6'], ['medio', 'Médio', '#d39a6e'], ['escuro', 'Escuro', '#8a5a3c']];
   function showSetup(editOnly) {
     const prev = P2.save.data.profile || {};
     const st = {
-      pai: prev.pai || '',
-      apelido: prev.apelido || 'Pai',
-      filho: prev.filho || '',
-      genero: prev.genero || 'filho',
-      prof: prev.prof || null,
-      skin: prev.skin || 'medio',
-      recado: prev.recado || '',
+      pai: prev.pai || '', apelido: prev.apelido || 'Pai', filho: prev.filho || '', genero: prev.genero || 'filho',
+      skin: prev.skin || 'medio', empresa: prev.empresa || '', setor: prev.setor || '', recado: prev.recado || '',
     };
     openScreen((root) => {
       root.appendChild(el('div', 'screen-title', editOnly ? 'Editar personalização' : 'Antes de entregar o presente…'));
-      root.appendChild(el('p', 'screen-sub', 'Esta parte é para quem vai dar o jogo. Preencha com calma: o nome, o jeito de chamar e a profissão aparecem na história toda. Depois é só entregar.'));
+      root.appendChild(el('p', 'screen-sub', 'Esta parte é para quem vai dar o jogo. O nome, o jeito de chamar e a empresa aparecem na história e nos exemplos. Leva dois minutos. Depois é só entregar.'));
       const form = el('div', 'paper form');
       root.appendChild(form);
-      const field = (label, control, hint) => {
-        const f = el('div', 'field', [el('div', 'flabel', label), control, hint ? el('small', null, hint) : null]);
-        form.appendChild(f);
-        return f;
-      };
+      const field = (label, control, hint) => { const f = el('div', 'field', [el('div', 'flabel', label), control, hint ? el('small', null, hint) : null]); form.appendChild(f); return f; };
       const input = (val, ph, max, onIn) => {
         const i = el('input', 'input');
         i.type = 'text'; i.value = val; i.placeholder = ph; i.maxLength = max; i.autocomplete = 'off';
@@ -167,8 +157,7 @@
         b.addEventListener('click', () => { inAp.value = c; st.apelido = c; refreshBtn(); sfx('select'); });
         chips.appendChild(b);
       });
-      const apWrap = el('div', 'mg-col', [inAp, chips]);
-      field('Como você chama ele?', apWrap, 'É assim que você vai falar com ele no jogo.');
+      field('Como você chama ele?', el('div', 'mg-col', [inAp, chips]), 'É assim que você fala com ele no jogo.');
       const inFi = input(st.filho, 'Seu nome', 24, (v) => { st.filho = v; });
       field('Seu nome', inFi);
       const gen = el('div', 'seg');
@@ -179,21 +168,10 @@
         gen.appendChild(b);
       });
       field('Quem está dando o jogo?', gen);
-      const grid = el('div', 'prof-grid');
-      P2.PROF_ORDER.forEach((id) => {
-        const p = P2.PROFS[id];
-        const b = el('button', 'prof-card' + (st.prof === id ? ' on' : ''), [el('span', 'pi', p.icon), el('span', null, [el('b', null, p.label), el('small', null, p.desc)])]);
-        b.type = 'button';
-        b.addEventListener('click', () => {
-          st.prof = id;
-          Array.from(grid.children).forEach((c) => c.classList.remove('on'));
-          b.classList.add('on');
-          sfx('select');
-          err.textContent = '';
-        });
-        grid.appendChild(b);
-      });
-      field('Profissão dele', grid, 'As tarefas, o chefe ou cliente e as dicas finais mudam conforme a profissão.');
+      const inEmp = input(st.empresa, 'Ex.: Andrade Alimentos (opcional)', 40, (v) => { st.empresa = v; });
+      field('Nome da empresa dele', inEmp, 'Opcional. Aparece em placas, no certificado e nos prompts prontos.');
+      const inSet = input(st.setor, 'Ex.: distribuição de alimentos, construção, varejo… (opcional)', 60, (v) => { st.setor = v; });
+      field('Ramo da empresa', inSet, 'Opcional. Usado para deixar os prompts do Guia do CEO prontos para o negócio dele.');
       const sw = el('div', 'swatches');
       SKINS.forEach(([v, l, c]) => {
         const i = el('i');
@@ -203,17 +181,17 @@
         b.addEventListener('click', () => { st.skin = v; Array.from(sw.children).forEach((x) => x.classList.remove('on')); b.classList.add('on'); sfx('select'); });
         sw.appendChild(b);
       });
-      field('Tom de pele dos personagens (pai e você)', sw);
+      field('Tom de pele dos personagens (ele e você)', sw);
       const ta = el('textarea', 'textarea');
-      ta.maxLength = 600;
-      ta.placeholder = 'Ex.: Pai, fiz isso porque acho que vai te poupar tempo. Não precisa virar expert, só testar. Te amo.';
+      ta.maxLength = 700;
+      ta.placeholder = 'Ex.: Pai, fiz isso porque sei o quanto você trabalha. Não precisa virar expert: é só testar do seu jeito. Te amo.';
       ta.value = st.recado;
       ta.addEventListener('input', () => { st.recado = ta.value; });
-      field('Um recado seu para ele ler no final (opcional)', ta, 'Aparece numa carta no fim do jogo. Até 600 letras.');
+      field('Um recado seu para ele ler no final (opcional)', ta, 'Aparece numa carta no fim do jogo.');
       const err = el('div', 'error-msg');
       form.appendChild(err);
       const actions = el('div', 'form-actions');
-      actions.appendChild(ui.btn('◀ Voltar', () => { closeScreen(); main.showTitle(); }, { cls: 'ghost' }));
+      actions.appendChild(backBtn());
       const go = ui.btn('Pronto!', () => submit(), { cls: 'primary big' });
       actions.appendChild(go);
       form.appendChild(actions);
@@ -223,12 +201,10 @@
       }
       refreshBtn();
       function submit() {
-        st.pai = (st.pai || '').trim();
-        st.filho = (st.filho || '').trim();
-        st.apelido = (st.apelido || '').trim() || 'Pai';
+        ['pai', 'filho', 'apelido', 'empresa', 'setor'].forEach((k) => (st[k] = (st[k] || '').trim()));
+        st.apelido = st.apelido || 'Pai';
         if (!st.pai) { err.textContent = 'Falta o nome do seu pai.'; inPai.focus(); sfx('error'); return; }
         if (!st.filho) { err.textContent = 'Falta o seu nome.'; inFi.focus(); sfx('error'); return; }
-        if (!st.prof) { err.textContent = 'Escolha a profissão dele.'; sfx('error'); grid.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
         sfx('confirm');
         if (editOnly) {
           P2.save.data.profile = Object.assign({}, st);
@@ -246,15 +222,14 @@
       setTimeout(() => { if (!st.pai) inPai.focus(); }, 80);
     });
   }
-
   function showHandoff() {
     const pr = D.profile();
     openScreen((root) => {
       const box = el('div', 'handoff');
       box.appendChild(el('div', 'screen-sub', 'Tudo pronto. Agora é só entregar o ' + (window.innerWidth < 700 ? 'celular' : 'computador') + ' para ele.'));
       box.appendChild(el('div', 'big', 'Oi, ' + pr.pai + '!'));
-      box.appendChild(el('p', null, D.t('{filho} preparou este jogo para você. São uns capítulos curtos, dá para parar e continuar depois.')));
-      box.appendChild(el('p', 'muted', 'Para avançar o texto: toque na caixa de diálogo, ou aperte Espaço/Enter. O tamanho da letra muda no botão "A+" lá em cima.'));
+      box.appendChild(el('p', null, D.t('{filho} preparou este jogo para você. São capítulos curtos, dá para parar e continuar depois.')));
+      box.appendChild(el('p', 'screen-sub', 'Para avançar: toque na caixa de texto ou aperte Espaço/Enter. Arraste a cena para olhar em volta. A letra aumenta no botão "A+" lá em cima.'));
       const b = ui.btn('Sou o ' + pr.pai + '. Vamos começar ▶', () => startChapter('prologo', 0), { cls: 'primary big' });
       box.appendChild(b);
       root.appendChild(box);
@@ -263,7 +238,7 @@
   }
 
   // ------------------------------------------------------------------
-  // Capítulos
+  // Capítulos, conquistas, opções, créditos
   // ------------------------------------------------------------------
   function showChapters() {
     const data = P2.save.data;
@@ -273,15 +248,16 @@
       const grid = el('div', 'chap-grid');
       P2.CHAPTER_ORDER.forEach((id) => {
         const def = P2.chapters[id];
-        const unlocked = D.isUnlocked(id) && !!def;
+        if (!def) return;
+        const unlocked = D.isUnlocked(id);
         const done = !!data.progress.completed[id];
         const isCur = data.progress.current && data.progress.current.id === id;
         const card = el('button', 'chap-card' + (done ? ' done' : '') + (!unlocked ? ' locked' : '') + (isCur ? ' current' : ''));
         card.type = 'button';
-        card.appendChild(el('span', 'ck', def ? def.num || '' : id));
-        card.appendChild(el('span', 'ct', def ? def.title : 'Em breve'));
-        if (def && def.subtitle) card.appendChild(el('span', 'cs', def.subtitle));
-        if (def && def.minutes) card.appendChild(el('span', 'cs', '≈ ' + def.minutes + ' min'));
+        card.appendChild(el('span', 'ck', def.num || ''));
+        card.appendChild(el('span', 'ct', def.title));
+        if (def.subtitle) card.appendChild(el('span', 'cs', def.subtitle));
+        if (def.minutes) card.appendChild(el('span', 'cs', '≈ ' + def.minutes + ' min'));
         card.appendChild(el('span', 'cstate', !unlocked ? '🔒' : done ? '✓ feito' : isCur ? '▶ atual' : ''));
         if (!unlocked) card.disabled = true;
         card.addEventListener('click', async () => {
@@ -300,7 +276,7 @@
       root.appendChild(grid);
       const foot = el('div', 'form-actions');
       foot.style.marginTop = '20px';
-      foot.appendChild(ui.btn('◀ Voltar', () => { closeScreen(); main.showTitle(); }, { cls: 'ghost' }));
+      foot.appendChild(backBtn());
       if (!data.settings.unlockAll) {
         foot.appendChild(ui.btn('Liberar todos (para quem deu o presente testar)', async () => {
           const ok = await confirmCard('Liberar todos os capítulos?', 'Útil para quem vai dar o presente dar uma olhada antes. O ideal para o pai é jogar na ordem.', 'Liberar');
@@ -310,7 +286,6 @@
       root.appendChild(foot);
     });
   }
-
   function showAchievements() {
     const got = P2.save.data.achievements || {};
     openScreen((root) => {
@@ -318,17 +293,14 @@
       root.appendChild(el('div', 'screen-title', 'Conquistas'));
       root.appendChild(el('p', 'screen-sub', n + ' de ' + P2.ACHIEVEMENTS.length + ' desbloqueadas.'));
       const grid = el('div', 'ach-grid');
-      P2.ACHIEVEMENTS.forEach((a) => {
-        grid.appendChild(el('div', 'ach-card' + (got[a.id] ? ' on' : ''), [el('span', 'ai', a.icon), el('div', null, [el('b', null, got[a.id] ? a.titulo : a.titulo), el('span', null, a.desc)])]));
-      });
+      P2.ACHIEVEMENTS.forEach((a) => grid.appendChild(el('div', 'ach-card' + (got[a.id] ? ' on' : ''), [el('span', 'ai', a.icon), el('div', null, [el('b', null, a.titulo), el('span', null, a.desc)])])));
       root.appendChild(grid);
       const foot = el('div', 'form-actions');
       foot.style.marginTop = '20px';
-      foot.appendChild(ui.btn('◀ Voltar', () => { closeScreen(); main.showTitle(); }, { cls: 'ghost' }));
+      foot.appendChild(backBtn());
       root.appendChild(foot);
     });
   }
-
   function showOptions() {
     openScreen((root) => {
       root.appendChild(el('div', 'screen-title', 'Opções'));
@@ -337,9 +309,9 @@
       root.appendChild(paper);
       const more = el('div', 'form-actions');
       more.style.marginTop = '18px';
-      more.appendChild(ui.btn('◀ Voltar', () => { closeScreen(); main.showTitle(); }, { cls: 'ghost' }));
+      more.appendChild(backBtn());
       const right = el('div', 'mg-row');
-      if (P2.save.data.profile) right.appendChild(ui.btn('Editar nomes e profissão', () => showSetup(true), { cls: 'small' }));
+      if (P2.save.data.profile) right.appendChild(ui.btn('Editar nomes e empresa', () => showSetup(true), { cls: 'small' }));
       right.appendChild(ui.btn('Apagar progresso', async () => {
         const ok = await confirmCard('Apagar todo o progresso?', 'Isso apaga capítulos concluídos, personalização e conquistas deste navegador.', 'Apagar tudo');
         if (ok) {
@@ -355,11 +327,10 @@
       root.appendChild(more);
     });
   }
-
   function showCredits() {
     openScreen((root) => {
       root.appendChild(el('div', 'screen-title', 'Fontes e créditos'));
-      root.appendChild(el('p', 'screen-sub', 'Todo número que aparece no jogo vem de uma pesquisa ou reportagem. Aqui estão os links para conferir — afinal, conferir é a lição número 1.'));
+      root.appendChild(el('p', 'screen-sub', 'Todo número que aparece no jogo vem de uma pesquisa, relatório ou reportagem. Aqui estão os links para conferir — afinal, conferir é a lição número 1.'));
       const paper = el('div', 'paper src-list');
       const keys = P2.FONTES_ORDEM || Object.keys(P2.FONTES || {});
       keys.forEach((k) => {
@@ -375,45 +346,42 @@
       const cred = el('div', 'paper');
       cred.style.marginTop = '16px';
       cred.appendChild(el('p', null, [el('b', null, 'Pai 2.0'), ' — uma aventura sobre usar IA com honestidade, cuidado e bom humor.']));
-      cred.appendChild(el('p', null, 'Feito só com HTML, CSS e JavaScript. A pixel art, a música e os efeitos sonoros são desenhados e tocados pelo próprio código, sem arquivos externos.'));
-      cred.appendChild(el('p', null, 'Fontes tipográficas: Atkinson Hyperlegible (Braille Institute) e Pixelify Sans, via Google Fonts.'));
-      cred.appendChild(el('p', 'muted small', 'A Faísca e todos os personagens são fictícios. Os nomes de assistentes de IA citados são só exemplos; o jogo não tem ligação com nenhuma empresa.'));
+      cred.appendChild(el('p', null, 'Feito com HTML, CSS e JavaScript. Os cenários e personagens 3D são modelados pelo próprio código (Three.js, licença MIT); a música e os efeitos são sintetizados no navegador.'));
+      cred.appendChild(el('p', null, 'Tipografia: Atkinson Hyperlegible (Braille Institute) e Plus Jakarta Sans, via Google Fonts.'));
+      cred.appendChild(el('p', 'muted small', 'A Faísca e todos os personagens são fictícios. Nomes de ferramentas de IA citados são só exemplos; o jogo não tem ligação com nenhuma empresa.'));
       root.appendChild(cred);
       const foot = el('div', 'form-actions');
       foot.style.marginTop = '20px';
-      foot.appendChild(ui.btn('◀ Voltar', () => { closeScreen(); main.showTitle(); }, { cls: 'ghost' }));
+      foot.appendChild(backBtn());
       root.appendChild(foot);
     });
   }
+  function openGuide() {
+    if (P2.guia && P2.guia.open) { P2.guia.open(); return; }
+    ui.card({ kind: 'guide', kicker: 'Guia do CEO', icon: '📘', titulo: 'Em breve', texto: 'O guia com prompts prontos aparece aqui.' }).catch(() => {});
+  }
+  main.openGuide = openGuide;
 
   // ------------------------------------------------------------------
   // Ganchos do diretor
   // ------------------------------------------------------------------
-  main.onChapterStart = function (def) {
-    leaveTitle();
-    setTopLabel(chapterLabel(def));
-  };
+  main.onChapterStart = function (def) { leaveTitle(); setTopLabel(chapterLabel(def)); };
   main.chapterDone = async function (def, next, G) {
     const lines = [];
     try { if (def.summary) (def.summary(G) || []).forEach((l) => lines.push(l)); } catch (e) { /* nada */ }
-    if (def.id === 'epilogo') {
-      main.showTitle();
-      return;
-    }
+    if (def.id === 'epilogo') { main.showTitle(); return; }
     const nextDef = next ? P2.chapters[next] : null;
     const texto = lines.length ? lines.map((l) => '- ' + l).join('\n') : 'Progresso salvo.';
     const botoes = [{ label: 'Menu inicial', value: 'menu' }];
     if (nextDef) botoes.push({ label: 'Próximo: ' + chapterLabel(nextDef) + ' ▶', value: 'next', primary: true });
     let v = 'menu';
-    try {
-      v = await ui.card({ kind: 'ok', kicker: 'Capítulo concluído', icon: '✓', titulo: chapterLabel(def), texto, botoes, sfx: 'jingle_vitoria' });
-    } catch (e) { return; }
+    try { v = await ui.card({ kind: 'ok', kicker: 'Capítulo concluído', icon: '✓', titulo: chapterLabel(def), texto, botoes, sfx: 'jingle_vitoria' }); } catch (e) { return; }
     if (v === 'next' && nextDef) startChapter(next, 0);
     else main.showTitle();
   };
   main.chapterError = async function (def, e) {
     try {
-      const v = await ui.card({ kind: 'warn', kicker: 'Ops', icon: '🛠️', titulo: 'Algo deu errado neste capítulo', texto: 'Desculpe! Foi um erro do jogo, não seu. Você pode tentar de novo a partir do último ponto salvo.\n\n(' + (e && e.message ? e.message : e) + ')', botoes: [{ label: 'Menu inicial', value: 'menu' }, { label: 'Tentar de novo', value: 'retry', primary: true }] });
+      const v = await ui.card({ kind: 'warn', kicker: 'Ops', icon: '🛠️', titulo: 'Algo deu errado neste capítulo', texto: 'Desculpe! Foi um erro do jogo, não seu. Dá para tentar de novo a partir do último ponto salvo.\n\n(' + (e && e.message ? e.message : e) + ')', botoes: [{ label: 'Menu inicial', value: 'menu' }, { label: 'Tentar de novo', value: 'retry', primary: true }] });
       const cur = P2.save.data.progress.current;
       if (v === 'retry' && cur) startChapter(cur.id, cur.part);
       else main.showTitle();
@@ -421,9 +389,25 @@
   };
   main.leaveTo = function (dest) {
     D.abort();
-    if (dest === 'chapters') { main.showTitle(); showChapters(); }
-    else main.showTitle();
+    main.showTitle();
+    if (dest === 'chapters') showChapters();
   };
+
+  // ------------------------------------------------------------------
+  // Layout: painel por cima da cena (desktop) ou embaixo (celular em pé)
+  // ------------------------------------------------------------------
+  function updateLayout() {
+    const stack = window.matchMedia('(max-width: 760px) and (orientation: portrait)').matches;
+    const side = window.matchMedia('(orientation: landscape) and (max-height: 520px)').matches;
+    document.body.classList.toggle('layout-stack', stack);
+    const panel = $('#panel'), stage = $('#stage-wrap');
+    if (!panel || !stage) return;
+    if (stack || side || panel.hidden) { core.cam.screenShift = 0; return; }
+    const h = stage.clientHeight || 1;
+    const covered = panel.offsetHeight + 16;
+    core.cam.screenShift = Math.min(0.24, (covered / h) * 0.48);
+  }
+  main.updateLayout = updateLayout;
 
   // ------------------------------------------------------------------
   // Início
@@ -432,42 +416,40 @@
     P2.save.load();
     screenEl = $('#screen');
     ui.init();
-    core.init($('#stage'));
-    // barra superior
+    core.init($('#stage-wrap'));
     $('#btn-sound').addEventListener('click', (e) => { e.currentTarget.blur(); ui.toggleSound(); });
     $('#btn-speed').addEventListener('click', (e) => { e.currentTarget.blur(); ui.cycleSpeed(); });
     $('#btn-font').addEventListener('click', (e) => { e.currentTarget.blur(); ui.cycleFont(); });
+    $('#btn-guide').addEventListener('click', (e) => { e.currentTarget.blur(); openGuide(); });
     $('#btn-menu').addEventListener('click', (e) => { e.currentTarget.blur(); if (ui.isMenuOpen()) ui.closeMenu(); else ui.openMenu(); });
     ui.canOpenMenu = () => true;
     // Áudio só depois do primeiro gesto (regra dos navegadores)
-    let unlocked = false;
-    const unlock = () => {
-      if (!P2.audio) return;
-      P2.audio.init();
-      ui.applySettings();
-      if (unlocked) return;
-      unlocked = true;
-      // toca a faixa que já deveria estar tocando (pedida antes do primeiro gesto)
-      const r = D.running();
-      const def = r && P2.chapters[r.id];
-      const want = P2.audio.current || (def ? def.music : 'titulo');
-      if (want) P2.audio.music(want, { force: true });
-    };
+    const unlock = () => { if (P2.audio) { P2.audio.init(); ui.applySettings(); } };
     window.addEventListener('pointerdown', unlock, { capture: true });
     window.addEventListener('keydown', unlock, { capture: true });
     ui.applySettings();
+    // layout
+    if (window.ResizeObserver) new ResizeObserver(updateLayout).observe($('#panel'));
+    window.addEventListener('resize', updateLayout);
+    core.onFrame((dt) => {
+      if (onTitle && !P2.paused) core.cam.cur.yaw += dt * 0.045;
+    });
+    setTimeout(updateLayout, 50);
+    // some a tela de carregamento depois do primeiro quadro
+    requestAnimationFrame(() => requestAnimationFrame(() => { const b = $('#boot'); if (b) { b.classList.add('gone'); setTimeout(() => b.remove(), 700); } }));
 
-    // Atalhos de teste: ?cap=cap3&part=0&prof=saude
+    // Atalhos de teste: ?cap=cap3&genero=filha&speed=instantanea&unlock=1
     const qs = new URLSearchParams(location.search);
     const cap = qs.get('cap');
     if (cap && P2.chapters[cap]) {
-      if (!P2.save.data.profile || qs.get('prof') || qs.get('genero')) {
-        P2.save.data.profile = Object.assign({ pai: 'Carlos', apelido: 'Pai', filho: 'Lucas', genero: 'filho', prof: 'escritorio', skin: 'medio', recado: '' }, P2.save.data.profile || {});
-        if (qs.get('prof')) P2.save.data.profile.prof = qs.get('prof');
+      if (!P2.save.data.profile || qs.get('genero') || qs.get('empresa')) {
+        P2.save.data.profile = Object.assign({ pai: 'Carlos', apelido: 'Pai', filho: 'Lucas', genero: 'filho', skin: 'medio', empresa: '', setor: '', recado: '' }, P2.save.data.profile || {});
         if (qs.get('genero')) {
           P2.save.data.profile.genero = qs.get('genero');
           if (qs.get('genero') === 'filha' && P2.save.data.profile.filho === 'Lucas') P2.save.data.profile.filho = 'Júlia';
         }
+        if (qs.get('empresa')) P2.save.data.profile.empresa = qs.get('empresa');
+        if (qs.get('setor')) P2.save.data.profile.setor = qs.get('setor');
       }
       if (qs.get('speed')) P2.save.data.settings.speed = qs.get('speed');
       if (qs.get('unlock')) P2.save.data.settings.unlockAll = true;
@@ -477,7 +459,6 @@
     }
     main.showTitle();
   }
-
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 })();

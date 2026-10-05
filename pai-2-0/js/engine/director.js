@@ -24,7 +24,7 @@
   // ------------------------------------------------------------------
   // Perfil, profissão e tokens de texto
   // ------------------------------------------------------------------
-  const DEFAULT_PROFILE = { pai: 'Carlos', apelido: 'Pai', filho: 'Lucas', genero: 'filho', prof: 'escritorio', skin: 'medio', recado: '' };
+  const DEFAULT_PROFILE = { pai: 'Carlos', apelido: 'Pai', filho: 'Lucas', genero: 'filho', skin: 'medio', empresa: '', setor: '', recado: '' };
   function cap1st(s) { s = String(s || '').trim(); return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
   D.profile = function () {
     const p = (P2.save && P2.save.data.profile) || {};
@@ -32,11 +32,13 @@
       pai: cap1st(p.pai) || DEFAULT_PROFILE.pai,
       apelido: cap1st(p.apelido) || 'Pai',
       filho: cap1st(p.filho) || (p.genero === 'filha' ? 'Júlia' : DEFAULT_PROFILE.filho),
+      empresa: String(p.empresa || '').trim(),
+      setor: String(p.setor || '').trim(),
     });
   };
+  /** Dados do mundo do CEO (P2.CEO em content/ceo.js). Mantém o nome "prof" por compatibilidade. */
   D.prof = function () {
-    const id = D.profile().prof;
-    return (P2.PROFS && P2.PROFS[id]) || (P2.PROFS && P2.PROFS.escritorio) || { id: 'escritorio', label: 'Escritório', local: 'escritório', noLocal: 'no escritório', doLocal: 'do escritório', cor: '#4a7bd1', chefe: { nome: 'Dona Marta', titulo: 'gerente', variant: 'tailleur', ele: 'ela', artigo: 'a' } };
+    return P2.CEO || { id: 'ceo', label: 'CEO', local: 'escritório', noLocal: 'no escritório', doLocal: 'do escritório', chefe: { nome: 'Dona Marta', titulo: 'presidente do conselho', ele: 'ela', artigo: 'a' }, jorge: { papel: 'diretor comercial' } };
   };
   D.tokens = function () {
     const pr = D.profile();
@@ -47,9 +49,13 @@
       pai: pr.pai,
       apelido: pr.apelido,
       filho: pr.filho,
+      empresa: pr.empresa || 'a empresa',
+      Empresa: pr.empresa || 'A empresa',
+      empresaNome: pr.empresa || 'Sua Empresa',
+      setor: pr.setor || 'o seu ramo',
+      setorPrompt: pr.setor || '[ramo da empresa]',
+      empresaPrompt: pr.empresa || '[nome da empresa]',
       prof: P.label,
-      profShort: P.short,
-      oficio: P.oficio,
       local: P.local,
       noLocal: P.noLocal,
       doLocal: P.doLocal,
@@ -57,7 +63,7 @@
       chefeTitulo: ch.titulo,
       chefeEle: ch.ele || 'ela',
       chefeO: ch.artigo || 'a',
-      jorgePapel: (P.jorge && P.jorge.papel) || 'colega',
+      jorgePapel: (P.jorge && P.jorge.papel) || 'diretor comercial',
       filhoa: fem ? 'filha' : 'filho',
       Filhoa: fem ? 'Filha' : 'Filho',
       oa: fem ? 'a' : 'o',
@@ -83,16 +89,22 @@
     return String(str).replace(/\{(\w+)\}/g, (m, k) => (tk[k] != null ? (html ? esc(tk[k]) : tk[k]) : m));
   };
 
-  // Valores padrão dos atores conforme perfil/profissão
-  function applyDefaults(a) {
+  // Opções de montagem dos personagens conforme o perfil (tom de pele, filho/filha)
+  core.defaultBuild = function (id) {
     const pr = D.profile();
-    const P = D.prof();
-    if (a.id === 'pai') { a.color = P.cor; a.skin = pr.skin || 'medio'; }
-    if (a.id === 'filho') { a.skin = pr.skin || 'medio'; a.variant = pr.genero === 'filha' ? 'filha' : null; }
-    if (a.id === 'chefe' && P.chefe) { a.variant = P.chefe.variant; a.color = P.chefe.cor || null; }
-  }
-  core.onActorCreated = (a) => { a.y = core.floorY(); applyDefaults(a); };
-  D.applyDefaults = applyDefaults;
+    if (id === 'pai') return { skin: pr.skin || 'medio' };
+    if (id === 'filho') return { skin: pr.skin || 'medio', genero: pr.genero };
+    const d = D.diretor(id);
+    if (d) return { seed: d.seed, female: d.female };
+    return {};
+  };
+  /** Diretores da empresa (figurantes com nome): bia, rafael, luana, tadeu. */
+  D.diretor = function (id) {
+    const list = (P2.CEO && P2.CEO.diretores) || [];
+    return list.find((d) => d.id === id) || null;
+  };
+  ((P2.CEO && P2.CEO.diretores) || []).forEach((d) => core.registerActorType(d.id, 'npc'));
+  core.onActorCreated = function () {};
 
   // ------------------------------------------------------------------
   // Falantes
@@ -113,6 +125,8 @@
       golpista: { name: 'Desconhecido', color: '#a82a3e', voice: 'golpista', portrait: 'golpista' },
       duvida: { name: 'A Dúvida', color: '#7a4ac0', voice: 'duvida', portrait: 'duvida' },
     }[who];
+    const dir = D.diretor(who);
+    if (!base && dir) return { id: who, name: dir.nome, color: '#4a5a7a', voice: dir.female ? 'filho' : 'chefe', portrait: null, expr: opts.expr, style: 'say' };
     if (!base) return { id: null, name: '', color: null, voice: 'narrador', portrait: null, style: 'narrate' };
     return Object.assign({ id: who, expr: opts.expr, style: 'say' }, base);
   };
@@ -134,6 +148,26 @@
   // Construção do G
   // ------------------------------------------------------------------
   const ACTOR_IDS = ['pai', 'filho', 'faisca', 'chefe', 'jorge', 'golpista', 'duvida'];
+
+  // Câmera automática de diálogo (plano e contraplano)
+  const talkCam = (D.talkCam = { on: true, last: null });
+  function autoFrame(actor) {
+    if (!talkCam.on || !actor || P2.skipping || !actor.visible) return;
+    if (P2.realTime - core.cam.lastUserAt < 8) return; // respeita quem está olhando em volta
+    if (talkCam.last === actor.id) return;
+    const other = talkCam.last ? core.getActor(talkCam.last) : null;
+    talkCam.last = actor.id;
+    const kind = actor.ctl && actor.ctl.kind;
+    if (kind === 'boss') { core.cam.focus(actor, 'geral', { dur: 0.9, pitch: 0.12 }).catch(() => {}); return; }
+    const k = kind === 'floater' ? 'close' : 'medio';
+    if (other && other !== actor && other.visible && Math.hypot(other.x - actor.x, other.z - actor.z) < 6) {
+      const base = Math.atan2(other.x - actor.x, other.z - actor.z);
+      core.cam.focus(actor, k, { yaw: base + 0.45, dur: 0.8 }).catch(() => {});
+    } else {
+      core.cam.focus(actor, k, { dur: 0.8 }).catch(() => {});
+    }
+  }
+  D.autoFrame = autoFrame;
 
   function ensureVisible() {
     if (core.world.fade.a > 0.98 && !P2.skipping) return core.fadeIn(0.45);
@@ -175,6 +209,7 @@
         }
         ui.log(sp.name, txt, sp.color);
         if (P2.skipping) return;
+        if (opts.cam !== false) autoFrame(actor);
         await ensureVisible();
         guard();
         await ui.dialog(sp, txt, { actor, auto: opts.auto });
@@ -254,8 +289,7 @@
         await core.fadeIn(d == null ? 0.5 : d);
         guard();
       },
-      spot(name) { return core.spotX(name); },
-      floorY() { return core.floorY(); },
+      spot(name) { return core.spot(name); },
       actor(id, opts) {
         const a = core.actor(id);
         if (opts) a.set(opts);
@@ -268,7 +302,17 @@
       async fadeIn(d) { guard(); await core.fadeIn(d); guard(); },
       flash(color, d) { core.flash(color, d); },
       shake(mag, d) { core.shake(mag, d); },
-      async zoom(scale, cx, cy, d) { guard(); await core.zoom(scale, cx, cy, d); guard(); },
+      async zoom(scale, d) { guard(); await core.zoom(scale, d); guard(); },
+      /** Câmera: shot(nome|{target,yaw,pitch,dist,fov}, dur), focus(ator, 'close'|'medio'|'plano'|'geral', {side,angle,pitch,zoom,dur}), two(a, b, opts), reset(). */
+      cam: {
+        async shot(s, d, ease) { guard(); await core.cam.shot(s, d, ease); guard(); },
+        async focus(a, kind, o) { guard(); await core.cam.focus(a, kind, o); guard(); },
+        async two(a, b, o) { guard(); await core.cam.two(a, b, o); guard(); },
+        reset() { core.cam.reset(); },
+        handheld(v) { core.cam.handheld = v == null ? 0.6 : v; },
+      },
+      /** Câmera automática que enquadra quem fala (padrão: ligada). */
+      talkCam(on) { talkCam.on = on !== false; talkCam.last = null; },
       tint(color, a) { core.tint(color, a); },
       async letterbox(on, d) { guard(); await core.letterbox(on, d); guard(); },
       async rewind(d) { guard(); await core.rewind(d); guard(); },
@@ -409,12 +453,13 @@
   // ------------------------------------------------------------------
   function resetStage() {
     if (P2.audio && P2.audio.stopSfx) P2.audio.stopSfx();
+    talkCam.on = true;
+    talkCam.last = null;
+    if (core.clearFx) core.clearFx();
     core.clearActors();
     core.resetCamera();
     core.tint(null);
     core.world.letterbox = 0;
-    core.world.particles.length = 0;
-    core.world.emotes.length = 0;
     core.world.rewind.on = false;
     ui.hud.clear();
     ui.clearToasts();

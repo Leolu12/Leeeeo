@@ -922,6 +922,7 @@
     setWave(c, o, ins.wave);
     o.frequency.setValueAtTime(f, t);
     const g = c.createGain(), gg = g.gain;
+    gg.value = 0; // valor base 0: evita estalo de 1 amostra antes do primeiro evento
     const peak = ins.vol * v, a = ins.a, d = ins.d, sus = peak * ins.s, r = ins.r;
     const on = Math.max(a + 0.012, dur * ins.gate);
     gg.setValueAtTime(0, t);
@@ -935,7 +936,7 @@
     if (ins.vib && on > ins.vibDelay + 0.1) {
       const l = c.createOscillator(), lg = c.createGain();
       l.frequency.value = ins.vibRate || 5.4;
-      lg.gain.setValueAtTime(0, t);
+      lg.gain.value = 0;
       lg.gain.setValueAtTime(0, t + ins.vibDelay);
       lg.gain.linearRampToValueAtTime(ins.vib, t + ins.vibDelay + 0.25);
       l.connect(lg);
@@ -961,6 +962,7 @@
     }
     if (o.det) osc.detune.setValueAtTime(o.det, t);
     const g = c.createGain(), gg = g.gain, a = o.a != null ? o.a : 0.004, d = Math.max(o.d, a + 0.01), vol = o.v;
+    gg.value = 0;
     gg.setValueAtTime(0, t);
     gg.linearRampToValueAtTime(vol, t + a);
     if (o.exp) {
@@ -1012,6 +1014,7 @@
       node = bq;
     }
     const g = c.createGain(), gg = g.gain, a = o.a != null ? o.a : 0.002, d = Math.max(o.d, a + 0.01), vol = o.v;
+    gg.value = 0;
     gg.setValueAtTime(0, t);
     gg.linearRampToValueAtTime(vol, t + a);
     if (o.exp !== false) {
@@ -1337,6 +1340,7 @@
       lg.connect(osc.frequency);
       bq.type = 'lowpass';
       bq.frequency.value = 3500;
+      g.gain.value = 0;
       g.gain.setValueAtTime(0, t);
       g.gain.linearRampToValueAtTime(0.02, t + 0.05);
       g.gain.linearRampToValueAtTime(0.1, t + 0.66);
@@ -1420,6 +1424,7 @@
       bq.type = 'bandpass';
       bq.frequency.value = 900;
       bq.Q.value = 3;
+      g.gain.value = 0;
       g.gain.setValueAtTime(0, t);
       g.gain.linearRampToValueAtTime(0.16, t + 0.05);
       g.gain.setValueAtTime(0.16, t + 0.38);
@@ -1482,6 +1487,7 @@
       lg.gain.value = 0.4;
       l.connect(lg);
       lg.connect(am.gain);
+      g.gain.value = 0;
       g.gain.setValueAtTime(0, t);
       g.gain.linearRampToValueAtTime(0.18, t + 0.12);
       g.gain.setValueAtTime(0.18, t + 0.8);
@@ -1570,6 +1576,7 @@
     const f = V.f * Math.pow(2, V.off[k % V.off.length] / 12);
     const d = V.d, a = V.a || 0.004, end = t + d;
     const g = c.createGain();
+    g.gain.value = 0;
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(V.v, t + a);
     g.gain.setValueAtTime(V.v, t + d * 0.45);

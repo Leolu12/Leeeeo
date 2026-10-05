@@ -215,11 +215,13 @@
   const MODES = ['dialog', 'choices', 'chat', 'mini', 'menuPanel'];
   function setMode(m) {
     MODES.forEach((k) => { if (R[k]) R[k].hidden = k !== m; });
+    ui.markEmpty(m === 'dialog' && !(R.text && R.text.textContent));
     R.panel.dataset.mode = m || 'none';
     document.body.classList.toggle('mode-mini', m === 'mini');
     document.body.classList.toggle('mode-chat', m === 'chat');
   }
   ui.setMode = setMode;
+  ui.markEmpty = function (on) { if (R.panel) R.panel.classList.toggle('empty', !!on); };
 
   // ------------------------------------------------------------------
   // Entrada (teclado e toque) — pilha de manipuladores
@@ -291,26 +293,10 @@
   // ------------------------------------------------------------------
   // Retrato do falante
   // ------------------------------------------------------------------
-  let portraitState = null; // {id, talking, expr, color...}
-  function setupPortrait() {
-    core.onFrame(() => {
-      if (!portraitState || R.dialog.hidden) return;
-      const c = R.portrait;
-      core.drawPortrait(R.pctx, c.width, portraitState.id, portraitState.state());
-    });
-  }
-  function showPortrait(id, stateFn) {
-    if (!id || !P2.sprites[id]) {
-      // sem sprite ainda: mostra mesmo assim (placeholder) se for personagem
-      if (!id) { portraitState = null; R.portraitWrap.hidden = true; return; }
-    }
-    const spr = P2.sprites[id];
-    const crop = (spr && spr.portrait && spr.portrait.size) || 24;
-    const k = Math.max(2, Math.round(96 / crop));
-    if (R.portrait.width !== crop * k) { R.portrait.width = crop * k; R.portrait.height = crop * k; R.pctx.imageSmoothingEnabled = false; }
-    portraitState = { id, state: stateFn };
-    R.portraitWrap.hidden = false;
-  }
+  // Retrato: no 3D a câmera enquadra quem fala, então o retrato fica oculto.
+  let portraitState = null;
+  function setupPortrait() { /* sem retrato no 3D */ }
+  function showPortrait() { portraitState = null; if (R.portraitWrap) R.portraitWrap.hidden = true; }
 
   function readableOn(hex) {
     try {
@@ -362,9 +348,9 @@
           base.talking = talking && !tw.done;
           return base;
         });
-        R.portraitWrap.style.setProperty('--pc', sp.color || '#5b5768');
       } else showPortrait(null);
       R.sr.textContent = (sp.name ? sp.name + ': ' : '') + ui.plain(text);
+      ui.markEmpty(false);
       R.next.classList.remove('on');
       const tw = typewriter(R.text, text, { who: sp.voice });
       if (actor) actor.talking = true;
