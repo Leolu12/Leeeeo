@@ -219,9 +219,14 @@
     R.panel.dataset.mode = m || 'none';
     document.body.classList.toggle('mode-mini', m === 'mini');
     document.body.classList.toggle('mode-chat', m === 'chat');
+    document.body.classList.toggle('mode-choices', m === 'choices');
+    document.body.classList.toggle('mode-dialog', m === 'dialog');
   }
   ui.setMode = setMode;
-  ui.markEmpty = function (on) { if (R.panel) R.panel.classList.toggle('empty', !!on); };
+  ui.markEmpty = function (on) {
+    if (R.panel) R.panel.classList.toggle('empty', !!on);
+    document.body.classList.toggle('panel-empty', !!on);
+  };
 
   // ------------------------------------------------------------------
   // Entrada (teclado e toque) — pilha de manipuladores
@@ -968,7 +973,7 @@
     ui.clearToasts();
     ui.hud.clear();
     ui.showSkip(false);
-    document.body.classList.remove('mode-mini', 'mini-l', 'mode-chat');
+    document.body.classList.remove('mode-mini', 'mini-l', 'mode-chat', 'mode-choices', 'mode-dialog');
     setMode('dialog');
   };
 

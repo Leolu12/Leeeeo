@@ -430,6 +430,13 @@
     if ((e.key === 'e' || e.key === 'E') && hs.nearest && !P2.paused && !hs.suspended) { e.preventDefault(); hs.pick(hs.nearest, false); }
   });
 
+  /** Tela estreita (celular em pé): abre o FOV vertical para garantir um mínimo de visão na horizontal. */
+  function fitFov(vfov, minH, cap) {
+    const a = camera ? camera.aspect : 1.78;
+    if (!(a > 0)) return vfov;
+    const need = (2 * Math.atan(Math.tan((minH * Math.PI) / 360) / a) * 180) / Math.PI;
+    return Math.min(Math.max(vfov, need), Math.max(vfov, cap));
+  }
   function updateCamera(dt) {
     if (cam.to) {
       cam.t += dt;
@@ -476,11 +483,13 @@
       }
       camera.rotation.order = 'YXZ';
       camera.rotation.set(player.pitch, player.yaw + Math.PI, 0);
-      if (Math.abs(camera.fov - player.fov) > 0.01) { camera.fov = player.fov; camera.updateProjectionMatrix(); }
+      const fpFov = fitFov(player.fov, 56, 92);
+      if (Math.abs(camera.fov - fpFov) > 0.01) { camera.fov = fpFov; camera.updateProjectionMatrix(); }
     } else {
       camera.position.set(px + ox, Math.max(0.15, py + oy), pz);
       camera.lookAt(c.tx + ox * 0.5, c.ty + oy * 0.5, c.tz);
-      if (Math.abs(camera.fov - c.fov) > 0.01) { camera.fov = c.fov; camera.updateProjectionMatrix(); }
+      const cFov = fitFov(c.fov, 40, 80);
+      if (Math.abs(camera.fov - cFov) > 0.01) { camera.fov = cFov; camera.updateProjectionMatrix(); }
     }
     // desloca o enquadramento para cima quando o painel cobre a parte de baixo
     cam.shiftCur += ((cam.screenShift || 0) - cam.shiftCur) * Math.min(1, dt * 6 || 1);
@@ -1237,11 +1246,10 @@
       dom.joy.addEventListener('click', (e) => e.stopPropagation());
     })();
     dom.hint = document.createElement('div');
-    dom.hint.className = 'drag-hint';
+    dom.hint.className = 'drag-hint gone'; // aparece quando ele pode andar (setMove)
     dom.hint.innerHTML = '<span>↔</span> arraste para olhar em volta';
     wrap.appendChild(dom.hint);
     setupInput(renderer.domElement);
-    core._hintT = setTimeout(() => dom.hint.classList.add('gone'), 9000);
     const resize = () => {
       const w = Math.max(10, wrap.clientWidth), h = Math.max(10, wrap.clientHeight);
       renderer.setSize(w, h, false);

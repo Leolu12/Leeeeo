@@ -149,12 +149,19 @@ a { color: inherit; }
 #panel.empty { opacity: 0; pointer-events: none; transform: translateX(-50%) translateY(12px); }
 #panel { transition: max-height 0.3s ease, width 0.3s ease, opacity 0.25s ease, transform 0.25s ease; }
 @media (max-width: 760px) and (orientation: portrait) {
-  #panel.empty { opacity: 1; transform: none; }
+  /* sem fala (começo de cena, exploração): a cena ocupa a tela toda */
+  #panel.empty { display: none; }
+  body.panel-empty #stage-wrap { flex: 1 1 auto; height: auto; }
   #panel { background: #fff !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
   .drag-hint { top: auto; bottom: 26px; }
   #main { display: flex; flex-direction: column; }
-  #stage-wrap { position: relative; inset: auto; flex: 0 0 auto; height: 42vh; height: 42dvh; }
+  /* a cena fica do tamanho que cada momento pede: grande nas falas, menor nas escolhas e nos minijogos */
+  #stage-wrap { position: relative; inset: auto; flex: 0 0 auto; height: 44vh; height: 44dvh; transition: height 0.35s ease; }
+  body.mode-dialog #stage-wrap { height: 62vh; height: 62dvh; }
+  body.mode-choices #stage-wrap { height: 46vh; height: 46dvh; }
   body.mode-mini #stage-wrap, body.mode-chat #stage-wrap { height: 30vh; height: 30dvh; }
+  #btn-skip { top: auto; bottom: 30px; right: 12px; }
+  #toasts { width: min(78%, 330px); right: 10px; top: 10px; }
   #panel {
     position: relative; left: auto; bottom: auto; transform: none;
     flex: 1 1 auto; width: 100% !important; max-height: none !important;
