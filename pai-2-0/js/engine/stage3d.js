@@ -17,6 +17,8 @@
   P2.paused = false;
   P2.skipping = false;
   P2.lowPower = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.hardwareConcurrency || 8) <= 4;
+  // ?q=low: qualidade mínima fixa (testes automáticos e máquinas muito fracas).
+  P2.lowQuality = /[?&]q=low\b/.test(location.search);
 
   // ------------------------------------------------------------------
   // Promessas rastreadas (para cancelar ao sair de um capítulo)
@@ -1170,9 +1172,9 @@
     renderer.outputEncoding = T.sRGBEncoding;
     renderer.toneMapping = T.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.08;
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = !P2.lowQuality;
     renderer.shadowMap.type = T.PCFSoftShadowMap;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, P2.lowPower ? 1.5 : 2));
+    renderer.setPixelRatio(P2.lowQuality ? 0.5 : Math.min(window.devicePixelRatio || 1, P2.lowPower ? 1.5 : 2));
     const old = wrap.querySelector('canvas#stage');
     renderer.domElement.id = 'stage';
     renderer.domElement.setAttribute('aria-label', 'Cena do jogo em 3D. Arraste para olhar em volta.');
@@ -1279,10 +1281,31 @@
     if (world.flash.a > 0) world.flash.a = Math.max(0, world.flash.a - dt / (world.flash.dur || 0.3));
     if (world.rewind.on) world.rewind.t += dt;
   }
+  // Qualidade adaptativa: se a máquina não aguenta, baixa a resolução aos poucos (nunca sobe de novo,
+  // para não ficar oscilando). Só mexe no pixel ratio, que é seguro em tempo real.
+  const perf = { acc: 0, frames: 0, low: 0, steps: [1.5, 1, 0.75, 0.6] };
+  function adaptQuality(raw) {
+    if (P2.lowQuality || document.hidden || !renderer) return;
+    if (raw > 0.5) return; // aba voltou do segundo plano, carregamento etc.
+    perf.acc += raw; perf.frames++;
+    if (perf.acc < 2.5) return;
+    const fps = perf.frames / perf.acc;
+    perf.acc = 0; perf.frames = 0;
+    // duas janelas seguidas abaixo de 26 fps (a primeira pode ser só compilação de shaders)
+    if (fps >= 26) { perf.low = 0; return; }
+    if (++perf.low < 2) return;
+    perf.low = 0;
+    const cur = renderer.getPixelRatio();
+    const next = perf.steps.find((v) => v < cur - 0.01);
+    if (next == null) return;
+    renderer.setPixelRatio(next);
+    if (core.resize) core.resize();
+  }
   function loop(now) {
     let dt = (now - last) / 1000;
     last = now;
     if (!(dt > 0)) dt = 0;
+    adaptQuality(dt);
     if (dt > 0.1) dt = 0.1;
     P2.realTime += dt;
     if (!P2.paused) update(dt);

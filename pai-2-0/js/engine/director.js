@@ -339,6 +339,8 @@
         },
         async walkTo(spot, speed) { guard(); await core.actor('pai').walk(spot, speed); guard(); },
         lock() { core.player.setMove(false); },
+        /** Define para onde a visão aponta: pitch (+ = para cima) e, opcional, yaw absoluto. */
+        setLook(pitch, yaw) { if (pitch != null) core.player.pitch = pitch; if (yaw != null) core.player.yaw = yaw; core.player.lookAt(null); },
       },
       /**
        * EXPLORAÇÃO livre em primeira pessoa até o jogador escolher um ponto obrigatório.

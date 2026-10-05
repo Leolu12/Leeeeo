@@ -253,11 +253,11 @@
     '  }',
     '  if (aurora > 0.0) {',
     '    float az = atan(d.z, d.x);',
-    '    float band = 0.3 + 0.07 * sin(az * 2.0 + time * 0.05) + 0.035 * sin(az * 5.0 - time * 0.09);',
+    '    float band = 0.17 + 0.05 * sin(az * 2.0 + time * 0.05) + 0.03 * sin(az * 5.0 - time * 0.09);',
     '    float e = h - band;',
     '    float lower = smoothstep(-0.03, 0.012, e) * exp(-max(e, 0.0) * 7.0);',
     '    float rays = 0.45 + 0.55 * pow(0.5 + 0.5 * sin(az * 34.0 + sin(az * 6.0 + time * 0.25) * 2.6), 2.0);',
-    '    float fade = 0.5 + 0.5 * sin(az * 1.5 + 1.3 + time * 0.03);',
+    '    float fade = 0.35 + 0.65 * (0.5 + 0.5 * sin(az * 1.5 + 3.9 + time * 0.03));',
     '    vec3 ac = mix(cAur1, cAur2, clamp(e * 5.5, 0.0, 1.0));',
     '    c += ac * lower * rays * fade * aurora;',
     '  }',
@@ -305,14 +305,14 @@
   // Texturas desenhadas
   // ==================================================================
   function puffTex(K) {
-    return K.tex(256, 160, (ctx, w, h) => {
+    return K.tex(512, 256, (ctx, w, h) => {
       const r = M.rng(11);
-      const blobs = [[0.5, 0.55, 0.3], [0.32, 0.62, 0.22], [0.68, 0.62, 0.22], [0.42, 0.42, 0.2], [0.6, 0.4, 0.18], [0.2, 0.7, 0.15], [0.8, 0.7, 0.15]];
+      const blobs = [[0.5, 0.56, 0.2], [0.33, 0.64, 0.15], [0.67, 0.63, 0.16], [0.42, 0.44, 0.15], [0.58, 0.42, 0.13], [0.2, 0.7, 0.1], [0.8, 0.7, 0.11], [0.5, 0.72, 0.18], [0.27, 0.52, 0.1]];
       blobs.forEach((b) => {
         const x = b[0] * w, y = b[1] * h, rr = b[2] * w;
         const g = ctx.createRadialGradient(x, y - rr * 0.3, rr * 0.1, x, y, rr);
-        g.addColorStop(0, 'rgba(255,255,255,0.95)');
-        g.addColorStop(0.6, 'rgba(240,236,250,0.75)');
+        g.addColorStop(0, 'rgba(255,255,255,1)');
+        g.addColorStop(0.72, 'rgba(244,240,252,0.92)');
         g.addColorStop(1, 'rgba(220,214,240,0)');
         ctx.fillStyle = g;
         ctx.beginPath(); ctx.arc(x, y, rr, 0, TAU); ctx.fill();
@@ -321,7 +321,7 @@
       ctx.globalCompositeOperation = 'source-atop';
       const sh = ctx.createLinearGradient(0, h * 0.35, 0, h);
       sh.addColorStop(0, 'rgba(255,255,255,0)');
-      sh.addColorStop(1, 'rgba(120,110,160,0.55)');
+      sh.addColorStop(1, 'rgba(110,96,150,0.6)');
       ctx.fillStyle = sh; ctx.fillRect(0, 0, w, h);
       ctx.globalCompositeOperation = 'source-over';
       r();
@@ -493,10 +493,10 @@
 
       // ---------------- céu ----------------
       const STORM = {
-        cTop: col('#05041a'), cBand: col('#1c0f4a'), cMid: col('#4a2384'), cBot: col('#160a2c'),
-        cAur1: col('#3dffc4'), cAur2: col('#b45cff'), cNeb: col('#3b2aa8'), cSun: col('#ffd2a0'),
-        hemiSky: col('#8b6fe0'), hemiGround: col('#1c0f36'), sun: col('#c9b6ff'), pl1: col('#6fe6ff'), pl2: col('#b04aff'),
-        fog: col('#1f1040'), sea: col('#4a2a86'), cloud: col('#6a4aa8'), rune: col('#7fe9ff'), mote: col('#c49bff'),
+        cTop: col('#02031a'), cBand: col('#0d1140'), cMid: col('#2b2266'), cBot: col('#0b0820'),
+        cAur1: col('#3dffc4'), cAur2: col('#c05cff'), cNeb: col('#26339a'), cSun: col('#ffd2a0'),
+        hemiSky: col('#8f86e8'), hemiGround: col('#1a1236'), sun: col('#d2c4ff'), pl1: col('#6fe6ff'), pl2: col('#c04aff'),
+        fog: col('#141238'), sea: col('#2e2a6e'), cloud: col('#3c3680'), rune: col('#7fe9ff'), mote: col('#b9a6ff'),
       };
       const DAWN = {
         cTop: col('#4f63b8'), cBand: col('#b49ae0'), cMid: col('#ffc4a2'), cBot: col('#e3a0b6'),
@@ -504,7 +504,7 @@
         hemiSky: col('#ffe4d4'), hemiGround: col('#8a6a9a'), sun: col('#ffd2a6'), pl1: col('#ffd9a0'), pl2: col('#ffb0d0'),
         fog: col('#e2b8c8'), sea: col('#ffd6cc'), cloud: col('#ffe0d6'), rune: col('#ffd27a'), mote: col('#ffe39a'),
       };
-      const sky = makeSky({ cTop: '#05041a', cMid: '#4a2384', swirlDir: [0.5, 0.3, -0.81], sunDir: [0.5, 0.1, -0.86], stars: 1, aurora: 1, swirl: 1, nebula: 0.6 });
+      const sky = makeSky({ cTop: '#02031a', cMid: '#2b2266', swirlDir: [0.32, 0.2, -0.93], sunDir: [0.28, 0.09, -0.96], stars: 1, aurora: 1, swirl: 1, nebula: 0.5 });
       root.add(sky);
       const SU = sky.userData.U;
 
@@ -573,7 +573,7 @@
         let x, z, tries = 0;
         do { const s = Math.sqrt(r()) * 0.9, a = r() * TAU; const q = ig.loc(s, a); x = ICX + q[0]; z = ICZ + q[1]; tries++; } while (inRune(x, z) && tries < 8);
         const d = Math.hypot(x - RUNE.x, z - RUNE.z);
-        flowerData.push({ x, y: hW(x, z) + 0.1 + r() * 0.06, z, s: 0.8 + r() * 0.9, rot: r() * TAU, tilt: (r() - 0.5) * 0.5, delay: clamp(d / 6, 0, 0.6) * 0.8 + r() * 0.1 });
+        flowerData.push({ x, y: hW(x, z) + 0.1 + r() * 0.06, z, s: 1.1 + r() * 1.0, rot: r() * TAU, tilt: (r() - 0.5) * 0.5, delay: clamp(d / 6, 0, 0.6) * 0.8 + r() * 0.1 });
         flowers.setColorAt(i, M.color(FCOLS[i % FCOLS.length]));
       }
       root.add(flowers);
@@ -591,7 +591,7 @@
       // pedras, pilares e o círculo de runas
       const rockParts = [];
       const rkC = '#6a5c8e';
-      [[-3.7, -2.75, 0.95, 1], [0.55, -2.15, 0.62, 2], [-5.65, 1.35, 0.5, 3], [1.25, -0.25, 0.34, 4], [-0.15, 1.75, 0.28, 5], [-4.2, 1.95, 0.32, 6], [-1.6, -3.0, 0.45, 7]].forEach((b) => {
+      [[-3.7, -2.75, 0.95, 1], [1.0, -1.45, 0.55, 2], [-5.65, 1.35, 0.5, 3], [1.25, -0.25, 0.34, 4], [-0.15, 1.75, 0.28, 5], [-4.2, 1.95, 0.32, 6], [-2.75, -3.1, 0.45, 7]].forEach((b) => {
         const g = rockGeo(K, b[3] + 20, 1, 0.22, 0.75);
         rockParts.push({ g, m: mat4([b[0], hW(b[0], b[1]) + b[2] * 0.35, b[1]], [0, r() * TAU, 0], b[2]), c: rkC, flat: true });
       });
@@ -628,9 +628,9 @@
         }
         return g;
       }
-      pillar(-0.05, -2.45, 2.3, true, 0.3, 31);
+      pillar(0.4, -2.25, 2.3, true, 0.3, 31);
       pillar(-4.95, -0.6, 1.25, true, 0.8, 32);
-      pillar(-2.85, -2.85, 2.9, false, 0.1, 33);
+      pillar(-1.75, -3.05, 2.9, false, 0.1, 33);
       // tambor de coluna caído
       const drum = M.cyl(0.25, 0.25, 0.62, stoneM, { parent: root, pos: [-4.1, 0.24, 1.05], rot: [0, 0.6, Math.PI / 2], seg: 10 });
       drum.receiveShadow = true;
@@ -672,7 +672,7 @@
       const cg = crystalGeo(K);
       const cyanParts = [], violetParts = [], darkParts = [];
       crystalCluster(cyanParts, cg, { x: -5.55, y: hW(-5.55, -1.55), z: -1.55, n: 7, size: 1.9, color: '#3fc6e8', tip: '#d8fbff', seed: 1, out: [-0.25, 1, -0.1] });
-      crystalCluster(violetParts, cg, { x: -1.35, y: hW(-1.35, -2.9), z: -2.9, n: 5, size: 1.05, color: '#8a5ce0', tip: '#f0d8ff', seed: 2, out: [0, 1, -0.2] });
+      crystalCluster(violetParts, cg, { x: -0.75, y: hW(-0.75, -3.0), z: -3.0, n: 5, size: 1.05, color: '#8a5ce0', tip: '#f0d8ff', seed: 2, out: [0, 1, -0.2] });
       crystalCluster(cyanParts, cg, { x: 0.95, y: 0, z: 1.15, n: 4, size: 0.62, color: '#3fc6e8', tip: '#d8fbff', seed: 3, out: [0.3, 1, 0.2] });
       crystalCluster(violetParts, cg, { x: -4.3, y: hW(-4.3, 1.85), z: 1.85, n: 4, size: 0.55, color: '#8a5ce0', tip: '#f0d8ff', seed: 4, out: [-0.2, 1, 0.3] });
       crystalCluster(cyanParts, cg, { x: -3.45, y: hW(-3.45, -2.3), z: -2.3, n: 3, size: 0.6, color: '#3fc6e8', tip: '#d8fbff', seed: 6, out: [0, 1, 0] });
@@ -681,7 +681,7 @@
         const a = c[0], ring = ig.rings[c[1]];
         const q = ig.loc(ring[0] * 0.97, a);
         const x = ICX + q[0], z = ICZ + q[1];
-        crystalCluster(i % 2 ? violetParts : cyanParts, cg, { x, y: ring[1] + 0.1, z, n: 3, size: 0.9 + (i % 3) * 0.3, color: i % 2 ? '#8a5ce0' : '#3fc6e8', tip: '#ffffff', seed: 10 + i, out: [Math.cos(a), -0.7, Math.sin(a)] });
+        crystalCluster(i % 2 ? violetParts : cyanParts, cg, { x, y: ring[1] + 0.1, z, n: 3, size: 0.5 + (i % 3) * 0.18, color: i % 2 ? '#7a4cd0' : '#2fa8d0', tip: '#bff4ff', seed: 10 + i, out: [Math.cos(a), -0.7, Math.sin(a)] });
       });
       const cyanM = K.mat(new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.18, metalness: 0.1, emissive: col('#2fb8e0'), emissiveIntensity: 0.55 }));
       const violetM = K.mat(new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.18, metalness: 0.1, emissive: col('#8a4ce8'), emissiveIntensity: 0.55 }));
@@ -691,7 +691,7 @@
       const glows = [];
       const addGlow = (c, s, x, y, z, op, parent) => { const g = M.glow(c, s, op); g.position.set(x, y, z); (parent || root).add(g); glows.push(g); return g; };
       addGlow('#5fe0ff', 2.6, -5.55, hW(-5.55, -1.55) + 0.9, -1.55, 0.45);
-      addGlow('#b48cff', 1.5, -1.35, hW(-1.35, -2.9) + 0.5, -2.9, 0.4);
+      addGlow('#b48cff', 1.5, -0.75, hW(-0.75, -3.0) + 0.5, -3.0, 0.4);
       addGlow('#5fe0ff', 1.0, 0.95, 0.35, 1.15, 0.4);
 
       // árvore dos sonhos
@@ -718,9 +718,10 @@
       addGlow('#ffc56a', 1.7, 0.1, 1.8, 0.05, 0.35, tree);
 
       // ---------------- espaço do chefão ----------------
+      const bossTopM = K.vc({ rough: 0.95 }), bossUndM = K.vc({ rough: 0.9 });
       const bossIsle = buildIsland(K, root, {
-        pos: [2.75, -0.95, -1.05], rx: 1.5, rz: 1.2, seed: 41, NA: 26, depth: 0.55, wob: 1.6, tip: -4.5,
-        grass: ['#3a2558', '#2b1b46', '#1d1233'], soil: ['#3a2a4e', '#2e2242'], rock: ['#3b2d58', '#291e44', '#150e28'],
+        pos: [2.75, -0.95, -1.05], rx: 1.5, rz: 1.2, seed: 41, NA: 26, depth: 0.55, wob: 1.6, tip: -4.5, topMat: bossTopM, undMat: bossUndM,
+        grass: ['#3f8f6a', '#5aa86e', '#2c6655'], soil: ['#6b4a3c', '#54382f'], rock: ['#5b4a7c', '#3e3160', '#231a3d'],
       });
       crystalCluster(darkParts, cg, { x: 3.8, y: -0.95, z: -1.5, n: 5, size: 1.0, color: '#4a1f7a', tip: '#ff7ae8', seed: 21, out: [0.35, 1, -0.2] });
       crystalCluster(darkParts, cg, { x: 1.65, y: -0.95, z: -0.45, n: 3, size: 0.6, color: '#4a1f7a', tip: '#ff7ae8', seed: 22, out: [-0.3, 1, 0.3] });
@@ -769,7 +770,7 @@
         minis.push({ g, base: d[1], ph: i * 1.7, amp: 0.12 + (i % 3) * 0.05 });
       });
       // ilhas distantes (silhuetas na névoa)
-      [[-24, 1.5, -30, 3.2, 81], [27, -1.5, -33, 4.2, 82], [-36, -4, 6, 3.6, 83], [33, 3, 15, 2.6, 84], [4, 6, -42, 3.0, 85]].forEach((d) => {
+      [[-24, 1.5, -30, 3.2, 81], [27, -1.5, -33, 4.2, 82], [-36, -4, 6, 3.6, 83], [33, 3, 15, 2.6, 84], [-15, 7.5, -46, 3.0, 85]].forEach((d) => {
         buildIsland(K, root, { pos: [d[0], d[1], d[2]], rx: d[3], rz: d[3] * 0.8, seed: d[4], NA: 18, depth: d[3] * 0.5, tip: -4.2,
           grass: ['#4a8a78', '#5f9a7a', '#3a6a62'], soil: ['#5a4a5a', '#4a3a4a'], rock: ['#4a3f6a', '#3a2f58', '#2a2048'], receive: false });
       });
@@ -777,12 +778,15 @@
       // ---------------- destroços (instanciados) ----------------
       const debris = [];
       const DEB = [rockGeo(K, 91, 0, 0.3, 0.8), rockGeo(K, 92, 1, 0.22, 0.75)];
-      const debMeshes = DEB.map((g) => { const m = new T.InstancedMesh(g, M.mat('#5f5182', { rough: 0.9, flat: true }), 14); m.castShadow = false; m.receiveShadow = false; root.add(m); return m; });
+      const debM = K.mat(new T.MeshStandardMaterial({ color: '#4f4a78', roughness: 0.9, flatShading: true }));
+      const debMeshes = DEB.map((g) => { const m = new T.InstancedMesh(g, debM, 14); m.castShadow = false; m.receiveShadow = false; root.add(m); return m; });
       for (let i = 0; i < 28; i++) {
         const a = r() * TAU, rad = 6.5 + r() * 9;
         let x = Math.cos(a) * rad, z = Math.sin(a) * rad - 2;
         if (z > 2.5 && Math.abs(x) < 7) z = -z - 4;
-        debris.push({ mesh: debMeshes[i % 2], idx: Math.floor(i / 2), x, y: -3.5 + r() * 9.5, z, s: 0.12 + r() * r() * 0.75, rx: r() * TAU, ry: r() * TAU, spin: (r() - 0.5) * 0.4, ph: r() * TAU });
+        const yy0 = -3.5 + r() * 9.5;
+        if (Math.abs(x - 2.5) < 4 && yy0 > 0.5 && z > -9) z -= 7;
+        debris.push({ mesh: debMeshes[i % 2], idx: Math.floor(i / 2), x, y: yy0, z, s: 0.12 + r() * r() * 0.75, rx: r() * TAU, ry: r() * TAU, spin: (r() - 0.5) * 0.4, ph: r() * TAU });
       }
       const _dm = new T.Matrix4(), _dq = new T.Quaternion(), _dv = new T.Vector3(), _ds = new T.Vector3();
       function updDebris(t) {
@@ -876,7 +880,7 @@
       }
 
       // ---------------- clima (tempestade ↔ amanhecer) ----------------
-      const T1 = new T.Color(), T2 = new T.Color();
+      const T1 = new T.Color();
       const lerpC = (target, a, b, k) => target.copy(a).lerp(b, k);
       const sunStorm = new T.Vector3(3, 10, 7), sunDawn = new T.Vector3(6, 5.5, 5);
       function applyCalm(c, I) {
@@ -887,7 +891,7 @@
         SU.stars.value = lerp(1, 0.1, sstep(0, 0.8, c));
         SU.aurora.value = lerp(1.0, 0.22, k) * (1 - 0.3 * I);
         SU.swirl.value = (1 - sstep(0, 0.65, c)) * (0.8 + 0.4 * I);
-        SU.nebula.value = lerp(0.6, 0.45, k);
+        SU.nebula.value = lerp(0.5, 0.45, k);
         SU.sunGlow.value = sstep(0.15, 1, c);
         SU.sunDisc.value = sstep(0.45, 1, c);
         lerpC(L.hemi.color, STORM.hemiSky, DAWN.hemiSky, k);
@@ -915,11 +919,13 @@
         vortexM2.opacity = 0.5 * (1 - sstep(0, 0.6, c));
         vortex1.visible = vortex2.visible = c < 0.98;
         bossGlow.material.opacity = 0.35 * (1 - k);
+        debM.color.copy(col('#4f4a78')).lerp(col('#b9a4d6'), k);
+        bossTopM.color.copy(col('#4a3272')).lerp(col('#ffffff'), k);
+        bossUndM.color.copy(col('#6a5a92')).lerp(col('#ffffff'), k);
         darkM.emissiveIntensity = lerp(0.65, 0.12, k);
         lerpC(darkM.emissive, col('#c03aff'), col('#ffb0e0'), k);
         st.crystalBase = lerp(0.6, 0.35, k);
         bloom(c);
-        T2.set(0, 0, 0);
       }
       st.crystalBase = 0.6;
       applyCalm(st.calm, st.inten);
@@ -936,9 +942,9 @@
         },
         shots: {
           geral: { target: [0.0, 1.45, -0.4], yaw: 0.08, pitch: 0.13, dist: 11.8, fov: 40 },
-          herois: { target: [-2.1, 1.3, 0.55], yaw: 0.62, pitch: 0.08, dist: 4.4, fov: 38 },
+          herois: { target: [-2.15, 1.35, 0.6], yaw: 1.0, pitch: 0.06, dist: 4.2, fov: 38 },
           boss: { target: [2.6, 2.05, -1.0], yaw: -0.45, pitch: -0.06, dist: 6.6, fov: 42 },
-          baixo: { target: [1.4, 1.9, -0.9], yaw: -1.12, pitch: -0.05, dist: 7.2, fov: 46 },
+          baixo: { target: [1.8, 1.9, -0.8], yaw: -1.147, pitch: -0.115, dist: 6.85, fov: 46 },
           confronto: { target: [0.1, 1.5, -0.3], yaw: 0.42, pitch: 0.24, dist: 9.6, fov: 40 },
           amanhecer: { target: [0.5, 2.6, -1.0], yaw: 0.22, pitch: 0.02, dist: 13.5, fov: 46 },
           ilha: { target: [-2.2, -0.9, -0.3], yaw: 0.55, pitch: -0.1, dist: 12.5, fov: 42 },
@@ -946,7 +952,7 @@
         defaultShot: 'geral',
         walls: [],
         background: '#140a2a',
-        fog: { color: '#1f1040', near: 22, far: 78 },
+        fog: { color: '#141238', near: 22, far: 78 },
         setParams(p) {
           p = p || {};
           st.tc = clamp(+p.calm || 0, 0, 1);
@@ -1017,19 +1023,31 @@
       sh.uniforms.uLit = lit;
       sh.uniforms.uGlass = { value: col(o.glass || '#1d2440') };
       sh.uniforms.uWarm = { value: col(o.warm || '#ffb85c') };
+      sh.uniforms.uRow = { value: o.row || 0 };
       sh.uniforms.uWin = { value: new T.Vector4(o.win ? o.win[0] : 0.2, o.win ? o.win[1] : 0.8, o.win ? o.win[2] : 0.25, o.win ? o.win[3] : 0.8) };
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nattribute vec3 aWin;\nvarying vec3 vWin;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWin = aWin;');
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform float uLit; uniform vec3 uGlass; uniform vec3 uWarm; uniform vec4 uWin; varying vec3 vWin;')
+        .replace('#include <common>', '#include <common>\nuniform float uLit; uniform float uRow; uniform vec3 uGlass; uniform vec3 uWarm; uniform vec4 uWin; varying vec3 vWin;')
         .replace('#include <emissivemap_fragment>', [
           '#include <emissivemap_fragment>',
           'if (vWin.z > 0.0) {',
           '  vec2 cell = floor(vWin.xy); vec2 f = fract(vWin.xy);',
-          '  float inside = step(uWin.x, f.x) * step(f.x, uWin.y) * step(uWin.z, f.y) * step(f.y, uWin.w);',
-          '  float hs = fract(sin(dot(cell + vec2(vWin.z * 13.7, vWin.z * 7.1), vec2(12.9898, 78.233))) * 43758.5453);',
-          '  float on = step(hs, uLit) * inside;',
+          '  #if __VERSION__ >= 300',
+          '  vec2 fw = fwidth(vWin.xy);',
+          '  #else',
+          '  vec2 fw = vec2(0.03);',
+          '  #endif',
+          '  vec2 lo = smoothstep(uWin.xz - fw, uWin.xz + fw, f);',
+          '  vec2 hi = 1.0 - smoothstep(uWin.yw - fw, uWin.yw + fw, f);',
+          '  float avg = (uWin.y - uWin.x) * (uWin.w - uWin.z);',
+          '  float tiny = smoothstep(0.22, 0.55, max(fw.x, fw.y));',
+          '  float inside = mix(lo.x * hi.x * lo.y * hi.y, avg, tiny);',
+          '  float hw = fract(sin(dot(cell + vec2(vWin.z * 13.7, vWin.z * 7.1), vec2(12.9898, 78.233))) * 43758.5453);',
+          '  float hr = fract(sin(dot(vec2(cell.y, vWin.z * 3.1), vec2(39.346, 11.135))) * 24634.6345);',
+          '  float hs = mix(hw, hr, uRow);',
+          '  float on = mix(step(hs, uLit) * inside, uLit * avg * 0.9, tiny);',
           '  float sky = clamp(f.y, 0.0, 1.0);',
           '  diffuseColor.rgb = mix(diffuseColor.rgb, uGlass * (0.8 + 0.4 * sky), inside);',
           '  float tint = fract(hs * 13.0);',
@@ -1107,15 +1125,15 @@
 
       // ---------------- céu de fim de tarde ----------------
       const SUN = [-0.82, -0.035, -0.57];
-      const sky = makeSky({ cTop: '#121845', cBand: '#5a4a9a', cMid: '#ffa05a', cHor2: '#c4789f', cBot: '#2b2452', horizonMix: 1, bandH: 0.22, cSun: '#ffc070', sunDir: SUN, sunGlow: 1.1, stars: 0.75, moon: 1, moonDir: [0.55, 0.42, 0.72], nebula: 0.12, cNeb: '#ff9ac0' });
+      const sky = makeSky({ cTop: '#121845', cBand: '#5a4a9a', cMid: '#ffa05a', cHor2: '#c4789f', cBot: '#5a4a86', horizonMix: 1, bandH: 0.22, cSun: '#ffc070', sunDir: SUN, sunGlow: 1.1, stars: 0.75, moon: 1, moonDir: [0.55, 0.42, 0.72], nebula: 0.12, cNeb: '#ff9ac0' });
       root.add(sky);
       const SU = sky.userData.U;
 
       // ---------------- luzes ----------------
       const L = M.lighting('tarde', { area: 6.6 });
       root.add(L.group);
-      L.hemi.color.set('#9aa4ff'); L.hemi.groundColor.set('#5a3550'); L.hemi.intensity = 0.62;
-      L.sun.color.set('#ffae6a'); L.sun.intensity = 1.75; L.sun.position.set(-8.5, 3.4, -5.0);
+      L.hemi.color.set('#8a96ff'); L.hemi.groundColor.set('#5a3550'); L.hemi.intensity = 0.58;
+      L.sun.color.set('#ffa862'); L.sun.intensity = 2.1; L.sun.position.set(-8.0, 4.0, -4.6);
       L.sun.target.position.set(0, 0, 0);
       L.amb.intensity = 0.12;
       L.sun.shadow.camera.far = 30;
@@ -1151,9 +1169,9 @@
       const B = cityBuilder();
       const pal = ['#e7d8c4', '#cfc7d6', '#d9b8a0', '#b9c6cf', '#e2cfa6', '#c7b2c4', '#a9b4c2', '#e0c1b0'];
       const bl = [
-        [-2.5, -1.4, 1.1, 1.5, 2.2], [-3.75, -1.0, 0.95, 1.15, 1.3], [-2.6, 0.2, 1.0, 0.8, 0.9], [0.8, -1.75, 0.7, 1.0, 1.65],
-        [3.0, -1.6, 1.0, 1.05, 2.6], [3.1, -0.1, 1.05, 0.9, 1.35], [4.2, -0.95, 0.7, 1.2, 1.0],
-        [-1.9, -3.85, 0.9, 0.8, 1.55], [-0.4, -4.1, 1.0, 0.7, 2.0], [1.0, -4.0, 0.8, 0.8, 1.2], [2.4, -3.7, 0.7, 0.6, 1.75],
+        [-2.5, -1.4, 1.1, 1.5, 1.9], [-3.75, -1.0, 0.95, 1.15, 1.3], [-2.6, 0.2, 1.0, 0.8, 0.9], [0.8, -1.75, 0.7, 1.0, 1.65],
+        [3.0, -1.6, 1.0, 1.05, 2.1], [3.1, -0.1, 1.05, 0.9, 1.35], [4.2, -0.95, 0.7, 1.2, 1.0],
+        [-1.9, -3.85, 0.9, 0.8, 1.55], [-0.4, -4.1, 1.0, 0.7, 1.7], [1.0, -4.0, 0.8, 0.8, 1.2], [2.4, -3.7, 0.7, 0.6, 1.75],
         [-3.5, 2.6, 0.8, 0.8, 0.8], [2.8, 3.35, 0.7, 0.6, 1.0], [-3.65, -2.95, 0.6, 0.5, 0.7],
       ];
       bl.forEach((b, i) => addBuilding(B, r, b[0], b[1], b[2], b[3], b[4], pal[i % pal.length], i + 1));
@@ -1163,7 +1181,7 @@
         B.box(s[0], 0, s[1], 0.58, 0.56, 0.55, s[2], { seed: 40 + i, cell: [0.19, 0.28], roof: '#7a6a6a' });
         B.box(s[0], 0.56, s[1], 0.62, 0.04, 0.59, M.hex(M.mix(s[2], '#000000', 0.25)), { roof: '#6a5a5a' });
       });
-      const city = new T.Mesh(K.geo(B.build()), windowMat(K, lit, { key: 'city', glass: '#1d2440' }));
+      const city = new T.Mesh(K.geo(B.build()), windowMat(K, lit, { key: 'city', glass: '#1d2440', row: 0.35, win: [0.24, 0.76, 0.28, 0.78] }));
       city.castShadow = true; city.receiveShadow = true; root.add(city);
       shops.forEach((s, i) => {
         const aw = M.box(0.6, 0.02, 0.16, s[3], { parent: root, pos: [s[0], 0.24, s[1] - 0.34], rot: [0.35, 0, 0] });
@@ -1176,23 +1194,24 @@
       const TB = cityBuilder();
       const TX = -0.7, TZ = -1.2;
       TB.box(TX, 0, TZ, 1.6, 0.34, 1.6, '#3b3f55', { seed: 90, cell: [0.2, 0.34], roof: '#5a5f78' });
-      TB.box(TX, 0.34, TZ, 1.22, 3.0, 1.22, '#a9bad3', { seed: 91, cell: [0.1, 0.15] });
-      TB.box(TX, 3.34, TZ, 1.28, 0.05, 1.28, '#e8eef8', { roof: '#c8d0dc' });
-      TB.box(TX, 3.39, TZ, 0.98, 0.42, 0.98, '#a9bad3', { seed: 92, cell: [0.1, 0.14] });
-      TB.box(TX, 3.81, TZ, 1.04, 0.04, 1.04, '#e8eef8', { roof: '#c8d0dc' });
-      const tower = new T.Mesh(K.geo(TB.build()), windowMat(K, lit, { key: 'tower', glass: '#2a4a78', warm: '#ffd08a', win: [0.08, 0.92, 0.14, 0.9], rough: 0.4 }));
+      const TH = 2.5, TT = 0.34 + TH;
+      TB.box(TX, 0.34, TZ, 1.22, TH, 1.22, '#a9bad3', { seed: 91, cell: [0.1, 0.15] });
+      TB.box(TX, TT, TZ, 1.28, 0.05, 1.28, '#e8eef8', { roof: '#c8d0dc' });
+      TB.box(TX, TT + 0.05, TZ, 0.98, 0.42, 0.98, '#a9bad3', { seed: 92, cell: [0.1, 0.14] });
+      TB.box(TX, TT + 0.47, TZ, 1.04, 0.04, 1.04, '#e8eef8', { roof: '#c8d0dc' });
+      const tower = new T.Mesh(K.geo(TB.build()), windowMat(K, lit, { key: 'tower', glass: '#28467a', warm: '#ffd08a', win: [0.08, 0.92, 0.14, 0.9], rough: 0.4, row: 0.72 }));
       tower.castShadow = true; tower.receiveShadow = true; root.add(tower);
       // andar do CEO (faixa acesa) + coroa de luz
       const ceoM = M.mat('#ffe2a8', { emissive: '#ffc070', emissiveIntensity: 1.25 });
-      [[0, 0.615], [0, -0.615]].forEach((p) => M.box(1.12, 0.1, 0.012, ceoM, { parent: root, pos: [TX + p[0], 3.07, TZ + p[1]], cast: false }));
-      [[0.615, 0], [-0.615, 0]].forEach((p) => M.box(0.012, 0.1, 1.12, ceoM, { parent: root, pos: [TX + p[0], 3.07, TZ + p[1]], cast: false }));
+      [[0, 0.615], [0, -0.615]].forEach((p) => M.box(1.12, 0.1, 0.012, ceoM, { parent: root, pos: [TX + p[0], TT - 0.27, TZ + p[1]], cast: false }));
+      [[0.615, 0], [-0.615, 0]].forEach((p) => M.box(0.012, 0.1, 1.12, ceoM, { parent: root, pos: [TX + p[0], TT - 0.27, TZ + p[1]], cast: false }));
       // mullions verticais (vidro com montantes)
       const mull = M.mat('#e0e8f4', { rough: 0.5 });
       [-0.3, 0, 0.3].forEach((dx) => {
-        M.box(0.018, 3.0, 0.018, mull, { parent: root, pos: [TX + dx, 1.84, TZ + 0.615], cast: false });
-        M.box(0.018, 3.0, 0.018, mull, { parent: root, pos: [TX + 0.615, 1.84, TZ + dx], cast: false });
-        M.box(0.018, 3.0, 0.018, mull, { parent: root, pos: [TX + dx, 1.84, TZ - 0.615], cast: false });
-        M.box(0.018, 3.0, 0.018, mull, { parent: root, pos: [TX - 0.615, 1.84, TZ + dx], cast: false });
+        M.box(0.018, TH, 0.018, mull, { parent: root, pos: [TX + dx, 0.34 + TH / 2, TZ + 0.615], cast: false });
+        M.box(0.018, TH, 0.018, mull, { parent: root, pos: [TX + 0.615, 0.34 + TH / 2, TZ + dx], cast: false });
+        M.box(0.018, TH, 0.018, mull, { parent: root, pos: [TX + dx, 0.34 + TH / 2, TZ - 0.615], cast: false });
+        M.box(0.018, TH, 0.018, mull, { parent: root, pos: [TX - 0.615, 0.34 + TH / 2, TZ + dx], cast: false });
       });
       // heliponto
       const heliTex = K.tex(256, 256, (ctx) => {
@@ -1201,12 +1220,11 @@
         ctx.fillStyle = '#ffffff'; ctx.font = '900 120px Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('H', 128, 136);
       });
       const heli = new T.Mesh(K.geo(new T.CircleGeometry(0.44, 40)), K.mat(new T.MeshStandardMaterial({ map: heliTex, roughness: 0.8 })));
-      heli.rotation.x = -Math.PI / 2; heli.position.set(TX, 3.86, TZ); heli.receiveShadow = true; root.add(heli);
-      const antenna = M.cyl(0.012, 0.02, 0.7, '#d0d4de', { parent: root, pos: [TX + 0.42, 4.2, TZ - 0.42] });
+      heli.rotation.x = -Math.PI / 2; heli.position.set(TX, TT + 0.515, TZ); heli.receiveShadow = true; root.add(heli);
+      const antenna = M.cyl(0.012, 0.02, 0.7, '#d0d4de', { parent: root, pos: [TX + 0.42, TT + 0.86, TZ - 0.42] });
       antenna.castShadow = true;
-      const beacon = M.glow('#ff3344', 0.35, 0.9); beacon.position.set(TX + 0.42, 4.57, TZ - 0.42); root.add(beacon);
-      const crownRing = M.torus(0.5, 0.012, M.basic('#ffe0a0'), { parent: root, pos: [TX, 3.865, TZ], rot: [Math.PI / 2, 0, 0], cast: false });
-      crownRing.material = M.basic('#ffe0a0');
+      const beacon = M.glow('#ff3344', 0.35, 0.9); beacon.position.set(TX + 0.42, TT + 1.23, TZ - 0.42); root.add(beacon);
+      M.torus(0.5, 0.012, M.basic('#ffe0a0'), { parent: root, pos: [TX, TT + 0.52, TZ], rot: [Math.PI / 2, 0, 0], cast: false });
 
       // ---------------- casa da família (fundos com piscina) ----------------
       const HX = -1.9, HZ = 2.95;
@@ -1217,11 +1235,10 @@
       M.box(1.05, 0.3, 0.72, wallW, { parent: house, pos: [0, 0.15, -0.05] });
       M.box(0.7, 0.26, 0.6, wallW, { parent: house, pos: [-0.12, 0.43, -0.1] });
       M.box(1.12, 0.035, 0.8, '#d8d0c4', { parent: house, pos: [0, 0.315, -0.05] });
-      const roof = new T.Mesh(M.cylGeo(0.4, 0.4, 0.8, 3), roofM);
-      roof.rotation.set(0, 0, Math.PI / 2); roof.rotation.y = Math.PI / 2;
-      roof.scale.set(1, 1, 0.55); roof.position.set(-0.12, 0.65, -0.1); roof.castShadow = true;
+      const roof = new T.Mesh(M.cylGeo(0.42, 0.42, 0.84, 3), roofM);
+      roof.quaternion.setFromRotationMatrix(new T.Matrix4().makeBasis(new T.Vector3(0, 0, 1), new T.Vector3(1, 0, 0), new T.Vector3(0, 1, 0)));
+      roof.scale.set(1, 1, 0.55); roof.position.set(-0.12, 0.56 + 0.42 * 0.5 * 0.55, -0.1); roof.castShadow = true;
       house.add(roof);
-      roof.rotation.set(Math.PI / 2, 0, 0); roof.rotation.order = 'YXZ'; roof.rotation.y = Math.PI / 2;
       // janelas acesas (fundos virados para +Z)
       const warmWin = M.mat('#ffe2a0', { emissive: '#ffb35c', emissiveIntensity: 1.5 });
       M.box(0.5, 0.2, 0.01, warmWin, { parent: house, pos: [0.15, 0.13, 0.315], cast: false });
@@ -1356,19 +1373,39 @@
         clouds.add(s);
       }
 
+      // mar de nuvens ao pôr do sol (tingido: quente do lado do sol, lilás do outro)
+      const seaTex = K.tex(1024, 1024, (ctx, w) => {
+        const rr = M.rng(23), c = w / 2;
+        const sx = SUN[0], sz = SUN[2], sl = Math.hypot(sx, sz);
+        for (let i = 0; i < 420; i++) {
+          const a = rr() * TAU, d = Math.sqrt(rr()) * 0.48 * w;
+          const x = c + Math.cos(a) * d, y = c + Math.sin(a) * d;
+          const sun = Math.max(0, (Math.cos(a) * sx + Math.sin(a) * sz) / sl) * (d / (0.48 * w));
+          const cc = M.mix('#b7a2d8', '#ffc08a', Math.min(1, sun * 1.4));
+          const s2 = 14 + rr() * 46 * (1 - d / (0.5 * w)) + 12;
+          const g = ctx.createRadialGradient(x, y, 0, x, y, s2);
+          const rgb = Math.round(cc.r * 255) + ',' + Math.round(cc.g * 255) + ',' + Math.round(cc.b * 255);
+          g.addColorStop(0, 'rgba(' + rgb + ',0.55)'); g.addColorStop(1, 'rgba(' + rgb + ',0)');
+          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, s2, 0, TAU); ctx.fill();
+        }
+      });
+      seaTex.encoding = T.LinearEncoding;
+      const seaM = K.mat(new T.MeshBasicMaterial({ map: seaTex, transparent: true, opacity: 0.95, depthWrite: false, fog: true }));
+      [[-5.5, 90, 0], [-8, 120, 0.8]].forEach((d) => { const m = new T.Mesh(M.planeGeo(d[1], d[1]), seaM); m.rotation.x = -Math.PI / 2; m.rotation.z = d[2]; m.position.y = d[0]; root.add(m); });
+
       // ---------------- contrato ----------------
       const env = {
         root,
         spots: {
-          faisca: { x: 0.25, z: 2.9, rot: 0, y: 1.75 },
+          faisca: { x: 1.0, z: 3.9, rot: 0.3, y: 1.1 },
           centro: { x: 0, z: 1.4, rot: 0 },
         },
         shots: {
-          geral: { target: [0, 1.2, 0.2], yaw: 0.32, pitch: 0.4, dist: 15.5, fov: 34 },
-          torre: { target: [-0.7, 3.3, -1.2], yaw: 0.55, pitch: 0.12, dist: 4.6, fov: 36 },
+          geral: { target: [0, 2.3, 0.8], yaw: 0.35, pitch: 0.6, dist: 15.5, fov: 34 },
+          torre: { target: [-0.7, 2.7, -1.2], yaw: 0.55, pitch: 0.12, dist: 4.6, fov: 36 },
           casa: { target: [-1.8, 0.25, 3.1], yaw: 0.3, pitch: 0.34, dist: 3.4, fov: 36 },
           praca: { target: [0.35, 0.3, 3.2], yaw: -0.45, pitch: 0.3, dist: 3.4, fov: 36 },
-          ceu: { target: [0, 2.6, 0], yaw: 0.95, pitch: 0.03, dist: 17, fov: 44 },
+          ceu: { target: [-0.7, 2.9, -1.2], yaw: 0.25, pitch: -0.1, dist: 5.6, fov: 50 },
         },
         defaultShot: 'geral',
         walls: [],
@@ -1570,10 +1607,10 @@
       // luzes: "lanternas" quentes por cima + lua fria
       const L = M.lighting('noite', { area: 5 });
       root.add(L.group);
-      L.hemi.color.set('#ffd9b0'); L.hemi.groundColor.set('#3a2a30'); L.hemi.intensity = 0.62;
-      L.sun.color.set('#ffd6a8'); L.sun.intensity = 1.05; L.sun.position.set(2.2, 8, 4.5); L.sun.target.position.set(0, 0, -0.3);
+      L.hemi.color.set('#ffd9b0'); L.hemi.groundColor.set('#3a2a30'); L.hemi.intensity = 0.5;
+      L.sun.color.set('#ffd6a8'); L.sun.intensity = 0.9; L.sun.position.set(2.2, 8, 4.5); L.sun.target.position.set(0, 0, -0.3);
       L.amb.intensity = 0.12;
-      const lanternL = new T.PointLight('#ffbe78', 1.3, 8.5, 2); lanternL.position.set(0.2, 2.35, 0.1); root.add(lanternL);
+      const lanternL = new T.PointLight('#ffbe78', 1.9, 9, 2); lanternL.position.set(0.0, 2.85, 0.4); root.add(lanternL);
       const deskL = new T.PointLight('#ffcf8a', 0.9, 3.2, 2); deskL.position.set(-1.45, 1.15, -1.05); root.add(deskL);
 
       // ---------------- piso + base ----------------
@@ -1702,7 +1739,7 @@
 
       // estante (parede direita) com livros mesclados
       const shelfM = M.mat('#7a4a30', { rough: 0.7 });
-      const SH = M.group({ parent: right, pos: [1.65, 0, 0.2] });
+      const SH = M.group({ parent: right, pos: [-0.95, 0, 0] });
       M.box(1.0, 1.85, 0.05, shelfM, { parent: SH, pos: [0, 0.925, 0.025] });
       [-0.5, 0.5].forEach((x) => M.box(0.04, 1.85, 0.32, shelfM, { parent: SH, pos: [x, 0.925, 0.16] }));
       [0.04, 0.5, 0.95, 1.4, 1.83].forEach((y) => M.box(1.0, 0.035, 0.32, shelfM, { parent: SH, pos: [0, y, 0.16] }));
@@ -1722,7 +1759,7 @@
       const books = new T.Mesh(K.geo(mergeParts(bookParts)), K.vc({ rough: 0.8 }));
       books.castShadow = true; books.receiveShadow = true; SH.add(books);
       // mural de cortiça
-      const cork = M.group({ parent: right, pos: [-0.75, 1.6, 0] });
+      const cork = M.group({ parent: right, pos: [1.0, 1.6, 0] });
       M.rbox(1.1, 0.75, 0.04, 0.01, '#6b4428', { parent: cork, pos: [0, 0, 0.02] });
       M.box(1.0, 0.65, 0.02, '#c8955a', { parent: cork, pos: [0, 0, 0.04] });
       const noteParts = [];
@@ -1765,8 +1802,8 @@
       const lampG = M.group({ parent: TD, pos: [-0.38, 0.78, -0.12] });
       M.cyl(0.07, 0.08, 0.025, '#c9a46a', { parent: lampG, pos: [0, 0.012, 0], metal: 0.6 });
       M.cyl(0.01, 0.01, 0.3, '#c9a46a', { parent: lampG, pos: [0, 0.16, 0] });
-      const shade = M.cyl(0.13, 0.13, 0.26, M.mat('#2f7a52', { rough: 0.3, side: 'double' }), { parent: lampG, pos: [0.0, 0.33, 0.04], rot: [0, 0, Math.PI / 2], open: true, seg: 16, arc: Math.PI });
-      shade.scale.set(1, 1, 0.5);
+      const shade = new T.Mesh(K.geo(new T.CylinderGeometry(0.1, 0.1, 0.28, 16, 1, true, -Math.PI / 2, Math.PI)), M.mat('#2f7a52', { rough: 0.3, side: 'double' }));
+      shade.position.set(0, 0.33, 0.04); shade.rotation.set(0, 0, Math.PI / 2); shade.castShadow = true; lampG.add(shade);
       M.cyl(0.03, 0.03, 0.2, M.mat('#fff2c8', { emissive: '#ffd27a', emissiveIntensity: 2 }), { parent: lampG, pos: [0, 0.3, 0.04], rot: [0, 0, Math.PI / 2], cast: false });
       const lampGlow = M.glow('#ffcf7a', 0.9, 0.45); lampGlow.position.set(0, 0.25, 0.06); lampG.add(lampGlow);
       // livros, maçã, caneca
@@ -1815,7 +1852,7 @@
       // ---------------- lanternas de papel flutuando ----------------
       const lanternM = M.mat('#ffe2b0', { emissive: '#ffb35c', emissiveIntensity: 1.25, rough: 0.9 });
       const capM = M.mat('#5e3622', { rough: 0.8 });
-      const lanterns = [[-1.25, 2.55, -0.55, 0.2], [1.05, 2.7, 0.35, 0.24], [0.0, 2.45, 1.55, 0.17], [-2.2, 2.75, 0.9, 0.15]].map((p, i) => {
+      const lanterns = [[-1.9, 3.0, 1.2, 0.2], [1.5, 3.3, 1.4, 0.23], [-0.2, 3.25, 0.2, 0.17], [2.3, 2.85, -0.6, 0.15]].map((p, i) => {
         const g = M.group({ parent: root, pos: [p[0], p[1], p[2]] });
         M.sphere(p[3], lanternM, { parent: g, scale: [1, 1.15, 1], cast: false });
         M.cyl(p[3] * 0.45, p[3] * 0.45, 0.04, capM, { parent: g, pos: [0, p[3] * 1.12, 0], cast: false });
@@ -1875,8 +1912,8 @@
           ctx.strokeStyle = 'rgba(40,80,120,0.25)'; ctx.lineWidth = 1; for (let i = 1; i < 8; i++) { ctx.beginPath(); ctx.moveTo(20 + i * (w - 40) / 8, 20); ctx.lineTo(20 + i * (w - 40) / 8, h - 20); ctx.stroke(); } for (let j = 1; j < 5; j++) { ctx.beginPath(); ctx.moveTo(20, 20 + j * (h - 40) / 5); ctx.lineTo(w - 20, 20 + j * (h - 40) / 5); ctx.stroke(); }
           ctx.fillStyle = '#d8342c'; ctx.beginPath(); ctx.arc(20 + 0.34 * (w - 40), 20 + 0.66 * (h - 40), 7, 0, TAU); ctx.fill();
         });
-        M.rbox(1.3, 0.78, 0.03, 0.01, '#6b4428', { parent: themeG.ingles, pos: [0.55, 1.62, 0.015] });
-        M.plane(1.22, 0.7, K.mat(new T.MeshStandardMaterial({ map: mapTex, roughness: 0.9 })), { parent: themeG.ingles, pos: [0.55, 1.62, 0.032], cast: false });
+        M.rbox(1.3, 0.78, 0.03, 0.01, '#6b4428', { parent: themeG.ingles, pos: [0.95, 1.62, 0.015] });
+        M.plane(1.22, 0.7, K.mat(new T.MeshStandardMaterial({ map: mapTex, roughness: 0.9 })), { parent: themeG.ingles, pos: [0.95, 1.62, 0.032], cast: false });
         const abc = K.tex(256, 340, (ctx, w, h) => {
           ctx.fillStyle = '#fff8e8'; ctx.fillRect(0, 0, w, h);
           const L3 = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
@@ -1932,6 +1969,7 @@
       function setTema(tema) {
         tema = themeG[tema] ? tema : 'violao';
         Object.keys(themeG).forEach((k) => (themeG[k].visible = k === tema));
+        cork.visible = tema !== 'ingles';
       }
 
       const env = {
@@ -1966,7 +2004,7 @@
           const lt = t - st.t0;
           SU.time.value = lt;
           lanterns.forEach((l) => { l.g.position.y = l.base + Math.sin(lt * 0.8 + l.ph) * 0.05; l.g.rotation.y = lt * 0.2 + l.ph; });
-          lanternL.intensity = 1.3 + Math.sin(lt * 2.3) * 0.05;
+          lanternL.intensity = 1.9 + Math.sin(lt * 2.3) * 0.06;
           globe.rotation.y = lt * 0.25;
           steam.forEach((s, i) => { const k = ((lt * 0.35 + i / 3) % 1); s.position.y = 0.86 + k * 0.2; s.material.opacity = 0.3 * Math.sin(k * Math.PI); s.scale.setScalar(0.06 + k * 0.08); });
           const pa = motes.geometry.attributes.position;
@@ -2016,9 +2054,11 @@
       // piso de luz + sombra de contato
       const disc = softDisc(K, 0.25);
       const floorM = K.mat(new T.MeshBasicMaterial({ map: disc, color: '#7c6cff', transparent: true, opacity: 0.55, blending: T.AdditiveBlending, depthWrite: false, toneMapped: false }));
-      const fl = new T.Mesh(M.planeGeo(9, 9), floorM); fl.rotation.x = -Math.PI / 2; fl.position.y = 0.002; root.add(fl);
-      const shadowCatcher = new T.Mesh(M.planeGeo(8, 8), K.mat(new T.ShadowMaterial({ opacity: 0.35 })));
-      shadowCatcher.rotation.x = -Math.PI / 2; shadowCatcher.receiveShadow = true; root.add(shadowCatcher);
+      const fl = new T.Mesh(M.planeGeo(7, 7), floorM); fl.rotation.x = -Math.PI / 2; fl.position.y = 0.004; fl.renderOrder = 1; root.add(fl);
+      const stageM = K.mat(new T.MeshStandardMaterial({ color: '#15132c', roughness: 0.55, metalness: 0.2 }));
+      const stage = new T.Mesh(M.cylGeo(3.3, 3.45, 0.12, 96), stageM); stage.position.y = -0.06; stage.receiveShadow = true; root.add(stage);
+      const rimM = K.mat(new T.MeshBasicMaterial({ color: '#b8b0ff', toneMapped: false }));
+      const rimRing = new T.Mesh(M.torusGeo(3.32, 0.018, 6, 128), rimM); rimRing.rotation.x = -Math.PI / 2; rimRing.position.y = 0.0; root.add(rimRing);
       const ringM = K.mat(new T.MeshBasicMaterial({ color: '#b8b0ff', transparent: true, opacity: 0.55, blending: T.AdditiveBlending, depthWrite: false, toneMapped: false }));
       const rings = [[1.35, 0.012, 1.7, 0.25], [2.1, 0.008, 4.6, -0.14], [2.9, 0.01, 2.4, 0.09], [3.8, 0.006, 5.6, -0.05]].map((d) => {
         const m = new T.Mesh(M.torusGeo(d[0], d[1], 4, 96, d[2]), ringM);
@@ -2036,22 +2076,22 @@
       ];
       const shapes = [];
       for (let i = 0; i < 14; i++) {
-        let a = r() * TAU, rad = 3.6 + r() * 4.5;
-        let x = Math.cos(a) * rad, z = Math.sin(a) * rad - 1;
-        if (z > 1.5 && Math.abs(x) < 3) { z = -z; }
-        const y = 0.6 + r() * 3.6;
+        const a = -Math.PI / 2 + (i / 14 - 0.5) * 4.2 + (r() - 0.5) * 0.3, rad = 5.0 + r() * 5.0;
+        const x = Math.cos(a) * rad * 1.25, z = Math.sin(a) * rad;
+        const y = 0.5 + r() * 2.6;
         const g = geos[i % geos.length];
         const kind = i % 3;
         let obj;
-        if (kind === 2 && g.type !== 'TorusGeometry') obj = new T.LineSegments(K.geo(new T.EdgesGeometry(g)), lineM);
+        if (kind === 2 && /Icosa|Octa|Tetra|Dodeca/.test(g.type)) obj = new T.LineSegments(K.geo(new T.EdgesGeometry(g)), lineM);
         else obj = new T.Mesh(g, kind === 1 ? glassM : pearlM);
         obj.position.set(x, y, z);
-        obj.scale.setScalar(0.6 + r() * 0.9);
+        obj.scale.setScalar(0.55 + r() * 0.65);
         obj.rotation.set(r() * TAU, r() * TAU, 0);
         obj.castShadow = false;
         root.add(obj);
         shapes.push({ o: obj, y, ph: r() * TAU, sx: (r() - 0.5) * 0.4, sy: (r() - 0.5) * 0.5 });
       }
+      const halo = M.glow('#7c6cff', 9, 0.22); halo.position.set(0, 1.6, -7); root.add(halo);
       // partículas
       const pts = glowPoints(K, 260, 0.09, { tex: dotTex(K), color: '#d8d0ff', opacity: 0.85 });
       root.add(pts);
@@ -2070,6 +2110,8 @@
         SU.cBot.value.copy(tc).multiplyScalar(0.03).add(col('#020206'));
         SU.cNeb.value.copy(tc).multiplyScalar(0.55);
         floorM.color.copy(tc);
+        rimM.color.copy(tc).lerp(col('#ffffff'), 0.35);
+        stageM.color.copy(col('#100e22')).lerp(tc, 0.12);
         ringM.color.copy(tc).lerp(col('#ffffff'), 0.45);
         pearlM.color.copy(tc).lerp(col('#ffffff'), 0.62);
         pearlM.emissive.copy(tc);
@@ -2078,6 +2120,7 @@
         lineM.color.copy(tc).lerp(col('#ffffff'), 0.5);
         pts.material.color.copy(tc).lerp(col('#ffffff'), 0.55);
         rim.color.copy(tc);
+        halo.material.color.copy(tc);
         L.hemi.color.copy(tc).lerp(col('#ffffff'), 0.7);
         const sc = P2.core && P2.core.scene;
         if (sc && sc.background && sc.background.isColor) sc.background.copy(SU.cMid.value);
