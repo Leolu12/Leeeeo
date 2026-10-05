@@ -455,6 +455,8 @@
     const cBase = col(def.base), cDark = col(def.dark || def.base), cLight = col(def.light || def.base), cSkin = col(def.skin || '#d59c70');
     const colors = [];
     const freq = def.freq || 20, gA = def.groove == null ? 0.22 : def.groove;
+    const ramp = def.ramp || 0.016, wv = def.warp == null ? 0.35 : def.warp, fineK = def.fineK == null ? 0.07 : def.fineK;
+    const occ = def.occ == null ? 1 : def.occ;
     for (let i = 0; i <= NT; i++) {
       const th = (i / NT) * thMax;
       for (let j = 0; j < NP; j++) {
@@ -472,19 +474,25 @@
         const m = smooth(0, 1, q);
         headPoint(d, hs, S); headNormal(d, hs, Nn);
         const cm = def.comb ? def.comb(d, e, ph) : Math.atan2(d.y, d.x);
-        const u = cm * freq;
-        const ridge = Math.pow(abs(sin(u * 0.5)), 0.55); // sulcos estreitos, mechas cheias
-        const lump = def.lump ? snoise(d.x * 3.2, d.y * 3.2, d.z * 3.2) * def.lump : 0;
-        const t = Math.max(0, def.thick(e, ph, d) * (0.4 + 0.6 * m) * (1 + gA * (ridge - 0.6) * 2 + lump));
-        const off = Math.min(q * 0.016, t + 0.0018);
+        // mechas largas (topo cheio, vale estreito) + fios finos só na cor
+        const u = cm * freq + snoise(d.x * 2.6 + 1.7, d.y * 2.6, d.z * 2.6) * wv * 2;
+        const cl = abs(sin(u * 0.5));
+        const clump = 1 - Math.pow(1 - cl, 2.6);
+        const fine = sin(u * 1.6 + 1.3) * 0.6 + sin(u * 0.73 + 0.7) * 0.4;
+        const lump = def.lump ? snoise(d.x * 3.2, d.y * 3.2, d.z * 3.2) * def.lump + (def.curl ? (snoise(d.x * 9, d.y * 9, d.z * 9) * 0.6 + snoise(d.x * 17 + 3, d.y * 17, d.z * 17) * 0.4) * def.curl : 0) : 0;
+        const t = Math.max(0, def.thick(e, ph, d) * (0.45 + 0.55 * m) * (1 + gA * (clump - 0.85) * 1.4 + lump));
+        const off = Math.min(q * ramp, t + 0.0018);
         verts.push(S.x + Nn.x * off, S.y + Nn.y * off, S.z + Nn.z * off);
         qs.push(q);
-        // cor: vales escuros entre mechas, fios claros suaves, esfumado para a pele na borda
-        const c = cDark.clone().lerp(cBase, 0.45 + 0.55 * ridge);
-        const st = 0.5 + 0.5 * sin(u * 0.37 + sin(u * 0.13) * 2.1 + (def.seed || 0));
-        c.lerp(cLight, smooth(0.55, 1, st) * 0.55 * ridge);
+        // cor: vales escuros estreitos, fios finos, mechas claras, sombra embaixo, esfumado TOTAL para a pele na borda
+        const c = cBase.clone().lerp(cDark, (1 - clump) * 0.55);
+        c.multiplyScalar(1 + fineK * fine);
+        const st = 0.5 + 0.5 * sin(u * 0.29 + sin(u * 0.11) * 2.1 + (def.seed || 0));
+        c.lerp(cLight, smooth(0.5, 1, st) * 0.42 * clump);
+        c.lerp(cDark, 0.32 * occ * smooth(0.35, -0.55, d.y));
+        if (def.curl) c.multiplyScalar(1 + lump * 0.9);
         if (def.tint) def.tint(c, d, e, ph, m);
-        c.lerp(cSkin, (1 - smooth(0.0, def.edgeSkin == null ? 0.9 : def.edgeSkin, q)) * 0.75);
+        c.lerp(cSkin, 1 - smooth(0.0, def.edgeSkin == null ? 0.9 : def.edgeSkin, q));
         colors.push(c);
       }
     }
@@ -492,7 +500,7 @@
     for (let i = 0; i < NT; i++) {
       for (let j = 0; j < NP; j++) {
         const a = i * NP + j, b = i * NP + ((j + 1) % NP), c = (i + 1) * NP + j, dd = (i + 1) * NP + ((j + 1) % NP);
-        if (Math.max(qs[a], qs[b], qs[c], qs[dd]) < -0.6) continue;
+        if (Math.max(qs[a], qs[b], qs[c], qs[dd]) < -0.4) continue;
         idx.push(a, c, b, b, c, dd);
       }
     }
@@ -509,6 +517,18 @@
     const n = headNormal(d, hs, new V3());
     p.addScaledVector(n, lift || 0);
     return { p, n, d };
+  }
+  /** Cor de mecha (tubo achatado): face de fora mais clara, bordas e lado de dentro mais escuros, fios ao longo. */
+  function lockColor(colr, segs, o) {
+    o = o || {};
+    const cc = col(colr), cd = M.mix(colr, '#000', o.dark == null ? 0.38 : o.dark), cl = M.mix(colr, o.lightTo || '#ffffff', o.light == null ? 0.16 : o.light);
+    return (p, n, l, i) => {
+      const k = i % segs, a = (k / segs) * PI * 2;
+      const out = sin(a), side = abs(cos(a));
+      const c = cc.clone().lerp(cd, smooth(0.2, -0.8, out) * 0.8 + side * 0.25);
+      if (out > 0) c.lerp(cl, smooth(0.3, 0.95, out) * 0.5 * (0.6 + 0.4 * sin(k * 2.1 + Math.floor(i / segs) * 0.35)));
+      return c;
+    };
   }
   /** Mecha: começa em (ph,e) e vai na direção dada (vetor no espaço do crânio). */
   function addLock(bucket, hs, o, colr) {
@@ -535,42 +555,116 @@
       });
     }
     const geo = lockGeo(pts, o.w, o.th || o.w * 0.45, { up: a.n, ups, segs: 8, profile: o.profile });
-    const cc = col(colr || '#333');
-    const cd = cc.clone().multiplyScalar(0.72);
-    bucket.add(geo, { color: (p, n, l, i) => (Math.floor(i / 8) < 2 ? cd : cc), region: REG.hair });
+    bucket.add(geo, { color: lockColor(colr || '#333', 8, o.shade), region: REG.hair });
+  }
+  /**
+   * "Saia" de cabelo comprido/chanel: superfície contínua com espessura que nasce
+   * por baixo da casca, desce colada no crânio até a parte mais larga e cai na
+   * vertical (abrindo sobre os ombros), com sulcos de mechas e pontas irregulares.
+   * o: {a0, a1 (ângulos: 0 = frente; o arco passa por trás), eTop, y1(ph), lift, th, flare(ph,t), fwd(ph,t), inK, tipK, freq, seed}
+   */
+  function hairSkirt(hs, hb, c, o) {
+    const NA = o.na || 56, NH = o.nh || 7, NV = 12, NR = NH + NV + 1;
+    const a0 = o.a0, a1 = o.a1; // a0 < a1, ex.: 1.15 → 2π-1.15 (passando por π = atrás)
+    const cc = col(c), cd = M.mix(c, '#000', 0.36), cl = M.mix(c, o.lightTo || '#c08a5a', o.light == null ? 0.3 : o.light);
+    const outer = [], inner = [], colsO = [], colsI = [];
+    const d = new V3(), S = new V3(), N = new V3();
+    const r = M.rng(o.seed || 3);
+    const tipJ = [];
+    for (let j = 0; j <= NA; j++) tipJ.push(r());
+    for (let j = 0; j <= NA; j++) {
+      const ph = lerp(a0, a1, j / NA);
+      const u = (j / NA) * (o.freq || 16) * PI * 2;
+      const clump = 1 - Math.pow(1 - abs(sin(u * 0.5)), 2.2);
+      const edge = Math.min(j, NA - j) / NA; // 0 nas pontas do arco
+      const side = abs(sin(ph));
+      const yEnd = o.y1(ph) - (o.tipK == null ? 0.035 : o.tipK) * (clump * 0.7 + tipJ[j] * 0.3) * smooth(0, 0.08, edge);
+      let last = null;
+      for (let i = 0; i < NR; i++) {
+        let P, nrm;
+        if (i <= NH) {
+          const e = lerp(o.eTop == null ? 0.42 : o.eTop, o.eMid == null ? -0.04 : o.eMid, Math.pow(i / NH, 0.8));
+          d.set(cos(e) * sin(ph), sin(e), cos(e) * cos(ph));
+          headPoint(d, hs, S); headNormal(d, hs, N);
+          const lift = i === 0 ? 0.003 : (o.lift || 0.02) * (0.8 + 0.2 * i / NH) + 0.004 * clump;
+          P = S.clone().addScaledVector(N, lift); nrm = N.clone();
+          last = P.clone();
+        } else {
+          const t = (i - NH) / NV;
+          const y = lerp(last.y, yEnd, t);
+          const out = new V3(sin(ph), 0, cos(ph));
+          const fl = (o.flare ? o.flare(ph, t) : 0.02 * t) + 0.004 * clump - (o.inK || 0) * Math.pow(t, 3);
+          P = new V3(last.x + out.x * fl, y, last.z + out.z * fl + (o.fwd ? o.fwd(ph, t) : 0));
+          nrm = out;
+        }
+        outer.push(P);
+        const th = (o.th || 0.014) * (0.35 + 0.65 * smooth(0, 0.06, edge)) * (i === NR - 1 ? 0.3 : 1);
+        inner.push(P.clone().addScaledVector(nrm, -th));
+        const v = i / (NR - 1);
+        const k = cc.clone().lerp(cd, (1 - clump) * 0.5 + 0.18 * smooth(0.3, 1, v));
+        k.lerp(cl, clump * (0.3 * Math.exp(-((v - 0.2) ** 2) / 0.03) + 0.12));
+        colsO.push(k);
+        colsI.push(cd.clone().multiplyScalar(0.85));
+      }
+    }
+    const pos = [], idx = [], cols = [];
+    outer.forEach((p, i) => { pos.push(p.x, p.y, p.z); cols.push(colsO[i]); });
+    inner.forEach((p, i) => { pos.push(p.x, p.y, p.z); cols.push(colsI[i]); });
+    const off = outer.length;
+    const at = (j, i) => j * NR + i;
+    for (let j = 0; j < NA; j++) for (let i = 0; i < NR - 1; i++) {
+      const A = at(j, i), B2 = at(j + 1, i), C = at(j, i + 1), D2 = at(j + 1, i + 1);
+      idx.push(A, C, B2, B2, C, D2);
+      idx.push(off + A, off + B2, off + C, off + B2, off + D2, off + C);
+    }
+    for (let j = 0; j < NA; j++) { const A = at(j, NR - 1), B2 = at(j + 1, NR - 1); idx.push(A, off + A, B2, B2, off + A, off + B2); }
+    [0, NA].forEach((j) => { for (let i = 0; i < NR - 1; i++) { const A = at(j, i), C = at(j, i + 1); if (j === 0) idx.push(A, off + A, C, C, off + A, off + C); else idx.push(A, C, off + A, C, off + C, off + A); } });
+    const g = new T.BufferGeometry();
+    g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    hb.add(g, { color: (p, n, l, i) => cols[i], region: REG.hair });
   }
   const lum = (c) => { const k = col(c); return 0.3 * k.r + 0.59 * k.g + 0.11 * k.b; };
   const HAIR = {};
   HAIR.grisalho = (hs, hb, c, sk) => {
-    // entradas em "M", topo mais ralo penteado para trás, laterais mais cheias
-    const lo = keys([[0, 0.66], [0.2, 0.7], [0.42, 0.9], [0.6, 0.8], [0.84, 0.45], [1.0, 0.14], [1.12, -0.2], [1.24, -0.08], [1.38, 0.22], [1.6, 0.27], [1.85, 0.12], [2.15, -0.3], [2.6, -0.48], [PI, -0.54]]);
+    // entradas fundas em "M", topo ralo (pele aparecendo) penteado para trás, laterais curtas e cheias
+    const lo = keys([[0, 0.84], [0.16, 0.87], [0.34, 1.04], [0.5, 1.03], [0.66, 0.74], [0.82, 0.46], [0.98, 0.18], [1.08, -0.08], [1.18, -0.12], [1.3, 0.16], [1.6, 0.24], [1.86, 0.1], [2.15, -0.26], [2.6, -0.44], [PI, -0.5]]);
+    const sk2 = col(sk);
     hairShell(hs, {
-      lo: (ph) => lo(abs(ph)), feather: 0.14,
-      thick: (e, ph) => { const side = smooth(0.9, 1.4, abs(ph)); const top = smooth(0.95, 1.45, e); return lerp(0.013, 0.019, side) * (1 - top * 0.3) + (abs(ph) < 0.32 && e > 0.6 && e < 1.0 ? 0.006 * (1 - abs(ph) / 0.32) * smooth(0.6, 0.7, e) : 0); },
-      comb: (d) => Math.atan2(d.y + 0.12, d.x * 1.15), freq: 34, groove: 0.26, lump: 0.03, seed: 1.3,
-      base: c, dark: M.mix(c, '#3e3b46', 0.6), light: M.mix(c, '#ffffff', 0.4), skin: sk,
-      tint: (cc, d, e) => { if (e > 1.15) cc.lerp(col(sk), 0.1 * smooth(1.15, 1.5, e)); if (d.y < 0.05) cc.lerp(col('#7d7a84'), 0.25); },
+      lo: (ph) => lo(abs(ph)), feather: 0.17,
+      thick: (e, ph, d) => {
+        const side = smooth(0.35, 0.85, abs(d.x));
+        const top = smooth(0.78, 0.97, d.y);
+        return lerp(0.0075, 0.0135, side) * (1 - top * 0.45) + 0.0035 * smooth(0.55, 0.85, d.y) * smooth(0.0, 0.6, d.z);
+      },
+      comb: (d) => Math.atan2(d.x, d.y + 1.3), freq: 58, groove: 0.16, lump: 0.02, seed: 1.3, warp: 0.25, fineK: 0.09,
+      base: c, dark: M.mix(c, '#4c4954', 0.55), light: M.mix(c, '#ffffff', 0.28), skin: sk,
+      tint: (cc, d) => {
+        cc.lerp(sk2, 0.2 * smooth(0.82, 0.97, d.y) * smooth(-0.45, 0.3, d.z)); // ralo no topo
+        cc.lerp(col('#6f6b76'), 0.22 * smooth(0.15, -0.35, d.y)); // grisalho mais escuro embaixo (sal e pimenta)
+      },
     }, hb);
   };
   HAIR.curto = (hs, hb, c, sk) => {
     const lo = keys([[0, 0.86], [0.35, 0.9], [0.62, 0.9], [0.86, 0.6], [1.05, 0.16], [1.16, -0.18], [1.28, 0.08], [1.6, 0.2], [1.85, 0.06], [2.3, -0.35], [PI, -0.46]]);
     hairShell(hs, {
-      lo: (ph) => lo(abs(ph)), feather: 0.1,
-      thick: (e, ph) => lerp(0.012, 0.027, smooth(0.45, 1.0, e)) + (ph > -0.6 && ph < 0.2 && e > 0.8 && e < 1.2 ? 0.008 : 0),
-      comb: (d) => Math.atan2(d.y - 0.2, d.x + 0.35), freq: 20, groove: 0.3, lump: 0.05,
-      base: c, dark: M.mix(c, '#000', 0.4), light: M.mix(c, '#c89a6a', 0.22), skin: sk,
+      lo: (ph) => lo(abs(ph)), feather: 0.11,
+      thick: (e, ph, d) => lerp(0.01, 0.024, smooth(0.25, 0.85, d.y)) + 0.007 * smooth(0.55, 0.8, d.y) * smooth(0.2, 0.75, d.z) * smooth(0.45, -0.2, d.x),
+      comb: (d) => Math.atan2(d.x + 0.25, d.y + 1.4) * 1.0 + d.z * 0.15, freq: 52, groove: 0.22, lump: 0.04, warp: 0.4,
+      base: c, dark: M.mix(c, '#000', 0.4), light: M.mix(c, lum(c) > 0.5 ? '#ffffff' : '#c89a6a', 0.25), skin: sk,
     }, hb);
   };
   HAIR.raspado = (hs, hb, c, sk) => {
     const lo = keys([[0, 0.88], [0.6, 0.9], [0.86, 0.6], [1.05, 0.16], [1.16, -0.1], [1.28, 0.1], [1.6, 0.2], [1.85, 0.06], [2.3, -0.3], [PI, -0.42]]);
-    hairShell(hs, { lo: (ph) => lo(abs(ph)), feather: 0.08, thick: () => 0.005, freq: 30, groove: 0.1, base: c, dark: M.mix(c, '#000', 0.3), light: M.mix(c, sk, 0.4), skin: sk, edgeSkin: 0.7 }, hb);
+    hairShell(hs, { lo: (ph) => lo(abs(ph)), feather: 0.09, thick: () => 0.0042, comb: (d) => Math.atan2(d.x, d.y + 1.3), freq: 140, groove: 0.05, warp: 0.8, fineK: 0.12, occ: 0.4, base: c, dark: M.mix(c, '#000', 0.25), light: M.mix(c, '#ffffff', 0.08), skin: sk, edgeSkin: 0.8, tint: (cc) => cc.lerp(col(sk), 0.18) }, hb);
   };
   HAIR.baguncado = (hs, hb, c, sk) => {
     const lo = keys([[0, 0.62], [0.4, 0.66], [0.8, 0.56], [1.04, 0.2], [1.16, -0.16], [1.29, 0.1], [1.6, 0.21], [1.9, 0.04], [2.3, -0.38], [PI, -0.48]]);
     hairShell(hs, {
       lo: (ph) => lo(abs(ph)), feather: 0.1,
-      thick: (e) => lerp(0.02, 0.034, smooth(0.3, 1.1, e)),
-      comb: (d) => Math.atan2(d.x, d.z + 0.6), freq: 16, groove: 0.35, lump: 0.16, seed: 3,
+      thick: (e, ph, d) => lerp(0.02, 0.032, smooth(0.15, 0.85, d.y)),
+      comb: (d) => Math.atan2(d.x, d.z + 0.6), freq: 16, groove: 0.3, lump: 0.14, seed: 3,
       base: c, dark: M.mix(c, '#000', 0.35), light: M.mix(c, '#8a5a3a', 0.35), skin: sk,
     }, hb);
     // franja e mechas espetadas (bagunçado mas com estilo)
@@ -590,135 +684,113 @@
     L.forEach((o) => addLock(hb, hs, Object.assign({ lift: 0.012 }, o), M.hex(M.mix(c, '#5a3a2a', 0.12))));
   };
   HAIR.cacheado = (hs, hb, c, sk) => {
+    // volume crespo/cacheado: casca grossa e "fofa" (ruído de cachos) + cachinhos soltos na silhueta
     const lo = keys([[0, 0.72], [0.5, 0.72], [0.9, 0.42], [1.1, 0.0], [1.3, 0.08], [1.6, 0.12], [1.9, -0.05], [2.3, -0.4], [PI, -0.5]]);
-    hairShell(hs, { lo: (ph) => lo(abs(ph)), feather: 0.1, thick: () => 0.03, freq: 14, groove: 0.1, lump: 0.2, base: c, dark: M.mix(c, '#000', 0.35), light: M.mix(c, '#b08a6a', 0.15), skin: sk }, hb);
+    const base = lum(c) < 0.12 ? M.hex(M.mix(c, '#5a4030', 0.25)) : c;
+    hairShell(hs, {
+      lo: (ph) => lo(abs(ph)), feather: 0.1, thick: (e, ph, d) => 0.03 + 0.012 * smooth(0.0, 0.8, d.y), comb: (d) => Math.atan2(d.x, d.z), freq: 10, groove: 0.05, lump: 0.08, curl: 0.42, warp: 1.2, fineK: 0.03, occ: 0.6,
+      base, dark: M.mix(base, '#000', 0.45), light: M.mix(base, '#c09a7a', 0.3), skin: sk,
+    }, hb);
     const r = M.rng(77);
-    const cc = col(c);
-    for (let i = 0; i < 70; i++) {
-      const y = 1 - (i + 0.5) / 70 * 1.45, rad = Math.sqrt(Math.max(0, 1 - y * y)), a = i * 2.39996;
+    const cc = col(base);
+    const g = ballGeo(1, 0.85, 0.85, 9, 7);
+    for (let i = 0; i < 46; i++) {
+      const y = 1 - (i + 0.5) / 46 * 1.4, rad = Math.sqrt(Math.max(0, 1 - y * y)), a = i * 2.39996;
       const e = Math.asin(clamp(y, -1, 1)), ph = Math.atan2(rad * sin(a), rad * cos(a));
-      if (e < lo(abs(ph)) + 0.12) continue;
-      const q = onHead(hs, ph, e, 0.03);
-      const s = 0.026 + r() * 0.012;
-      const g = ballGeo(s, s, s, 9, 7);
-      const k = 0.8 + r() * 0.35;
-      bucket_add_ball(hb, g, q.p, cc.clone().multiplyScalar(k));
+      if (e < lo(abs(ph)) + 0.16) continue;
+      const q = onHead(hs, ph, e, 0.03 + 0.008 * smooth(0, 0.8, y));
+      const s = 0.02 + r() * 0.009;
+      const qq = new T.Quaternion().setFromUnitVectors(new V3(0, 1, 0), q.n);
+      const kk = 0.95 + r() * 0.3;
+      hb.add(g, { m: new T.Matrix4().compose(q.p, qq, new V3(s, s * 0.7, s)), color: (p, n) => cc.clone().multiplyScalar(kk * (0.8 + 0.35 * smooth(-0.4, 0.9, n.dot(q.n)))), region: REG.hair });
     }
   };
-  function bucket_add_ball(hb, g, p, c) { hb.add(g, { m: mat4([p.x, p.y, p.z]), color: c, region: REG.hair }); }
   HAIR.careca = (hs, hb, c, sk) => {
     const lo = keys([[0.6, 1.2], [0.92, 0.32], [1.04, -0.02], [1.13, -0.14], [1.26, -0.02], [1.42, 0.18], [1.65, 0.2], [1.9, 0.05], [2.3, -0.32], [PI, -0.42]]);
     const hi = keys([[0.6, 0.3], [0.95, 0.36], [1.1, 0.48], [1.5, 0.58], [2.2, 0.66], [PI, 0.7]]);
     hairShell(hs, {
-      lo: (ph) => lo(abs(ph)), hi: (ph) => hi(abs(ph)), feather: 0.12, np: 160,
-      thick: () => 0.012, comb: (d) => Math.atan2(d.y, d.x), freq: 30, groove: 0.3, lump: 0.05,
-      base: c, dark: M.mix(c, '#000', 0.3), light: M.mix(c, '#b8b0a8', 0.5), skin: sk,
+      lo: (ph) => lo(abs(ph)), hi: (ph) => hi(abs(ph)), feather: 0.18, np: 140,
+      thick: () => 0.0085, comb: (d) => Math.atan2(d.x, d.z) + d.y * 0.6, freq: 30, groove: 0.16, lump: 0.04, warp: 0.4, occ: 0.5,
+      base: M.hex(M.mix(c, sk, 0.12)), dark: M.mix(c, '#000', 0.2), light: M.mix(c, '#b8b0a8', 0.4), skin: sk,
     }, hb);
   };
   HAIR.coque = (hs, hb, c, sk) => {
     const lo = keys([[0, 0.84], [0.5, 0.8], [0.88, 0.5], [1.08, 0.08], [1.18, -0.1], [1.32, 0.14], [1.6, 0.2], [1.9, 0.02], [2.4, -0.4], [PI, -0.48]]);
     const bunD = new V3(0, 0.5, -0.86).normalize();
+    const light = lum(c) > 0.45;
     hairShell(hs, {
-      lo: (ph) => lo(abs(ph)), feather: 0.09,
-      thick: (e) => lerp(0.01, 0.016, smooth(0.2, 1.2, e)),
-      comb: (d) => { const a = new V3().crossVectors(bunD, d); return Math.atan2(a.y, a.x); }, freq: 30, groove: 0.32,
-      base: c, dark: M.mix(c, '#2a2026', 0.45), light: M.mix(c, lum(c) > 0.45 ? '#ffffff' : '#b08a6a', lum(c) > 0.45 ? 0.45 : 0.2), skin: sk,
+      lo: (ph) => lo(abs(ph)), feather: 0.1,
+      thick: (e, ph, d) => lerp(0.009, 0.015, smooth(-0.1, 0.9, d.y)),
+      comb: (d) => { const a = new V3().crossVectors(bunD, d); return Math.atan2(a.y, a.x); }, freq: 24, groove: 0.2, warp: 0.2,
+      base: c, dark: M.mix(c, light ? '#5a525c' : '#2a2026', 0.45), light: M.mix(c, light ? '#ffffff' : '#b08a6a', light ? 0.5 : 0.2), skin: sk,
     }, hb);
     // coque com espiral
     const bp = bunD.clone().multiplyScalar(hs.r * 1.12);
-    const cc = col(c), cd = M.mix(c, '#3a3036', 0.35);
+    const cc = col(c), cd = M.mix(c, light ? '#6a626c' : '#3a3036', 0.35);
     const g = new T.SphereGeometry(0.068, 22, 16);
     const pp = g.attributes.position;
     for (let i = 0; i < pp.count; i++) {
       const x = pp.getX(i), y = pp.getY(i), z = pp.getZ(i);
       const a = Math.atan2(y, x), rr = Math.hypot(x, y);
-      const s = 1 + 0.07 * cos(a * 3 + rr * 70);
+      const s = 1 + 0.06 * cos(a * 3 + rr * 70);
       pp.setXYZ(i, x * s, y * s, z * 0.82);
     }
     g.computeVertexNormals();
     const q = new T.Quaternion().setFromUnitVectors(new V3(0, 0, 1), bunD);
     const m = new T.Matrix4().compose(bp, q, new V3(1, 1, 1));
-    hb.add(g, { m, color: (p, n, l) => (cos(Math.atan2(l.y, l.x) * 3 + Math.hypot(l.x, l.y) * 70) > 0.3 ? cd : cc), region: REG.hair });
+    hb.add(g, { m, color: (p, n, l) => { const k = cos(Math.atan2(l.y, l.x) * 3 + Math.hypot(l.x, l.y) * 70); return cc.clone().lerp(cd, smooth(-0.2, 0.9, k) * 0.8); }, region: REG.hair });
     // prendedor
     const tg = new T.TorusGeometry(0.05, 0.007, 8, 24);
     hb.add(tg, { m: new T.Matrix4().compose(bp.clone().addScaledVector(bunD, -0.035), q, new V3(1, 1, 1)), color: col('#4a3a40'), region: REG.satin });
   };
   HAIR.rabo = (hs, hb, c, sk) => {
     HAIR.coque_base(hs, hb, c, sk);
-    const a = onHead(hs, PI, 0.55, 0.01);
-    const p0 = a.p.clone().add(new V3(0, 0.01, 0.02));
-    const pts = bez(p0, p0.clone().add(new V3(0, 0.02, -0.08)), p0.clone().add(new V3(0, -0.12, -0.08)), p0.clone().add(new V3(0, -0.24, -0.04)), 10);
-    const geo = lockGeo(pts, 0.04, 0.034, { up: new V3(0, 0, -1), segs: 10, profile: (t) => Math.pow(sin(Math.min(1, t * 0.8 + 0.2) * PI), 0.5) });
-    hb.add(geo, { color: col(c), region: REG.hair });
-    const tg = new T.TorusGeometry(0.022, 0.007, 8, 18);
-    hb.add(tg, { m: mat4([p0.x, p0.y + 0.005, p0.z - 0.03], [0.4, 0, 0]), color: col('#c0394a'), region: REG.satin });
+    const a = onHead(hs, PI, 0.5, 0.012);
+    const p0 = a.p.clone().add(new V3(0, 0.0, 0.0));
+    // rabo de cavalo cheio (uma mecha grossa com sulcos) + mechinha por cima
+    const pts = bez(p0.clone(), p0.clone().add(new V3(0, 0.035, -0.07)), p0.clone().add(new V3(0.005, -0.1, -0.095)), p0.clone().add(new V3(0.01, -0.25, -0.05)), 14);
+    const tail = lockGeo(pts, 0.04, 0.034, { up: new V3(0, 0, -1), segs: 14, profile: (t) => Math.pow(sin(Math.min(1, t * 0.8 + 0.2) * PI), 0.6) * (1 + 0.15 * sin(t * PI)) });
+    const cT = col(c), cTd = M.mix(c, '#000', 0.3), cTl = M.mix(c, lum(c) > 0.45 ? '#ffffff' : '#c08a5a', 0.25);
+    hb.add(tail, { color: (p, n, l, i) => { const k = i % 14; const g2 = abs(sin(k * PI * 3 / 14)); return cT.clone().lerp(cTd, (1 - g2) * 0.5).lerp(cTl, g2 * 0.3); }, region: REG.hair });
+    const tg = new T.TorusGeometry(0.02, 0.008, 8, 18);
+    hb.add(tg, { m: mat4([p0.x, p0.y + 0.004, p0.z - 0.016], [0.5, 0, 0]), color: col('#c0394a'), region: REG.satin });
   };
   HAIR.coque_base = (hs, hb, c, sk) => {
     const lo = keys([[0, 0.84], [0.5, 0.8], [0.88, 0.5], [1.08, 0.08], [1.18, -0.1], [1.32, 0.14], [1.6, 0.2], [1.9, 0.02], [2.4, -0.4], [PI, -0.48]]);
-    hairShell(hs, { lo: (ph) => lo(abs(ph)), feather: 0.09, thick: (e) => lerp(0.012, 0.02, smooth(0.2, 1.2, e)), comb: (d) => Math.atan2(d.y - 0.3, d.x), freq: 26, groove: 0.3, base: c, dark: M.mix(c, '#000', 0.35), light: M.mix(c, '#b08a6a', 0.2), skin: sk }, hb);
+    const tie = new V3(0, 0.48, -0.88).normalize();
+    const light = lum(c) > 0.45;
+    hairShell(hs, { lo: (ph) => lo(abs(ph)), feather: 0.1, thick: (e, ph, d) => lerp(0.01, 0.017, smooth(-0.1, 0.9, d.y)), comb: (d) => { const a = new V3().crossVectors(tie, d); return Math.atan2(a.y, a.x); }, freq: 24, groove: 0.2, warp: 0.2, base: c, dark: M.mix(c, light ? '#5a525c' : '#000', 0.4), light: M.mix(c, light ? '#ffffff' : '#b08a6a', light ? 0.5 : 0.2), skin: sk }, hb);
   };
-  /** Cortina de cabelo longo (atrás e dos lados), com espessura. */
-  function curtain(hs, hb, c, o) {
-    const NY = 12, NA = 28, a0 = o.a0 || -1.95, a1 = o.a1 || 1.95;
-    const y0 = o.y0 == null ? 0.02 : o.y0, y1 = o.y1 == null ? -0.33 : o.y1;
-    const th = o.th || 0.016;
-    const outer = [], inner = [];
-    const d = new V3(), S = new V3();
-    for (let i = 0; i <= NY; i++) {
-      const t = i / NY, y = lerp(y0, y1, t);
-      for (let j = 0; j <= NA; j++) {
-        const phi = lerp(a0, a1, j / NA) + PI; // centro do arco = atrás
-        d.set(sin(phi), 0, cos(phi));
-        headPoint(d, hs, S);
-        const rad = Math.hypot(S.x, S.z) + (o.gap || 0.022) + t * t * (o.flare || 0.03);
-        const wav = 0.0035 * Math.pow(abs(sin(j * 0.9 * 0.5 * 2)), 0.55) + (o.wave ? sin(j * 0.9 + t * 4) * 0.004 : 0);
-        const side = abs(sin(phi));
-        const back = -t * (o.back || 0.05) * side;
-        const px = sin(phi) * (rad + wav), pz = cos(phi) * (rad + wav) + back;
-        outer.push(new V3(px, y, pz));
-        inner.push(new V3(sin(phi) * (rad - th), y, cos(phi) * (rad - th) + back));
-      }
-    }
-    const pos = [], idx = [], W = NA + 1;
-    outer.forEach((p) => pos.push(p.x, p.y, p.z));
-    inner.forEach((p) => pos.push(p.x, p.y, p.z));
-    const off = outer.length;
-    for (let i = 0; i < NY; i++) for (let j = 0; j < NA; j++) {
-      const a = i * W + j, b = a + 1, cc = a + W, dd = cc + 1;
-      idx.push(a, b, cc, b, dd, cc); // externa
-      idx.push(off + a, off + cc, off + b, off + b, off + cc, off + dd); // interna
-    }
-    // borda de baixo e laterais
-    for (let j = 0; j < NA; j++) { const a = NY * W + j, b = a + 1; idx.push(a, b, off + a, b, off + b, off + a); }
-    for (let i = 0; i < NY; i++) {
-      const a = i * W, cc = a + W; idx.push(a, cc, off + a, cc, off + cc, off + a);
-      const e = i * W + NA, f = e + W; idx.push(e, off + e, f, f, off + e, off + f);
-    }
-    const g = new T.BufferGeometry();
-    g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
-    g.setIndex(idx);
-    g.computeVertexNormals();
-    const cc = col(c), cd = M.mix(c, '#000', 0.25), cl = M.mix(c, '#c08a5a', 0.25);
-    hb.add(g, { color: (p, n, l, i) => { const j = (i % (outer.length)) % W; const r = Math.pow(abs(sin(j * 0.9)), 0.55); return cd.clone().lerp(cc, 0.45 + 0.55 * r).lerp(cl, smooth(0.6, 1, 0.5 + 0.5 * sin(j * 0.33 + 1)) * 0.4 * r); }, region: REG.hair });
-  }
   HAIR.longo = (hs, hb, c, sk) => {
-    // franja lateral: a linha do cabelo desce em diagonal sobre a testa (lado direito)
-    const lo = keys([[-PI, -0.6], [-1.6, -0.5], [-1.24, -0.35], [-1.1, -0.04], [-0.92, 0.26], [-0.6, 0.4], [-0.25, 0.55], [0.1, 0.72], [0.38, 0.8], [0.62, 0.7], [0.92, 0.4], [1.1, -0.02], [1.24, -0.35], [1.6, -0.5], [PI, -0.6]]);
+    // risca lateral, volume no topo, cortina de mechas até os ombros e duas mechas emoldurando o rosto
+    const lo = keys([[-PI, -0.62], [-2.2, -0.55], [-1.6, -0.42], [-1.25, -0.3], [-1.05, 0.12], [-0.8, 0.42], [-0.4, 0.66], [0, 0.78], [0.3, 0.8], [0.6, 0.66], [0.9, 0.36], [1.1, 0.06], [1.25, -0.3], [1.6, -0.42], [2.2, -0.55], [PI, -0.62]]);
+    const part = new V3(0.32, 0.95, 0.12).normalize();
     hairShell(hs, {
-      lo: (ph) => lo(ph), feather: 0.1, thetaMax: 2.4,
-      thick: (e, ph) => 0.02 + 0.006 * smooth(0.3, 1.0, e) + 0.01 * smooth(0.3, -0.5, ph) * smooth(1.25, 0.6, e) * smooth(-1.3, -0.8, ph) - (ph > 0.3 && ph < 0.46 && e > 0.75 ? 0.007 : 0),
-      comb: (d) => Math.atan2(d.y - 0.95, d.x - 0.35), freq: 20, groove: 0.3, lump: 0.05,
-      base: c, dark: M.mix(c, '#000', 0.35), light: M.mix(c, '#b07a4a', 0.3), skin: sk,
+      lo: (ph) => lo(ph), feather: 0.1, thetaMax: 2.3,
+      thick: (e, ph, d) => 0.019 + 0.009 * smooth(0.0, 0.85, d.y) + 0.004 * smooth(0.5, -0.4, d.y),
+      comb: (d) => { const a = new V3().crossVectors(part, d); return Math.atan2(a.y, a.x); }, freq: 22, groove: 0.05, lump: 0.01, warp: 0.25,
+      base: c, dark: M.mix(c, '#000', 0.35), light: M.mix(c, '#c08a5a', 0.3), skin: sk,
     }, hb);
-    curtain(hs, hb, c, { y0: 0.0, y1: -0.36, a0: -2.0, a1: 2.0, th: 0.018, flare: 0.035, back: 0.06 });
-    // franja lateral (repartida)
-    addLock(hb, hs, { ph: 0.55, e: 0.95, dir: [0.25, -1, 0.25], len: 0.16, w: 0.03, th: 0.014, droop: 0.05, arc: 0.3, lift: 0.012 }, c);
-    addLock(hb, hs, { ph: -0.85, e: 0.8, dir: [-0.15, -1, 0.15], len: 0.17, w: 0.03, th: 0.014, droop: 0.05, arc: 0.3, lift: 0.012 }, c);
+    hairSkirt(hs, hb, c, {
+      a0: 1.12, a1: 2 * PI - 1.12, eTop: 1.08, eMid: -0.05, lift: 0.031, th: 0.016, freq: 15, seed: 21,
+      y1: (ph) => -0.34 + 0.06 * Math.pow(abs(sin(ph)), 4),
+      flare: (ph, t) => 0.012 * t + 0.05 * Math.pow(abs(sin(ph)), 3) * smooth(0.25, 0.7, t),
+      fwd: (ph, t) => 0.025 * smooth(1.75, 1.2, abs(ph > PI ? 2 * PI - ph : ph)) * t * t,
+    });
   };
   HAIR.chanel = (hs, hb, c, sk) => {
-    const lo = keys([[0, 0.7], [0.5, 0.68], [0.92, 0.4], [1.1, -0.02], [1.24, -0.35], [1.6, -0.5], [PI, -0.6]]);
-    hairShell(hs, { lo: (ph) => lo(abs(ph)), feather: 0.08, thetaMax: 2.4, thick: () => 0.024, comb: (d) => Math.atan2(d.x, d.z + 0.3), freq: 20, groove: 0.3, base: c, dark: M.mix(c, '#000', 0.35), light: M.mix(c, '#b08a6a', 0.2), skin: sk }, hb);
-    curtain(hs, hb, c, { y0: 0.0, y1: -0.16, a0: -2.25, a1: 2.25, th: 0.02, flare: 0.02, back: 0.0, gap: 0.026 });
+    // chanel com franja: franja cobre a testa até as sobrancelhas; mechas até o queixo, pontas para dentro
+    const lo = keys([[0, 0.5], [0.4, 0.52], [0.7, 0.5], [0.95, 0.3], [1.1, -0.02], [1.24, -0.3], [1.6, -0.4], [PI, -0.55]]);
+    hairShell(hs, {
+      lo: (ph) => lo(abs(ph)), feather: 0.07, thetaMax: 2.35,
+      thick: (e, ph, d) => 0.021 + 0.007 * smooth(0.1, 0.85, d.y) + 0.004 * smooth(0.5, 0.9, d.z) * smooth(0.75, 0.45, d.y),
+      comb: (d) => Math.atan2(d.x, d.z + 0.15), freq: 30, groove: 0.06, warp: 0.25,
+      base: c, dark: M.mix(c, '#000', 0.35), light: M.mix(c, '#ffffff', 0.2), skin: sk, edgeSkin: 0.5,
+    }, hb);
+    hairSkirt(hs, hb, c, {
+      a0: 1.0, a1: 2 * PI - 1.0, eTop: 1.05, eMid: -0.02, lift: 0.032, th: 0.018, freq: 17, seed: 9, tipK: 0.014, lightTo: '#ffffff', light: 0.2,
+      y1: () => -0.165, flare: (ph, t) => 0.01 * t, inK: 0.03,
+    });
   };
   HAIR.nenhum = () => {};
   R.HAIR = HAIR;
@@ -807,9 +879,11 @@
     const tb2 = vi;
     for (let i = 0; i < MS * 2; i++) setCol(vi++, cT, REG.teeth);
     const lu = vi;
-    for (let i = 0; i < MS * LSEG; i++) setCol(vi++, o.lipTop, REG.mouth);
+    const cLine = o.lipLine || o.lipTop.clone().lerp(col('#2a0c10'), 0.55);
+    const lipC = (base, k, upper) => { const c2 = cos((k / LSEG) * PI * 2) * (upper ? 1 : -1); return base.clone().lerp(cLine, smooth(0.2, 0.95, c2) * 0.85); };
+    for (let i = 0; i < MS * LSEG; i++) setCol(vi++, lipC(o.lipTop, i % LSEG, true), REG.mouth);
     const ll = vi;
-    for (let i = 0; i < MS * LSEG; i++) setCol(vi++, o.lipBot, REG.mouth);
+    for (let i = 0; i < MS * LSEG; i++) setCol(vi++, lipC(o.lipBot, i % LSEG, false), REG.mouth);
     const lc = vi; // tampas dos lábios
     for (let i = 0; i < 4; i++) setCol(vi++, o.lipTop, REG.mouth);
     const strip = (b) => { for (let i = 0; i < MS - 1; i++) { const a = b + i * 2, c = a + 2; idx.push(a, a + 1, c, c, a + 1, c + 1); } };
@@ -1067,11 +1141,12 @@
       [0.24, (0.33 + 0.05 * b) * (fem ? 0.9 : 1), 0.222, 0.075 * b, 0],
       [0.33, (0.356 + 0.025 * b) * lerp(1, sw, 0.5), 0.232, 0.045 * b + (fem ? 0.03 : 0.004)],
       [0.405, 0.378 * sw, 0.235, fem ? 0.04 : 0.012],
-      [0.465, 0.392 * sw, 0.222, fem ? 0.01 : 0.004],
-      [0.505, 0.36 * sw, 0.192],
-      [0.532, 0.29 * sw, 0.16],
-      [0.55, 0.19, 0.125],
-      [0.562, 0.13, 0.105],
+      [0.465, 0.398 * sw, 0.222, fem ? 0.01 : 0.004],
+      [0.5, 0.39 * sw, 0.198],
+      [0.522, 0.345 * sw, 0.172],
+      [0.541, 0.25 * sw, 0.14],
+      [0.556, 0.165, 0.118],
+      [0.566, 0.13, 0.104],
     ].map((r) => [r[0], r[1] * bw, r[2] * (1 + (bw - 1) * 0.6), r[3] || 0, r[4] || 0]);
     const pel = [
       [-0.12, 0.23 * hipK, 0.165, 0, 0.005],
@@ -1186,7 +1261,7 @@
           return c;
         },
         region: reg, weight: w,
-        uvFn: target === pat ? (p) => [Math.atan2(p.x, p.z) / (PI * 2) * 2.2, p.y * 3.2] : null,
+        uvFn: target === pat ? (p) => [p.x * 3.2 + p.z * 1.4, p.y * 3.2] : null,
       });
     }
 
@@ -1241,8 +1316,8 @@
       });
       // gola por trás do pescoço
       const cpts = [];
-      for (let k = 0; k <= 12; k++) { const a = lerp(-2.15, 2.15, k / 12) + PI; cpts.push(new V3(sin(a) * 0.086, yHip + (0.556 + 0.012 * -cos(a)) * H, cos(a) * 0.076 - 0.006)); }
-      b.add(lockGeo(cpts, 0.022, 0.011, { up: new V3(0, 1, 0), profile: (t) => 0.75 + 0.25 * sin(t * PI) }), { color: cTop, region: REG.cloth, weight: wTorso });
+      for (let k = 0; k <= 14; k++) { const a = lerp(-2.2, 2.2, k / 14) + PI; cpts.push(new V3(sin(a) * (fem ? 0.08 : 0.086), yHip + (0.553 + 0.008 * -cos(a)) * H, cos(a) * (fem ? 0.072 : 0.078) - 0.008)); }
+      b.add(lockGeo(cpts, 0.018, 0.009, { up: new V3(0, 1, 0), profile: (t) => 0.7 + 0.3 * sin(t * PI) }), { color: (p, n) => shade(cTop, p, n, 0.1), region: REG.cloth, weight: wTorso });
       // bolsos com aba + bolso do peito com lenço
       [-1, 1].forEach((s) => patch(poly([[s * 0.075, -0.012], [s * 0.168, -0.012], [s * 0.168, -0.048], [s * 0.075, -0.048]]), { rings: br, grow: g0, color: (p, n) => shade(cTop, p, n, 0.3).multiplyScalar(0.9), th: 0.006, weight: wB }));
       patch(poly([[0.072, 0.366], [0.072, 0.378], [0.136, 0.386], [0.136, 0.374]]), { rings: br, color: cTopD, th: 0.004, grow: g0 });
@@ -1261,9 +1336,9 @@
         patch(poly([[-0.0035, 0.35], [0.0035, 0.35], [0.0035, 0.357], [-0.0035, 0.357]]), { color: M.mix(top.shirt || '#eef3f8', '#000', 0.25), th: 0.003, grow: 0.002 });
       }
       // colarinho em volta do pescoço
-      const nr = 0.062;
-      const cst = [0.53, 0.582].map((yy) => ({ p: new V3(0, yHip + yy * H, 0.002), rx: nr, ry: nr * 0.92, n: 2 }));
-      b.add(tubeGeo(cst, { segs: 20 }), { color: cShirt, region: REG.cloth, weight: () => [[BI.chest, 0.6], [BI.neck, 0.4]] });
+      const nr = (fem ? 0.056 : 0.062);
+      const cst = [0.536, 0.571].map((yy, i) => ({ p: new V3(0, yHip + yy * H, 0.002), rx: nr + 0.003 * (1 - i), ry: nr * 0.92 + 0.003 * (1 - i), n: 2 }));
+      b.add(tubeGeo(cst, { segs: 24, cut: top.tie ? null : (i, k, a) => sin(a) > 0.93 }), { color: (p, n) => cShirt.clone().multiplyScalar(0.96 + 0.04 * n.y), region: REG.cloth, weight: () => [[BI.chest, 0.6], [BI.neck, 0.4]] });
     } else if (kind === 'hoodie') {
       // capuz embolado atrás do pescoço
       const hp = [];
@@ -1333,17 +1408,18 @@
       };
       const tube = (pts, c, reg, o) => {
         const st = pts.map(([y, r]) => ({ p: new V3(0, y, 0), rx: r * aK, ry: r * aK * 0.96, n: 2 }));
-        if (o && o.capTop) roundEnd(st, false, 4, 1);
-        b.add(tubeGeo(st, { segs: 16, up: new V3(0, 0, 1), close0: true, close1: true }), { m, color: (p, n, l) => (typeof c === 'function' ? c(p, n, l) : shade(c, p, n, 0.08)), region: reg, weight: wArm });
+        if (o && o.capTop) roundEnd(st, false, 4, 0.7);
+        const tgt = o && o.pat && pat ? pat : b;
+        tgt.add(tubeGeo(st, { segs: 16, up: new V3(0, 0, 1), close0: true, close1: true }), { m, color: (p, n, l) => (typeof c === 'function' ? c(p, n, l) : shade(c, p, n, 0.08)), region: reg, weight: wArm, uvFn: tgt === pat ? (p) => [p.x * 3.2 + p.z * 1.4, p.y * 3.2] : null });
       };
       if (kind === 'cloak') {
         tube([[0.02, 0.05], [-0.05, 0.052], [-ua, 0.05], [-ua - fa * 0.6, 0.06], [-ua - fa + 0.02, 0.078], [-ua - fa + 0.012, 0.074]], (p, n, l) => (l.y < -ua - fa + 0.016 ? col('#030205') : cTop.clone().multiplyScalar(0.8 + 0.2 * smooth(-0.6, 0.6, n.y))), REG.knit, { capTop: true });
       } else if (short) {
-        tube([[0.02, 0.052], [-0.04, 0.058], [-0.1, 0.058], [-0.155, 0.061]], sleeveCol, topReg, { capTop: true });
+        tube([[0.0, 0.054], [-0.04, 0.058], [-0.1, 0.058], [-0.155, 0.061]], sleeveCol, topReg, { capTop: true, pat: true });
         tube([[-0.09, 0.047], [-ua + 0.02, 0.042], [-ua - 0.04, 0.043], [-ua - fa * 0.55, 0.039], [-ua - fa + 0.02, 0.033], [-ua - fa + 0.004, 0.032]], cSkin, REG.skin);
       } else {
         const cuffY = -ua - fa + (kind === 'blazer' || kind === 'coat' ? 0.045 : 0.022) + (side === 'L' && spec.watch ? 0.012 : 0);
-        tube([[0.0, 0.046], [-0.04, 0.053], [-0.1, 0.053], [-ua * 0.7, 0.05], [-ua, 0.049], [-ua - 0.07, 0.049], [-ua - fa * 0.6, 0.047], [cuffY + 0.01, 0.046], [cuffY, 0.048]], (p, n, l) => {
+        tube([[0.0, 0.051], [-0.035, 0.0535], [-0.1, 0.052], [-ua * 0.7, 0.05], [-ua, 0.049], [-ua - 0.07, 0.049], [-ua - fa * 0.6, 0.047], [cuffY + 0.01, 0.046], [cuffY, 0.048]], (p, n, l) => {
           let c = shade(sleeveCol, p, n, 0.1);
           if (knit && l.y < cuffY + 0.04) c = c.multiplyScalar(0.82);
           if (l.y < cuffY + 0.002) c = cTopD.clone().multiplyScalar(0.5);
@@ -1362,7 +1438,8 @@
         }
       }
       // deltoide
-      b.add(ballGeo((kind === 'cloak' ? 0.05 : 0.056) * aK, 0.052 * aK, 0.053 * aK, 16, 12), { m: mat4([S.x - sx * 0.002, S.y - 0.016, 0]), color: kind === 'cloak' ? cTop : sleeveCol, region: kind === 'cloak' ? REG.knit : topReg, weight: (p) => [[BI['sh' + side], 0.75], [BI.chest, 0.25]] });
+      const dB = short && pat ? pat : b;
+      dB.add(ballGeo((kind === 'cloak' ? 0.05 : 0.047) * aK, 0.047 * aK, 0.05 * aK, 16, 12), { m: mat4([S.x - sx * 0.02, S.y - 0.012, 0]), color: kind === 'cloak' ? cTop : sleeveCol, region: kind === 'cloak' ? REG.knit : topReg, weight: (p) => [[BI['sh' + side], 0.75], [BI.chest, 0.25]], uvFn: dB === pat ? (p) => [p.x * 3.2 + p.z * 1.4, p.y * 3.2] : null });
     });
 
     // ---------- pernas e sapatos
@@ -1424,7 +1501,7 @@
 
     // ---------- pescoço
     {
-      const nr = (fem ? 0.044 : 0.051) * (1 + (spec.build || 0) * 0.06);
+      const nr = (fem ? 0.047 : 0.057) * (1 + (spec.build || 0) * 0.06);
       const st = [[yNk - 0.05, nr * 1.15], [yNk - 0.01, nr], [yHd, nr * 0.98], [yHd + 0.06, nr * 0.95], [yHd + 0.1, nr * 0.85]].map(([y, r]) => ({ p: new V3(0, y, -0.008), rx: r, ry: r * 0.95, n: 2 }));
       b.add(tubeGeo(st, { segs: 16, close0: true, close1: true }), {
         color: (p, n) => cSkin.clone().multiplyScalar(0.9 + 0.1 * smooth(yNk - 0.03, yHd + 0.05, p.y)), region: REG.skin,
@@ -1438,6 +1515,8 @@
   // Cabeça estática (crânio + nariz + orelhas + cabelo + bigode + armação
   // dos óculos + brilho dos olhos) — uma malha no osso da cabeça.
   // ------------------------------------------------------------------
+  // espessura do cabelo na têmpora (as hastes dos óculos passam por cima; no cabelo comprido, por baixo)
+  const SIDE_HAIR = { grisalho: 0.016, curto: 0.017, baguncado: 0.03, coque: 0.015, rabo: 0.017, coque_base: 0.017, cacheado: 0.045, careca: 0.011, raspado: 0.006, longo: 0.0, chanel: 0.0, nenhum: 0 };
   function buildHead(spec, D, hs, skin, E) {
     const hb = new Bucket();
     const fem = D.fem, ghost = !!spec.ghost;
@@ -1448,7 +1527,6 @@
     const dd = new V3();
     hb.add(headGeo(hs), {
       region: REG.skin,
-      regionFn: spec.shinyScalp ? (p, n, l) => (l.y > hs.r * 0.42 ? REG.satin : REG.skin) : null,
       color: (p, n, l) => {
         if (ghost) return col('#07040b');
         dd.copy(l).normalize();
@@ -1462,6 +1540,8 @@
           c.lerp(cStub, Math.min(1, jaw + lipz) * stub);
         }
         if (spec.age) c.multiplyScalar(1 - 0.05 * spec.age * Math.exp(-((dd.y - 0.62) ** 2) / 0.004) * smooth(0.6, 0.9, dd.z));
+        // careca brilhante: brilho pintado (sem trocar de região no meio do triângulo → sem riscos)
+        if (spec.shinyScalp) { const hx = dd.x + 0.18, hy = dd.y - 0.86, hz = dd.z - 0.42; c.lerp(col('#fff6ec'), 0.32 * Math.exp(-(hx * hx + hy * hy + hz * hz) / 0.06)); }
         return c;
       },
     });
@@ -1486,7 +1566,7 @@
       hb.add(ballGeo(0.0128 * ns, 0.0118 * ns, 0.012 * ns, 14, 10), { m: mat4([ntip.x, ntip.y - 0.002, ntip.z - 0.004]), color: cNose, region: REG.skin });
       [-1, 1].forEach((sx) => {
         surf(sx * 0.0125 * ns, -0.0345, P, N);
-        hb.add(ballGeo(0.0072 * ns, 0.006 * ns, 0.0065 * ns, 10, 8), { m: mat4([P.x, P.y, P.z - 0.0005], [0, sx * 0.4, 0]), color: cNose.clone().multiplyScalar(0.98), region: REG.skin });
+        hb.add(ballGeo(0.0064 * ns, 0.0054 * ns, 0.006 * ns, 10, 8), { m: mat4([P.x - sx * 0.0008, P.y + 0.0005, P.z - 0.0018], [0, sx * 0.4, 0]), color: cNose.clone().multiplyScalar(0.98), region: REG.skin });
       });
       // brilho dos olhos (fixo na cabeça — some quando a pálpebra fecha)
       E.forEach((e) => {
@@ -1514,9 +1594,10 @@
       // barba curta
       if (spec.beard) {
         hairShell(hs, {
-          nt: 34, np: 96, thetaMax: 2.9, feather: 1,
-          qfn: (d) => Math.min((-0.14 - d.y) / 0.12, (d.z + 0.3) / 0.15, (Math.hypot((d.y + 0.52) / 0.09, d.x / 0.3) - 1) * 2 + (1 - smooth(0.6, 0.85, d.z)) * 3),
-          thick: () => 0.007, freq: 40, groove: 0.15, base: spec.beard, dark: M.mix(spec.beard, '#000', 0.3), light: M.mix(spec.beard, '#fff', 0.2), skin: skin.base, edgeSkin: 0.7,
+          nt: 40, np: 96, thetaMax: 2.9, feather: 1, ramp: 0.007,
+          qfn: (d) => Math.min((-0.12 + 0.13 * smooth(0.25, -0.25, d.z) - d.y) / 0.14, (d.z + 0.27) / 0.2, (Math.hypot((d.y + 0.52) / 0.09, d.x / 0.3) - 1) * 2 + (1 - smooth(0.6, 0.85, d.z)) * 3),
+          thick: (e, ph, d) => 0.0075 + 0.005 * smooth(-0.55, -0.85, d.y), comb: (d) => Math.atan2(d.x, d.z + 0.2), freq: 30, groove: 0.1, fineK: 0.1, warp: 0.6, occ: 0.3,
+          base: spec.beard, dark: M.mix(spec.beard, '#000', 0.3), light: M.mix(spec.beard, '#fff', 0.2), skin: skin.base, edgeSkin: 1.5,
         }, hb);
       }
       // armação dos óculos
@@ -1539,9 +1620,11 @@
           // haste até a orelha
           const outer = new V3(gw, gh * 0.55, 0).applyQuaternion(rot).add(ctr);
           if (e.side < 0) outer.copy(new V3(-gw, gh * 0.55, 0).applyQuaternion(rot).add(ctr));
-          const ear = headPoint(new V3(e.side, 0.15, -0.2).normalize(), hs, new V3()).add(new V3(e.side * 0.009, 0, 0));
-          const back = headPoint(new V3(e.side, 0.02, -0.36).normalize(), hs, new V3()).add(new V3(e.side * 0.006, 0, 0));
-          const mid = headPoint(new V3(e.side, 0.12, 0.45).normalize(), hs, new V3()).add(new V3(e.side * 0.01, 0, 0));
+          const hsT = SIDE_HAIR[(spec.hair && spec.hair.style) || 'curto'];
+          const ho = hsT == null ? 0.012 : hsT;
+          const ear = headPoint(new V3(e.side, 0.15, -0.2).normalize(), hs, new V3()).add(new V3(e.side * (0.008 + ho), 0, 0));
+          const back = headPoint(new V3(e.side, 0.0, -0.4).normalize(), hs, new V3()).add(new V3(e.side * (0.004 + ho * 0.6), 0, 0));
+          const mid = headPoint(new V3(e.side, 0.12, 0.45).normalize(), hs, new V3()).add(new V3(e.side * (0.009 + ho * 0.55), 0, 0));
           hb.add(lockGeo(bez(outer, mid, ear, back, 10), gt * 0.9, gt * 0.7, { profile: () => 1, up: new V3(0, 1, 0) }), { color: gc, region: reg });
         });
         const a = E[0].lens, b2 = E[1].lens;
@@ -1558,23 +1641,32 @@
       // capuz pontudo com abertura no rosto (vazio escuro) e borda marcada
       const hc = col((spec.top && spec.top.color) || '#170c26');
       const R0 = hs.r;
-      const S = [[-1.85, 1.2, 1.0, 0.1, 0], [-1.45, 1.12, 1.02, 0.08, 0], [-1.1, 1.08, 1.06, 0.05, 0.42], [-0.6, 1.16, 1.14, 0.02, 0.62], [0.0, 1.22, 1.2, 0.0, 0.7], [0.5, 1.17, 1.18, -0.04, 0.6], [0.95, 0.98, 1.08, -0.12, 0.3], [1.25, 0.72, 0.86, -0.24, 0], [1.5, 0.4, 0.55, -0.4, 0], [1.68, 0.12, 0.2, -0.62, 0]];
-      const mk = (k) => S.map(([y, rx, rz, zc, gp]) => ({ p: new V3(0, y * R0, zc * R0), rx: rx * R0 * k, ry: rz * R0 * k, n: 2.2, gap: gp }));
-      const outer = tubeGeo(mk(1), { segs: 36 });
-      hb.add(outer, { color: (p, n, l) => hc.clone().multiplyScalar(0.55 + 0.45 * smooth(-0.3, 0.25, l.y / R0)), region: REG.knit });
-      const inner = tubeGeo(mk(0.95), { segs: 36 });
+      const S0 = [[-1.85, 1.2, 1.0, 0.1, 0], [-1.45, 1.12, 1.02, 0.08, 0], [-1.1, 1.08, 1.06, 0.05, 0.42], [-0.6, 1.16, 1.14, 0.02, 0.62], [0.0, 1.22, 1.2, 0.0, 0.7], [0.5, 1.17, 1.18, -0.04, 0.6], [0.95, 0.98, 1.08, -0.12, 0.3], [1.25, 0.72, 0.86, -0.24, 0], [1.5, 0.4, 0.55, -0.4, 0], [1.68, 0.12, 0.2, -0.62, 0]];
+      // estações densas (Catmull-Rom) → abertura do rosto e ponta do capuz lisas
+      const cr = (a, b2, c, d2, t) => 0.5 * (2 * b2 + (-a + c) * t + (2 * a - 5 * b2 + 4 * c - d2) * t * t + (-a + 3 * b2 - 3 * c + d2) * t * t * t);
+      const S = [];
+      const NS = 30;
+      for (let i = 0; i < NS; i++) {
+        const f = (i / (NS - 1)) * (S0.length - 1), k = Math.min(S0.length - 2, Math.floor(f)), t = f - k;
+        const g = (j) => S0[clamp(j, 0, S0.length - 1)];
+        S.push([0, 1, 2, 3, 4].map((c) => cr(g(k - 1)[c], g(k)[c], g(k + 1)[c], g(k + 2)[c], t)).map((v, c) => (c === 4 ? Math.max(0, v) : v)));
+      }
+      const mk = (k) => S.map(([y, rx, rz, zc, gp]) => ({ p: new V3(0, y * R0, zc * R0), rx: rx * R0 * k, ry: rz * R0 * k, n: 2.2, gap: gp > 0.04 ? gp : 0 }));
+      const outer = tubeGeo(mk(1), { segs: 40 });
+      hb.add(outer, { color: (p, n, l) => hc.clone().multiplyScalar(0.5 + 0.5 * smooth(-0.3, 0.25, l.y / R0)), region: REG.knit });
+      const inner = tubeGeo(mk(0.95), { segs: 40 });
       { const ix = inner.index.array; for (let i = 0; i < ix.length; i += 3) { const t = ix[i + 1]; ix[i + 1] = ix[i + 2]; ix[i + 2] = t; } inner.computeVertexNormals(); }
-      hb.add(inner, { color: col('#020104'), region: REG.knit });
+      const cIn = col('#020104'), cGlow = col('#3a0612');
+      hb.add(inner, { color: (p, n, l) => cIn.clone().lerp(cGlow, 0.85 * Math.exp(-((l.y - 0.012) ** 2) / 0.0035 - (l.x * l.x) / 0.012)), region: REG.knit });
       // borda da abertura
       const edge = [];
       const st = mk(0.985);
       const ptAt = (sx, i) => { const s0 = st[i], a0 = PI / 2 + sx * s0.gap; const c = cos(a0), sn = sin(a0); return new V3(Math.sign(c) * Math.pow(abs(c), 2 / 2.2) * s0.rx, s0.p.y, s0.p.z + Math.sign(sn) * Math.pow(abs(sn), 2 / 2.2) * s0.ry); };
-      for (let i = 1; i <= 7; i++) edge.push(ptAt(-1, i));
-      for (let i = 7; i >= 1; i--) edge.push(ptAt(1, i));
-      const sm = [];
-      for (let i = 0; i < edge.length - 1; i++) for (let k = 0; k < 3; k++) sm.push(edge[i].clone().lerp(edge[i + 1], k / 3));
-      sm.push(edge[edge.length - 1]);
-      hb.add(lockGeo(sm, 0.016, 0.01, { profile: (t) => 0.6 + 0.4 * sin(t * PI), up: new V3(0, 0, 1) }), { color: hc.clone().multiplyScalar(1.5), region: REG.knit });
+      const open = []; st.forEach((x, i) => { if (x.gap > 0) open.push(i); });
+      const i0 = open[0], i1 = open[open.length - 1];
+      for (let i = i0; i <= i1; i++) edge.push(ptAt(-1, i));
+      for (let i = i1; i >= i0; i--) edge.push(ptAt(1, i));
+      hb.add(lockGeo(edge, 0.014, 0.009, { profile: (t) => 0.55 + 0.45 * sin(t * PI), up: new V3(0, 0, 1), segs: 8 }), { color: hc.clone().multiplyScalar(1.45), region: REG.knit });
     }
     return hb.geometry(false);
   }
@@ -2403,9 +2495,9 @@
         lidColor: lidC, lashColor: col(fem ? '#1a1210' : M.hex(M.mix(spec.browColor || (spec.hair && spec.hair.color) || '#3a2a22', '#000', 0.5))),
         bagColor: M.mix(skin.base, '#5a3a5a', 0.22),
         browColor: col(spec.browColor || M.hex(M.mix((spec.hair && spec.hair.color) || '#3a2a22', '#000', 0.2))),
-        browIn: 0.021, browOut: fem ? 0.088 : 0.094, browY: ey + (fem ? 0.062 : 0.058), browH: fem ? 0.0075 : (spec.browH || 0.0105), browTaper: fem ? 0.45 : 0.6,
-        mouthY: spec.mouthY || (spec.mustache ? -0.1 : -0.093), mouthW: (fem ? 0.025 : 0.0275) * (spec.mouthSize || 1),
-        lipTop: M.mix(skin.lip, skin.dark, 0.35), lipBot: col(skin.lip), lipUp: fem ? 0.0034 : 0.0026, lipLow: fem ? 0.0046 : 0.0036,
+        browIn: 0.02, browOut: fem ? 0.088 : 0.094, browY: ey + (fem ? 0.062 : 0.058), browH: fem ? 0.0088 : (spec.browH || 0.0118), browTaper: fem ? 0.45 : 0.6,
+        mouthY: spec.mouthY || (spec.mustache ? -0.1 : -0.093), mouthW: (fem ? 0.0275 : 0.0305) * (spec.mouthSize || 1),
+        lipTop: M.mix(skin.lip, skin.dark, 0.3), lipBot: col(skin.lip), lipUp: fem ? 0.0036 : 0.003, lipLow: fem ? 0.0052 : 0.0042,
       });
       skull.add(faceDyn.mesh);
       // extras: suor, lágrima, vergonha, raiva
@@ -2603,7 +2695,7 @@
         if (ex.browAsym === true) { if (side > 0) { y = 0.02; tl = -0.08; } else { y = -0.007; tl = -0.32; } }
         else if (ex.browAsym === 'think') { if (side > 0) { y += 0.008; } }
         else if (ex.browAsym === 'confuso') { if (side > 0) { y = 0.016; tl = 0.25; } else { y = -0.004; tl = -0.2; } }
-        return { inner: y + tl * 0.03, outer: y - tl * 0.012 - (info.fem ? 0.002 : 0.003), arch: info.fem ? 0.0065 : 0.0045, furrow: Math.max(0, -tl) * 0.012 };
+        return { inner: y * 1.2 + tl * 0.036, outer: y * 1.15 - tl * 0.014 - (info.fem ? 0.002 : 0.003), arch: info.fem ? 0.0065 : 0.0045, furrow: Math.max(0, -tl) * 0.013 };
       };
       const bR = mkB(-1), bL = mkB(1);
       st.asymR = lerpTo(st.asymR, bR.inner, kk); st.asymL = lerpTo(st.asymL, bL.inner, kk);

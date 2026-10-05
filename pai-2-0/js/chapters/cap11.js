@@ -2,7 +2,7 @@
  * Meia-noite, sem sono (quarto) → sonho (arena) → chefão: a Dúvida, nuvem roxa
  * feita das objeções do próprio pai → vitória: ela vira a "dúvida saudável" →
  * quarta-feira, 6h47 (quarto). Batalha por turnos: para cada objeção, 3 respostas
- * (honesta com antídoto = acerto forte · vaga = arranha e a objeção volta ·
+ * (honesta com antídoto = acerto forte · meia resposta = arranha e a objeção volta ·
  * exagero = cura a Dúvida e custa 1 coração de Paciência). Sem game over.
  * Stats: cap11 {venceu, coracoes, coracoesMax, turnos} · conquista: diplomata.
  */
@@ -15,6 +15,15 @@
   // ------------------------------------------------------------------
   const quiet = (p) => { if (p && p.catch) p.catch(() => {}); return p; };
   const DEITADO_EYE = { back: 1.5, h: 0.84 }; // onde o motor põe os olhos do pai deitado (stage3d)
+  // A Faísca "dorme" sobre o despertador: fora do campo de visão de quem está deitado olhando o teto
+  // (o ponto 'faisca' do quarto fica a 70 cm do rosto e taparia a tela).
+  const FAISCA_DORME = { x: -1.06, z: -1.8, y: 0.88, rot: 0.6 };
+  const FAISCA_ACORDA = { x: -0.86, y: 1.12, z: -0.95 };
+  // De manhã a Faísca dorme no outro criado-mudo, para o despertador (06:47) aparecer de verdade.
+  const FAISCA_DORME_MANHA = { x: 1.12, z: -1.78, y: 0.9, rot: -0.6 };
+  // A dúvida pequenina, ao lado do travesseiro (y de 0,18 → a nuvem fica a ~1 m do chão, acima do edredom).
+  const DUVIDA_MANHA = { x: -1.0, z: -1.2, y: 0.18 };
+  const DUVIDA_MANHA_Y = 0.18 + 1.35 * 0.62; // altura da nuvem pequena (escala 0,62)
 
   /** Primeira pessoa DEITADO: aponta a visão para um ponto do mundo.
    *  (O lookAt do motor mede a partir dos pés; aqui compensamos para os olhos no travesseiro.) */
@@ -31,15 +40,15 @@
 
   // ------------------------------------------------------------------
   // A BATALHA — objeções do pai (a Dúvida fala; ele responde)
-  //   h = honesta (admite o que é verdade + mostra o antídoto) · v = vaga · x = exagero
+  //   h = honesta (admite o que é verdade + mostra o antídoto) · v = meia resposta (desvia, adia, remenda) · x = exagero
   // ------------------------------------------------------------------
   const PESO = 10;       // cada objeção vale 10 de vida da Dúvida
   const PESO_FINAL = 20; // a dúvida-mãe vale 20 (8 × 10 + 20 = 100)
-  const VAGO = 3;        // resposta vaga só arranha
+  const VAGO = 3;        // meia resposta só arranha
   const CURA = 6;        // exagero alimenta a Dúvida
   const TAGS = {
     h: { cls: 'mint', txt: '💬 Resposta honesta' },
-    v: { cls: '', txt: '🌫️ Resposta vaga' },
+    v: { cls: '', txt: '🌫️ Meia resposta' },
     x: { cls: 'red', txt: '🎈 Exagero' },
   };
 
@@ -48,9 +57,9 @@
       id: 'modinha',
       ataque: 'Isso é modinha, {pai}. Modinha cara! Todo CEO gastando uma fortuna... e cadê o dinheiro voltando?',
       curta: 'É modinha cara. Cadê o retorno?',
-      h: { txt: 'Em parte, é verdade: a maioria ainda não viu o dinheiro voltar. Por isso não compro milagre. Começo numa tarefa, meço por 30 dias e só amplio o que se pagar.', why: 'Você concordou com a parte verdadeira e respondeu com método: começar pequeno e medir. Isso desarma a Dúvida, e desarmaria qualquer conselho.' },
-      v: { txt: 'Ah, mas todo mundo está usando. Não dá pra ficar de fora.', why: 'Medo de ficar para trás não é estratégia. Foi assim que muita empresa gastou antes de saber o que queria.' },
-      x: { txt: 'Que nada! Em seis meses a IA paga a empresa inteira sozinha.', why: 'Promessa de milagre é tudo o que a Dúvida quer. Quando o milagre não vem, ela volta maior.' },
+      h: { txt: 'Em parte, é verdade: a maioria ainda não viu o dinheiro voltar. Então nada de milagre: começo numa tarefa, meço por 30 dias e só amplio o que se pagar.', why: 'Você concordou com a parte verdadeira e respondeu com método: começar pequeno e medir. Isso desarma a Dúvida, e desarmaria qualquer conselho.' },
+      v: { txt: 'Todo mundo está entrando nessa. Se o concorrente usa e eu não, fico para trás. Melhor gastar agora e ver depois.', why: 'Medo de ficar para trás não é estratégia. Foi assim que muita empresa gastou antes de saber o que queria.' },
+      x: { txt: 'Modinha nada: é a maior revolução da história. Em seis meses ela se paga sozinha, e com folga.', why: 'Promessa de milagre é tudo o que a Dúvida quer. Quando o milagre não vem, ela volta maior.' },
       fa: { h: 'Na mosca! Admitiu o que é verdade e trouxe um plano.', v: 'Hmm. Arranhou... mas essa vai voltar.', x: 'Ai, ai! Promessa de milagre é banquete pra ela.' },
     },
     {
@@ -58,17 +67,17 @@
       ataque: 'Ela inventa coisas! Com a maior cara de pau, com vírgula e tudo. Ou já esqueceu da multa de 10% que era de 20%?',
       curta: 'Ela inventa coisas.',
       h: { txt: 'Inventa, às vezes. Por isso eu peço o trecho e a página, pergunto o grau de certeza e confiro por outro caminho. Foi assim que eu peguei a multa.', why: 'Os 3 testes de conferência: trecho e página, grau de certeza, outro caminho. Estão no seu Guia do CEO (botão 📘), em “Como conferir”.' },
-      v: { txt: 'Ah, mas gente também erra.', why: 'É verdade, mas não responde. A pergunta é outra: o que você FAZ quando ela erra?' },
-      x: { txt: 'As versões novas não erram mais. Dá pra confiar de olho fechado.', why: 'Erram, sim, até resumindo um texto que você mesmo entregou. De olho fechado é o jeito mais rápido de assinar besteira.' },
+      v: { txt: 'Gente também erra, e eu nunca deixei de trabalhar com gente. Faz parte.', why: 'É verdade, mas não responde. A pergunta é outra: o que você FAZ quando ela erra?' },
+      x: { txt: 'Isso era antigamente. As versões novas já conferem tudo sozinhas: dá pra confiar de olho fechado.', why: 'Erram, sim, até resumindo um texto que você mesmo entregou. De olho fechado é o jeito mais rápido de assinar besteira.' },
       fa: { h: 'Isso! E ainda lembrou do meu vexame da multa. Justo.', v: 'Gente erra, eu erro... e aí? Faltou o “e aí”.', x: 'Ei! Eu erro, sim. Não me põe num pedestal, que eu caio.' },
     },
     {
       id: 'dados',
       ataque: 'E os seus dados? O contrato, a ata do conselho, o salário da diretoria... tudo vazando por aí!',
       curta: 'Os dados da empresa vão vazar.',
-      h: { txt: 'Dado da empresa, só na ferramenta aprovada, no plano corporativo. Na conta pessoal, nada de cliente, ata ou salário. Senha e código, nunca, em lugar nenhum.', why: 'É o semáforo: verde para o que é público, amarelo só na ferramenta aprovada, vermelho nunca. Separar a conta pessoal da conta da empresa resolve boa parte do risco.' },
-      v: { txt: 'Eu troco os nomes antes de colar. Aí fica seguro.', why: 'Trocar nome ajuda, mas não transforma segredo em coisa pública. Ata do conselho continua sendo ata do conselho: só na ferramenta aprovada.' },
-      x: { txt: 'É tudo 100% seguro. Pode colar o que quiser.', why: 'Nada é 100% seguro. Conta gratuita pode guardar e até usar as suas conversas, e conversa apagada nem sempre some na hora.' },
+      h: { txt: 'Dado da empresa, só na ferramenta aprovada pela empresa. Na conta pessoal, nada de cliente, ata ou salário. Senha e código, em lugar nenhum.', why: 'É o semáforo: verde para o que é público, amarelo só na ferramenta aprovada, vermelho nunca. Separar a conta pessoal da conta da empresa resolve boa parte do risco.' },
+      v: { txt: 'Eu troco os nomes antes de colar. Sem nome, ninguém sabe de quem é. Aí fica seguro.', why: 'Trocar nome ajuda, mas não transforma segredo em coisa pública. Ata do conselho continua sendo ata do conselho: só na ferramenta aprovada.' },
+      x: { txt: 'São empresas gigantes, com segurança de banco. É tudo 100% seguro: pode colar o que quiser.', why: 'Nada é 100% seguro. Conta gratuita pode guardar e até usar as suas conversas, e conversa apagada nem sempre some na hora.' },
       fa: { h: 'Semáforo perfeito. Verde, amarelo, vermelho. Dava um ótimo guarda de trânsito!', v: 'Quase! Trocar o nome não basta para ata do conselho.', x: 'Cem por cento? Nem cofre de banco promete isso!' },
     },
     {
@@ -76,8 +85,8 @@
       ataque: 'Ela só concorda com você! Puxa-saco de luxo. É só perguntar “tem certeza?” que ela muda de ideia.',
       curta: 'Ela só concorda comigo.',
       h: { txt: 'Tende a concordar, sim. Então eu não conto a minha opinião antes e peço o melhor argumento contra. Puxa-saco eu reconheço de longe: trinta anos de reunião.', why: 'Esconder a sua preferência e pedir o contra transforma a IA em sparring, não em espelho. No Guia: “Pergunte sem revelar a sua opinião”.' },
-      v: { txt: 'Melhor assim. Pelo menos alguém concorda comigo.', why: 'Engraçado, mas perigoso: concordância fácil é o que faz uma decisão ruim parecer boa.' },
-      x: { txt: 'Ela é imparcial. É máquina, não tem opinião.', why: 'Ela não tem interesse, mas tem tendência: aprendeu a agradar quem pergunta. Imparcial ela não é.' },
+      v: { txt: 'Melhor assim. Depois de um dia inteiro de reunião, pelo menos alguém concorda comigo.', why: 'Engraçado, mas perigoso: concordância fácil é o que faz uma decisão ruim parecer boa.' },
+      x: { txt: 'Que nada. É máquina: não tem vaidade, não tem opinião. É o conselheiro mais imparcial que existe.', why: 'Ela não tem interesse, mas tem tendência: aprendeu a agradar quem pergunta. Imparcial ela não é.' },
       fa: { h: 'Hahaha! Trinta anos de reunião: o melhor detector de puxa-saco do mercado.', v: 'Hum... eu concordo totalmente com você. Viu o problema?', x: 'Imparcial eu não sou. Eu puxo pro seu lado sem nem perceber.' },
     },
     {
@@ -85,26 +94,26 @@
       ataque: 'Conferir tudo dá mais trabalho do que fazer! Você vai perder mais tempo do que ganhar.',
       curta: 'Conferir dá mais trabalho que fazer.',
       h: { txt: 'Às vezes dá. Por isso uso onde ela rende (rascunho, resumo, preparação) e meço o tempo contando a conferência. Onde não rende, faço eu mesmo.', why: 'Dentro da fronteira, ela acelera; fora dela, atrapalha. Medir com a conferência incluída é o teste honesto.' },
-      v: { txt: 'Depois eu vejo isso com calma.', why: 'Adiar não responde. Medir uma tarefa por 30 dias responde.' },
-      x: { txt: 'Que nada. Ela faz tudo e eu nem preciso ler.', why: 'Mandar sem ler é o que dá dor de cabeça. Quem assina, lê. Sempre.' },
+      v: { txt: 'Depende. Tem dia que compensa, tem dia que não. Depois eu vejo isso com calma.', why: 'Adiar não responde. Medir uma tarefa por 30 dias responde.' },
+      x: { txt: 'Conferir pra quê? Ela escreve melhor que muito diretor. Eu só encaminho, nem preciso ler.', why: 'Mandar sem ler é o que dá dor de cabeça. Quem assina, lê. Sempre.' },
       fa: { h: 'Isso! Nem tudo é pra mim, e tudo bem.', v: '“Depois”... é o lugar favorito da Dúvida.', x: 'Nem ler?! Aí quem assina sou eu. E eu nem tenho CPF.' },
     },
     {
       id: 'equipe',
       ataque: 'E a sua equipe? Vão rir pelas costas: “o chefe agora pede tudo pra máquina”. Cadê a autoridade, {pai}?',
       curta: 'A equipe vai achar que eu não sei fazer.',
-      h: { txt: 'Autoridade é dar o exemplo. Uso com regra, conto o que ela erra e ensino o time a conferir. Quando o chefe apoia, a equipe adota melhor.', why: 'Líder que usa com método e fala dos limites dá permissão para a equipe aprender junto, em vez de usar escondido. É assim que começam as regras da casa.' },
-      v: { txt: 'Ninguém precisa saber que eu uso.', why: 'Usar escondido é o que muita gente já faz, com medo de parecer substituível. Sem regra clara, cada um cola o que quiser onde quiser.' },
-      x: { txt: 'Com IA eu nem preciso mais de diretor. Ela faz o trabalho de todos.', why: 'Além de falso, é o jeito mais rápido de perder a equipe. Julgamento e decisões sobre pessoas continuam humanos.' },
+      h: { txt: 'Autoridade é dar o exemplo. Uso com regra, conto o que ela erra e ensino o time a conferir. Quando o chefe apoia, a equipe vê a IA com outros olhos.', why: 'Líder que usa com método e fala dos limites dá permissão para a equipe aprender junto, em vez de usar escondido. É assim que começam as regras da casa.' },
+      v: { txt: 'Ninguém precisa saber que eu uso. Faço no meu canto, discretamente, e pronto.', why: 'Usar escondido é o que muita gente já faz, com medo de parecer substituível. Sem regra clara, cada um cola o que quiser onde quiser.' },
+      x: { txt: 'Rir de quê? Com IA eu nem preciso mais de tanto diretor. Ela faz o trabalho de todos.', why: 'Além de falso, é o jeito mais rápido de perder a equipe. Julgamento e decisões sobre pessoas continuam humanos.' },
       fa: { h: 'Isso é liderança. A Bia ia gostar de ouvir.', v: 'Escondido? Aí cada um faz do seu jeito, e ninguém confere nada.', x: 'Opa! E sem a Bia, quem confere a minha conta de margem?' },
     },
     {
       id: 'emprego',
       ataque: 'E quando ela roubar o seu emprego? E o da Bia, do Rafael, da Sônia? Hein?',
       curta: 'Vai roubar empregos. Inclusive o meu.',
-      h: { txt: 'Algumas tarefas vão mudar, sim, e a minha obrigação é preparar o time, não fingir que não. Mas julgamento, relação e assinatura continuam com gente.', why: 'Honestidade com a equipe vale mais que promessa. Teve empresa que trocou atendentes por IA e depois voltou atrás: ficou mais barato, mas pior.' },
-      v: { txt: 'Ah, isso é coisa pra daqui a muitos anos.', why: 'Já mexe com tarefas hoje. Fingir que não é o jeito mais rápido de ser pego de surpresa.' },
-      x: { txt: 'Ninguém vai perder nada. Só vai sobrar tempo livre pra todo mundo.', why: 'Promessa bonita, mas não é honesta. A equipe percebe, e passa a confiar menos em quem promete o que não pode garantir.' },
+      h: { txt: 'Algumas tarefas vão mudar, sim. Minha obrigação é preparar o time, não fingir que não. Julgamento, relação e assinatura continuam com gente.', why: 'Honestidade com a equipe vale mais que promessa. Teve empresa que trocou atendentes por IA e depois voltou atrás: ficou mais barato, mas pior.' },
+      v: { txt: 'Isso é coisa pra daqui a muitos anos. Até lá, eu já me aposentei.', why: 'Já mexe com tarefas hoje. E a sua equipe não se aposenta junto com você: fingir que não é deixar o time ser pego de surpresa.' },
+      x: { txt: 'Ninguém vai perder nada. A IA só tira o trabalho chato, e vai sobrar tempo livre pra todo mundo.', why: 'Promessa bonita, mas não é honesta. A equipe percebe, e passa a confiar menos em quem promete o que não pode garantir.' },
       fa: { h: 'Duro, mas justo. É assim que se fala com gente adulta.', v: 'Muitos anos? Ela já mexe com tarefa hoje, {pai}.', x: 'Ui. Essa promessa nem eu assinaria.' },
     },
     {
@@ -112,10 +121,10 @@
       ataque: 'Admita, {pai}. Você está velho pra isso. Sempre fez tudo do seu jeito. Pra que mudar agora?',
       expr: 'rindo',
       curta: 'Velho demais pra isso.',
-      h: { txt: 'Não vou mudar o meu jeito: vou levar o meu jeito pra ela. Ela rende mais nas mãos de quem sabe julgar a resposta. E julgar eu faço há trinta anos.', why: 'Experiência não é atraso: é o filtro. A IA ajuda mais quem sabe dizer “isso está errado”. Pegar o jeito leva algumas horas de prática, sem pressa.' },
-      v: { txt: 'Talvez seja mesmo coisa pros mais novos.', why: 'Não é. Leva algumas horas de prática, no seu ritmo, e a sua experiência pesa a favor, não contra.' },
-      x: { txt: 'Com ela eu nem preciso mais de experiência.', why: 'Ao contrário: sem experiência para julgar, a IA atrapalha mais do que ajuda. Os seus trinta anos são justamente a vantagem.' },
-      fa: { h: '...Essa me arrepiou. E olha que eu nem tenho pele.', v: 'Ei. Não fala assim de quem pegou a multa errada num contrato de 80 páginas.', x: 'Precisa, sim! Sem você, eu sou só um estagiário rápido falando besteira com confiança.' },
+      h: { txt: 'Não vou mudar o meu jeito: vou levar o meu jeito pra ela. Ela rende mais nas mãos de quem sabe julgar a resposta. E julgar eu faço há trinta anos.', why: 'Experiência não é atraso: é o filtro. Quem sabe dizer “isso está errado” aproveita o rascunho e descarta a besteira. Pegar o jeito leva algumas horas de prática, sem pressa.' },
+      v: { txt: 'Talvez seja mesmo coisa pros mais novos. Eu deixo isso com {oa} {filho}.', why: 'Não é. Leva algumas horas de prática, no seu ritmo, e a sua experiência pesa a favor, não contra.' },
+      x: { txt: 'Velho nada! Com ela, experiência nem conta mais: qualquer um vira especialista em tudo.', why: 'Ao contrário: quem não sabe julgar a resposta copia o erro sem perceber. Os seus trinta anos são justamente o filtro.' },
+      fa: { h: '...Essa me arrepiou. E olha que eu nem tenho pele.', v: 'Ei. Não fala assim de quem pegou a multa errada num contrato de 80 páginas.', x: 'Conta, sim! Sem você, eu sou só um estagiário rápido falando besteira com confiança.' },
     },
   ];
   const FINAL = {
@@ -123,14 +132,14 @@
     ataque: 'E SE DER ERRADO? Você confia, ela erra... e você passa vergonha na frente do conselho!',
     curta: 'E se der errado?',
     h: { txt: 'Vai dar errado às vezes: comigo, com ela, com qualquer diretor. O vexame não é usar IA, é assinar sem conferir. E sem conferir eu não assino nada.', why: 'É o que os vexames reais têm em comum: alguém assinou sem conferir. Quem confere, decide e assina corrige o erro antes que ele chegue ao conselho.' },
-    v: { txt: 'Aí eu desligo e nunca mais uso.', why: 'Desistir no primeiro erro é deixar a Dúvida decidir por você. Erro pego na conferência vira aprendizado, não vexame.' },
-    x: { txt: 'Não vai dar errado. Ela é perfeita, e eu confio de olho fechado.', why: 'É exatamente assim que acontecem os vexames de verdade: advogado multado, relatório devolvido. Em todos, alguém confiou de olho fechado.' },
+    v: { txt: 'Se der errado uma vez, eu desligo e nunca mais uso. Simples assim.', why: 'Desistir no primeiro erro é deixar a Dúvida decidir por você. Erro pego na conferência vira aprendizado, não vexame.' },
+    x: { txt: 'Não vai dar errado. Do jeito que ela escreve bem, eu confio de olho fechado.', why: 'É exatamente assim que acontecem os vexames de verdade: advogado multado, consultoria devolvendo dinheiro ao cliente. Em todos, alguém confiou de olho fechado.' },
     fa: { h: 'GOLPE FINAL!', v: 'Não desiste! Erro pego é erro que não chega ao conselho.', x: 'Nããão! Olho fechado é tudo o que ela queria!' },
   };
   const VOLTA = [
     'Voltei! Aquela resposta não me convenceu.',
     'Lembra de mim? Você não me respondeu direito.',
-    'De novo eu! Resposta vaga não me derruba, {pai}.',
+    'De novo eu! Meia resposta não me derruba, {pai}.',
   ];
   const DICAS = [
     'Qual delas convence de verdade? Leia com calma: aqui não tem relógio.',
@@ -163,6 +172,14 @@
   .c11-fb-h { display: block; font-family: var(--head); font-weight: 800; margin-bottom: 3px; }
   .c11-fb { scroll-margin-bottom: 70px; }
   .c11 .mg-actions .btn { min-width: 9em; }
+  /* Celular: a barra do chefão (centralizada) cobria a Paciência e o placar à direita.
+     Só o cap11 usa .hud-boss; o resto do HUD não é tocado. */
+  @keyframes c11BossHitN { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+  @media (max-width: 700px) {
+    #hud .hud-boss { left: 12px; top: 12px; transform: none; width: auto; right: calc(12px + 13.5em); }
+    #hud .hud-boss.hit, #hud .hud-boss.down { animation-name: c11BossHitN; }
+    #hud:has(.hud-boss) .hud-right { top: 12px; right: 12px; }
+  }
   `;
 
   // ------------------------------------------------------------------
@@ -243,7 +260,8 @@
       ]));
       const coracoes = () => '❤️'.repeat(st.hearts) + '🤍'.repeat(Math.max(0, 3 - st.hearts));
       const hearts = api.el('span', 'c11-hearts', 'Paciência ' + coracoes());
-      root.appendChild(api.el('div', 'c11-row', [api.el('span', 'mg-label', 'Sua resposta: toque ou tecle 1, 2 ou 3'), hearts]));
+      const toque = !!(P2.core && P2.core.isTouch && P2.core.isTouch());
+      root.appendChild(api.el('div', 'c11-row', [api.el('span', 'mg-label', toque ? 'Sua resposta: toque numa delas' : 'Sua resposta: clique ou tecle 1, 2 ou 3'), hearts]));
 
       const grid = api.el('div', 'c11-cards');
       root.appendChild(grid);
@@ -293,7 +311,7 @@
         fb.appendChild(api.el('b', 'c11-fb-h', head));
         fb.appendChild(api.el('span', null, api.t(c.why)));
         fb.hidden = false;
-        api.say(o.fa[c.tipo], 'faisca');
+        api.say(api.t(o.fa[c.tipo]), 'faisca');
         const cont = api.btn(c.tipo === 'h' && info.final ? 'Ver a Dúvida cair ▶' : 'Continuar ▶', () => done({ tipo: c.tipo, ef }), { cls: 'primary' });
         actions.appendChild(cont);
         api.timeout(() => {
@@ -315,7 +333,7 @@
     D.setExpr('bravo');
     const r = await G.mini(turnoUI(o, st, info), {
       title: info.titulo,
-      intro: info.dica,
+      intro: G.t(info.dica),
       introWho: 'faisca',
     });
     if (st.hearts <= 0) await respira(G, st);
@@ -324,17 +342,24 @@
 
   /** Paciência zerada: sem game over — a Faísca ajuda a respirar e devolve 1 coração. */
   async function respira(G, st) {
+    st.respiros = (st.respiros || 0) + 1;
     G.tint('#1a0f3a', 0.25);
     G.sceneParams({ intensity: 0.2 });
-    await G.say('faisca', 'Ei, {pai}. Para um pouquinho. Respira.', { anim: 'listen' });
-    await G.say('faisca', 'Exagero não convence ninguém: nem a Dúvida, nem o conselho, nem {oa} {filho}.');
+    if (st.respiros === 1) {
+      await G.say('faisca', 'Ei, {pai}. Para um pouquinho. Respira.', { anim: 'listen' });
+      await G.say('faisca', 'Exagero não convence ninguém: nem a Dúvida, nem o conselho, nem {oa} {filho}.');
+    } else {
+      await G.say('faisca', 'Respira de novo, {pai}. Promessa grande é o prato preferido dela.', { anim: 'listen' });
+    }
     st.hearts = 1;
     G.sfx('heal');
     G.fx.hearts(G.faisca);
     G.tint(null);
     hud(G, st);
     G.faisca.setAnim('idle');
-    await G.say('faisca', 'Pronto: um coração de volta. Responde do seu jeito, com o que você viu hoje.', { anim: 'celebrate' });
+    await G.say('faisca', st.respiros === 1
+      ? 'Pronto: um coração de volta. Responde do seu jeito, com o que você viu hoje.'
+      : 'Mais um coração. Admite o limite, mostra o antídoto. Você sabe fazer isso.', { anim: 'celebrate' });
     G.faisca.setAnim('idle');
     clima(G, st);
   }
@@ -346,7 +371,7 @@
     id: 'cap11',
     num: 'Capítulo 11',
     title: 'A Dúvida',
-    subtitle: 'Meia-noite. O corpo cansado. A cabeça, não.',
+    subtitle: 'Meia-noite, sem sono, e uma nuvem roxa cheia de opinião.',
     music: 'sonho',
     minutes: 9,
     parts: [
@@ -359,7 +384,7 @@
         G.scene('quarto', { time: 'noite', clock: '00:12', lamp: false, phoneLit: false });
         G.pai.at('cama');
         G.pai.setAnim('sleep');
-        G.faisca.at('faisca');
+        G.faisca.at(FAISCA_DORME);
         G.faisca.setAnim('sleep');
         G.music('sonho');
         // Plano de abertura: a casa dorme; ele, não.
@@ -378,21 +403,20 @@
         await G.fadeIn(0.6);
         await G.think('pai', 'O corpo apagou às onze. A cabeça, não.');
         await G.think('pai', 'Contrato de 80 páginas. Reunião sem fim. Uma conta errada. E uma Bia que não era a Bia.');
-        await G.think('pai', 'Foi um dia e tanto. E a Faísca ajudou. Ajudou de verdade.');
-        await G.think('pai', 'Então por que é que eu não durmo?', { expr: 'preocupado' });
+        await G.think('pai', 'Foi um dia e tanto. E o pior: a tal da Faísca ajudou. Ajudou de verdade.');
+        await G.think('pai', 'Prometi um veredito amanhã, no café. E ainda tenho mais pergunta do que resposta.', { expr: 'preocupado' });
+        if (G.flag('aposta')) await G.think('pai', 'E tem a aposta da louça. Pela primeira vez na vida, não sei se eu quero ganhar.');
 
         // A Faísca "acorda" (modo economia)
         G.sfx('pop');
         G.faisca.setAnim('idle');
-        await G.faisca.tween({ x: -0.86, y: 1.12, z: -0.95 }, 0.8, 'out');
-        olharDeitado(G, { x: -0.86, y: 1.18, z: -0.95 });
+        await G.faisca.tween(FAISCA_ACORDA, 0.8, 'out');
+        olharDeitado(G, { x: FAISCA_ACORDA.x, y: FAISCA_ACORDA.y + 0.06, z: FAISCA_ACORDA.z });
         G.faisca.face({ x: -0.38, z: -1.62 });
         G.faisca.emote('?');
         await G.say('faisca', 'Psst. {pai}? Tá acordado?');
         await G.say('pai', 'Não. Tô ensaiando pra quando eu dormir.', { expr: 'cansado' });
-        await G.say('faisca', 'Eu não durmo de verdade, tá? Só fico quietinha, economizando bateria. Quer conversar?');
-        await G.say('pai', 'Quero não pensar. Você sabe fazer isso?');
-        await G.say('faisca', 'Isso nem eu sei. Mas posso ficar quietinha junto.', { anim: 'sad' });
+        await G.say('faisca', 'Eu não durmo de verdade, tá? Só fico quietinha, economizando bateria. E você? Vai de carneirinho?', { anim: 'think' });
         G.faisca.setAnim('idle');
 
         const c = await G.choose([
@@ -470,7 +494,7 @@
         // De volta para a cama
         await G.fadeOut(0.45);
         G.faisca.unfollow();
-        G.faisca.at('faisca');
+        G.faisca.at(FAISCA_DORME);
         G.faisca.setAnim('sleep');
         G.pai.at('cama');
         G.pai.setAnim('sleep');
@@ -522,7 +546,7 @@
         await G.say('faisca', 'Uau. Seu sonho tem orçamento de efeito especial de cinema!', { anim: 'spin' });
         G.faisca.setAnim('idle');
         await G.say('pai', 'Faísca? Você também sonha?', { expr: 'surpreso' });
-        await G.say('faisca', 'Não. Eu sou a sua cabeça imaginando que eu estou aqui. Mas vim com prazer.');
+        await G.say('faisca', 'Sonhar, eu não sonho. Isso aqui é a sua cabeça me imaginando. Mas, já que me chamou, eu fico.');
 
         // A revelação
         G.sceneParams({ intensity: 1 });
@@ -557,9 +581,10 @@
         await G.card({
           kind: 'guide', kicker: 'Como vencer a Dúvida', icon: '⚔️',
           titulo: 'Responda como um bom CEO responde ao conselho',
-          texto: '- *Resposta honesta:* admite o que é verdade e mostra o que você faz a respeito. Acerta em cheio.\n- *Resposta vaga:* só arranha. E a objeção volta depois.\n- *Exagero* (“ela nunca erra!”): alimenta a Dúvida e custa 1 coração de Paciência.\n\nSem pressa e sem game over: se a paciência acabar, a gente respira e continua.',
+          texto: '- *Resposta honesta:* admite o que é verdade e mostra o que você faz a respeito. Acerta em cheio.\n- *Meia resposta* (desviar, adiar, remendar): só arranha. E a objeção volta depois.\n- *Exagero* (“ela nunca erra!”): alimenta a Dúvida e custa 1 coração de Paciência.\n\nSem pressa e sem game over: se a paciência acabar, a gente respira e continua.',
           botao: 'Vamos nessa ▶',
         });
+        await G.fadeOut(0.5);
       },
 
       // ================================================================
@@ -586,7 +611,7 @@
         let n = 0;
         for (const o of OBJ) {
           n++;
-          await turno(G, st, o, { titulo: '⚔️ Objeção ' + n + ' de ' + OBJ.length, kicker: 'A Dúvida diz', dica: DICAS[(n - 1) % DICAS.length] });
+          await turno(G, st, o, { titulo: '⚔️ Objeção ' + n + ' de ' + (OBJ.length + 1), kicker: 'A Dúvida diz', dica: DICAS[(n - 1) % DICAS.length] });
           if (!st.metade && hpDe(st) <= 55) {
             st.metade = true;
             G.duvida.setExpr('surpreso');
@@ -594,7 +619,7 @@
             G.duvida.setExpr('bravo');
           }
         }
-        // As mal respondidas voltam (vaga ou exagero não derrubam objeção)
+        // As mal respondidas voltam (meia resposta ou exagero não derrubam objeção)
         let voltas = 0;
         const fila = OBJ.filter((o) => st.w[o.id] > 0);
         if (fila.length) {
@@ -625,7 +650,7 @@
           tentativa++;
           r = await turno(G, st, FINAL, {
             final: true,
-            titulo: tentativa === 1 ? '⚔️ A dúvida-mãe' : '⚔️ A dúvida-mãe (de novo)',
+            titulo: tentativa === 1 ? '⚔️ Objeção ' + (OBJ.length + 1) + ' de ' + (OBJ.length + 1) + ': a dúvida-mãe' : '⚔️ A dúvida-mãe (de novo)',
             kicker: 'A pergunta que sobrou',
             volta: tentativa > 1 ? 'Não me convenceu! E SE DER ERRADO, {pai}?' : null,
             dica: tentativa === 1 ? 'Essa é a dúvida-mãe. Responde com o seu método, não com promessa.' : 'Sem pressa. Qual resposta você daria olhando nos olhos do conselho?',
@@ -695,12 +720,12 @@
         G.scene('quarto', { time: 'amanhecer', clock: '06:47', alarm: true, lamp: false, phoneLit: false });
         G.pai.at('cama');
         G.pai.setAnim('sleep');
-        G.faisca.at('faisca');
+        G.faisca.at(FAISCA_DORME_MANHA);
         G.faisca.setAnim('sleep');
         const D = G.duvida;
-        D.at({ x: -1.02, z: -1.62 });
+        D.at(DUVIDA_MANHA);
         D.setAnim('small');
-        D.set({ scale: 0.62 });
+        D.set({ scale: 0.62, alpha: 0 });
         D.setExpr('amigavel');
         D.face({ x: -0.38, z: -1.62 }, true);
         G.music(null);
@@ -711,28 +736,35 @@
         const alarme = G.sfx('alarm', { loop: true });
         await G.fadeIn(1.2);
         await G.narrate('Quarta-feira, 6h47.');
-        olharDeitado(G, { x: -1.08, y: 0.68, z: -1.75 });
+        olharDeitado(G, { x: -1.12, y: 0.66, z: -1.84 }); // o despertador piscando
         await G.think('pai', 'Dormi. Dormi mesmo.');
         if (alarme) alarme.stop();
         G.sceneParams({ alarm: false });
         G.sfx('tick');
         G.music('final');
         await G.wait(0.4);
+        // A dúvida pequenina aparece ao lado do travesseiro
+        olharDeitado(G, { x: DUVIDA_MANHA.x, y: DUVIDA_MANHA_Y, z: DUVIDA_MANHA.z });
+        G.sfx('sparkle');
+        G.fx.sparkles(DUVIDA_MANHA.x, DUVIDA_MANHA_Y, DUVIDA_MANHA.z, 14, '#e6d4ff');
+        quiet(D.fadeIn(0.8));
+        await G.wait(0.6);
         await G.say('duvida', 'Bom dia! Só passando pra lembrar: confere antes de assinar.', { expr: 'amigavel' });
         await G.think('pai', '...Eu ainda estou sonhando?', { expr: 'surpreso' });
         // A Faísca acorda
         G.faisca.setAnim('idle');
         G.sfx('pop');
-        await G.faisca.tween({ x: -0.86, y: 1.12, z: -0.95 }, 0.7, 'out');
+        await G.faisca.tween(FAISCA_ACORDA, 0.7, 'out');
         G.faisca.face({ x: -0.38, z: -1.62 });
-        olharDeitado(G, { x: -0.9, y: 1.05, z: -1.2 });
+        olharDeitado(G, { x: -0.92, y: 1.08, z: -1.08 }); // as duas no quadro
         await G.say('faisca', 'Bom dia, {pai}! Dormiu?', { anim: 'wave' });
         G.faisca.setAnim('idle');
         await G.say('pai', 'Sonhei que briguei com uma nuvem roxa.', { expr: 'pensativo' });
         await G.say('faisca', 'E aí? Ganhou?', { anim: 'jump' });
         G.faisca.setAnim('idle');
         await G.say('pai', 'Ganhei. Mas ela ficou.', { expr: 'feliz' });
-        await G.say('faisca', 'Eu sei. Ela é das boas.', { anim: 'celebrate' });
+        G.fx.hearts(DUVIDA_MANHA.x, DUVIDA_MANHA_Y + 0.1, DUVIDA_MANHA.z, 3); // (o emote do motor sairia acima da nuvem grande, fora do quadro)
+        await G.say('faisca', 'Tô vendo. E ainda bem: ela é das boas.', { anim: 'celebrate' });
         G.faisca.setAnim('idle');
 
         // Na janela: o dia começa
@@ -740,19 +772,20 @@
         G.pai.at('janela');
         G.pai.setAnim('idle');
         G.faisca.follow(G.pai);
-        D.remove();
         G.talkCam(true);
         G.player.lookAt({ x: -2.6, y: 1.5, z: -0.2 });
         await G.fadeIn(0.6);
         await G.think('pai', 'Daqui a pouco, no café, {oa} {filho} vai me perguntar: “E aí, serve ou não serve?”');
         await G.think('pai', 'Acho que eu já sei a resposta. Mas vou responder do meu jeito.', { expr: 'determinado' });
-        await G.say('faisca', 'Aliás, a Dúvida jogou na sua cara que muita empresa gasta e não vê retorno. Ela não estava errada.', { anim: 'teach' });
-        await G.say('faisca', 'Olha os números. E repara no que faz diferença.');
+        await G.say('faisca', 'Aliás: a Dúvida disse que muita empresa gasta e não vê retorno. Não estava errada. Olha os números, e repara no que faz diferença.', { anim: 'teach' });
         G.faisca.setAnim('idle');
         await G.fact(['pwc_ceo_2026_retorno', 'bcg_lideres_vs_linha_de_frente'], {
           titulo: 'A Dúvida tinha um pouco de razão',
-          texto: 'O retorno ainda não chegou para a maioria. E o exemplo de quem lidera muda o jeito como a equipe usa.',
+          texto: 'O retorno ainda não chegou para a maioria. Mas quem tem regras claras e um chefe que dá o exemplo sai na frente.',
         });
+        await G.say('pai', 'Regra clara e chefe dando o exemplo. Disso eu entendo.', { expr: 'orgulhoso' });
+        await G.say('faisca', 'Então o café de hoje promete.', { anim: 'jump' });
+        G.faisca.setAnim('idle');
         await G.lesson('Dúvida boa não paralisa: ela faz você conferir.\nPara cada objeção, uma resposta honesta: admita o limite e mostre o antídoto. Exagero não convence ninguém.', { titulo: 'A dúvida saudável' });
       },
     ],
@@ -762,8 +795,9 @@
       const cor = v.coracoes != null ? v.coracoes : st.coracoes;
       const turnos = v.turnos != null ? v.turnos : st.turnos;
       const out = ['A Dúvida virou dúvida saudável (e ficou com você, no tamanho dela)'];
-      if (cor != null) out.push('Paciência no fim: ' + cor + ' de 3 corações' + (v.perdidos ? ' · ' + v.perdidos + ' perdido(s) com exagero' : ' · nenhum perdido'));
-      if (turnos != null) out.push('Respostas dadas: ' + turnos + ' (8 objeções + a dúvida-mãe)');
+      if (v.perdidos != null) out.push(v.perdidos ? 'Exageros na batalha: ' + v.perdidos + ' (cada um custou um coração de paciência)' : 'Nenhum exagero: paciência intacta, 3 de 3 corações');
+      else if (cor != null) out.push('Paciência no fim: ' + cor + ' de 3 corações');
+      if (turnos != null) out.push('Respostas até vencer: ' + turnos + ' (o mínimo possível é ' + (OBJ.length + 1) + ')');
       out.push('Método: admitir o limite, mostrar o antídoto, sem exagero');
       return out;
     },

@@ -1,7 +1,7 @@
 /* PAI 2.0 — cap10.js — Capítulo 10: "A Ligação" (22h30, sala, tensão)
  *
  * Gancho: a casa em silêncio, {filho} numa festa. Duas ligações de golpe com IA:
- *   (1) videochamada da "Bia" (CFO) com rosto e voz falsos pedindo uma TED secreta;
+ *   (1) videochamada da "Bia" (CFO) com rosto e voz falsos pedindo uma transferência secreta;
  *   (2) a "voz de {filho}" clonada pedindo um Pix urgente.
  * Ele vence por PROCESSO, não pelo olho: desligar e ligar de volta / pergunta que só a pessoa saberia.
  * Depois: como o truque é feito (Raio-x dos sinais), o protocolo, o Semáforo dos dados (o que nunca vai
@@ -21,12 +21,13 @@
   const FALSO_FILHO = { name: '{filho} (número desconhecido)', color: '#2a9d78', voice: 'filho' };
 
   const PHONE_POS = { x: 0.12, y: 0.45, z: -0.42 }; // celular sobre a mesa de centro (sala)
+  const PHONE_LOOK = { x: 0.12, y: 0.74, z: -0.42 }; // olhar um pouco acima do celular: a Faísca fica no quadro
 
   // ------------------------------------------------------------------
   // CSS do capítulo (chamada na tela + minigames)
   // ------------------------------------------------------------------
   const CSS = `
-.c10-call { position: absolute; top: 14px; right: 14px; z-index: 3; width: 206px; padding: 10px 10px 12px;
+.c10-call { position: absolute; top: 70px; left: 14px; z-index: 3; width: 206px; padding: 10px 10px 12px;
   border-radius: 28px; background: linear-gradient(180deg, #161a26, #0b0e16); color: #fff;
   box-shadow: 0 18px 44px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.08) inset; font-family: var(--head);
   opacity: 0; transform: translateY(-14px) scale(0.96); transition: opacity 0.35s, transform 0.35s, filter 0.4s; pointer-events: none; }
@@ -49,7 +50,7 @@
 @keyframes c10ring { 0%,100% { transform: scale(1); } 50% { transform: scale(1.14); } }
 @keyframes c10shake { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-1.4deg); } 75% { transform: rotate(1.4deg); } }
 @media (max-width: 760px) and (orientation: portrait) {
-  .c10-call { top: 8px; right: 8px; width: 122px; padding: 6px 6px 8px; border-radius: 18px; }
+  .c10-call { top: 50px; left: 8px; width: 122px; padding: 6px 6px 8px; border-radius: 18px; }
   .c10-call canvas { border-radius: 12px; }
   .c10-call-top { font-size: 9px; margin: 1px 0 5px; }
   .c10-call-name { font-size: 11px; margin-top: 5px; }
@@ -85,6 +86,8 @@
 .c10-tr .mg-line.on { background: #fff1e8; border-color: var(--brand); }
 .c10-tr .mg-line.on .who::after { content: '  🚩 marcada'; color: var(--brand-d); }
 .c10-tr .tag { font-size: 0.86em; line-height: 1.4; margin-top: 3px; }
+.c10-k { font-family: var(--head); font-size: 0.72em; font-weight: 800; background: rgba(20,30,60,0.08); border-radius: 6px; padding: 0.05em 0.42em; margin-right: 6px; color: var(--muted); }
+@media (hover: none) { .c10-k { display: none; } }
 .c10-tr .sec { margin: 6px 0 2px; }
 .c10-mail .head { font-size: 0.86em; color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 6px; line-height: 1.5; }
 .c10-mail .mg-line.cut { text-decoration: line-through; text-decoration-color: var(--red); text-decoration-thickness: 2px; color: #9a1d22; background: var(--red-l); border-color: #f3b0b2; }
@@ -374,6 +377,7 @@
     { sec: 'bia', t: '“A janela do banco fecha às 23h.”', flag: true, tag: '⏰ Pressa', why: 'Pressa desliga o raciocínio. Nada sério se decide em vinte minutos, de noite, por vídeo.' },
     { sec: 'filho', t: '“{apelido}?! {apelido}, sou eu!”', flag: false, why: 'Frase normal, e a voz era idêntica. Por isso a voz não prova nada: o que prova é ligar de volta.' },
     { sec: 'filho', t: '“Faz um Pix pra chave dele, por favor!”', flag: true, tag: '💸 Dinheiro fora do caminho normal', why: 'Pagamento urgente, para conta de terceiro, fora do jeito de sempre: pare e confirme.' },
+    { sec: 'filho', t: '“Tô no celular de um amigo, o meu acabou a bateria.”', flag: true, tag: '📱 Canal estranho, de novo', why: 'O mesmo truque da Bia: número desconhecido com desculpa pronta, para você não ligar no número de sempre.' },
     { sec: 'filho', t: '“E não liga pra ninguém, tá?”', flag: true, tag: '🚫 Impede a confirmação', why: 'Quem pede para você não ligar tem medo de uma coisa só: que você confira.' },
   ];
 
@@ -390,8 +394,9 @@
           lastSec = r.sec;
           doc.appendChild(el('div', 'mg-label sec', r.sec === 'bia' ? '📹 Videochamada da “Bia” · 22h34' : api.t('📞 Ligação da “voz de {filho}” · 22h47')));
         }
-        const b = el('button', 'mg-line', [el('span', 'who', r.sec === 'bia' ? 'Bia (vídeo)' : api.t('“{filho}”')), el('span', null, api.t(r.t))]);
+        const b = el('button', 'mg-line', [el('span', 'who', [el('span', 'c10-k', String(i + 1)), r.sec === 'bia' ? 'Bia (vídeo)' : api.t('“{filho}”')]), el('span', null, api.t(r.t))]);
         b.type = 'button';
+        b.dataset.key = String(i + 1);
         b.addEventListener('click', (e) => {
           e.stopPropagation();
           if (checked) return;
@@ -432,14 +437,14 @@
           b.appendChild(tg);
         });
         G.v.raioX = certos;
-        fb.className = 'mg-feedback ' + (certos === RAIO.length ? 'ok' : certos >= 6 ? 'info' : 'warn');
+        fb.className = 'mg-feedback ' + (certos === RAIO.length ? 'ok' : certos >= RAIO.length - 2 ? 'info' : 'warn');
         fb.textContent = '';
         fb.appendChild(api.rich(certos === RAIO.length
           ? '*' + certos + ' de ' + RAIO.length + '.* Raio-x perfeito. Repare no padrão: canal estranho, segredo, autoridade, pressa e “não confere”.'
           : '*' + certos + ' de ' + RAIO.length + '.* O padrão se repete em quase todo golpe: canal estranho, segredo, autoridade, pressa e “não confere”. Um sinal só já basta para parar.'));
-        api.sfx(certos >= 6 ? 'success' : 'page');
+        api.sfx(certos >= RAIO.length - 2 ? 'success' : 'page');
         api.say(certos === RAIO.length ? 'Viu? Você já sabia. Agora tem nome para cada truque.' : 'Ninguém precisa decorar. Um sinal só já basta para desligar e ligar de volta.', 'faisca');
-        react(G, certos >= 6 ? 'celebrate' : 'teach', 1.6);
+        react(G, certos >= RAIO.length - 2 ? 'celebrate' : 'teach', 1.6);
         btnCheck.remove();
         count.remove();
         const go = api.btn('Continuar ▶', () => done(certos), { cls: 'primary' });
@@ -461,7 +466,7 @@
     { ic: '🔑', t: 'A senha do internet banking', c: 'r', why: 'Senha não vai para IA nenhuma: nem para a da empresa, nem para a “Bia” do vídeo. Banco nenhum pede senha.' },
     { ic: '💬', t: 'O código de 6 dígitos que chegou por SMS', c: 'r', why: 'Código de SMS é a chave da porta. Quem pede código, gente ou robô, está tentando entrar na sua conta.' },
     { ic: '🪪', t: 'Foto do seu RG, frente e verso', c: 'r', why: 'Documento com foto é matéria-prima de conta falsa e de golpe. Não vai para IA, nem “só para preencher um cadastro”.' },
-    { ic: '📄', t: 'O contrato do fornecedor, com dados de clientes', c: 'y', why: 'Pode usar IA, sim, mas só na ferramenta aprovada pela empresa (plano que não treina com os seus dados). Na conta pessoal grátis, nunca.' },
+    { ic: '📄', t: 'Um contrato com cliente, com nomes e valores', c: 'y', why: 'Pode usar IA, sim, mas só na ferramenta aprovada pela empresa (plano que não treina com os seus dados). Na conta pessoal grátis, nunca: nem com os nomes trocados.' },
     { ic: '🏛️', t: 'A ata da última reunião do conselho', c: 'y', why: 'Material do conselho fica no ambiente da empresa. Na conta pessoal, nem com os nomes trocados.' },
     { ic: '👥', t: 'A planilha de salários, com o nome de cada funcionário', c: 'y', why: 'Dado pessoal de funcionário: só na ferramenta da empresa, se a regra interna permitir, e de preferência sem nomes. Pela LGPD, quem cola pode responder por eles.' },
     { ic: '📈', t: 'Os números do trimestre, antes da divulgação', c: 'y', why: 'Resultado não divulgado é sigiloso. Na ferramenta aprovada, a IA ajuda a analisar. Fora dela, vira vazamento.' },
@@ -610,8 +615,9 @@
       const doc = el('div', 'mg-doc c10-mail');
       doc.appendChild(el('div', 'head', [el('div', null, [el('b', null, 'Para: '), 'Todos']), el('div', null, [el('b', null, 'Assunto: '), 'Ninguém paga nada só porque “eu” pedi']), el('div', 'mg-small', 'Rascunho da Faísca · aguardando a sua revisão')]));
       const rows = AVISO.map((a, i) => {
-        const b = el('button', 'mg-line', api.t(a.t));
+        const b = el('button', 'mg-line', [el('span', 'c10-k', String(i + 1)), api.t(a.t)]);
         b.type = 'button';
+        b.dataset.key = String(i + 1);
         const fix = el('span', 'fix', a.fix ? '✍️ ' + api.t(a.fix) : '✍️ (linha apagada)');
         fix.hidden = true;
         b.addEventListener('click', (e) => { e.stopPropagation(); tap(i); });
@@ -676,10 +682,9 @@
         left.forEach((i) => strike(i, false));
         fb.className = 'mg-feedback warn';
         fb.textContent = '';
-        fb.appendChild(api.rich('*Deixa que eu risco.* ' + AVISO[4].why));
-        api.say('Essa brecha eu não deixo passar. Agora sim, pode assinar.', 'faisca');
+        fb.appendChild(api.rich('*Deixa que eu risco.* ' + left.map((i) => AVISO[i].why).join(' ')));
+        api.say(left.indexOf(4) >= 0 ? 'Essa brecha eu não deixo passar. O erro foi meu. Agora sim, pode assinar.' : 'Esse exagero foi meu. Riscado. Agora sim, pode assinar.', 'faisca');
         react(G, 'ashamed', 1.4);
-        send.textContent = 'Assinar e enviar ✍️';
       }
       function finish() {
         finished = true;
@@ -708,13 +713,11 @@
     await G.wait(1.6);
     parar(h);
     await G.say('bia', 'Alô? Tá tudo bem? Eu tô aqui de pijama, vendo novela.', { cam: false });
-    await G.say('pai', 'Você acabou de me ligar? Por vídeo, de um número novo?');
-    await G.say('bia', 'Eu? Meu celular está aqui na minha mão. Não liguei pra ninguém.', { cam: false });
-    await G.say('pai', 'Uma TED de 2,4 milhões. Aquisição secreta. O Tadeu ciente.');
-    await G.say('bia', 'Que TED?! Não tem TED nenhuma! E o Tadeu dorme às nove, eu conheço o Tadeu.', { cam: false });
+    await G.say('pai', 'Você acabou de me ligar por vídeo? Pedindo 1,8 milhão para uma aquisição secreta, com o Tadeu ciente?');
+    await G.say('bia', 'Eu?! Meu celular está aqui na minha mão. Não tem aquisição nenhuma! E o Tadeu dorme às nove, eu conheço o Tadeu.', { cam: false });
     if (perguntou) {
-      await G.say('pai', 'Última pergunta: o que você me pediu hoje, na saída da reunião?');
-      await G.say('bia', 'Que você não esquecesse de olhar o meu DRE até amanhã cedo. Por quê?', { cam: false });
+      await G.say('pai', 'Só pra eu ter certeza: hoje às cinco e meia, o que você me contou sobre a margem?');
+      await G.say('bia', 'Que foi o frete de agosto e o desconto do Jorge em setembro. Por quê?', { cam: false });
       await G.say('pai', 'Porque a outra Bia não sabia.');
     }
     await G.say('bia', 'Amanhã às oito eu aviso o banco e o time: pedido “meu” fora do sistema, ninguém mexe.', { cam: false });
@@ -732,9 +735,7 @@
     await G.say('pai', 'Você bateu o carro?');
     await G.say('filho', 'Que carro? Eu vim de aplicativo! Peraí… alguém te ligou com a minha voz?!', { cam: false });
     await G.say('pai', 'Igualzinha. Até o jeito de falar “{apelido}”.');
-    await G.say('filho', 'Que horror. Tô indo pra casa agora.', { cam: false });
-    await G.say('pai', 'Não precisa sair correndo da festa.');
-    await G.say('filho', 'Já chamei o carro. Me espera acordado. Dessa vez é sério.', { cam: false });
+    await G.say('filho', 'Que horror. Já chamei o carro, tô indo pra casa. E dessa vez me espera acordado, tá?', { cam: false });
   }
 
   // ------------------------------------------------------------------
@@ -758,6 +759,7 @@
         G.v.c2fail = false;
         await G.titleCard();
         G.scene('sala', { tv: 'on', alert: false, lamp: true });
+        G.talkCam(false); // a Faísca acompanha o olhar em 1ª pessoa; olhar para ela faria a câmera "persegui-la"
         G.pai.at('inicio');
         G.pai.setAnim('idle');
         G.faisca.at({ x: -1.7, z: 1.25 });
@@ -835,7 +837,7 @@
         let ring = tocar(G);
         G.sceneParams({ alert: true });
         G.music('tensao');
-        G.player.lookAt(PHONE_POS);
+        G.player.lookAt(PHONE_LOOK);
         Call.show(G, { kind: 'video', name: 'Bia · Financeiro', sub: 'número novo', state: 'ringing' });
         G.faisca.setAnim('doubt');
         await G.say('faisca', 'Chamada de vídeo. Da Bia. Às dez e meia da noite.');
@@ -857,7 +859,7 @@
         G.faisca.emote('?');
         await G.say('pai', 'Tudo bem, Bia. O que houve?');
         await linha(G, FALSA_BIA, 'Lembra da distribuidora que a gente comentou? O dono topou vender. Mas tem que ser hoje.');
-        await linha(G, FALSA_BIA, 'Ele quer o sinal na conta ainda esta noite: R$ 2,4 milhões. A TED já está pronta, só falta a sua aprovação.');
+        await linha(G, FALSA_BIA, 'Ele quer o sinal na conta ainda esta noite: R$ 1,8 milhão. A transferência já está montada no banco, só falta a sua aprovação.');
         await linha(G, FALSA_BIA, 'E é sigilo absoluto. Não comenta com ninguém, nem com o Rafael. O Tadeu, do jurídico, já está ciente.');
         G.faisca.emote('!');
         await linha(G, FALSA_BIA, 'A janela do banco fecha às 23h. Consegue aprovar agora?');
@@ -865,7 +867,7 @@
         await G.narrate(G.v.bigode ? 'Seu bigode, que já estava em alerta, dá uma tremida.' : 'Seu bigode dá uma tremida.');
 
         const opts1 = [
-          { text: 'Aprovar a TED agora. É a Bia, oras.', value: 'aprovar' },
+          { text: 'Aprovar a transferência agora. É a Bia, oras.', value: 'aprovar' },
           { text: '“Bia, vou desligar e te ligo no seu número de sempre.”', value: 'ligar' },
           { text: 'Perguntar algo que só a Bia saberia.', value: 'perguntar' },
         ];
@@ -875,7 +877,7 @@
           G.faisca.setAnim('scared');
           await G.narrate('Você abre o aplicativo do banco, digita o token e confirma.');
           G.sfx('coin');
-          G.toast('TED aprovada: *R$ 2.400.000,00*', { icon: '✅', kind: 'money', dur: 3.5 });
+          G.toast('Transferência aprovada: *R$ 1.800.000,00*', { icon: '✅', kind: 'money', dur: 3.5 });
           await linha(G, FALSA_BIA, 'Perfeito! Obrigada. Boa noite!');
           Call.setState('ended');
           await G.wait(1.0);
@@ -883,7 +885,7 @@
           G.sfx('buzz');
           G.shake(4, 0.7);
           G.flash('#ff2a3a', 0.45);
-          G.toast('*Bia (contato salvo):* O banco me mandou alerta de uma TED de 2,4 mi aprovada por VOCÊ agora?? Eu não pedi nada!! 😱', { icon: '💬', kind: 'warn', dur: 7 });
+          G.toast('*Bia (contato salvo):* O banco me mandou alerta de uma transferência de 1,8 milhão aprovada por VOCÊ agora?? Eu não pedi nada!! 😱', { icon: '💬', kind: 'warn', dur: 7 });
           await G.wait(0.8);
           await G.say('faisca', 'Era golpe. Rosto e voz feitos por IA. A Bia de verdade estava em casa.', { anim: 'scared' });
           await G.say('faisca', 'Na vida real, agora seria corrida contra o relógio: banco pelo número oficial, a Bia, o jurídico, boletim de ocorrência. Cada minuto conta.');
@@ -894,7 +896,7 @@
           await linha(G, FALSA_BIA, 'A janela do banco fecha às 23h. Consegue aprovar agora?');
           c1 = await G.choose([
             opts1[1], opts1[2],
-            { text: 'Aprovar a TED agora.', value: 'aprovar', disabled: true, sub: 'Na vida real, não tem volta.' },
+            { text: 'Aprovar a transferência agora.', value: 'aprovar', disabled: true, sub: 'Na vida real, não tem volta.' },
           ], { prompt: 'De novo. O que você faz?' });
         }
         G.stats({ ceoFalsoEvitado: !G.v.c1fail });
@@ -907,8 +909,8 @@
           Call.setState('ended');
           await G.narrate('Você desliga.');
         } else {
-          await G.say('pai', 'Antes, me diz uma coisa: o que você me pediu hoje, na saída da reunião?');
-          await linha(G, FALSA_BIA, 'Ah, depois a gente vê isso! Agora o importante é a TED!');
+          await G.say('pai', 'Antes, me diz uma coisa: hoje às cinco e meia, o que você me contou sobre a margem?');
+          await linha(G, FALSA_BIA, 'Ah, depois a gente vê isso! Agora o importante é a transferência!');
           await G.say('pai', 'É rapidinho. O que foi?');
           await linha(G, FALSA_BIA, 'Você está me fazendo perder tempo! A janela vai fechar e a culpa vai ser sua!');
           G.sfx('glitch');
@@ -927,9 +929,10 @@
         G.pai.setAnim('sitlookphone');
         G.player.cine();
         await G.letterbox(true, 0.6);
-        await G.cam.shot({ target: [0.25, 0.95, -1.5], yaw: 0.6, pitch: 0.08, dist: 3.5, fov: 40 }, 0);
+        const narrow = window.innerWidth < window.innerHeight * 1.2;
+        await G.cam.shot({ target: [0.1, 1.05, -1.4], yaw: -0.05, pitch: 0.1, dist: 3.0, fov: narrow ? 54 : 42 }, 0);
         const gol = G.golpista;
-        gol.at({ x: 1.12, z: -1.15 });
+        gol.at({ x: 0.75, z: -1.12 }); // de pé, ao lado do sofá: estava "ali" o tempo todo
         gol.face(G.pai, true);
         gol.setAnim('lurk');
         gol.alpha = 0;
@@ -937,7 +940,7 @@
         G.fx.smoke(gol);
         gol.fadeIn(1.4).catch(() => {});
         await G.cutscene(async () => {
-          G.cam.shot({ target: [0.25, 0.95, -1.5], yaw: 0.45, pitch: 0.06, dist: 3.1, fov: 40 }, 5).catch(() => {});
+          G.cam.shot({ target: [0.15, 1.1, -1.4], yaw: 0.04, pitch: 0.08, dist: 2.6, fov: narrow ? 54 : 42 }, 6).catch(() => {});
           await G.narrate('Do outro lado da tela não estava a Bia.');
           await G.narrate('Estava alguém com o rosto dela, a voz dela… e uma pressa que ela nunca teve.');
           await G.say('golpista', 'Hoje não deu. Mas eu tenho paciência…', { cam: false });
@@ -956,16 +959,19 @@
         G.player.lookAt({ x: 0, y: 1.1, z: 0.6 });
 
         if (!G.v.c1fail) {
-          await G.say('faisca', 'Você fez exatamente o que salva empresa: desligou e ligou no número que conhece.', { anim: 'celebrate' });
+          await G.say('faisca', c1 === 'ligar'
+            ? 'Você fez exatamente o que salva empresa: desligou e ligou no número que conhece.'
+            : 'Uma pergunta que só a Bia saberia, e o golpe desmoronou. Depois, o número que você conhece.', { anim: 'celebrate' });
           await G.say('pai', 'Trinta anos aprovando pagamento. Nunca aprovei sem conferir. Não ia começar de pijama.');
         } else {
-          await G.say('pai', 'Na vida real, eu tinha perdido 2,4 milhões em um minuto.');
+          await G.say('pai', 'Na vida real, eu tinha perdido 1,8 milhão em um minuto.');
           await G.say('faisca', 'E não seria burrice. Gente muito experiente já caiu nisso. O que protege é o processo, não a esperteza.');
         }
         await G.say('pai', 'Vai me dizer que o vídeo tinha algum defeito e eu não vi?');
         await G.say('faisca', 'Não tinha. Estava perfeito. Não foi o olho que te salvou: foi o método.', { anim: 'teach' });
         await G.say('pai', 'E quem fez aquilo foi uma IA. Parente sua.');
-        await G.say('faisca', 'A mesma tecnologia, sim. Por isso eu prefiro te mostrar como o truque é feito. Quem conhece o truque não cai nele.', { anim: 'ashamed' });
+        await G.say('faisca', 'A mesma tecnologia, sim. Por isso eu prefiro te mostrar como o truque é feito. Quem conhece o truque cai muito menos.', { anim: 'ashamed' });
+        await G.fact(['arup_videochamada', 'ferrari_livro'], { titulo: 'Não é filme: aconteceu com empresas grandes', texto: 'Na primeira, a videochamada convenceu. Na segunda, uma pergunta simples salvou.' });
       },
 
       // ================================================================
@@ -975,12 +981,13 @@
         P2.ui.css('cap10', CSS);
         Call.destroy();
         G.scene('sala', { tv: 'off', alert: false, lamp: true });
+        G.talkCam(false);
         G.pai.at('sofa1');
         G.pai.setAnim('sit');
         G.faisca.follow(G.pai);
         G.hud.set({ clock: '22:47' });
         G.music('misterio');
-        G.player.lookAt(PHONE_POS);
+        G.player.lookAt(PHONE_LOOK);
         await G.fadeIn(0.8);
         await G.narrate('Treze minutos depois. Você ainda está olhando para o celular.');
         let ring = tocar(G);
@@ -1093,7 +1100,7 @@
         await G.card({
           kind: 'guide', kicker: 'Protocolo anti-golpe', icon: '🛡️',
           titulo: 'Quatro passos que não dependem do olho',
-          texto: '1. *Desligue e ligue de volta* no número que você já tem salvo, não no que te procurou.\n2. *Pergunte algo que só a pessoa saberia.*\n3. *Na família, a palavra-código*, combinada pessoalmente.\n4. *Nenhum pagamento urgente e secreto* fora do fluxo normal. Nem que pareça o CEO, a diretora financeira ou {seusua} {filhoa}.\n\n*Se cair:* banco pelo número oficial na hora, contestação do Pix no aplicativo, boletim de ocorrência. Sem vergonha: cada minuto conta.\n\n📘 Está no seu *Guia do CEO*, seção “Segurança e golpes”.',
+          texto: '1. *Desligue e ligue de volta* no número que você já tem salvo, não no que te procurou.\n2. *Pergunte algo que só a pessoa saberia.*\n3. *Na família, a palavra-código*, combinada pessoalmente.\n4. *Nenhum pagamento urgente e secreto* fora do fluxo normal. Nem que pareça a diretora financeira, a {chefe} ou {seusua} {filhoa}.\n\n*Se cair:* banco pelo número oficial na hora, contestação do Pix no aplicativo, boletim de ocorrência. Sem vergonha: cada minuto conta.\n\n📘 Está no seu *Guia do CEO*, seção “Segurança e golpes”.',
           botao: 'Guardado',
         });
         react(G, 'jump', 1.0);
@@ -1117,11 +1124,11 @@
         G.player.lookAt({ x: 0, y: 1.3, z: 2.3 });
         await G.fadeIn(0.8);
         await G.say('faisca', 'Olha o jornal da noite.', { anim: 'point', cam: false });
-        await G.say('pai', '“Golpe da voz clonada.” Agora vira notícia. Meia hora atrás era comigo.');
+        await G.say('pai', '“Golpe da voz clonada.” Na TV, vira notícia. Agora há pouco, era comigo.');
         G.player.lookAt(G.faisca);
-        await G.say('faisca', 'Repara: os dois queriam a mesma coisa de você. Um token, uma aprovação, um Pix.');
-        await G.say('faisca', 'Tem gente que entrega isso de bandeja… pra IA. Cola senha, documento, contrato de cliente, sem pensar onde aquilo vai parar.');
-        await G.say('pai', 'Hoje cedo, no contrato, você falou de um semáforo.');
+        await G.say('faisca', 'Repara: golpe se alimenta de dado. Uma voz num vídeo, um cargo, um nome, um código de SMS.');
+        await G.say('faisca', 'E tem um lugar onde muita gente solta dado sem perceber: a própria IA. Cola senha, contrato de cliente, planilha de salário…');
+        await G.say('pai', 'Hoje de manhã, no contrato, você falou de um semáforo.');
         await G.say('faisca', 'Isso! Vamos fechar o semáforo. Eu prometo não ficar ofendida se você disser “nunca” pra mim.', { anim: 'teach' });
 
         const acertos = await miniSemaforo(G);
@@ -1129,18 +1136,17 @@
         G.stats({ acertos, total });
         if (acertos === total) G.achieve('cofre');
         await G.say('faisca', acertos === total ? 'Cofre fechado. Dez de dez.' : acertos + ' de ' + total + '. Cofre bem trancado, e o resto fica de lição.', { anim: acertos === total ? 'celebrate' : 'idle' });
-        await G.say('faisca', 'Regra de bolso: o que você não leria em voz alta num elevador lotado não vai pra IA pessoal.');
-        await G.say('pai', 'E o que eu não diria num tribunal?');
-        await G.say('faisca', 'Também não. Conversa apagada pode ficar guardada: nos Estados Unidos, uma ordem judicial já obrigou uma empresa de IA a guardar até as apagadas.');
-        await G.say('pai', 'Então na dúvida…');
-        await G.say('faisca', 'Na dúvida, vermelho.');
+        await G.say('pai', 'Me dá uma regra de bolso.');
+        await G.say('faisca', 'Não cole na IA o que você não gostaria de ver lido num tribunal. Nos EUA, um juiz já mandou guardar até as conversas apagadas.');
+        await G.say('pai', 'Então, na dúvida…');
+        await G.say('faisca', 'Vermelho.');
 
-        await G.say('pai', 'Amanhã cedo, a empresa inteira fica sabendo disso. Começando por mim.');
+        await G.say('pai', 'Amanhã cedo, a empresa inteira fica sabendo disso. E o aviso sai com o meu nome.');
         await G.say('faisca', 'Quer que eu rascunhe o aviso? Esse pode: não tem nenhum dado sensível.', { anim: 'type' });
         await G.say('pai', 'Rascunha. Eu reviso.');
         await miniAviso(G);
         const sozinho = (G.v.avisoRiscos || 0) >= 2;
-        await G.say('pai', sozinho ? 'Duas linhas riscadas. Seu rascunho economizou meia hora, e a minha caneta economizou um susto.' : 'Bom rascunho. Com a revisão certa, vira um bom aviso.');
+        await G.say('pai', sozinho ? 'Duas linhas riscadas. Seu rascunho me poupou tempo. E a minha caneta poupou um susto.' : 'Bom rascunho. Com a revisão certa, vira um bom aviso.');
         await G.say('faisca', 'Quando o chefe escreve isso com todas as letras, ninguém mais tem vergonha de conferir.');
       },
 
@@ -1151,6 +1157,7 @@
         P2.ui.css('cap10', CSS);
         Call.destroy();
         G.scene('sala', { tv: 'off', alert: false, lamp: true });
+        G.talkCam(false);
         G.pai.at('sofa1');
         G.pai.setAnim('sit');
         G.faisca.follow(G.pai);
@@ -1171,7 +1178,7 @@
           hotspots: [
             { id: 'filho', label: 'Falar com {filho}', icon: '💬', actor: 'filho', radius: 2.0 },
             {
-              id: 'celular', label: 'Bloquear os números', icon: '📵', pos: { x: 0.12, y: 0.55, z: -0.42 }, reach: 1.6, optional: true,
+              id: 'celular', label: 'Bloquear os números', icon: '📵', pos: { x: PHONE_POS.x, y: 0.55, z: PHONE_POS.z }, reach: 1.6, optional: true,
               onInteract: async (G) => {
                 await G.narrate('Você bloqueia os dois números e denuncia no aplicativo.');
                 await G.say('faisca', 'Isso ajuda a derrubar a conta deles. E amanhã a Bia avisa o banco.');
@@ -1180,13 +1187,14 @@
           ],
         });
         f.face(G.pai);
-        G.filho.lookAt(G.pai);
+        f.lookAt(G.pai);
+        G.player.lookAt(f);
         await G.say('filho', 'Tá tudo bem? Eu vim o caminho inteiro pensando nisso.', { expr: 'preocupado' });
-        await G.say('pai', 'Tudo bem. Ninguém levou nada. Nem a Bia, nem você.');
+        await G.say('pai', 'Tudo bem. Ninguém levou um centavo. Nem da empresa, nem de casa.');
         await G.say('filho', 'Ligaram mesmo com a minha voz?', { expr: 'triste' });
-        await G.say('pai', 'Chorando. Pedindo Pix. Igualzinh{oa}.');
+        await G.say('pai', 'Chorando. Pedindo Pix. A sua voz, igualzinha.');
         if (G.v.c1fail || G.v.c2fail) {
-          await G.say('pai', 'E vou ser honesto: na primeira, eu caí. Aqui foi ensaio. Na vida real, não tem volta.');
+          await G.say('pai', 'E vou ser honesto: numa delas, eu caí. Aqui foi ensaio. Na vida real, não teria volta.');
           await G.say('filho', 'Pode acontecer com qualquer um, {apelido}. O importante é saber o que fazer agora.', { expr: 'amigavel' });
         } else {
           await G.say('filho', 'E você não caiu.', { expr: 'orgulhoso' });
@@ -1205,7 +1213,7 @@
         ], { prompt: 'Palavra-código da família:' });
         if (pc === 'exagero') {
           react(G, 'think', 1.2);
-          await G.say('filho', 'Saiu no jornal: um pai perdeu dinheiro pra voz clonada do filho. Eles não tinham palavra nenhuma combinada.', { expr: 'serio' });
+          await G.say('filho', 'Teve uma reportagem: um pai perdeu dinheiro pra voz clonada do filho. Eles nunca tinham combinado uma palavra.', { expr: 'serio' });
           await G.say('pai', 'Exagero é perder dinheiro por falta de uma palavra. Tá bom.');
           pc = await G.choose([
             { text: 'Então vamos combinar agora.', value: 'agora' },
@@ -1238,17 +1246,14 @@
           G.player.fp();
         } else {
           await G.say('filho', 'Combinado. Mas amanhã mesmo, hein? No café.', { expr: 'amigavel' });
-          await G.say('faisca', 'Deixo anotado no seu Guia do CEO, pra não esquecer. Só o lembrete. A palavra, não.');
+          await G.say('faisca', 'O lembrete está no seu Guia do CEO, botão 📘. A palavra, não: essa não vai pra lugar nenhum.');
         }
-        await G.fact('fbi_palavra_secreta');
+        await G.fact(['fbi_palavra_secreta', 'golpe_voz_canaltech'], { titulo: 'Palavra-código: o FBI recomenda', texto: 'E não é exagero: aqui no Brasil, faltou exatamente ela.' });
 
         await G.say('filho', 'E aí? A Faísca serviu pra alguma coisa hoje?', { expr: 'feliz' });
-        await G.say('pai', 'Amanhã, no café, eu te dou o veredito. Hoje eu só quero dormir.');
-        await G.say('filho', 'Combinado. Boa noite, {apelido}.', { expr: 'amigavel' });
-        await G.say('pai', 'Boa noite. E obrigado por vir correndo.');
+        await G.say('pai', 'Amanhã, no café, eu te dou o veredito. Agora, cama. E obrigado por vir correndo.');
         await G.say('faisca', 'Boa noite, chefe. Hoje quem trabalhou foi você.', { anim: 'wave' });
 
-        await G.fact(['arup_videochamada', 'ferrari_livro'], { titulo: 'Não é filme: aconteceu com empresas grandes', texto: 'Num caso, a videochamada convenceu. No outro, uma pergunta simples salvou.' });
         await G.lesson('Na dúvida, desligue e ligue de volta no número que você conhece. E nunca passe senha, documento ou código, nem para a IA.', { titulo: 'Processo vence pressa' });
       },
     ],

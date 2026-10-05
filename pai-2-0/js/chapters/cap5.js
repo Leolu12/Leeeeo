@@ -25,21 +25,21 @@
   // Dados do capítulo
   // ------------------------------------------------------------------
   const PAUTA = [
-    { id: 'reajuste', ic: '💰', t: 'Reajuste de preços do semestre', curto: 'Reajuste de preços', quem: 'Bia e Jorge', min: 20, ok: true,
+    { id: 'reajuste', ic: '💰', t: 'Reajuste de preços', nm: 'reajuste', curto: 'Reajuste de preços', quem: 'Bia e Jorge', min: 20, ok: true,
       why: 'Mexe com margem, vendas e cliente ao mesmo tempo: precisa de todo mundo na mesa.' },
-    { id: 'fornecedor', ic: '📦', t: 'Atrasos do fornecedor de embalagens', curto: 'Fornecedor de embalagens', quem: 'Rafael e Tadeu', min: 15, ok: true,
+    { id: 'fornecedor', ic: '📦', t: 'Atrasos do fornecedor', nm: 'fornecedor', curto: 'Fornecedor de embalagens', quem: 'Rafael e Tadeu', min: 15, ok: true,
       why: 'Operação e jurídico juntos: o atraso de um lado, a multa do contrato do outro.' },
-    { id: 'contratacoes', ic: '🧑‍🤝‍🧑', t: 'Contratações para o turno novo', curto: 'Contratações do turno novo', quem: 'Luana', min: 10, ok: true,
+    { id: 'contratacoes', ic: '🧑‍🤝‍🧑', t: 'Contratações do turno novo', nm: 'contratações', curto: 'Contratações do turno novo', quem: 'Luana', min: 10, ok: true,
       why: 'Precisa do sim do caixa (Bia) e da operação (Rafael). É decisão de grupo.' },
-    { id: 'viagens', ic: '✈️', t: 'Congelar viagens até o fim do trimestre', curto: 'Congelar viagens', quem: 'Bia', min: 10, ok: true,
+    { id: 'viagens', ic: '✈️', t: 'Congelar viagens no trimestre', nm: 'viagens', curto: 'Congelar viagens', quem: 'Bia', min: 10, ok: true,
       why: 'Decisão rápida que vale para todas as áreas. Cabe em dez minutos.' },
-    { id: 'aniversarios', ic: '🎂', t: 'Aniversariantes do mês', curto: 'Aniversariantes', quem: 'todos', min: 10, ok: false,
+    { id: 'aniversarios', ic: '🎂', t: 'Aniversariantes do mês', nm: 'aniversários', curto: 'Aniversariantes', quem: 'todos', min: 10, ok: false,
       why: 'Carinho, sim. Pauta de diretoria, não: isso vai num e-mail caprichado.' },
-    { id: 'slides', ic: '📊', t: '“Tendências 2030”, do Jorge (40 slides)', curto: 'Tendências 2030 (Jorge)', quem: 'Jorge', min: 30, ok: false,
+    { id: 'slides', ic: '📊', t: 'Tendências 2030 (40 slides)', nm: 'slides do Jorge', curto: 'Tendências 2030 (Jorge)', quem: 'Jorge', min: 30, ok: false,
       why: 'Informação sem decisão: manda antes por e-mail, e quem tiver dúvida pergunta.' },
-    { id: 'gerente', ic: '🔒', t: 'Desempenho de um gerente específico', curto: 'Desempenho de um gerente', quem: 'Luana', min: 15, ok: false,
-      why: 'Assunto de uma pessoa só: conversa reservada, não mesa com seis diretores e transcrição ligada.' },
-    { id: 'uniforme', ic: '🎨', t: 'A cor do uniforme novo', curto: 'Cor do uniforme', quem: 'Rafael', min: 10, ok: false,
+    { id: 'gerente', ic: '🔒', t: 'Desempenho de um gerente', nm: 'caso do gerente', curto: 'Desempenho de um gerente', quem: 'Luana', min: 15, ok: false,
+      why: 'Assunto de uma pessoa só: conversa reservada, não mesa com cinco diretores e transcrição ligada.' },
+    { id: 'uniforme', ic: '🎨', t: 'A cor do uniforme novo', nm: 'uniforme', curto: 'Cor do uniforme', quem: 'Rafael', min: 10, ok: false,
       why: 'Dá para resolver em dois e-mails. Ou deixar com quem entende de uniforme.' },
   ];
   const PAUTA_LIMITE = 60;
@@ -59,10 +59,10 @@
     { h: '14:21', who: 'Você', txt: 'Então está decidido: reajuste de 6% a partir do mês que vem.', cat: 'decisao',
       why: 'Ficou resolvido, com número e data de início. É a primeira linha da ata.',
       alt: { prazo: '“A partir do mês que vem” faz parte da decisão. O coração do trecho é “está decidido”.' } },
-    { h: '14:47', who: 'Você', txt: 'Rafael, a conversa com o fornecedor é sua.', cat: 'resp',
+    { h: '14:47', who: 'Você', txt: 'Rafael, a conversa com o fornecedor é sua. Tadeu, a carta de cobrança.', cat: 'resp',
       why: 'Diz *quem* faz. Tarefa sem dono vira tarefa de ninguém.',
-      alt: { decisao: 'Você não decidiu um rumo aqui: você deu um dono à tarefa.' } },
-    { h: '14:51', who: 'Tadeu', txt: 'A carta de cobrança da multa sai até o dia 30. Sem falta.', cat: 'prazo',
+      alt: { decisao: 'Você não decidiu um rumo aqui: você deu dono às tarefas.' } },
+    { h: '14:51', who: 'Tadeu', txt: 'A carta sai até o dia 30. Sem falta.', cat: 'prazo',
       why: 'Diz *até quando*. Prazo sem data vira “um dia desses”.',
       alt: { resp: 'O dono da carta (Tadeu) você já tinha definido. O que este trecho acrescenta é a data.' } },
     { h: '15:04', who: 'Jorge', txt: 'Falando em atraso… alguém viu o jogo ontem? Que golaço!', cat: 'conversa',
@@ -94,7 +94,7 @@
       src: { h: '15:24', who: 'Bia', fala: 'Fica aprovado: viagens congeladas até o fim do trimestre.' },
       fb: 'Confere: decisão e prazo, como a Bia falou.' },
     { sec: 'Tarefas', txt: 'Conversar com o fornecedor de embalagens · *Rafael* · prazo: a definir', ok: true,
-      src: { h: '14:47', who: 'Você', fala: 'Rafael, a conversa com o fornecedor é sua.' },
+      src: { h: '14:47', who: 'Você', fala: 'Rafael, a conversa com o fornecedor é sua. Tadeu, a carta de cobrança.' },
       fb: 'Confere. Ninguém deu prazo, e a ata não inventou: “a definir”. Vale cobrar uma data do Rafael.' },
     { sec: 'Tarefas', txt: 'Carta de cobrança da multa · *Tadeu* · até o dia 30', ok: false,
       src: { h: '14:51', who: 'Tadeu', fala: 'A carta sai até o dia… *treze*. Sem falta.' },
@@ -113,6 +113,9 @@
   ];
   const TOTAL = TRECHOS.length + ATA.length; // 17
 
+  // De pé ao lado da cabeceira, virado para quem ficou na sala (Tadeu e Jorge)
+  const PAI_DE_PE = { x: 3.1, z: 0.7, rot: -1.0 };
+  const CHAT_CARRO = [['eu', '🎙️ Reajuste aprovado, Rafael com o fornecedor, Tadeu com a carta, Bia com o caixa.'], ['ia', 'Anotado. Puxando os trechos da transcrição…']];
   const SLIDE_VELHA = { title: 'Pauta da reunião passada', lines: ['11 itens discutidos', 'Itens decididos: nenhum', 'Próxima reunião: terça, 14h'] };
   function slidePauta(sel) {
     const itens = PAUTA.filter((p) => sel.indexOf(p.id) >= 0);
@@ -129,7 +132,6 @@
     const p = actor.play(name, secs == null ? 1.4 : secs);
     if (p && p.catch) p.catch(() => {});
   }
-  function quiet(p) { if (p && p.catch) p.catch(() => {}); return p; }
 
   // ------------------------------------------------------------------
   // CSS do capítulo (só classes c5-*, por cima das mg-*)
@@ -140,21 +142,30 @@
   @media (max-width: 760px) and (orientation: portrait) { .c5-sticky { bottom: -18px; } }
   .c5-pauta { display: grid; gap: 8px; grid-template-columns: 1fr; }
   @media (min-width: 820px) { .c5-pauta { grid-template-columns: 1fr 1fr; } }
-  .c5-item { display: flex; gap: 11px; align-items: center; padding: 10px 12px; min-height: 58px; }
-  .c5-item .ic { font-size: 1.35em; flex: 0 0 auto; width: 1.4em; text-align: center; }
+  .c5-item { display: flex; gap: 10px; align-items: center; padding: 8px 12px; min-height: 54px; text-align: left; }
+  .c5-item .ic { font-size: 1.3em; flex: 0 0 auto; width: 1.35em; text-align: center; }
   .c5-item .tx { flex: 1 1 auto; min-width: 0; line-height: 1.25; }
   .c5-item .tx b { display: block; font-size: 0.95em; }
   .c5-item .tx small { margin-top: 2px; }
-  .c5-item .min { flex: 0 0 auto; font-family: var(--head); font-weight: 800; font-size: 0.8em; color: var(--muted); white-space: nowrap; }
+  .c5-item .tx small i { font-style: normal; font-family: var(--head); font-weight: 800; color: var(--ink); }
+  .c5-item.on .tx small i { color: var(--brand-d); }
   .c5-item .chk { flex: 0 0 auto; width: 1.45em; height: 1.45em; border-radius: 8px; border: 2px solid #cfd5e3; display: grid; place-items: center; font-size: 0.78em; font-weight: 800; color: transparent; background: #fff; }
   .c5-item.on .chk { background: var(--brand); border-color: var(--brand); color: #fff; }
-  .c5-item.on .min { color: var(--brand-d); }
   .c5-kbd { font-family: var(--head); font-size: 0.66em; font-weight: 800; background: rgba(20,30,60,0.07); color: var(--muted); border-radius: 6px; padding: 0.1em 0.45em; flex: 0 0 auto; }
-  .c5-meter { display: flex; align-items: center; gap: 10px; }
+  .c5-pauta.confirm .c5-kbd { visibility: hidden; }
+  .c5-pauta.lock .c5-item { cursor: default; }
+  .c5-meter { display: flex; align-items: center; gap: 10px; background: #f4f6fa; border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; }
+  .c5-meter .lb { font-family: var(--head); font-weight: 800; font-size: 0.85em; white-space: nowrap; }
   .c5-meter .meter { flex: 1 1 auto; }
   .c5-meter .meter .hud-bar { height: 12px; }
   .c5-meter b { font-family: var(--head); font-size: 0.9em; white-space: nowrap; }
   .c5-meter b.over { color: var(--red); }
+  .c5-sticky .mg-feedback { font-size: 0.95em; }
+  @media (min-width: 820px) {
+    .c5-sticky.row { flex-direction: row; flex-wrap: wrap; align-items: center; }
+    .c5-sticky.row .mg-feedback { flex: 1 1 380px; margin: 0; }
+    .c5-sticky.row .mg-actions { flex: 0 0 auto; margin: 0 0 0 auto; }
+  }
   .c5-prog { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .c5-dots { display: flex; gap: 5px; flex-wrap: wrap; }
   .c5-dots i { width: 12px; height: 12px; border-radius: 50%; background: #dfe3ec; display: block; }
@@ -183,6 +194,7 @@
   .c5-ata .mg-line.fixed .lt s { color: #b0485a; }
   .c5-ata .mg-line:disabled { opacity: 1; }
   .c5-ata .fora { font-size: 0.84em; color: var(--muted); font-style: italic; margin-top: 8px; }
+  .c5-ata .c5-nada { padding: 8px 12px; border: 1px dashed #cfd5e3; border-radius: 10px; color: var(--muted); font-size: 0.95em; }
   .c5-audio { border: 1px solid #c9d4ee; background: var(--blue-l); border-radius: 14px; padding: 10px 12px; margin: 4px 0 8px; display: flex; flex-direction: column; gap: 8px; }
   .c5-audio .top { display: flex; align-items: center; gap: 10px; }
   .c5-audio .play { width: 34px; height: 34px; border-radius: 50%; background: #2b4a8a; color: #fff; display: grid; place-items: center; flex: 0 0 auto; font-size: 0.8em; }
@@ -205,7 +217,14 @@
       const { el } = api;
       const sel = new Set();
       const ordem = api.shuffle(PAUTA);
-      root.appendChild(el('div', 'mg-hint', 'Toque para pôr ou tirar da pauta. A reunião tem ' + PAUTA_LIMITE + ' minutos. Sem pressa: a pauta é sua.'));
+      // Orçamento de tempo no topo (sempre visível ao abrir)
+      const meterRow = el('div', 'c5-meter');
+      const meter = api.meter(0, null);
+      const meterTx = el('b', null, '0 de ' + PAUTA_LIMITE + ' min');
+      meterRow.appendChild(el('span', 'lb', '⏱️ Pauta'));
+      meterRow.appendChild(meter);
+      meterRow.appendChild(meterTx);
+      root.appendChild(meterRow);
       const grid = el('div', 'c5-pauta');
       root.appendChild(grid);
       const cards = {};
@@ -213,41 +232,37 @@
         const b = el('button', 'mg-card c5-item');
         b.type = 'button';
         b.dataset.key = String(i + 1);
+        b.dataset.k = String(i + 1);
         b.setAttribute('aria-pressed', 'false');
         b.appendChild(el('span', 'chk', '✓'));
         b.appendChild(el('span', 'ic', it.ic));
-        b.appendChild(el('span', 'tx', [el('b', null, it.t), el('small', null, it.quem)]));
-        b.appendChild(el('span', 'min', it.min + ' min'));
+        b.appendChild(el('span', 'tx', [el('b', null, it.t), el('small', null, [it.quem + ' · ', el('i', null, it.min + ' min')])]));
         b.appendChild(el('span', 'c5-kbd', String(i + 1)));
         b.addEventListener('click', (e) => { e.stopPropagation(); toggle(it); });
         grid.appendChild(b);
         cards[it.id] = b;
       });
-      const foot = el('div', 'c5-sticky');
+      const foot = el('div', 'c5-sticky row');
       const fb = el('div', 'mg-feedback info');
-      fb.appendChild(api.rich('Dica: entra na pauta o que precisa de *decisão* com várias áreas na mesa.', true));
-      const meterRow = el('div', 'c5-meter');
-      const meter = api.meter(0, null);
-      const meterTx = el('b', null, '0 de ' + PAUTA_LIMITE + ' min');
-      meterRow.appendChild(meter);
-      meterRow.appendChild(meterTx);
+      fb.appendChild(api.rich('Toque nos itens para pôr ou tirar. Entra o que pede *decisão* com várias áreas na mesa. Sem pressa: a pauta é sua.', true));
       const actions = el('div', 'mg-actions');
-      const btnFechar = api.btn('Fechar a pauta ▶', () => fechar(), { cls: 'primary', key: '9' });
+      const lblFechar = el('span', null, 'Fechar a pauta ▶');
+      const btnFechar = api.btn(lblFechar, () => fechar(), { cls: 'primary', key: '9' });
       btnFechar.disabled = true;
       actions.appendChild(btnFechar);
       foot.appendChild(fb);
-      foot.appendChild(meterRow);
       foot.appendChild(actions);
       root.appendChild(foot);
 
-      let confirmando = false;
+      let confirmando = false, fechado = false, extra = null;
       function total() { return PAUTA.filter((p) => sel.has(p.id)).reduce((a, p) => a + p.min, 0); }
       function refresh() {
         const t = total();
         meter.set(Math.min(100, (t / PAUTA_LIMITE) * 100), t > PAUTA_LIMITE ? '#e5484d' : t >= 45 ? '#2dbf8f' : '#f2a53a');
         meterTx.textContent = t + ' de ' + PAUTA_LIMITE + ' min' + (t > PAUTA_LIMITE ? ' · estourou' : '');
         meterTx.classList.toggle('over', t > PAUTA_LIMITE);
-        btnFechar.disabled = sel.size === 0;
+        lblFechar.textContent = sel.size ? 'Fechar a pauta · ' + t + ' min ▶' : 'Fechar a pauta ▶';
+        btnFechar.disabled = sel.size === 0 || fechado;
         PAUTA.forEach((p) => { const c = cards[p.id]; c.classList.toggle('on', sel.has(p.id)); c.setAttribute('aria-pressed', sel.has(p.id) ? 'true' : 'false'); });
       }
       function feedback(kind, txt) {
@@ -255,8 +270,24 @@
         fb.textContent = '';
         fb.appendChild(api.rich(txt, true));
       }
+      // No "palpite", as teclas 1–3 passam para os três botões de resposta (os cartões continuam clicáveis)
+      function setConfirm(on) {
+        confirmando = on;
+        grid.classList.toggle('confirm', on);
+        Object.keys(cards).forEach((id) => { const c = cards[id]; if (on) delete c.dataset.key; else c.dataset.key = c.dataset.k; });
+        if (!on && extra) { extra.remove(); extra = null; }
+        btnFechar.hidden = on;
+      }
+      function lock() {
+        fechado = true;
+        grid.classList.add('lock');
+        Object.keys(cards).forEach((id) => { cards[id].disabled = true; });
+        if (extra) extra.querySelectorAll('button').forEach((b) => (b.disabled = true));
+        btnFechar.disabled = true;
+      }
       function toggle(it) {
-        if (confirmando) voltarDoConfirmar();
+        if (fechado) return;
+        if (confirmando) setConfirm(false);
         if (sel.has(it.id)) {
           sel.delete(it.id);
           api.sfx('back');
@@ -275,12 +306,6 @@
         }
         refresh();
       }
-      let extra = null;
-      function voltarDoConfirmar() {
-        confirmando = false;
-        if (extra) { extra.remove(); extra = null; }
-        btnFechar.hidden = false;
-      }
       function resultado(ajustou) {
         const ids = PAUTA.filter((p) => sel.has(p.id)).map((p) => p.id);
         const ruins = ids.filter((id) => !PAUTA.find((p) => p.id === id).ok);
@@ -288,40 +313,43 @@
         done({ sel: ids, ruins, faltam, perfeita: !ruins.length && !faltam.length, ajustou: !!ajustou, total: total() });
       }
       function fechar() {
+        if (fechado || !sel.size) return;
         const ruins = PAUTA.filter((p) => sel.has(p.id) && !p.ok);
         const faltam = PAUTA.filter((p) => p.ok && !sel.has(p.id));
         if (!ruins.length && !faltam.length) {
+          lock();
           api.sfx('success');
           anim(G.faisca, 'celebrate', 1.6);
           G.fx.sparkles(G.faisca);
           feedback('ok', '🎯 Quatro decisões, ' + total() + ' minutos. Pauta enxuta: cada item pede a mesa inteira.');
-          btnFechar.disabled = true;
-          api.timeout(() => resultado(false), P2.skipping ? 0 : 900);
+          api.timeout(() => resultado(false), P2.skipping ? 0 : 1100);
           return;
         }
-        confirmando = true;
+        const lista = (arr) => { const n = arr.map((p) => p.nm); return '*' + (n.length > 1 ? n.slice(0, -1).join(', ') + ' e ' + n[n.length - 1] : n[0]) + '*'; };
         const partes = [];
-        if (ruins.length) partes.push('*' + ruins.map((p) => p.curto).join('*, *') + '* não ' + (ruins.length > 1 ? 'pedem' : 'pede') + ' decisão da diretoria.');
-        if (faltam.length) partes.push('*' + faltam.map((p) => p.curto).join('*, *') + '* ' + (faltam.length > 1 ? 'precisam' : 'precisa') + ' da mesa hoje.');
-        feedback('warn', 'Palpite da Faísca: ' + partes.join(' ') + ' Você decide.');
+        if (ruins.length) partes.push(lista(ruins) + (ruins.length > 1 ? ' cabem' : ' cabe') + ' num e-mail ou numa conversa a sós.');
+        if (faltam.length) partes.push(lista(faltam) + (faltam.length > 1 ? ' precisam' : ' precisa') + ' da mesa hoje.');
+        feedback('warn', '💡 Palpite da Faísca: ' + partes.join(' ') + ' Você decide.');
         anim(G.faisca, 'think', 1.4);
-        btnFechar.hidden = true;
+        setConfirm(true);
         extra = el('div', 'mg-actions');
-        extra.appendChild(api.btn('Fechar do meu jeito', () => resultado(false), { key: '8' }));
-        extra.appendChild(api.btn('✂️ Ajustar como ela sugeriu', () => {
+        extra.appendChild(api.btn('Mexer mais', () => { api.sfx('back'); setConfirm(false); feedback('info', 'À vontade. Toque nos itens para pôr ou tirar.'); }, { key: '1' }));
+        extra.appendChild(api.btn('Fechar do meu jeito', () => { lock(); api.sfx('confirm'); resultado(false); }, { key: '2' }));
+        extra.appendChild(api.btn('✂️ Aceitar o palpite', () => {
           ruins.forEach((p) => sel.delete(p.id));
           faltam.forEach((p) => sel.add(p.id));
           refresh();
+          lock();
           api.sfx('success');
           anim(G.faisca, 'celebrate', 1.2);
-          feedback('ok', 'Ajustado: quatro decisões, ' + total() + ' minutos.');
-          extra.querySelectorAll('button').forEach((b) => (b.disabled = true));
-          api.timeout(() => resultado(true), P2.skipping ? 0 : 800);
-        }, { cls: 'primary', key: '9' }));
+          feedback('ok', 'Ajustado: quatro decisões, ' + total() + ' minutos. O resto vai por e-mail.');
+          api.timeout(() => resultado(true), P2.skipping ? 0 : 1000);
+        }, { cls: 'primary', key: '3' }));
         foot.appendChild(extra);
+        setTimeout(() => { try { extra && extra.lastChild.focus({ preventScroll: true }); } catch (e) { /* nada */ } }, 30);
       }
       refresh();
-    }, { title: '🗓️ Pauta que cabe na mesa', size: 'l', intro: 'Oito pedidos de pauta chegaram por e-mail. Quais merecem os 60 minutos da diretoria?', introWho: 'faisca' });
+    }, { title: '🗓️ Pauta que cabe na mesa', size: 'l', intro: 'Oito pedidos de pauta chegaram. A reunião tem 60 minutos: o que merece a mesa da diretoria?', introWho: 'faisca' });
   }
 
   // ------------------------------------------------------------------
@@ -361,7 +389,7 @@
         btns[c.id] = { b, n };
       });
       root.appendChild(cats);
-      const foot = el('div', 'c5-sticky');
+      const foot = el('div', 'c5-sticky row');
       const fb = el('div', 'mg-feedback info');
       fb.hidden = true;
       const actions = el('div', 'mg-actions');
@@ -441,9 +469,8 @@
     P2.ui.css('cap5', CSS);
     return G.mini((root, done, api) => {
       const { el } = api;
-      let acertos = 0, achados = 0, conferidas = 0, falsos = 0;
+      let acertos = 0, achados = 0, conferidas = 0, falsos = 0, pegos = 0;
       const est = ATA.map(() => null); // null | 'ok' | 'fix'
-      root.appendChild(el('div', 'mg-hint', 'Toque numa linha para ouvir o trecho original. Depois diga: confere ou está errada? Confira nomes, números e prazos.'));
       const doc = el('div', 'mg-doc c5-ata');
       doc.appendChild(el('div', 'head', [el('b', null, 'ATA · DIRETORIA'), el('span', 'mg-small', 'terça · 14h às 15h40 · rascunho da IA')]));
       root.appendChild(doc);
@@ -462,10 +489,13 @@
         doc.appendChild(b);
         rows.push({ b, lt, st });
       });
+      // A 4ª parte da ata: o que a própria IA achou que precisava conferir
+      doc.appendChild(el('h5', null, 'A conferir (segundo a IA)'));
+      doc.appendChild(el('div', 'c5-nada', 'Nenhum trecho ambíguo.'));
       doc.appendChild(el('div', 'fora', '(Fora da ata: o golaço e o pão de queijo.)'));
-      const foot = el('div', 'c5-sticky');
+      const foot = el('div', 'c5-sticky row');
       const fb = el('div', 'mg-feedback info');
-      fb.appendChild(api.rich('Conferidas: *0 de ' + ATA.length + '*.', true));
+      fb.appendChild(api.rich('Ouça cada trecho e compare com a linha: nome, número e prazo. Conferidas: *0 de ' + ATA.length + '*.', true));
       const actions = el('div', 'mg-actions');
       const btnAssinar = api.btn('✍️ Assinar a ata', () => assinar(), { cls: 'primary', key: '9' });
       btnAssinar.disabled = true;
@@ -484,7 +514,7 @@
         if (aberto >= 0 && est[aberto] == null) { rows[aberto].b.disabled = false; rows[aberto].b.classList.remove('on'); }
         aberto = -1;
       }
-      function abrir(i) {
+      function abrir(i, quieto) {
         if (est[i] != null) return;
         fechaPainel();
         aberto = i;
@@ -492,7 +522,7 @@
         const r = rows[i];
         r.b.classList.add('on');
         r.b.disabled = true;
-        api.sfx('select');
+        if (!quieto) api.sfx('select');
         painel = el('div', 'c5-audio');
         const wave = el('div', 'c5-wave');
         for (let k = 0; k < 26; k++) {
@@ -510,9 +540,13 @@
         acts.appendChild(api.btn('✗ Está errada', () => veredito(i, false), { key: '2' }));
         painel.appendChild(acts);
         r.b.insertAdjacentElement('afterend', painel);
-        api.say('Escutando o trecho das ' + ln.src.h + '…', 'faisca');
+        api.say('Linha ' + (i + 1) + ' de ' + ATA.length + ': o áudio das ' + ln.src.h + '. Confere com a ata?', 'faisca');
         anim(G.faisca, 'listen', 1.4);
         setTimeout(() => { try { painel && painel.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) { /* nada */ } }, 40);
+      }
+      function proxima(from) {
+        for (let k = 1; k <= ATA.length; k++) { const j = (from + k) % ATA.length; if (est[j] == null) return j; }
+        return -1;
       }
       function veredito(i, disseConfere) {
         const ln = ATA[i];
@@ -529,10 +563,11 @@
           r.b.classList.add('ok');
           r.st.textContent = '✓';
           if (certo) { api.sfx('confirm'); setFb('ok', '✓ ' + ln.fb); anim(G.faisca, 'jump', 0.8); }
-          else { falsos++; api.sfx('select'); setFb('info', 'Desconfiar é bom, mas esta confere: ' + ln.fb); anim(G.faisca, 'think', 1.2); }
+          else { falsos++; api.sfx('select'); setFb('info', 'Desconfiar é bom, mas esta confere. ' + ln.fb); anim(G.faisca, 'think', 1.2); }
         } else {
           est[i] = 'fix';
           achados++;
+          if (certo) pegos++;
           r.b.classList.add('fixed');
           r.lt.textContent = '';
           const s = el('s');
@@ -542,8 +577,8 @@
           r.lt.appendChild(api.rich('✏️ ' + ln.fix, true));
           r.st.textContent = '🖊️';
           r.b.classList.add('ok');
-          if (certo) { api.sfx('success'); setFb('ok', '🖊️ Pegou! ' + ln.fb); anim(G.faisca, 'ashamed', 1.6); api.say('Erro meu. Bem pego.', 'faisca'); }
-          else { api.sfx('fail'); setFb('bad', 'Olhe de novo: esta estava errada. ' + ln.fb + ' Já corrigi com a sua caneta.'); anim(G.faisca, 'ashamed', 1.6); }
+          if (certo) { api.sfx('success'); setFb('ok', '🖊️ Pegou! ' + ln.fb); anim(G.faisca, 'ashamed', 1.6); }
+          else { api.sfx('fail'); setFb('bad', 'Esta não confere: compare com o áudio. ' + ln.fb + ' Corrigido com a sua caneta.'); anim(G.faisca, 'ashamed', 1.6); }
         }
         const restam = ATA.length - conferidas;
         if (!restam) {
@@ -551,14 +586,19 @@
           api.say('Tudo conferido. Agora sim: pode assinar.', 'faisca');
           setTimeout(() => { try { btnAssinar.focus({ preventScroll: true }); } catch (e) { /* nada */ } }, 30);
         } else {
-          fb.appendChild(el('div', 'mg-small', 'Faltam ' + restam + ' linha' + (restam > 1 ? 's' : '') + ' para conferir.'));
+          fb.appendChild(el('div', 'mg-small', 'Conferidas: ' + conferidas + ' de ' + ATA.length + '. Abrindo a próxima linha…'));
+          const nx = proxima(i);
+          api.timeout(() => { if (aberto < 0 && nx >= 0 && est[nx] == null) abrir(nx, true); }, P2.skipping ? 0 : 700);
         }
       }
       function assinar() {
+        if (btnAssinar.disabled) return;
+        btnAssinar.disabled = true;
         api.sfx('success');
         anim(G.faisca, 'celebrate', 1.6);
-        done({ acertos, total: ATA.length, achados, falsos });
+        done({ acertos, total: ATA.length, achados, falsos, pegos });
       }
+      abrir(0, true);
     }, { title: '🔍 Confira a ata antes de assinar', size: 'l', intro: 'A IA montou a ata em quatro partes. Antes de assinar, confira linha por linha contra o áudio.', introWho: 'faisca' });
   }
 
@@ -586,7 +626,7 @@
         G.player.cine();
         await G.cam.shot('geral', 0);
         await G.fadeIn(1);
-        await G.narrate('Terça, 13h50. Sala do conselho. A mesma mesa comprida desde a fundação, e o mesmo relógio na parede.');
+        await G.narrate('Terça, 13h50. Sede antiga, do outro lado da cidade: a diretoria se reúne aqui desde a fundação. A mesma mesa comprida, o mesmo relógio na parede.');
         await G.cam.shot('relogio', 1.8);
         await G.narrate('Reunião de diretoria às 14h. Duração prevista: uma hora. Recorde da casa: três horas e quarenta. Esse relógio viu tudo.');
         G.player.fp();
@@ -610,7 +650,7 @@
               },
             },
             {
-              id: 'janela', label: 'Olhar a cidade', icon: '🌆', at: 'janela', y: 1.5, optional: true,
+              id: 'janela', label: 'Olhar a cidade', icon: '🌆', at: 'janela', y: 1.05, optional: true,
               onInteract: async (G) => {
                 G.player.lookAt({ x: 0.2, y: 1.2, z: -6 });
                 await G.say('pai', 'Lá embaixo, a marginal parada. Aqui em cima, a pauta parada. Pelo menos a marginal anda de madrugada.', { expr: 'desconfiado' });
@@ -619,7 +659,7 @@
             {
               id: 'relogio', label: 'O relógio da fundação', icon: '🕰️', pos: relPos, optional: true,
               onInteract: async (G) => {
-                await G.say('pai', 'Esse relógio veio da primeira sede. Já viu reunião acabar no escuro. Eu estava em todas.', { expr: 'orgulhoso' });
+                await G.say('pai', 'Esse relógio está aqui desde o primeiro dia. Já viu reunião acabar no escuro. Eu estava em todas.', { expr: 'orgulhoso' });
                 await G.say('faisca', 'Ele merecia hora extra.', { anim: 'spin' });
               },
             },
@@ -631,7 +671,7 @@
         G.player.lookAt(null);
         await G.say('pai', 'Toda terça é igual. Duas horas de reunião. Na quarta, ninguém lembra quem ficou com o quê.', { expr: 'cansado' });
         await G.say('faisca', 'Posso ajudar antes, durante e depois. Antes: uma pauta enxuta e o que cada diretor deve trazer.', { anim: 'teach' });
-        await G.say('faisca', 'E estou na ferramenta aprovada pela empresa: ela tem acesso autorizado ao seu e-mail e não treina com os seus dados.');
+        await G.say('faisca', 'Lembrando: aqui eu rodo na ferramenta aprovada pela empresa, com o acesso ao seu e-mail e à agenda que a TI liberou. E ela não treina com os seus dados.');
         await G.say('pai', 'Então junta os pedidos de pauta que chegaram. Mas quem fecha a pauta sou eu.', { expr: 'determinado' });
 
         const pauta = await miniPauta(G);
@@ -642,17 +682,18 @@
         G.sceneParams({ slide: slidePauta(pauta.sel) });
         G.player.lookAt({ x: -4.2, y: 1.6, z: 0 });
         if (pauta.perfeita) {
-          await G.say('faisca', 'Quatro decisões, cinquenta e cinco minutos. Sobram cinco para o Jorge chegar atrasado.', { anim: 'celebrate' });
+          await G.say('faisca', 'Quatro decisões, cinquenta e cinco minutos. Sobram cinco para o Jorge chegar atrasado.', { anim: 'celebrate', cam: false });
           await G.say('pai', 'Você já conhece o Jorge.', { expr: 'rindo' });
         } else if (pauta.ajustou) {
-          await G.say('faisca', 'Pauta ajustada e na tela. O que não pede decisão vai por e-mail: ninguém sai perdendo.', { anim: 'teach' });
+          await G.say('faisca', 'Pauta ajustada e na tela. O que não pede decisão vai por e-mail: ninguém sai perdendo.', { anim: 'teach', cam: false });
         } else {
-          await G.say('faisca', 'A pauta é sua, e está na tela. Só guardo o palpite: o que não pede decisão costuma caber num e-mail.', { anim: 'think' });
+          await G.say('faisca', 'A pauta é sua, e está na tela. Só guardo o palpite: o que não pede decisão costuma caber num e-mail.', { anim: 'think', cam: false });
           await G.say('pai', 'Anotado. Hoje vai assim.', { expr: 'determinado' });
         }
 
         // Briefing no estilo Nadella (com a ressalva honesta)
-        await G.say('faisca', 'Agora, um pedido de CEO. O da Microsoft contou que pede algo assim ao assistente dele. Ressalva: ele vende esse assistente.', { anim: 'teach' });
+        await G.say('faisca', 'Agora, um pedido de CEO. O da Microsoft contou em público que faz este ao assistente dele.', { anim: 'teach' });
+        await G.fact('nadella_cinco_prompts');
         await G.aiChat([
           { from: 'voce', text: 'Com base nas minhas conversas recentes com cada diretor: o que deve estar na cabeça de cada um para hoje? E o que cada um precisa trazer?' },
           { from: 'ia', text: '- *Bia:* margem do semestre e a renovação da linha de crédito com o banco. Trazer: o fluxo de caixa.\n- *Rafael:* o terceiro atraso do fornecedor. Trazer: as datas.\n- *Tadeu:* a multa do contrato, nunca cobrada. Trazer: a cláusula.\n- *Luana:* gente para o turno novo. Trazer: o custo por contratação.\n- *Jorge:* medo de perder o cliente do Sul. Trazer: o volume desse cliente.' },
@@ -680,8 +721,8 @@
         ], { title: 'Faísca · ferramenta da empresa' });
         await G.say('pai', 'As duas primeiras eu já tinha na cabeça. A terceira, não. Boa.', { expr: 'pensativo' });
         await G.say('faisca', 'Você tem trinta anos de mesa. Eu tenho três segundos de leitura. Juntos, a gente chega preparado.', { anim: 'celebrate' });
-        await G.say('faisca', 'Mando a pauta para a diretoria, com o que cada um deve trazer? Está aí na tela para você ler antes.');
-        await G.say('pai', 'Li. Pode mandar.');
+        await G.say('faisca', 'Mando a pauta para a diretoria, com o que cada um deve trazer? Está na tela, para você ler antes.');
+        await G.say('pai', 'Li. Pode mandar.', { expr: 'determinado' });
         G.toast('Pauta enviada · cada diretor sabe o que trazer', { icon: '📨', kind: 'email' });
         await G.wait(0.6);
       },
@@ -729,7 +770,7 @@
           anim(G.faisca, 'celebrate', 1.2);
           G.sfx('chime');
         } else if (modo === 'escondido') {
-          await G.say('faisca', 'Gravar seis diretores escondido? Se alguém descobre, a ata vira o menor dos seus problemas.', { anim: 'scared' });
+          await G.say('faisca', 'Gravar cinco diretores escondido? Se alguém descobre, a ata vira o menor dos seus problemas.', { anim: 'scared' });
           await G.say('faisca', 'E na ferramenta da empresa todo mundo vê o aviso de qualquer jeito. Perguntar custa dez segundos.', { anim: 'teach' });
           await G.say('pai', 'Tá bom, tá bom. Pessoal, vou ligar a transcrição para fazer a ata. Todos de acordo?', { expr: 'sem_graca' });
         } else {
@@ -781,11 +822,11 @@
           await G.say('jorge', 'Falando em atraso… alguém viu o jogo ontem? Que golaço!', { expr: 'rindo', emote: 'note' });
           if (tem('gerente')) {
             await G.say('luana', 'E o desempenho daquele gerente… prefiro tratar em particular. Ainda mais com transcrição ligada.', { expr: 'preocupado' });
-            await G.say('pai', 'Tem razão. Faísca, pausa. Luana, conversamos a sós depois.', { expr: 'determinado' });
+            await G.say('pai', 'Tem razão. Isso é conversa a sós, Luana. Amanhã cedo, na minha sala.', { expr: 'determinado' });
           }
           await G.say('luana', 'Gente, foco. Campanha de fim de ano: quem pega?', { expr: 'impaciente' });
           [bia, rafael, tadeu, luana, jorge].forEach((a) => a.emote('...'));
-          await G.narrate('Silêncio. Seis diretores descobrem, ao mesmo tempo, algo fascinante dentro da própria xícara.');
+          await G.narrate('Silêncio. Cinco diretores descobrem, ao mesmo tempo, algo fascinante dentro da própria xícara.');
           await G.say('jorge', 'A gente vê depois.', { expr: 'sem_graca' });
           if (tem('uniforme')) {
             await G.narrate('15h15: vinte minutos sobre o tom exato de azul do uniforme. Decisão: nenhuma.');
@@ -799,7 +840,7 @@
           await G.say('bia', 'Depende de o reajuste pegar. Sem esse número, não fecho.', { expr: 'desconfiado' });
           await G.say('pai', 'Então fica para a próxima. Reunião encerrada.', { expr: 'cansado' });
           G.fx.confetti(jorge);
-          await G.say('jorge', 'Uma hora e quarenta! Recorde da casa!', { expr: 'empolgado', emote: 'star' });
+          await G.say('jorge', 'Uma hora e quarenta! Nunca terminou tão cedo!', { expr: 'empolgado', emote: 'star' });
           ditos.fim = true;
         });
         G.talkCam(true);
@@ -808,21 +849,25 @@
         G.player.fp();
         G.pai.at('cabeceira');
         G.pai.setAnim('sit');
-        await G.say('faisca', 'Previsão: sessenta minutos. Realizado: cem. Mas com decisões! Eu guardei tudo.', { anim: 'spin' });
+        if ((G.v.pautaRuins || []).length) {
+          await G.say('faisca', 'Previsão: sessenta minutos. Realizado: cem, e um bom pedaço foi para o que não pedia decisão. Mesmo assim, eu guardei tudo.', { anim: 'think' });
+        } else {
+          await G.say('faisca', 'Previsão: sessenta minutos. Realizado: cem. Mas a mais curta que esse relógio já viu, e com decisões. Eu guardei tudo.', { anim: 'spin' });
+        }
 
-        // A sala esvazia; Tadeu e Jorge ficam de pé
-        [bia, rafael, luana].forEach((a) => { a.setAnim('idle'); a.lookAt(null); });
+        // A sala esvazia num corte rápido (ninguém atravessa a mesa); Tadeu e Jorge ficam de pé
+        await G.fadeOut(0.5);
+        [bia, rafael, luana].forEach((a) => a.remove());
         G.pai.setAnim('idle');
-        G.pai.at('cabeceira');
-        quiet(bia.walk('porta').then(() => bia.remove()));
-        quiet(rafael.walk('porta').then(() => rafael.remove()));
-        quiet(luana.walk('porta').then(() => luana.remove()));
-        tadeu.setAnim('idle').at('pe2');
+        G.pai.at(PAI_DE_PE);
+        tadeu.setAnim('idle').setExpr('neutro').at('pe2');
         tadeu.face(G.pai);
         tadeu.lookAt(G.pai);
-        jorge.setAnim('idle').at('centro');
+        jorge.setAnim('idle').setExpr('feliz').at('centro');
         jorge.face(G.pai);
         jorge.lookAt(G.pai);
+        G.hud.set({ clock: '15:43' });
+        await G.fadeIn(0.6);
         await G.explore({
           objetivo: 'Desça para o carro: a ata se faz no caminho',
           hotspots: [
@@ -830,10 +875,10 @@
               id: 'tadeu', label: 'Falar com o Tadeu', actor: 'tadeu', optional: true,
               onInteract: async (G) => {
                 G.actor('tadeu').face(G.pai);
-                await G.say('tadeu', 'Me manda a ata antes de circular? A parte do contrato eu confiro.', { expr: 'amigavel' });
-                await G.say('pai', 'Mando. A IA localiza, o jurídico valida.', { expr: 'orgulhoso' });
+                await G.say('tadeu', 'A carta de cobrança eu escrevo. Se a IA ajudar, ótimo, mas a cláusula da multa eu confiro na fonte.', { expr: 'amigavel' });
+                await G.say('pai', 'Nem precisava dizer. A IA localiza, o jurídico valida.', { expr: 'orgulhoso' });
                 await G.say('tadeu', 'Olha só quem está falando de IA agora.', { expr: 'rindo' });
-                await G.say('pai', 'Falo. Mas quem confere cláusula continua sendo você.', { expr: 'amigavel' });
+                await G.say('pai', 'Falo. Mas quem responde pela cláusula continua sendo você.', { expr: 'amigavel' });
               },
             },
             {
@@ -848,6 +893,7 @@
             { id: 'porta', label: 'Descer para o carro', icon: '🚗', at: 'porta', y: 1.3 },
           ],
         });
+        G.jorge.face(G.pai);
         await G.say('jorge', 'Até amanhã, chefe! Amanhã eu chego na hora. Quase.', { expr: 'rindo', anim: 'wave' });
       },
 
@@ -856,7 +902,7 @@
       // ================================================================
       async (G) => {
         const consentiu = !!G.v.consentimento;
-        G.scene('carro', { time: 'tarde', phone: 'chat', speed: 1 });
+        G.scene('carro', { time: 'tarde', phone: 'chat', speed: 1, chat: CHAT_CARRO });
         G.pai.at('banco');
         G.pai.setAnim('sitphone');
         G.faisca.at('centro');
@@ -866,7 +912,7 @@
         G.player.cine();
         await G.cam.shot('geral', 0);
         await G.fadeIn(1);
-        await G.narrate('15h52. De volta para o escritório, no trânsito de fim de tarde.');
+        await G.narrate('15h52. De volta para o escritório, no trânsito da tarde.');
         await G.cam.shot('banco', 1.6);
         await G.say('pai', 'Antigamente, eu passava esse trajeto tentando lembrar quem prometeu o quê.', { expr: 'cansado' });
         G.player.fp();
@@ -891,8 +937,13 @@
         const cf = await miniConfere(G);
         G.v.confAcertos = cf.acertos;
         G.v.confFalsos = cf.falsos;
-        await G.say('faisca', 'Dois erros meus. O “trinta” veio da transcrição: ela ouviu errado, e eu copiei com toda a confiança.', { anim: 'ashamed' });
-        await G.say('faisca', 'E o Jorge na campanha… ninguém disse isso. Eu completei a lacuna. Isso é invenção, não ata.', { anim: 'sad' });
+        G.v.confPegos = cf.pegos;
+        if (cf.pegos === 2) {
+          await G.say('faisca', 'Dois erros meus, e você pegou os dois. O “trinta” veio da transcrição: ela ouviu errado, e eu copiei sem piscar.', { anim: 'ashamed' });
+        } else {
+          await G.say('faisca', 'Dois erros meus, e passaram pela primeira olhada. Erro de ata parece certo. O “trinta” veio da transcrição: ela ouviu errado, e eu copiei.', { anim: 'ashamed' });
+        }
+        await G.say('faisca', 'E o Jorge na campanha… ninguém disse isso: eu completei a lacuna. E ainda escrevi “nenhum trecho ambíguo”. Com toda a confiança.', { anim: 'sad' });
         await G.say('pai', 'Por isso eu confiro.', { expr: 'determinado' });
         await G.say('faisca', 'Por isso. O antídoto cabe no pedido: “se ninguém assumiu, escreva *a definir*; não invente”. E nome, número e prazo, sempre no áudio.', { anim: 'teach' });
         await G.fact('transcricao_inventa');
@@ -935,7 +986,7 @@
           await G.say('faisca', 'Escrevo, se você quiser. Mas mensagem de afeto vai melhor na sua voz: quem recebe sente a diferença.', { anim: 'think' });
           await G.say('pai', 'Tá. Do meu jeito, então.', { expr: 'amigavel' });
         }
-        await G.say('pai', '(ditando) Sobrevivi. A Faísca fez a ata e eu achei dois erros dela. Te conto no jantar.', { expr: 'orgulhoso' });
+        await G.say('pai', G.v.confPegos === 2 ? '(ditando) Sobrevivi. A Faísca fez a ata e eu achei dois erros dela. Te conto no jantar.' : '(ditando) Sobrevivi. A Faísca fez a ata e eu conferi linha por linha. Te conto no jantar.', { expr: 'orgulhoso' });
         G.toast('{filho}: 😂 Quem diria! Te vejo à noite.', { icon: '💬', kind: 'notif', dur: 4 });
         await G.wait(0.6);
 
@@ -963,7 +1014,7 @@
       if (st.total) out.push('Ata: ' + (st.acertos || 0) + ' de ' + st.total + ' acertos (10 trechos + 7 linhas conferidas)');
       out.push(st.consentimento ? 'Transcrição: com aviso e o ok de todos, desde o começo' : 'Transcrição: com aviso, depois do puxão de orelha da Faísca');
       if (st.minutosEconomizados) out.push('Tempo poupado: ≈ ' + st.minutosEconomizados + ' min (estimativa do jogo)');
-      out.push('Erros pegos na ata: o “13” que virou “30” e o dono inventado');
+      out.push(G.v.confPegos === 2 ? 'Erros da IA que você pegou: o “13” que virou “30” e o dono inventado' : 'Erros da IA na ata: o “13” que virou “30” e o dono inventado (' + (G.v.confPegos || 0) + ' de 2 pegos de primeira)');
       return out;
     },
   });

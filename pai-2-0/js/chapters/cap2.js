@@ -30,27 +30,27 @@
       titulo: '🖊️ Caneta vermelha · Relatório do conselho',
       doc: 'Resumo executivo · 3º trimestre',
       intro: 'Rascunho pronto em 40 segundos. Agora é com você: leia como se fosse de um estagiário novo e talentoso.',
-      chat: [['eu', 'Junte as notas da Bia, do Rafael e do Jorge num resumo de 1 página para o conselho.'], ['ia', 'Pronto! Rascunho abaixo. Confira números e datas antes de enviar.']],
+      chat: [['eu', 'Use o pedido que montei no café: junte as notas da Bia, do Rafael e do Jorge num resumo de 1 página para o conselho.'], ['ia', 'Pronto! Rascunho abaixo. Confira números e datas antes de enviar.']],
       fatos: [
-        { quem: 'Bia', txt: 'Receita: *+12%* sobre o 3º trimestre do ano passado.' },
-        { quem: 'Bia', txt: 'Margem: *caiu de 18% para 16%*, por causa do frete.' },
+        { quem: 'Bia', txt: 'Receita: *+14%* sobre o 3º trimestre do ano passado.' },
+        { quem: 'Bia', txt: 'Margem bruta: *caiu de 35% para 30%*. As causas, ainda estou apurando.' },
         { quem: 'Rafael', txt: 'Novo centro de distribuição: começa a operar em *março*.' },
         { quem: 'Rafael', txt: 'Grupo Horizonte: a entrega atrasou *6 dias*.' },
         { quem: 'Jorge', txt: '*3 clientes novos* no trimestre. (O resto do áudio é churrasco.)' },
       ],
       linhas: [
-        { t: 'A receita cresceu 12% em relação ao 3º trimestre do ano passado.', conf: 'Bate com a nota da Bia: +12%.' },
+        { t: 'A receita cresceu 14% em relação ao 3º trimestre do ano passado.', conf: 'Bate com a nota da Bia: +14%.' },
         {
-          t: 'A margem subiu de 16% para 18%, puxada pelo frete.',
+          t: 'A margem bruta subiu de 30% para 35%, sinal de mais eficiência.',
           err: {
             id: 'margem', dica: 'Olhe de novo a nota da Bia sobre a margem. Subiu ou caiu?',
             opcoes: [
-              { t: 'A margem caiu de 18% para 16%, pressionada pelo frete.', ok: true },
-              { t: 'A margem ficou estável, em 18%.', why: 'Não ficou: a Bia anotou queda, de 18% para 16%.' },
+              { t: 'A margem bruta caiu de 35% para 30%. A Bia está apurando as causas.', ok: true },
+              { t: 'A margem bruta ficou estável, perto de 35%.', why: 'Não ficou: a Bia anotou queda, de 35% para 30%.' },
               { t: 'Apagar a frase.', why: 'Esconder a queda é pior: é a primeira coisa que o conselho vai perguntar. Corrija.' },
             ],
-            faisca: 'Eu inverti a margem. Com toda a confiança do mundo. Bem visto.',
-            passou: 'A margem *caiu* de 18% para 16%. O rascunho dizia que subiu.',
+            faisca: 'Eu inverti a margem e ainda chamei de eficiência. Com toda a confiança do mundo. Bem visto.',
+            passou: 'A margem bruta *caiu* de 35% para 30%. O rascunho dizia que subiu.',
           },
         },
         { t: 'Fechamos 3 clientes novos no trimestre.', conf: 'Bate com o Jorge (minuto 2 do áudio, antes do churrasco).' },
@@ -68,7 +68,7 @@
           },
         },
         { t: 'Atenção: o atraso de 6 dias ao Grupo Horizonte põe em risco a renovação do contrato.', conf: 'Bate com o Rafael (6 dias). E o risco é real.' },
-        { t: 'Proposta: discutir um plano para o custo do frete na reunião das 14h.', conf: 'Faz sentido: foi o frete que derrubou a margem.' },
+        { t: 'Próximo passo: a Bia apresenta as causas da queda de margem ao conselho.', conf: 'Honesto: o porquê ainda está com a Bia, e é ela quem sabe.' },
       ],
     },
     {
@@ -82,20 +82,20 @@
       intro: 'Rascunho do e-mail pronto. Cliente bravo é onde uma palavra errada custa caro. Caneta na mão.',
       chat: [['eu', 'Rascunhe uma resposta ao Vicente, do Grupo Horizonte, sobre o atraso. Tom humano, sem enrolar.'], ['ia', 'Rascunho pronto. Revise o tom e as promessas antes de enviar.']],
       fatos: [
-        { quem: 'Vicente', txt: 'Cliente há *12 anos*. Gosta de ser chamado pelo primeiro nome.' },
-        { quem: 'Rafael', txt: 'Causa: uma *transportadora parceira* falhou. Quem escolheu a parceira fomos nós.' },
+        { quem: 'Você', txt: 'O Vicente é cliente há *12 anos*, o maior que temos no Sul. Gosta de ser chamado pelo primeiro nome.' },
+        { quem: 'Rafael', txt: 'Causa: o *fornecedor de embalagens* atrasou, e *nós não avisamos* o cliente a tempo.' },
         { quem: 'Rafael', txt: 'Nova entrega garantida: *sexta-feira, até as 12h*.' },
         { quem: 'Você', txt: 'Compensação aprovada: *só o frete desta entrega* por nossa conta.' },
       ],
       linhas: [
         { t: 'Prezado Vicente,', conf: 'Pelo primeiro nome, como ele gosta.' },
-        { t: 'Você tem toda a razão: dois atrasos em três meses não é o padrão que você merece de nós.', conf: 'Reconhece o problema sem rodeio. Ótimo começo.' },
+        { t: 'Você tem razão: dois atrasos em três meses estão longe do padrão que você merece de nós.', conf: 'Reconhece o problema sem rodeio. Ótimo começo.' },
         {
           t: 'Entendemos que talvez tenha havido alguma confusão com os prazos do seu lado.',
           err: {
             id: 'tom', dica: 'Leia com os olhos do Vicente: segundo essa frase, de quem é a culpa?',
             opcoes: [
-              { t: 'O erro foi nosso: uma transportadora parceira falhou, e quem a escolheu fomos nós.', ok: true },
+              { t: 'O erro foi nosso: um fornecedor atrasou, e nós não avisamos você a tempo.', ok: true },
               { t: 'Infelizmente, imprevistos acontecem com todo mundo.', why: 'Genérico demais: soa como desculpa de formulário. Ele quer saber o que houve.' },
               { t: 'Apagar a frase.', why: 'Melhor do que culpar o cliente, mas ele vai querer saber a causa. Uma linha honesta resolve.' },
             ],
@@ -121,41 +121,53 @@
       ],
     },
     {
-      n: 3, id: 't3', nome: 'Resumo da reunião das 14h', icon: '🗂️',
+      n: 3, id: 't3', nome: 'Memorando do reajuste', icon: '🗂️',
       mao: 60, rev: 15, sem: 5,
-      prompt: 'Tarefa 3 · Resumo de uma página para a reunião das 14h. Como fazer?',
+      prompt: 'Tarefa 3 · Memorando de uma página sobre o reajuste, para a reunião das 14h. Como fazer?',
       subMao: 'uma página caprichada',
-      subSem: 'quem vai ler resumo, né?',
-      titulo: '🖊️ Caneta vermelha · Resumo da reunião de diretoria',
-      doc: 'Reunião de diretoria · resumo',
-      intro: 'Resumo pronto. Dica de estagiária: nomes e conclusões são onde eu mais invento.',
-      chat: [['eu', 'Monte o resumo de 1 página da reunião de diretoria das 14h com a pauta da Sônia.'], ['ia', 'Pronto. Confira os nomes de quem apresenta cada item.']],
+      subSem: 'quem lê memorando, né?',
+      titulo: '🖊️ Caneta vermelha · Memorando do reajuste',
+      doc: 'Memorando · Reajuste de preços',
+      intro: 'Memorando pronto. Dica de estagiária: é nas conclusões que eu mais invento.',
+      chat: [['eu', 'Monte um memorando de 1 página sobre o reajuste para a diretoria, com as notas da Bia e do Jorge.'], ['ia', 'Pronto. Revise antes de mandar para a diretoria.']],
       fatos: [
-        { quem: 'Sônia', txt: 'Reunião de diretoria: *hoje, das 14h às 15h*, na sala do conselho.' },
-        { quem: 'Pauta', txt: '1) Resultado do trimestre: *Bia*' },
-        { quem: 'Pauta', txt: '2) Atraso do Grupo Horizonte: *Rafael*' },
-        { quem: 'Pauta', txt: '3) Contrato do fornecedor (80 páginas, *ainda em análise*): *Tadeu*' },
-        { quem: 'Pauta', txt: '4) Vaga de gerente regional: *Luana*' },
+        { quem: 'Bia', txt: 'Proposta: reajuste de *6%*, a partir do *mês que vem*.' },
+        { quem: 'Bia', txt: 'Sem reajuste, a margem do semestre *não fecha*.' },
+        { quem: 'Jorge', txt: 'Acima de 6%, risco de perder o *Grupo Horizonte*.' },
+        { quem: 'Jorge', txt: 'Com o Horizonte, *ainda não falei* de preço. Hoje não é o dia.' },
+        { quem: 'Você', txt: 'Quem decide o reajuste é *a diretoria, na reunião*.' },
       ],
       linhas: [
-        { t: 'Reunião de diretoria: hoje, das 14h às 15h, na sala do conselho.', conf: 'Bate com a Sônia. (Se vai acabar às 15h, aí já é outra história.)' },
-        { t: 'Resultado do trimestre (Bia): receita +12%, margem pressionada pelo frete.', conf: 'Bate com as notas da Bia.' },
-        { t: 'Atraso do Grupo Horizonte (Rafael): causa, nova data e como evitar o próximo.', conf: 'Bate com a pauta.' },
+        { t: 'Para a diretoria · reunião de hoje, 14h · Assunto: reajuste de preços.', conf: 'Bate com a agenda.' },
         {
-          t: 'Contrato do fornecedor (Rafael): aprovar hoje, sem ressalvas.',
+          t: 'Proposta da Bia: reajuste de 8% a partir do mês que vem.',
           err: {
-            id: 'contrato', dica: 'Quem apresenta o contrato? E alguém já concluiu alguma coisa sobre ele?',
+            id: 'numero', dica: 'Confira o percentual na nota da Bia.',
             opcoes: [
-              { t: 'Contrato do fornecedor (Tadeu): principais riscos, antes de decidir.', ok: true },
-              { t: 'Contrato do fornecedor (Tadeu): aprovar hoje, sem ressalvas.', why: 'O nome agora está certo, mas "sem ressalvas" é conclusão que ninguém tirou. O contrato ainda está em análise.' },
-              { t: 'Contrato do fornecedor (Rafael): principais riscos.', why: 'O contrato é com o Tadeu, do jurídico, não com o Rafael.' },
+              { t: 'Proposta da Bia: reajuste de 6% a partir do mês que vem.', ok: true },
+              { t: 'Proposta da Bia: reajuste entre 6% e 8% a partir do mês que vem.', why: 'Ninguém falou em 8%. Uma faixa inventada continua sendo invenção.' },
+              { t: 'Proposta da Bia: reajuste a definir.', why: 'A proposta existe e tem número: 6%. A diretoria precisa dele para decidir.' },
             ],
-            faisca: 'Troquei o Tadeu pelo Rafael e ainda aprovei um contrato que ninguém leu. Duas invenções numa linha só.',
-            passou: 'O resumo punha o *Rafael* no contrato e já o dava por aprovado, "sem ressalvas".',
+            faisca: 'Troquei o 6 pelo 8. Parece pouco. Para o Jorge, é a diferença entre segurar e perder um cliente.',
+            passou: 'O memorando dizia que a Bia propôs *8%*. Ela propôs *6%*.',
           },
         },
-        { t: 'Vaga de gerente regional (Luana): critérios e próximos passos.', conf: 'Bate com a pauta da Sônia.' },
-        { t: 'Para cada item, uma pergunta: que decisão precisamos tomar hoje?', conf: 'Boa pergunta. Pode deixar.' },
+        { t: 'Motivo: sem reajuste, a margem do semestre não fecha.', conf: 'Bate com a Bia, palavra por palavra.' },
+        { t: 'Risco: acima de 6%, podemos perder o Grupo Horizonte, nosso maior cliente no Sul.', conf: 'Bate com o Jorge. E, depois desta manhã, o risco é bem real.' },
+        {
+          t: 'O Grupo Horizonte já foi consultado e concordou com o novo preço.',
+          err: {
+            id: 'consulta', dica: 'Alguém já conversou com o Grupo Horizonte sobre preço? Veja a nota do Jorge.',
+            opcoes: [
+              { t: 'O Grupo Horizonte ainda não foi consultado sobre o novo preço.', ok: true },
+              { t: 'O Grupo Horizonte deve concordar com o novo preço.', why: '"Deve concordar" é palpite fantasiado de fato. O Jorge nem falou com eles.' },
+              { t: 'Apagar a frase.', why: 'Melhor do que inventar, mas a diretoria precisa saber que o cliente ainda não foi ouvido. Diga isso.' },
+            ],
+            faisca: 'Inventei a resposta de um cliente com quem ninguém falou. Escrevi o que parecia provável, não o que aconteceu.',
+            passou: 'O memorando dizia que o Grupo Horizonte *já tinha concordado*. Ninguém falou com eles.',
+          },
+        },
+        { t: 'Decisão para hoje: aprovar ou não o reajuste, e de quanto.', conf: 'É isso que a reunião precisa decidir. E quem decide é a diretoria.' },
       ],
     },
   ];
@@ -163,15 +175,31 @@
   const TOTAL_ERROS_POR_TAREFA = TAREFAS.map((T) => T.linhas.filter((l) => l.err).length);
 
   const TEL_MARTA = { name: '{chefe} · ao telefone', color: '#5b5768', voice: 'chefe' };
-  const TEL_RAFAEL = { name: 'Rafael · ao telefone', color: '#4a5a7a', voice: 'chefe' };
+  const TEL_BIA = { name: 'Bia · ao telefone', color: '#4a5a7a', voice: 'filho' };
   const MONITOR = { x: 0.92, y: 1.12, z: -1.3 };
   const TV = { x: -4.1, y: 1.62, z: -1.1 };
-  const SOFA_LOOK = { x: -3.55, y: 1.0, z: 2.2 };
+  // De pé diante da mesa, à vista de quem está sentado (o monitor fica à esquerda do olhar).
+  const VISITA = { x: 0.3, z: 0.35 };
+  // A Faísca, durante a conversa no sofá: perto, entre os dois, sem tapar a Luana.
+  const FAISCA_SOFA = { x: -3.12, z: 1.9, rot: -PI / 2 };
 
   // ------------------------------------------------------------------
   // Estado (G.v) e utilidades
   // ------------------------------------------------------------------
+  /**
+   * Contorno de motor: em primeira pessoa, a câmera automática de diálogo vira a visão para quem
+   * fala; como a Faísca flutua num ponto relativo à própria visão, a visão "persegue" a Faísca e
+   * gira sem parar. Aqui as falas da Faísca não mexem na câmera (o mesmo que {cam:false}).
+   */
+  function prep(G) {
+    if (G._c2prep) return G;
+    const say0 = G.say;
+    G.say = (who, text, o) => say0(who, text, who === 'faisca' ? Object.assign({ cam: false }, o || {}) : o);
+    G._c2prep = true;
+    return G;
+  }
   function S(G) {
+    prep(G);
     const v = G.v;
     if (v.min == null) v.min = 5;
     if (v.rep == null) v.rep = 60;
@@ -254,7 +282,7 @@
   function pauta(G) {
     const m = S(G).modo;
     const mk = (id, txt) => (m[id] ? '✓ ' : '') + txt;
-    return ['Hoje · terça-feira', mk('t1', '10h · Relatório do conselho'), mk('t2', 'Responder o Grupo Horizonte'), mk('t3', 'Resumo da reunião das 14h'), mk('t4', 'Vaga de gerente regional')];
+    return ['Hoje · terça-feira', mk('t1', '10h · Relatório do conselho'), mk('t2', 'Responder o Grupo Horizonte'), mk('t3', 'Memorando do reajuste (14h)'), mk('t4', 'Vaga de gerente regional')];
   }
   function cena(G, extra) {
     const v = S(G);
@@ -266,6 +294,7 @@
     G.sceneParams({ papers: alvo, tv: pauta(G) });
   }
   function sentarNaMesa(G) {
+    G.player.lookAt(null);
     G.pai.at('mesa');
     G.pai.setAnim('sit');
     G.faisca.follow(G.pai);
@@ -296,6 +325,10 @@
   .c2-panel { margin: 2px 0 10px 28px; padding: 10px 12px; border-left: 3px solid var(--brand); background: #fff8f3; border-radius: 0 12px 12px 0; display: flex; flex-direction: column; gap: 8px; }
   @media (max-width: 600px) { .c2-panel { margin-left: 6px; } }
   .c2-panel .mg-row .btn { min-height: 48px; }
+  .c2-pf { display: none; font-size: 0.84em; background: #fffdf3; border: 1px solid #f0e2b2; border-radius: 10px; padding: 7px 10px; line-height: 1.35; }
+  .c2-pf b.c2-pft { display: block; font-size: 0.92em; margin-bottom: 3px; }
+  .c2-pf div + div { margin-top: 3px; }
+  @media (max-width: 859px) { .c2-pf { display: block; } }
   .c2-opts { display: flex; flex-direction: column; gap: 8px; }
   .c2-opt { display: flex !important; gap: 10px; align-items: flex-start; width: 100%; }
   .c2-opt .kbd { flex: 0 0 auto; font-family: var(--head); font-size: 0.7em; font-weight: 800; background: rgba(20, 30, 60, 0.08); border-radius: 6px; padding: 0.15em 0.45em; margin-top: 0.15em; }
@@ -402,6 +435,12 @@
         const fb = el('div', 'mg-feedback c2-why ' + cls, api.rich(t(txt), true));
         return fb;
       }
+      /** No celular o quadro fica lá em cima: repete os fatos, compactos, junto da frase aberta. */
+      function fatosPerto() {
+        const box = el('div', 'c2-pf', el('b', 'c2-pft', '📋 O que você sabe'));
+        T.fatos.forEach((f) => box.appendChild(el('div', null, api.rich(t('*' + f.quem + ':* ' + f.txt.replace(/\*/g, '')), true))));
+        return box;
+      }
       function abrir(i) {
         fechar();
         openIdx = i;
@@ -445,6 +484,7 @@
         row.appendChild(api.btn('Voltar', () => fechar(), { key: '3', cls: 'ghost' }));
         panel.appendChild(row);
         if (fbNode) panel.appendChild(fbNode);
+        panel.appendChild(fatosPerto());
       }
       function passo2(i, fbNode, bloqueadas) {
         const x = L[i];
@@ -484,6 +524,7 @@
         row.appendChild(api.btn('Voltar', () => passo1(i), { key: String(ops.length + 1), cls: 'ghost' }));
         panel.appendChild(row);
         if (fbNode) panel.appendChild(fbNode);
+        panel.appendChild(fatosPerto());
       }
       function resultado() {
         const missed = [];
@@ -605,6 +646,7 @@
         G.player.fp();
         await G.letterbox(false, 0);
         G.hud.set({ clock: hhmm(0) });
+        G.player.lookAt({ x: 0.6, y: 1.35, z: -2.8 }); // a mesa, a pilha e a vista
         await G.fadeIn(0.45);
 
         await G.say('faisca', 'Fiiiu! Que vista. Você trabalha *aqui* e ainda chega de cara amarrada?', { emote: 'note' });
@@ -614,13 +656,6 @@
         await G.explore({
           objetivo: 'Vá até a sua mesa',
           hotspots: [
-            {
-              id: 'janela', label: 'Olhar a cidade', icon: '🏙️', pos: { x: 2.7, y: 1.6, z: -3.2 }, reach: 1.6, optional: true,
-              onInteract: async (G) => {
-                await G.think('pai', 'Minha primeira mesa ficava do lado do banheiro. Sem janela. Trinta anos de elevador até aqui.');
-                await G.say('faisca', 'Você subiu andar por andar. Eu cheguei ontem, de celular. Respeito.', { expr: 'feliz' });
-              },
-            },
             {
               id: 'pilha', label: 'A pilha de papéis', icon: '📚', pos: { x: 1.27, y: 1.3, z: -1.12 }, reach: 3.2, optional: true,
               onInteract: async (G) => {
@@ -633,20 +668,21 @@
               id: 'premios', label: 'Os troféus', icon: '🏆', pos: { x: 3.75, y: 1.45, z: -1.6 }, reach: 2.0, optional: true,
               onInteract: async (G) => {
                 await G.say('pai', '"Empresa do Ano". Ninguém lembra do ano seguinte, em que quase quebramos. Eu lembro.');
-                await G.say('faisca', 'Isso é o que eu nunca vou ter: trinta anos de lembrança. Eu ajudo no resto.');
+                await G.think('pai', 'Minha primeira mesa ficava do lado do banheiro. Sem janela. Trinta anos de elevador até aqui.');
+                await G.say('faisca', 'Isso eu nunca vou ter: trinta anos de lembrança. Eu ajudo no resto.');
               },
             },
             {
               id: 'foto', label: 'Porta-retrato', icon: '🖼️', pos: { x: 0.02, y: 0.95, z: -0.95 }, reach: 2.2, optional: true,
               onInteract: async (G) => {
                 S(G).viuFoto = true;
-                await G.narrate('Na foto, {oa} {filho}, aos oito anos, de beca, na formatura do jardim de infância.');
-                await G.think('pai', 'Prometi naquele dia que ia trabalhar menos. Faz quase vinte anos.');
+                await G.narrate('Na foto, {oa} {filho}, aos seis anos, de beca, na formatura do jardim de infância.');
+                await G.think('pai', 'Prometi naquele dia que ia trabalhar menos. Faz mais de vinte anos.');
                 await G.say('faisca', 'Promessa boa não tem prazo de validade. Vamos ver o que dá para fazer hoje.', { expr: 'amigavel' });
                 G.faisca.emote('heart');
               },
             },
-            { id: 'mesa', label: 'Sentar à mesa', icon: '💼', pos: { x: 1.6, y: 1.25, z: -2.25 } },
+            { id: 'mesa', label: 'Sentar à mesa', icon: '💼', pos: { x: 0.3, y: 1.8, z: -2.3 }, reach: 1.4 },
           ],
         });
         await G.fadeOut(0.3);
@@ -657,7 +693,7 @@
 
         G.toast('*47 e-mails* não lidos', { kind: 'email', icon: '📧' });
         await G.wait(0.7);
-        G.toast('*{chefe}:* relatório trimestral do conselho até as 10h.', { icon: '💬' });
+        G.toast('Grupo *Empresários do Bairro*: 348 mensagens', { icon: '💬' });
         await G.wait(0.7);
         G.toast('*14h* · Reunião de diretoria', { icon: '📅' });
         await G.wait(0.9);
@@ -673,7 +709,8 @@
         marta.face(G.pai);
         await G.say('chefe', 'Bom dia, {pai}. Passei só para lembrar: relatório do trimestre às 10h. Não às 10h05.', { expr: 'determinado' });
         await G.say('pai', 'Bom dia para você também, Marta.', { expr: 'neutro' });
-        await G.say('chefe', 'E mais: o Grupo Horizonte reclamou de novo do atraso, a reunião das 14h está sem resumo e a Luana espera sua decisão sobre a vaga de gerente.');
+        await G.say('chefe', 'E o Vicente, do Grupo Horizonte, me ligou ontem à noite. Atrasaram a entrega dele de novo? Doze anos de cliente, {pai}.', { expr: 'preocupado' });
+        await G.say('pai', 'Eu sei. Ele recebe uma resposta minha ainda hoje de manhã.', { expr: 'serio' });
         await G.say('chefe', 'Ah, e o conselho vai perguntar o que a empresa está fazendo com IA. Quero uma resposta melhor que "estamos estudando".', { expr: 'desconfiado' });
         anim(G.faisca, 'wave', 1.4);
         await G.say('pai', 'Coincidência: estou estudando hoje mesmo.', { expr: 'sem_graca' });
@@ -683,15 +720,17 @@
 
         await G.card({
           kind: 'info', kicker: 'Pauta da manhã', icon: '🗂️', titulo: 'Quatro tarefas. Um relógio.',
-          texto: '- 📊 *Relatório do conselho*: juntar as notas de Bia, Rafael e Jorge. Prazo: *10h*.\n- ✉️ *Responder o Grupo Horizonte*: o cliente está bravo com o atraso.\n- 🗂️ *Resumo da reunião das 14h*: uma página.\n- 🤝 *Vaga de gerente regional*: a Luana precisa da sua decisão.',
+          texto: '- 📊 *Relatório do conselho*: juntar as notas de Bia, Rafael e Jorge. Prazo: *10h*.\n- ✉️ *Responder o Grupo Horizonte*: o cliente está bravo com o atraso.\n- 🗂️ *Memorando do reajuste*: uma página para a reunião das 14h.\n- 🤝 *Vaga de gerente regional*: a Luana precisa da sua decisão.',
           botao: 'Mãos à obra',
         });
         G.player.lookAt(TV);
-        await G.narrate('A Sônia já pôs a manhã na TV, como sempre. E o relógio, como sempre, já está andando.');
+        await G.narrate('A Sônia está de folga hoje, mas ontem deixou a manhã programada na TV, como sempre. E o relógio, como sempre, já está andando.');
         G.player.lookAt(null);
-        await G.say('faisca', 'Antes de tudo: aqui eu rodo na conta da empresa, a que a TI aprovou, que não treina com os seus dados.', { expr: 'neutro' });
+        await G.say('faisca', 'Antes de tudo: de manhã, no seu celular, eu estava numa conta pessoal. Aqui eu rodo na conta da empresa, a que a TI aprovou e que não treina com os seus dados.', { expr: 'neutro' });
         await G.say('faisca', 'Relatório do conselho numa conta gratuita qualquer? Nem pensar. Isso eu mesma não deixaria.');
-        await G.say('faisca', 'Agora o jogo: em cada tarefa, três jeitos. Você faz sozinho; eu rascunho e você revisa; ou eu faço e você manda sem ler.');
+        await G.say('pai', 'E quem garante que essa tal conta da empresa não espalha nada?', { expr: 'desconfiado' });
+        await G.say('faisca', 'O contrato da empresa com o fornecedor, e a TI, que conferiu as configurações. Ainda assim: senha e código do banco, nem aqui.', { expr: 'neutro' });
+        await G.say('faisca', 'E a regra da manhã: em cada tarefa, três jeitos. Você faz sozinho; eu rascunho e você revisa; ou eu faço e você manda sem ler.');
         await G.say('pai', 'E essa terceira opção existe por quê?', { expr: 'desconfiado' });
         await G.say('faisca', 'Porque muita gente faz. Quero que você veja o que acontece.', { expr: 'serio' });
         await G.say('pai', 'Justo. Vamos ver quanto vale uma manhã com você.', { expr: 'determinado' });
@@ -794,10 +833,10 @@
         await G.wait(0.6);
         await G.card({
           kind: 'warn', kicker: 'E-mail · Grupo Horizonte', icon: '✉️', titulo: 'Assunto: De novo?',
-          texto: 'Segunda vez em três meses que a entrega atrasa. Seis dias, desta vez.\nEstou reavaliando a renovação do contrato.\n\n*Vicente Almeida*, diretor de compras',
+          texto: 'Segunda vez em três meses que a entrega atrasa. Seis dias, desta vez.\nEstou reavaliando a renovação do contrato.\n\n*Vicente Almeida*, diretor de compras · Grupo Horizonte, Porto Alegre',
           botao: 'Respirar fundo',
         });
-        await G.say('pai', 'Doze anos de cliente. O Vicente não escreve à toa.', { expr: 'preocupado' });
+        await G.say('pai', 'O Vicente não escreve à toa. Muito menos liga para a {chefe}.', { expr: 'preocupado' });
         await G.say('faisca', 'Ele está bravo, e com razão. A resposta precisa ser rápida e humana.', { expr: 'preocupado' });
 
         const modo = await escolherModo(G, T);
@@ -842,7 +881,7 @@
           const jorge = G.jorge;
           jorge.at('porta');
           jorge.set({ expr: 'empolgado', props: { phone: true } });
-          await jorge.walk({ x: 1.55, z: 0.05 }, 1.6);
+          await jorge.walk(VISITA, 1.6);
           jorge.face(G.pai);
           await G.say('jorge', 'Chefe! O Vicente respondeu. Disse que foi o primeiro pedido de desculpas do ano que parece escrito por gente!', { expr: 'rindo' });
           if (modo === 'rev') await G.say('pai', 'Foi revisado por gente.', { expr: 'orgulhoso' });
@@ -870,14 +909,18 @@
         hudBase(G);
         await G.fadeIn();
 
-        await G.say('faisca', 'Tarefa 3: o resumo da reunião das 14h. A Sônia mandou a pauta confirmada.', { expr: 'neutro' });
-        await G.say('pai', 'Reunião das 14h às 15h. Faz anos que ela não termina às 15h.', { expr: 'cansado' });
+        G.toast('*Bia:* proposta de reajuste · 1 planilha', { kind: 'email', icon: '📎' });
+        await G.wait(0.7);
+        G.toast('*Jorge:* 🎤 áudio · 4min05s', { icon: '💬' });
+        await G.wait(0.8);
+        await G.say('faisca', 'Tarefa 3: o memorando do reajuste para a reunião das 14h. A Bia e o Jorge mandaram as notas.', { expr: 'neutro' });
+        await G.say('pai', 'Reajuste é aquele assunto em que todo mundo concorda. Até a hora de falar com o cliente.', { expr: 'desconfiado' });
 
         const modo = await escolherModo(G, T);
         if (modo === 'mao') {
           await G.say('faisca', 'Do seu jeito, então. Eu fico de guarda da pilha.', { expr: 'feliz' });
           G.pai.setAnim('type');
-          await G.narrate('Uma hora depois: uma página caprichada, com os nomes certos de quem apresenta cada item.');
+          await G.narrate('Uma hora depois: uma página caprichada, com o número certo e sem falar em nome de cliente nenhum.');
           await passar(G, T.mao);
           G.pai.setAnim('sit');
           registrar(G, T, T.mao, 0, 0);
@@ -887,18 +930,22 @@
           const { r, ganho } = await caminhoRevisar(G, T);
           await reputacao(G, ganho);
           if (!r.missed.length) {
-            await G.say('pai', 'Um contrato de 80 páginas aprovado "sem ressalvas" por quem não leu nenhuma. Nem o Tadeu teria essa coragem.', { expr: 'desconfiado' });
-            await G.say('faisca', 'Eu não li o contrato. Só completei a frase do jeito que parecia provável. Por isso: nomes e conclusões, confira sempre.', { expr: 'sem_graca' });
+            await G.say('pai', 'Oito por cento e um cliente que "já concordou". O Jorge nem ligou para o Vicente.', { expr: 'desconfiado' });
+            await G.say('faisca', 'Eu não sei o que o Vicente pensa. Completei a frase do jeito que parecia provável. Por isso: números e conclusões, confira sempre.', { expr: 'sem_graca' });
           } else {
             await consequenciaT3(G, r.missed, false);
           }
         } else {
+          G.faisca.setAnim('type');
+          await G.wait(0.6);
+          G.faisca.setAnim('idle');
           await passar(G, T.sem);
-          await G.say('faisca', 'Resumo enviado para os diretores!', { expr: 'empolgado' });
+          await G.say('faisca', 'Memorando enviado para a diretoria! Claro, objetivo e otimista.', { expr: 'empolgado' });
+          anim(G.faisca, 'celebrate', 1.2);
           v.semLer++;
           registrar(G, T, T.sem + DANO_SEM, 0, TOTAL_ERROS_POR_TAREFA[2]);
           await G.wait(0.8);
-          await consequenciaT3(G, ['contrato'], true);
+          await consequenciaT3(G, ['numero', 'consulta'], true);
           await reputacao(G, -15);
         }
         await pilha(G, 0.6);
@@ -922,7 +969,7 @@
         G.sfx('door');
         luana.show();
         G.player.lookAt(luana);
-        await luana.walk({ x: 1.6, z: 0.25 });
+        await luana.walk(VISITA);
         luana.face(G.pai);
         await G.say('luana', 'Bom dia, {pai}. Trouxe as avaliações da Patrícia e do Ricardo. A gerência regional precisa de nome até sexta.', { expr: 'amigavel' });
         await G.say('pai', 'Aqui não, Luana. Decisão sobre gente eu não tomo atrás de monitor. Vamos para o sofá.', { expr: 'serio' });
@@ -942,8 +989,8 @@
               id: 'cafe', label: 'Servir um café', icon: '☕', pos: { x: 0.5, y: 1.05, z: 2.6 }, optional: true,
               onInteract: async (G) => {
                 G.sfx('coffee');
-                luana.set({ props: { mug: true, tablet: false } });
-                await G.say('luana', 'Café em reunião de RH? Já gostei dessa conversa.', { expr: 'feliz' });
+                S(G).cafe = true;
+                await G.think('pai', 'Dois cafés da garrafa térmica. Conversa difícil desce melhor com café.');
               },
             },
             { id: 'luana', label: 'Sentar com a Luana', icon: '🛋️', at: 'sofa', y: 1.35 },
@@ -952,11 +999,15 @@
         await G.fadeOut(0.25);
         G.pai.at('sofa');
         G.pai.setAnim('sit');
-        G.faisca.follow(G.pai);
+        G.faisca.unfollow();
+        G.faisca.at(FAISCA_SOFA, 1.12);
+        G.faisca.face(G.pai);
         luana.face(G.pai);
         G.player.lookAt(luana);
+        if (v.cafe) luana.set({ props: { mug: true, tablet: false } });
         await G.fadeIn(0.3);
 
+        if (v.cafe) await G.say('luana', 'Café em reunião de RH? Já gostei dessa conversa.', { expr: 'feliz' });
         await G.say('luana', 'Os dois são bons. Patrícia, nove anos de casa. Ricardo, seis. Mas só tem uma vaga.', { expr: 'pensativo' });
         await G.say('faisca', 'Tarefa 4. E essa é diferente das outras três.', { expr: 'pensativo' });
         anim(G.faisca, 'think', 1.6);
@@ -993,6 +1044,7 @@
             anim(G.faisca, 'teach', 1.5);
           }
           await G.aiChat([
+            { from: 'nota', text: 'A Luana passa os dados do RH sem nomes nem adjetivos: Gestor A e Gestor B.' },
             { from: 'voce', text: 'Organize critérios para a vaga, sem nomes. Para cada critério: a evidência de cada gestor e o que falta saber. Não escolha ninguém.' },
             { from: 'ia', text: '- *Resultado:* A bateu a meta em 3 de 4 trimestres; B, em 4 de 4.\n- *Equipe:* rotatividade de 8% com A; de 31% com B.\n- *Crise:* A manteve as entregas na crise do Recife; B não enfrentou crise no período.\n- *Falta saber:* o que as equipes dizem e o que cada um quer para a carreira.' },
             { from: 'ia', text: 'Não considerei nome, idade, gênero nem vida pessoal. Os pesos, e a decisão, são seus.' },
@@ -1089,7 +1141,8 @@
             {
               id: 'pilha', label: 'A pilha, agora', icon: '📚', pos: { x: 1.27, y: 1.15, z: -1.12 }, reach: 3.4, optional: true,
               onInteract: async (G) => {
-                await G.say('pai', 'Metade. Antes do almoço. Isso não acontecia desde o século passado.', { expr: 'surpreso' });
+                if (S(G).min < 180) await G.say('pai', 'Metade. Antes do almoço. Isso não acontecia desde o século passado.', { expr: 'surpreso' });
+                else await G.say('pai', 'Metade. O almoço já era, mas a pilha encolheu.', { expr: 'cansado' });
                 await G.say('faisca', 'E eu continuo sem virar peso de papel.', { expr: 'rindo' });
               },
             },
@@ -1097,7 +1150,7 @@
               id: 'foto', label: 'Porta-retrato', icon: '🖼️', pos: { x: 0.02, y: 0.95, z: -0.95 }, reach: 2.4, optional: true,
               onInteract: async (G) => {
                 S(G).viuFoto = true;
-                await G.narrate('{OA} {filho}, aos oito anos, de beca. Sorrindo como quem sabia de alguma coisa.');
+                await G.narrate('{OA} {filho}, aos seis anos, de beca. Sorrindo como quem sabia de alguma coisa.');
                 await G.think('pai', 'Talvez hoje eu chegue a tempo do jantar.');
               },
             },
@@ -1113,7 +1166,7 @@
         await G.say('pai', 'Trinta anos fazendo tudo na mão. E agora uma caixinha laranja escreve o meu rascunho.', { expr: 'pensativo' });
         await G.say('faisca', 'E você continua sendo quem sabe o que está certo. Eu acelero. Você julga.', { expr: 'amigavel' });
         await G.say('pai', 'E quem assina sou eu.', { expr: 'orgulhoso' });
-        await G.say('faisca', 'Sempre. Deixei o que funcionou hoje no seu *Guia do CEO*, no botão 📘 lá em cima: "Rotina e triagem".', { expr: 'feliz' });
+        await G.say('faisca', 'Sempre.', { expr: 'feliz' });
         if (v.viuFoto) await G.say('pai', 'Se o dia seguir assim, hoje eu janto com {oa} {filho}. Faz tempo.', { expr: 'emocionado' });
         else await G.say('pai', 'Se o dia seguir assim, hoje eu chego em casa para o jantar. Faz tempo.', { expr: 'emocionado' });
         G.faisca.emote('heart');
@@ -1123,6 +1176,9 @@
 
         await G.say('faisca', 'E não é só impressão minha. Tem estudo, inclusive um que me deixa mal na foto.', { expr: 'neutro' });
         await G.fact(['harvard_bcg_fora', 'copilot_campo_email', 'dinamarques'], { titulo: 'A fronteira, em números' });
+        await G.say('faisca', 'Repare no da Dinamarca: na média, uns 3% de tempo. O meu placar de hoje é estimativa de jogo. O seu ganho real, só medindo.', { expr: 'neutro' });
+        await G.say('pai', 'Uma máquina que mostra o número contra ela mesma. Isso eu respeito.', { expr: 'pensativo' });
+        await G.say('faisca', 'Deixei tudo no seu *Guia do CEO*, no botão 📘 lá em cima, em "Rotina e triagem": a fronteira, a caneta vermelha e como medir o ganho em 30 dias.', { expr: 'feliz' });
 
         // conquistas
         if (st.errosTotal > 0 && st.errosCorrigidos >= st.errosTotal) G.achieve('caneta_vermelha');
@@ -1154,11 +1210,11 @@
     await G.narrate('O telefone toca. No visor: *{chefe}*.');
     if (h) h.stop();
     const partes = [];
-    if (missed.indexOf('margem') >= 0) partes.push('Aqui diz que a margem *subiu* para 18%. A Bia acabou de me dizer que *caiu* para 16%.');
-    if (missed.indexOf('data') >= 0) partes.push('E o centro de distribuição abre em janeiro? O Rafael jura que é março.');
+    if (missed.indexOf('margem') >= 0) partes.push('Aqui diz que a margem bruta *subiu* para 35%. A Bia acabou de me dizer que *caiu* para 30%.');
+    if (missed.indexOf('data') >= 0) partes.push((partes.length ? 'E o' : 'O') + ' centro de distribuição abre em janeiro? O Rafael jura que é março.');
     await G.say(TEL_MARTA, '{pai}, li o relatório. ' + partes.join(' '));
     await G.say(TEL_MARTA, 'Qual das versões eu levo ao conselho?');
-    await G.say('pai', 'A certa. Me dá vinte minutos.', { expr: 'sem_graca' });
+    await G.say('pai', 'A certa. Me dá uns minutos.', { expr: 'sem_graca' });
     anim(G.faisca, 'ashamed', 2.2);
     await G.say('faisca', 'Fui eu. Errei com toda a confiança do mundo, que é o meu jeito de errar. E o relatório saiu com o seu nome.', { expr: 'triste' });
     const dano = sem ? DANO_SEM : DANO_POR_ERRO * missed.length;
@@ -1174,7 +1230,7 @@
     const jorge = G.jorge;
     jorge.at('porta');
     jorge.set({ expr: 'assustado', props: { phone: true } });
-    await jorge.walk({ x: 1.55, z: 0.05 }, 2.1);
+    await jorge.walk(VISITA, 2.1);
     jorge.face(G.pai);
     G.shake(1.2, 0.3);
     const partes = [];
@@ -1196,15 +1252,21 @@
   async function consequenciaT3(G, missed, sem) {
     const v = S(G);
     const h = G.sfx('phone_ring', { loop: true });
-    await G.narrate('O telefone toca. É o Rafael, de operações.');
+    await G.narrate('O telefone toca. É a Bia, do financeiro.');
     if (h) h.stop();
-    await G.say(TEL_RAFAEL, 'Chefe, o resumo da reunião diz que *eu* vou defender o contrato do fornecedor "sem ressalvas". Eu nem li esse contrato! É com o Tadeu.');
-    await G.say('pai', 'E o Tadeu ainda nem terminou de ler. Ninguém leu.', { expr: 'sem_graca' });
+    const num = missed.indexOf('numero') >= 0, cons = missed.indexOf('consulta') >= 0;
+    const partes = ['Chefe, li o memorando.'];
+    if (num) partes.push('Eu propus *6%*, não 8%. Já tem diretor fazendo conta com oito.');
+    if (cons) partes.push((num ? 'E que' : 'Que') + ' história é essa de o Grupo Horizonte *já ter concordado*? O Jorge nem falou com eles!');
+    await G.say(TEL_BIA, partes.join(' '));
+    await G.say('pai', 'Ninguém concordou com nada. Eu não li antes de mandar.', { expr: 'sem_graca' });
     anim(G.faisca, 'ashamed', 2.2);
-    await G.say('faisca', 'Troquei o nome e inventei uma conclusão. Duas besteiras numa linha só, com o seu nome embaixo.', { expr: 'triste' });
+    if (num && cons) await G.say('faisca', 'Inventei um número e a resposta de um cliente. Duas besteiras, com o seu nome embaixo.', { expr: 'triste' });
+    else if (num) await G.say('faisca', 'Troquei o 6 pelo 8. Parece pouco. Para o Jorge, é a diferença entre segurar e perder um cliente.', { expr: 'triste' });
+    else await G.say('faisca', 'Inventei a resposta de um cliente com quem ninguém falou. Escrevi o que parecia provável, não o que aconteceu.', { expr: 'triste' });
     const dano = sem ? DANO_SEM : DANO_POR_ERRO * missed.length;
     if (!sem) v.gasto.t3 = (v.gasto.t3 || 0) + dano;
-    await G.narrate(sem ? 'Meia hora para corrigir o resumo e explicar a cinco diretores que ninguém aprovou nada.' : 'Uns minutos para corrigir e reenviar o resumo.');
+    await G.narrate(sem ? 'Meia hora para corrigir o memorando e avisar cinco diretores que ninguém concordou com nada.' : 'Uns minutos para corrigir e reenviar o memorando.');
     await passar(G, dano);
   }
 

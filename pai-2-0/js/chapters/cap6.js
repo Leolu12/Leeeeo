@@ -1,12 +1,13 @@
 /* PAI 2.0 — cap6.js — CAPÍTULO 6 "Números na Mesa" (~16h30, escritório ao pôr do sol)
  *
- * Dor: o DRE do 3º trimestre que a Bia (CFO) fechou: vendemos 14% mais e a margem bruta
- * caiu de 35% para 30%. A Dona Marta quer, amanhã às 9h, o PORQUÊ e o QUANTO.
+ * Dor: o DRE do 3º trimestre que a Bia (CFO) fechou bate com o relatório da manhã (Cap 2):
+ * vendemos 12% mais e a margem bruta caiu de 18% para 16%. A Dona Marta quer, amanhã às 9h,
+ * o PORQUÊ e o QUANTO.
  * Virada: a Faísca ensaia a explicação com ele (tabela do DRE, "explica de outro jeito").
  * Tropeço: perguntada "quanto custou", ela aplica a margem antiga sobre a receita do ano
- * PASSADO (base errada) e diz "R$ 0,3 mi, pouca coisa". Ele acha a linha (caneta vermelha +
+ * PASSADO (base errada) e diz "R$ 0,1 mi, pouca coisa". Ele acha a linha (caneta vermelha +
  * calculadora). Antídoto: a planilha calcula, fórmulas à mostra, grau de certeza, outro
- * caminho (5 pontos × 48,0 = 2,4). A Bia (humana) confere e traz o porquê que a IA não via.
+ * caminho (2 pontos × 140,0 = 2,8). A Bia (humana) confere e traz o porquê que a IA não via.
  * Fecho: pôr do sol na janela, a conta de luz de R$ 412 (paga no Cap 8), fatos e lição.
  *
  * Stats (bíblia F): cap6 { erroPego:bool, tentativas, minutosEconomizados }.
@@ -22,48 +23,50 @@
   // ------------------------------------------------------------------
   // Dados do capítulo
   // ------------------------------------------------------------------
-  // DRE do 3º trimestre (R$ milhões). Contas conferidas:
-  // 48/42 = +14,3% · 33,6/27,3 = +23,1% · 14,7/42 = 35,0% · 14,4/48 = 30,0% · 14,4/14,7 = −2,0%
-  // 8,4/8,0 = +5,0% · 6,0/6,7 = −10,4% · 6,7/42 = 16,0% · 6,0/48 = 12,5%
-  // Impacto da queda de margem: 35% × 48,0 = 16,8 → 16,8 − 14,4 = 2,4 (= 5 pontos × 48,0).
+  // DRE do 3º trimestre (R$ milhões). Bate com o relatório do Cap 2 (nota da Bia: receita +12%,
+  // margem de 18% para 16%, "por causa do frete"). Contas conferidas:
+  // 140/125 = +12,0% · 117,6/102,5 = +14,7% · 22,5/125 = 18,0% · 22,4/140 = 16,0% · 22,4/22,5 = −0,4%
+  // 13,0/12,5 = +4,0% · 9,4/10,0 = −6,0% · 10,0/125 = 8,0% · 9,4/140 = 6,7%
+  // Impacto da queda de margem: 18% × 140,0 = 25,2 → 25,2 − 22,4 = 2,8 (= 2 pontos × 140,0).
+  // Erro plantado: 18% × 125,0 (receita de 2025) = 22,5 → 22,5 − 22,4 = 0,1 ("pouca coisa").
   const DRE = [
-    { id: 'rec', label: 'Receita líquida', a: '42,0', b: '48,0', v: '+14,3%', tone: 'up' },
-    { id: 'cpv', label: '(−) Custo das vendas', a: '27,3', b: '33,6', v: '+23,1%', tone: 'dn' },
-    { id: 'lb', label: '(=) Lucro bruto', a: '14,7', b: '14,4', v: '−2,0%', tone: 'dn', bold: true },
-    { id: 'mb', label: 'Margem bruta', a: '35,0%', b: '30,0%', v: '−5,0 p.p.', tone: 'dn', bold: true },
-    { id: 'desp', label: '(−) Despesas operacionais', a: '8,0', b: '8,4', v: '+5,0%', tone: 'dn' },
-    { id: 'ebitda', label: '(=) EBITDA', a: '6,7', b: '6,0', v: '−10,4%', tone: 'dn', bold: true },
-    { id: 'me', label: 'Margem EBITDA', a: '16,0%', b: '12,5%', v: '−3,5 p.p.', tone: 'dn' },
+    { id: 'rec', label: 'Receita líquida', a: '125,0', b: '140,0', v: '+12,0%', tone: 'up' },
+    { id: 'cpv', label: '(−) Custo das vendas', a: '102,5', b: '117,6', v: '+14,7%', tone: 'dn' },
+    { id: 'lb', label: '(=) Lucro bruto', a: '22,5', b: '22,4', v: '−0,4%', tone: 'dn', bold: true },
+    { id: 'mb', label: 'Margem bruta', a: '18,0%', b: '16,0%', v: '−2,0 p.p.', tone: 'dn', bold: true },
+    { id: 'desp', label: '(−) Despesas operacionais', a: '12,5', b: '13,0', v: '+4,0%', tone: 'dn' },
+    { id: 'ebitda', label: '(=) EBITDA', a: '10,0', b: '9,4', v: '−6,0%', tone: 'dn', bold: true },
+    { id: 'me', label: 'Margem EBITDA', a: '8,0%', b: '6,7%', v: '−1,3 p.p.', tone: 'dn' },
   ];
 
-  // Aula expressa (mini 1): três passos, cada um com versões "de outro jeito" e a conta.
+  // Ensaio (mini 1): três passos, cada um com versões "de outro jeito" e a conta.
   const AULA = [
     {
       titulo: 'O que aconteceu',
-      rows: ['rec', 'cpv'],
-      main: 'Vocês venderam *14,3% a mais*: de R$ 42,0 para R$ 48,0 milhões. Só que o custo das vendas subiu *23,1%*. O custo correu mais rápido que a receita.',
+      rows: ['rec', 'cpv', 'lb'],
+      main: 'Vocês venderam *12% a mais*: de R$ 125 para R$ 140 milhões. Só que o custo das vendas subiu *14,7%*. O custo correu mais rápido que a receita.',
       alts: [
+        'Olhe o lucro bruto: vendemos *R$ 15 milhões a mais* e ele ficou parado, 22,5 → 22,4. O crescimento inteiro foi comido pelo custo.',
         'Em uma frase para o conselho: *crescemos em vendas, mas cada venda ficou mais cara de entregar.*',
-        'Pense numa padaria: vendeu mais pão, mas a farinha subiu mais do que o preço do pão.',
       ],
-      conta: 'Receita: 48,0 ÷ 42,0 = 1,143 → *+14,3%*\nCusto: 33,6 ÷ 27,3 = 1,231 → *+23,1%*',
+      conta: 'Receita: 140,0 ÷ 125,0 = 1,120 → *+12,0%*\nCusto: 117,6 ÷ 102,5 = 1,147 → *+14,7%*\nLucro bruto: 22,4 − 22,5 = *−0,1*',
     },
     {
       titulo: 'A margem',
       rows: ['lb', 'mb'],
-      main: 'Margem bruta é o que sobra de cada real vendido depois do custo das vendas. Caiu de 35,0% para 30,0%: *5 pontos percentuais* a menos. Atenção: são 5 *pontos*, não 5%.',
+      main: 'A frase para o conselho: *de cada R$ 100 vendidos, sobravam R$ 18 depois do custo; agora sobram R$ 16.* São 2 *pontos* percentuais a menos, não 2%.',
       alts: [
-        'De cada R$ 100 vendidos, sobravam R$ 35. Agora sobram R$ 30.',
-        'Ponto percentual é a régua; “por cento” é o tamanho do tombo. De 35 para 30 são *5 pontos* na régua, mas a margem encolheu *uns 14%*. No conselho, alguém vai misturar os dois.',
+        'Sem jargão nenhum: a margem bruta é o troco que fica de cada real vendido depois de pagar o custo da mercadoria. Era 18 centavos. Virou 16.',
+        'Ponto percentual é a régua; “por cento” é o tamanho do tombo. De 18 para 16 são *2 pontos* na régua, mas a margem encolheu *uns 11%*. No conselho, alguém vai misturar os dois.',
       ],
-      conta: '2025: 14,7 ÷ 42,0 = *35,0%*\n2026: 14,4 ÷ 48,0 = *30,0%*\nDiferença: 30,0 − 35,0 = *−5,0 pontos*',
+      conta: '2025: 22,5 ÷ 125,0 = *18,0%*\n2026: 22,4 ÷ 140,0 = *16,0%*\nDiferença: 16,0 − 18,0 = *−2,0 pontos*',
     },
     {
       titulo: 'Por que caiu?',
-      rows: ['cpv', 'desp'],
-      main: 'Daqui eu só levanto *suspeitos*: frete ou insumo mais caro, mais desconto para vender, ou mais venda do que dá menos margem. Quem dá o veredito é a Bia, com as notas e os contratos.',
+      rows: ['rec', 'cpv'],
+      main: 'A nota da Bia de hoje cedo diz *frete*. Pode ser, mas o DRE sozinho não prova. Daqui eu só levanto *suspeitos*: frete ou insumo mais caro, desconto para vender, ou mais venda dos produtos de margem menor. Quem dá o veredito é a Bia.',
       alts: [
-        'O DRE mostra *o quê* aconteceu. O *porquê* está nas notas, nos contratos e na cabeça de quem toca a operação.',
+        'O DRE mostra *o quê* aconteceu. O *porquê* está nas notas fiscais, nos contratos e na cabeça de quem toca a operação.',
         'É como um exame: mostra a febre, não a causa. Hipótese minha não é diagnóstico.',
       ],
       conta: 'Aqui não tem conta: tem *hipótese*. Cada uma se confirma com um dado: nota de frete, tabela de descontos, vendas por produto.',
@@ -72,19 +75,19 @@
 
   // Rascunho da Faísca com o erro plantado (mini 2): a linha 3 usa a receita de 2025.
   const PASSOS = [
-    { n: 1, txt: 'Receita do 3º tri de 2026: *R$ 48,0 mi*', ok: 'A linha 1 confere: o DRE mostra R$ 48,0 mi de receita no 3º tri de *2026*.' },
-    { n: 2, txt: 'Margem bruta de 2025: 14,7 ÷ 42,0 = *35,0%*', ok: 'A linha 2 confere: 14,7 ÷ 42,0 = 0,35. É a margem do ano passado, calculada sobre a receita do ano passado. Certinho.' },
-    { n: 3, txt: 'Lucro bruto se a margem de 35% fosse mantida: 35,0% × 42,0 = *R$ 14,7 mi*', bad: true, fix: '→ 35,0% × 48,0 = R$ 16,8 mi' },
-    { n: 4, txt: 'Lucro bruto real de 2026: *R$ 14,4 mi*', ok: 'A linha 4 confere: o lucro bruto de 2026 no DRE é R$ 14,4 mi.' },
-    { n: 5, txt: 'Impacto da queda: 14,7 − 14,4 = *R$ 0,3 mi*', near: true, fix: '→ 16,8 − 14,4 = R$ 2,4 mi', ok: 'Quase! A subtração está certa: 14,7 − 14,4 = 0,3. Mas ela herdou um número errado de antes. *De onde saiu esse 14,7?*' },
+    { n: 1, txt: 'Receita do 3º tri de 2026: *R$ 140,0 mi*', ok: 'A linha 1 confere: o DRE mostra R$ 140,0 mi de receita no 3º tri de *2026*.' },
+    { n: 2, txt: 'Margem bruta de 2025: 22,5 ÷ 125,0 = *18,0%*', ok: 'A linha 2 confere: 22,5 ÷ 125,0 = 0,18. É a margem do ano passado, calculada sobre a receita do ano passado. Certinho.' },
+    { n: 3, txt: 'Lucro bruto se a margem de 18% fosse mantida: 18,0% × 125,0 = *R$ 22,5 mi*', bad: true, fix: '→ 18,0% × 140,0 = R$ 25,2 mi' },
+    { n: 4, txt: 'Lucro bruto real de 2026: *R$ 22,4 mi*', ok: 'A linha 4 confere: o lucro bruto de 2026 no DRE é R$ 22,4 mi.' },
+    { n: 5, txt: 'Impacto da queda: 22,5 − 22,4 = *R$ 0,1 mi*', near: true, fix: '→ 25,2 − 22,4 = R$ 2,8 mi', ok: 'Quase! A subtração está certa: 22,5 − 22,4 = 0,1. Mas ela usa um número que veio de cima. *De onde saiu esse 22,5?*' },
   ];
 
-  const SLIDE_PAUTA = ['Conselho — amanhã, 9h', 'Resultado do 3º trimestre', 'Margem bruta: por que caiu?', 'Quanto isso custou?'];
-  const SLIDE_PRONTO = ['Margem bruta — 3º trimestre', '35,0% → 30,0% (−5 pontos)', 'Impacto: R$ 2,4 mi no trimestre', 'Causas: confirmar com a Bia'];
-  const SLIDE_FINAL = ['Margem bruta — 3º trimestre', '35,0% → 30,0% (−5 pontos)', 'Impacto: R$ 2,4 mi no trimestre', 'Causas: frete e descontos de setembro'];
-  const CHAT_ABRIU = [['eu', 'Me ajuda a entender o DRE do 3º tri?'], ['ia', 'Claro! Vamos por partes: o que aconteceu, a margem e as hipóteses.']];
-  const CHAT_ERRADO = [['eu', 'Quanto a queda de margem custou no trimestre?'], ['ia', '35% × 42,0 = 14,7 → impacto de R$ 0,3 mi. Pouca coisa!']];
-  const CHAT_CERTO = [['eu', 'Refaz na planilha, com as fórmulas à mostra.'], ['ia', '35% × 48,0 = 16,8 → 16,8 − 14,4 = R$ 2,4 mi. Conferido por dois caminhos.']];
+  const SLIDE_PAUTA = ['Dona Marta — amanhã, 9h', 'Resultado do 3º trimestre', 'Margem bruta: por que caiu?', 'Quanto isso custou?'];
+  const SLIDE_PRONTO = ['Margem bruta — 3º trimestre', '18,0% → 16,0% (−2 pontos)', 'Impacto: R$ 2,8 mi no trimestre', 'Causas: confirmar com a Bia'];
+  const SLIDE_FINAL = ['Margem bruta — 3º trimestre', '18,0% → 16,0% (−2 pontos)', 'Impacto: R$ 2,8 mi no trimestre', 'Causas: frete (ago.) e descontos (set.)'];
+  const CHAT_ABRIU = [['eu', 'Me ajuda a explicar o DRE do 3º tri?'], ['ia', 'Claro! Vamos por partes: o que aconteceu, a margem e as hipóteses.']];
+  const CHAT_ERRADO = [['eu', 'Quanto a queda de margem custou no trimestre?'], ['ia', '18% × 125,0 = 22,5 → impacto de R$ 0,1 mi. Pouca coisa!']];
+  const CHAT_CERTO = [['eu', 'Refaz na planilha, com as fórmulas à mostra.'], ['ia', '18% × 140,0 = 25,2 → 25,2 − 22,4 = R$ 2,8 mi. Conferido por dois caminhos.']];
 
   // Pontos do escritório que não são "spots" do ambiente
   const MONITOR = { x: 0.92, y: 1.05, z: -1.3 };
@@ -94,6 +97,8 @@
   const office = (extra) => Object.assign({ time: 'tarde', screen: 'planilha', papers: 0.35, tv: SLIDE_PAUTA, chat: CHAT_ABRIU, typing: false }, extra || {});
   /** Promessa em segundo plano: evita "rejeição não tratada" se o capítulo for interrompido. */
   const bg = (p) => { if (p && p.catch) p.catch(() => {}); return p; };
+  /** Rola o painel do minigame só o necessário para mostrar o elemento (celular). */
+  const mostra = (node) => { setTimeout(() => { try { node.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) { /* nada */ } }, 30); };
   /** Animação temporária da Faísca (reação a uma escolha). */
   const fa = (G, anim, secs) => bg(G.faisca.play(anim, secs || 1.6));
 
@@ -106,17 +111,21 @@
   }
   function olhaMonitor(G) { G.player.lookAt(MONITOR); }
 
-  /** Bia entra pela porta (ou já está na sala) e fica de frente para o pai. */
-  async function biaEntra(G) {
+  /** Bia entra pela porta e vem até a mesa. Devolve {bia, chegou}: dá para falar enquanto ela anda. */
+  function biaEntra(G) {
     const bia = G.actor('bia');
     bia.set({ props: { tablet: true }, expr: 'preocupado' });
     bia.at('porta');
     G.sfx('door');
     G.player.lookAt(bia);
-    await bia.walk({ x: 1.45, z: 0.62 });
-    await bia.walk(BIA_PE);
-    bia.face(G.pai);
-    return bia;
+    const chegou = bg(bia.walk({ x: 1.45, z: 0.62 }).then(() => bia.walk(BIA_PE)).then(() => { bia.face(G.pai); }));
+    return { bia, chegou };
+  }
+  /** Variável de outro capítulo (ex.: o ceticismo escolhido no Prólogo), se existir. */
+  function varDe(cap, k) {
+    const d = P2.save && P2.save.data && P2.save.data.progress;
+    const v = d && d.vars && d.vars[cap];
+    return v ? v[k] : undefined;
   }
   /** Bia sai (anda até a porta enquanto a conversa continua). */
   function biaSai(G, bia) {
@@ -151,7 +160,7 @@
   .c6-grid { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); grid-template-areas: "src" "draft" "act" "calc"; }
   .c6-src { grid-area: src; } .c6-draft { grid-area: draft; } .c6-act { grid-area: act; } .c6-calc { grid-area: calc; }
   @media (min-width: 860px) {
-    .c6-grid { grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr); grid-template-areas: "src draft" "calc draft" "calc act"; align-items: start; }
+    .c6-grid { grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr); grid-template-areas: "src draft" "act draft" "calc draft"; grid-template-rows: auto auto 1fr; align-items: start; }
   }
   .c6-draft .mg-line { display: flex; gap: 10px; align-items: flex-start; min-height: 46px; padding: 8px 10px; }
   .c6-draft .mg-line .c6-n { flex: 0 0 auto; font-family: var(--head); font-weight: 800; background: #eef0f6; color: var(--ink); border-radius: 8px; min-width: 28px; text-align: center; padding: 1px 6px; }
@@ -319,14 +328,16 @@
   /** Comentário da Faísca sobre o resultado da calculadora (ajuda sem entregar). */
   function dicaConta(expr, r) {
     const near = (x) => Math.abs(r - x) < 0.006;
-    if (near(16.8)) return '16,8: lucro bruto com a margem antiga sobre a receita de 2026. Hmm… na minha linha 3 está 14,7.';
-    if (near(2.4)) return '2,4 milhões? Bem longe dos meus 0,3. Alguma linha minha está torta…';
-    if (near(14.7) && /42/.test(expr)) return '14,7, igualzinho à minha linha 3. A conta bate… mas 42,0 é a receita de que ano?';
-    if (near(14.7)) return '14,7: o lucro bruto de 2025.';
-    if (near(0.35) || near(35)) return '35%: a margem de 2025. A linha 2 confere.';
-    if (near(0.3) && /÷/.test(expr)) return '30%: a margem de 2026.';
-    if (near(0.3) || near(-0.3)) return '0,3: o meu resumo. Mas de onde veio o 14,7 que eu usei?';
-    if (near(0.05) || near(5)) return '5 pontos: a diferença entre as duas margens.';
+    if (near(25.2)) return '25,2: o lucro bruto com a margem antiga sobre a receita de 2026. Hmm… na minha linha 3 está 22,5.';
+    if (near(2.8)) return '2,8 milhões? Bem longe dos meus 0,1. Alguma linha minha está torta…';
+    if (near(22.5) && /125/.test(expr)) return '22,5, igualzinho à minha linha 3. A conta bate… mas 125,0 é a receita de que ano?';
+    if (near(22.5)) return '22,5: o lucro bruto de 2025.';
+    if (near(0.18) || near(18)) return '18%: a margem de 2025. A linha 2 confere.';
+    if (near(0.16) || near(16)) return '16%: a margem de 2026.';
+    if (near(1.4)) return '1,4 milhão: quanto vale cada ponto de margem neste trimestre.';
+    if (near(15)) return '15 milhões: quanto a receita cresceu.';
+    if (near(0.1) || near(-0.1)) return '0,1: o meu resumo. Mas de onde veio o 22,5 que eu usei?';
+    if (near(0.02) || near(2) || near(-2)) return '2 pontos: a diferença entre as duas margens.';
     return '';
   }
   function calculadora(api) {
@@ -387,7 +398,7 @@
       show();
     }
     const chips = el('div', 'c6-chips');
-    [['48,0', 'receita 2026'], ['42,0', 'receita 2025'], ['14,4', 'l. bruto 2026'], ['14,7', 'l. bruto 2025'], ['35%', 'margem 2025'], ['30%', 'margem 2026']].forEach(([v, s]) => {
+    [['140,0', 'receita 2026'], ['125,0', 'receita 2025'], ['22,4', 'l. bruto 2026'], ['22,5', 'l. bruto 2025'], ['18%', 'margem 2025'], ['16%', 'margem 2026']].forEach(([v, s]) => {
       const b = el('button', 'mg-chip', [v, el('small', null, s)]);
       b.type = 'button';
       b.addEventListener('click', (e) => { e.stopPropagation(); chip(v); });
@@ -435,7 +446,7 @@
         draft.appendChild(b);
         return { p, b, tx, orig };
       });
-      const concl = el('div', 'c6-concl', el('span', 'c6-orig', R('Resumo: “a queda custou só uns *R$ 300 mil*. Pouca coisa: dá para tranquilizar o conselho.”')));
+      const concl = el('div', 'c6-concl', el('span', 'c6-orig', R('Resumo: “a queda custou só uns *R$ 100 mil*. Pouca coisa: dá para tranquilizar o conselho.”')));
       draft.appendChild(concl);
       grid.appendChild(draft);
 
@@ -443,8 +454,8 @@
       const act = el('div', 'c6-act');
       const bMarca = api.btn('Toque numa linha do rascunho', () => marca(), { cls: 'primary', disabled: true });
       const fb = el('div', 'mg-feedback', R('A calculadora é de graça: conferir *não conta* como tentativa. Só conta quando você marcar uma linha como errada.'));
-      act.appendChild(bMarca);
       act.appendChild(fb);
+      act.appendChild(bMarca);
       grid.appendChild(act);
 
       // Calculadora (recolhida no começo)
@@ -455,6 +466,7 @@
         pad.hidden = !pad.hidden;
         bCalc.lastChild.textContent = pad.hidden ? '🧮 Abrir a calculadora' : '🧮 Fechar a calculadora';
         api.sfx('select');
+        if (!pad.hidden) mostra(pad);
       }, { cls: 'small' });
       calc.appendChild(bCalc);
       calc.appendChild(pad);
@@ -476,11 +488,13 @@
         api.sfx('select');
         setMarcaLabel('✗ A linha ' + n + ' está errada', true);
         setTimeout(() => { try { bMarca.focus({ preventScroll: true }); } catch (e) { /* nada */ } }, 0);
+        mostra(bMarca);
       }
       function feedback(kind, txt) {
         fb.className = 'mg-feedback ' + kind;
         fb.innerHTML = '';
         fb.appendChild(R(txt));
+        mostra(fb);
       }
       function corrige() {
         const L3 = lines[2], L5 = lines[4];
@@ -492,7 +506,7 @@
         const ck5 = L5.tx.querySelector('.c6-ck'); if (ck5) ck5.remove();
         L5.tx.appendChild(el('span', 'c6-fix', PASSOS[4].fix));
         concl.classList.add('c6-x');
-        concl.appendChild(el('span', 'c6-fix', '→ custou R$ 2,4 mi. Não é pouca coisa.'));
+        concl.appendChild(el('span', 'c6-fix', '→ custou R$ 2,8 mi. Não é pouca coisa.'));
         lines.forEach((x) => (x.b.disabled = true));
       }
       function fim(found) {
@@ -509,7 +523,7 @@
         if (L.p.bad) {
           api.sfx('success');
           fa(G, 'ashamed', 2.2);
-          feedback('ok', '*Achou!* Os 35% estão certos, mas foram aplicados sobre R$ 42,0 mi, a receita de *2025*. A pergunta é sobre 2026: 35% × 48,0 = *R$ 16,8 mi*. A conta até bate na calculadora; o erro estava na *base*.');
+          feedback('ok', '*Achou!* Os 18% estão certos, mas foram aplicados sobre R$ 125,0 mi, a receita de *2025*. A pergunta é sobre 2026: 18% × 140,0 = *R$ 25,2 mi*. A conta até bate na calculadora; o erro estava na *base*.');
           api.say(tentativas === 1 ? 'De primeira! Caneta vermelha certeira.' : 'Pegou! E repare: o erro nasceu na linha 3 e contaminou o resto.', 'faisca');
           fim(true);
           return;
@@ -524,7 +538,7 @@
         setMarcaLabel('Toque em outra linha do rascunho', false);
         if (erradas >= 3) {
           fa(G, 'ashamed', 2.2);
-          feedback('info', 'Era a *linha 3*: os 35% foram aplicados sobre R$ 42,0 mi, a receita de *2025*. Para 2026, o certo é 35% × 48,0 = *R$ 16,8 mi*. A conta batia na calculadora; a *base* é que estava errada.');
+          feedback('info', 'Era a *linha 3*: os 18% foram aplicados sobre R$ 125,0 mi, a receita de *2025*. Para 2026, o certo é 18% × 140,0 = *R$ 25,2 mi*. A conta batia na calculadora; a *base* é que estava errada.');
           api.say('Esse erro engana porque a conta em si está certinha. Por isso a gente confere linha por linha.', 'faisca');
           fim(false);
           return;
@@ -541,8 +555,8 @@
   function cartaoCaminhos(G) {
     const el = P2.ui.el;
     const node = el('div', 'c6-paths', [
-      el('div', 'c6-path', [el('b', null, 'Caminho 1 · margem antiga sobre a receita de 2026'), el('br'), '35,0% × 48,0 = 16,8 → 16,8 − 14,4 = ', el('span', 'c6-r2', 'R$ 2,4 mi')]),
-      el('div', 'c6-path', [el('b', null, 'Caminho 2 · diferença de margem'), el('br'), '(35,0% − 30,0%) × 48,0 = 5 pontos × 48,0 = ', el('span', 'c6-r2', 'R$ 2,4 mi')]),
+      el('div', 'c6-path', [el('b', null, 'Caminho 1 · margem antiga sobre a receita de 2026'), el('br'), '18,0% × 140,0 = 25,2 → 25,2 − 22,4 = ', el('span', 'c6-r2', 'R$ 2,8 mi')]),
+      el('div', 'c6-path', [el('b', null, 'Caminho 2 · diferença de margem'), el('br'), '(18,0% − 16,0%) × 140,0 = 2 pontos × 140,0 = ', el('span', 'c6-r2', 'R$ 2,8 mi')]),
       el('div', 'c6-bate', '✔ Bateu. Dá para levar ao conselho.'),
     ]);
     P2.ui.css('cap6', CSS);
@@ -573,12 +587,14 @@
         await G.cutscene(async () => {
           bg(G.cam.shot('porta', 4.5));
           await G.narrate('16h30. A reunião infinita e o trânsito ficaram para trás. O sol entra baixo e pinta a sala de laranja.');
-          G.cam.focus(G.faisca, 'close', { dur: 0.8 }).catch(() => {});
+          G.cam.focus(G.faisca, 'close', { side: -1, dur: 0.8 }).catch(() => {});
           await G.say('faisca', 'Ufa, escritório quietinho! Parece até que o dia acabou.', { cam: false });
           fa(G, 'spin', 1.2);
           await G.say('pai', 'O dia de um CEO acaba quando o conselho vai dormir, Faísca.', { expr: 'cansado' });
         });
         G.player.fp();
+        G.sfx('notify');
+        G.toast('*Bia:* fechei o DRE do trimestre. Passo aí em 5 min?', { icon: '💬', dur: 4 });
 
         await G.explore({
           objetivo: 'Volte para a sua mesa',
@@ -613,11 +629,13 @@
         sentaNaMesa(G);
 
         // A Bia traz a dor do dia
-        const bia = await biaEntra(G);
-        await G.say('bia', '{pai}, licença. Fechei o DRE do terceiro trimestre: vendemos 14% a mais… e a margem bruta caiu de 35% para 30%.', { expr: 'preocupado' });
+        const { bia, chegou } = biaEntra(G);
+        await G.say('bia', '{pai}, licença. Tem um minuto? É o trimestre.', { expr: 'preocupado' });
+        await chegou;
+        await G.say('bia', 'Fechei o DRE completo. Bateu com a prévia do seu relatório: vendemos 12% a mais… e a margem bruta caiu de 18% para 16%.', { expr: 'preocupado' });
         await G.say('pai', 'Vendemos mais e ganhamos menos. Clássico.', { expr: 'desconfiado' });
-        await G.say('bia', 'A Dona Marta quer duas respostas amanhã às 9h: *por que* caiu e *quanto* isso custou.', { expr: 'determinado' });
-        await G.say('bia', 'Meu time está no meio do fechamento. Às cinco e meia eu passo aqui e a gente confere junto.', { expr: 'cansado' });
+        await G.say('bia', 'A Dona Marta leu o relatório e quer duas respostas amanhã às 9h: *por que*, exatamente, e *quanto* isso custou em reais.', { expr: 'determinado' });
+        await G.say('bia', 'Agora vou fechar o fluxo de caixa com o time. Às cinco e meia eu passo aqui e a gente confere junto.', { expr: 'cansado' });
         await G.say('pai', 'Combinado. Até lá eu já sei explicar isso em duas frases.', { expr: 'determinado' });
         bia.setExpr('amigavel');
         const saida = biaSai(G, bia);
@@ -634,7 +652,7 @@
         if (onde === 'gratis') {
           G.faisca.emote('!');
           fa(G, 'scared', 1.8);
-          await G.say('faisca', 'Sinal vermelho! Resultado não divulgado é material de conselho: em conta pessoal gratuita, a conversa pode ficar guardada e até ajudar a treinar o modelo.');
+          await G.say('faisca', 'Sinal vermelho! Resultado não divulgado é material de conselho: em conta pessoal gratuita, a conversa pode ficar guardada e até ser usada para treinar a IA.');
           await G.say('pai', 'Tá certo. Ferramenta da empresa.', { expr: 'sem_graca' });
         } else if (onde === 'disfarce') {
           fa(G, 'doubt', 1.8);
@@ -664,7 +682,7 @@
 
         const aula = await miniAula(G);
         olhaMonitor(G);
-        await G.say('pai', 'Cinco pontos, não cinco por cento. O Dr. Almeida, do conselho, vive misturando os dois.', { expr: 'rindo' });
+        await G.say('pai', 'Dois pontos, não dois por cento. O Dr. Almeida, do conselho, vive misturando os dois.', { expr: 'rindo' });
         if (aula && aula.reexplica > 0) {
           fa(G, 'celebrate', 1.4);
           await G.say('faisca', 'E obrigada pelos “explica de outro jeito”. É assim mesmo: até a explicação ficar do seu jeito.');
@@ -675,18 +693,18 @@
         G.sceneParams({ chat: CHAT_ERRADO });
         await G.aiChat([
           { from: 'voce', text: 'Quanto essa queda de margem custou, em reais, no trimestre?' },
-          { from: 'ia', text: 'Fácil! Em 5 passos:\n1. Receita do 3º tri de 2026: R$ 48,0 mi\n2. Margem bruta de 2025: 14,7 ÷ 42,0 = 35,0%\n3. Lucro bruto se a margem fosse mantida: 35,0% × 42,0 = R$ 14,7 mi\n4. Lucro bruto real de 2026: R$ 14,4 mi\n5. Impacto: 14,7 − 14,4 = R$ 0,3 mi\n*A queda custou só uns R$ 300 mil.* Pouca coisa: dá para tranquilizar o conselho!', thinking: 1.4 },
+          { from: 'ia', text: 'Fácil! Em 5 passos:\n1. Receita do 3º tri de 2026: R$ 140,0 mi\n2. Margem bruta de 2025: 22,5 ÷ 125,0 = 18,0%\n3. Lucro bruto se a margem fosse mantida: 18,0% × 125,0 = R$ 22,5 mi\n4. Lucro bruto real de 2026: R$ 22,4 mi\n5. Impacto: 22,5 − 22,4 = R$ 0,1 mi\n*A queda custou só uns R$ 100 mil.* Pouca coisa: dá para tranquilizar o conselho!', thinking: 1.4 },
         ], { title: 'Faísca', subtitle: 'ferramenta aprovada da empresa' });
         fa(G, 'celebrate', 1.8);
         await G.say('faisca', 'Prontinho! Pode dormir tranquilo hoje.', { cam: false });
         await G.narrate('*O bigode de {pai} dá aquela tremidinha.*');
-        await G.think('pai', 'Trezentos mil? Cinco pontos de margem num trimestre de 48 milhões… Isso não fecha.');
+        await G.think('pai', 'Cem mil? Num trimestre de 140 milhões, cada ponto de margem vale 1,4 milhão. E foram dois pontos. Isso não fecha.');
 
         const reacao = await G.choose([
           { text: 'Ótimo. Manda isso para a Dona Marta.', value: 'manda' },
           { text: 'Espera. Me mostra a conta, passo a passo.', value: 'passos' },
           { text: 'Qual o seu grau de certeza? O que pode estar errado?', value: 'certeza' },
-        ], { prompt: 'R$ 300 mil, “pouca coisa”. E agora?' });
+        ], { prompt: 'R$ 100 mil, “pouca coisa”. E agora?' });
         G.v.reacao = reacao;
         if (reacao === 'manda') {
           G.sfx('whoosh');
@@ -694,7 +712,7 @@
           await G.say('faisca', 'Mandando!', { cam: false });
           // Flash-forward: amanhã, 9h03, sala do conselho
           await G.fadeOut(0.5, '#ffffff');
-          G.scene('sala_reuniao', { clock: '09:03', time: 'dia', chaos: 0, slide: { title: 'Margem bruta — 3º trimestre', lines: ['Impacto da queda: R$ 0,3 mi', '“Pouca coisa”'] } });
+          G.scene('sala_reuniao', { clock: '09:03', time: 'dia', chaos: 0, slide: { title: 'Margem bruta — 3º trimestre', lines: ['Impacto da queda: R$ 0,1 mi', '“Pouca coisa”'] } });
           G.pai.at('cabeceira');
           G.pai.setAnim('sit');
           G.faisca.set({ x: G.pai.x - 0.5, z: G.pai.z + 0.6 });
@@ -705,7 +723,7 @@
           G.player.lookAt(G.chefe);
           await G.fadeIn(0.6);
           await G.narrate('Amanhã, 9h03. Sala do conselho.');
-          await G.say('chefe', '{pai}, o seu e-mail diz que a queda custou R$ 300 mil. “Pouca coisa”.', { expr: 'desconfiado' });
+          await G.say('chefe', '{pai}, o seu e-mail diz que a queda custou R$ 100 mil. “Pouca coisa”.', { expr: 'desconfiado' });
           await G.say('chefe', 'A Bia fez outra conta e deu bem mais. Qual dos dois números eu levo a sério?', { expr: 'impaciente' });
           G.shake(2, 0.4);
           await G.rewind(1.6);
@@ -722,7 +740,7 @@
           await G.say('pai', 'Então a gente confere antes. Mostra a conta, passo a passo.', { expr: 'determinado' });
         } else if (reacao === 'passos') {
           fa(G, 'teach', 1.6);
-          await G.say('faisca', 'Boa! Pedir a conta passo a passo é o primeiro teste de conferência. Vou deixar os cinco passos na tela.', { cam: false });
+          await G.say('faisca', 'Boa! Pedir a conta passo a passo é o primeiro teste: mostrar de onde veio cada número. Vou deixar os cinco passos na tela.', { cam: false });
         } else {
           fa(G, 'think', 1.8);
           await G.say('faisca', 'Alta… mas, sendo honesta: conta de cabeça é o meu ponto fraco. Posso ter pegado algum número da coluna errada.', { cam: false });
@@ -752,23 +770,24 @@
         if (found) {
           await G.say('pai', tentativas === 1 ? 'Linha três. Você usou a receita do ano passado.' : 'Achei. Linha três: a receita do ano passado.', { expr: 'orgulhoso' });
           G.faisca.setAnim('ashamed');
-          await G.cam.focus(G.faisca, 'close', { dur: 0.7 });
-          await G.say('faisca', 'Ai. Base errada: 35% sobre 42 milhões, quando era sobre 48. E a conta em si estava certinha, o pior tipo de erro: parece certo.');
+          await G.cam.focus(G.faisca, 'close', { side: -1, dur: 0.7 });
+          await G.say('faisca', 'Ai. Base errada: 18% sobre 125 milhões, quando era sobre 140. E a conta em si estava certinha: o pior tipo de erro, porque parece certo.');
           await G.say('faisca', 'Obrigada. Foi o seu faro que pegou: quem tem trinta anos de DRE sente quando um número não fecha.');
         } else {
           G.faisca.setAnim('ashamed');
-          await G.cam.focus(G.faisca, 'close', { dur: 0.7 });
-          await G.say('faisca', 'Era a linha três. Usei a receita do ano passado: 35% sobre 42 milhões, quando era sobre 48.');
+          await G.cam.focus(G.faisca, 'close', { side: -1, dur: 0.7 });
+          await G.say('faisca', 'Era a linha três. Usei a receita do ano passado: 18% sobre 125 milhões, quando era sobre 140.');
           await G.cam.shot('poder', 0.7);
           await G.say('pai', 'E a conta em si estava certa. Por isso enganava.', { expr: 'pensativo' });
-          await G.cam.focus(G.faisca, 'close', { dur: 0.6 });
+          await G.cam.focus(G.faisca, 'close', { side: -1, dur: 0.6 });
           await G.say('faisca', 'Exato: o pior tipo de erro, porque parece certo. É por isso que se confere linha por linha.');
         }
         await G.cam.shot('poder', 0.7);
+        if (varDe('prologo', 'ceticismo') === 'inventou') await G.say('pai', 'Hoje cedo eu disse que essa coisa inventa número. Pelo menos agora eu sei onde procurar.', { expr: 'desconfiado' });
         await G.say('pai', 'Achei que computador fosse bom de conta.', { expr: 'desconfiado' });
         G.faisca.setAnim('teach');
-        await G.cam.focus(G.faisca, 'close', { dur: 0.6 });
-        await G.say('faisca', 'Calculadora é. Eu sou outra coisa: escrevo números do jeito que escrevo palavras. Para ler, explicar e organizar, ótima. Conta de cabeça é o meu ponto fraco.');
+        await G.cam.focus(G.faisca, 'close', { side: -1, dur: 0.6 });
+        await G.say('faisca', 'Calculadora é. Eu sou outra coisa: escrevo números do jeito que escrevo palavras. Para ler, explicar e organizar, sou ótima. Para fazer a conta, chame a planilha.');
         G.faisca.setAnim('idle');
         G.player.fp();
         G.talkCam(true);
@@ -799,7 +818,7 @@
         G.sceneParams({ chat: CHAT_CERTO });
         await G.aiChat([
           { from: 'voce', text: 'Refaz na planilha, com as fórmulas à mostra.' },
-          { from: 'ia', text: 'Feito, com cada fórmula à vista:\n- B1 · Receita 2026 = 48,0\n- B2 · Margem 2025 = 14,7 ÷ 42,0 → 35,0%\n- B3 · Lucro bruto com a margem antiga = B2 × B1 → 16,8\n- B4 · Lucro bruto real = 14,4\n- B5 · Impacto = B3 − B4 → *R$ 2,4 mi*\nPremissa (o que eu supus): a margem de 2025 como régua. O resto é conta.', thinking: 1.2 },
+          { from: 'ia', text: 'Feito, com cada fórmula à vista:\n- B1 · Receita 2026 = 140,0\n- B2 · Margem 2025 = 22,5 ÷ 125,0 → 18,0%\n- B3 · Lucro bruto com a margem antiga = B2 × B1 → 25,2\n- B4 · Lucro bruto real = 22,4\n- B5 · Impacto = B3 − B4 → *R$ 2,8 mi*\nPremissa (o que eu supus): a margem de 2025 como régua. O resto é conta.', thinking: 1.2 },
         ], { title: 'Faísca', subtitle: 'ferramenta aprovada da empresa · planilha' });
 
         // Antídoto 2: grau de certeza
@@ -810,7 +829,7 @@
         // Antídoto 3: outro caminho
         const cam = await G.choose([
           { text: 'Pergunto de novo, do mesmo jeito', value: 'repete' },
-          { text: 'Pela diferença de margem: 5 pontos sobre a receita deste ano', value: 'margem' },
+          { text: 'Pela diferença de margem: 2 pontos sobre a receita deste ano', value: 'margem' },
           { text: 'Não precisa. Agora foi a planilha que calculou', value: 'confia' },
         ], { prompt: 'Último teste: conferir por outro caminho. Qual?' });
         G.v.outroCaminho = cam;
@@ -819,17 +838,17 @@
           await G.say('faisca', 'Esse é o caminho que o seu bigode fez lá atrás!', { cam: false });
         } else if (cam === 'repete') {
           fa(G, 'doubt', 1.8);
-          await G.say('faisca', 'Repetir mostra se eu oscilo, mas eu posso tropeçar igualzinho. Um caminho *diferente* pega mais erro: pela diferença de margem, 5 pontos sobre 48.', { cam: false });
+          await G.say('faisca', 'Repetir mostra se eu oscilo, mas eu posso tropeçar igualzinho. Um caminho *diferente* pega mais erro: pela diferença de margem, 2 pontos sobre 140.', { cam: false });
         } else {
           fa(G, 'think', 1.8);
-          await G.say('faisca', 'A planilha calcula com perfeição o que a gente manda. Se a fórmula estiver torta, ela erra com perfeição também. Vamos pela diferença de margem: 5 pontos sobre 48.', { cam: false });
+          await G.say('faisca', 'A planilha calcula com perfeição o que a gente manda. Se a fórmula estiver torta, ela erra com perfeição também. Vamos pela diferença de margem: 2 pontos sobre 140.', { cam: false });
         }
         G.sfx('success');
         G.fx.sparkles(G.faisca);
         await cartaoCaminhos(G);
-        await G.say('pai', 'R$ 2,4 milhões. Oito vezes o que você tinha dito.', { expr: 'determinado' });
+        await G.say('pai', 'R$ 2,8 milhões. Vinte e oito vezes o que você tinha dito.', { expr: 'determinado' });
         fa(G, 'ashamed', 1.6);
-        await G.say('faisca', 'Oito vezes. E eu toda feliz dizendo “pouca coisa”.', { cam: false });
+        await G.say('faisca', 'Vinte e oito vezes. E eu toda feliz dizendo “pouca coisa”.', { cam: false });
         await G.say('pai', 'A IA rascunha. A conta, eu confiro.', { expr: 'orgulhoso' });
         fa(G, 'celebrate', 1.6);
         await G.say('faisca', 'Anotado! Os pedidos certos para números estão no seu Guia do CEO, botão 📘, na seção Números. Inclusive o de conferir por dois caminhos.', { cam: false });
@@ -854,9 +873,9 @@
         G.player.lookAt(bia);
         await G.fadeIn();
         await G.say('bia', 'Cinco e meia em ponto. E aí, quanto custou?', { expr: 'preocupado' });
-        await G.say('pai', 'R$ 2,4 milhões no trimestre. Conferido por dois caminhos.', { expr: 'determinado' });
+        await G.say('pai', 'R$ 2,8 milhões no trimestre. Conferido por dois caminhos.', { expr: 'determinado' });
         bg(bia.play('think', 1.6));
-        await G.say('bia', '… Bate com o meu fechamento: dois e quatro. Você fez isso sozinho?', { expr: 'surpreso' });
+        await G.say('bia', '… Bate com o meu fechamento: dois e oito. Você fez isso sozinho?', { expr: 'surpreso' });
 
         const quem = await G.choose([
           { text: 'Com a Faísca. Ela rascunhou, eu conferi.', value: 'junto' },
@@ -875,12 +894,15 @@
           await G.say('pai', 'E peguei um erro dela no caminho.', { expr: 'orgulhoso' });
         }
         await G.say('bia', 'Pegou um erro da IA? Então me ensina. Meu time leva dois dias nessa explicação todo trimestre.', { expr: 'empolgado' });
-        await G.say('bia', 'E o porquê eu te dou: o frete subiu em agosto. E em setembro o comercial deu desconto pesado para bater a meta.', { expr: 'determinado' });
+        await G.say('bia', 'E o porquê eu te dou. O frete dos insumos subiu em agosto: isso já estava na minha nota.', { expr: 'determinado' });
+        await G.say('bia', 'O que não estava: em setembro, o comercial deu desconto pesado para bater a meta.', { expr: 'desconfiado' });
         await G.say('pai', 'O Jorge.', { expr: 'cansado' });
         bg(bia.play('laugh', 1.4));
         await G.say('bia', 'O Jorge.', { expr: 'rindo' });
         fa(G, 'think', 1.6);
-        await G.say('faisca', 'Isso eu nunca ia adivinhar: não estava no DRE. Eu só sei o que me contam.', { cam: false });
+        await G.say('faisca', 'O desconto eu nunca ia adivinhar: não estava no DRE nem na nota. Eu só sei o que me contam.', { cam: false });
+        await G.say('pai', 'E o reajuste de 6% que a gente aprovou hoje à tarde?', { expr: 'pensativo' });
+        await G.say('bia', 'Recupera boa parte. Desde que o desconto de setembro não vire costume.', { expr: 'determinado' });
         G.sceneParams({ tv: SLIDE_FINAL, papers: 0.28 });
         G.sfx('page');
         await G.say('bia', 'Amanhã às nove, então: você apresenta, eu seguro as perguntas difíceis.', { expr: 'amigavel' });
@@ -896,8 +918,8 @@
               id: 'tv', label: 'O slide de amanhã', icon: '📺', at: 'tv', optional: true,
               onInteract: async (G) => {
                 await G.think('pai', 'Quatro linhas e um número conferido duas vezes. Dá para dormir.');
-                await G.say('faisca', 'E se alguém disser “caiu cinco por cento”…');
-                await G.say('pai', '… cinco *pontos*. Eu corrijo. Com gentileza.', { expr: 'rindo' });
+                await G.say('faisca', 'E se alguém disser “caiu dois por cento”…');
+                await G.say('pai', '… dois *pontos*. Eu corrijo. Com gentileza.', { expr: 'rindo' });
               },
             },
             { id: 'janela', label: 'Olhar o pôr do sol', icon: '🌇', at: 'janela' },
@@ -921,7 +943,7 @@
         await G.say('faisca', 'Aquele estudo famoso? Os próprios autores retiraram para revisão: acharam inconsistências nos dados. Até pesquisa sobre IA se confere.');
 
         await G.fact(['estudo_balancos_retirado', 'reino_unido_copilot_tarefas'], { titulo: 'Para o cético que mora em você' });
-        await G.lesson('A IA ensina e interpreta. *A conta, você confere.*\n- Peça a conta à mostra, passo a passo.\n- Deixe a planilha (ou a ferramenta de análise) calcular.\n- Refaça o número importante por outro caminho.\n- Causa de variação é hipótese: confirme com quem conhece a operação.', { titulo: 'Números na mesa' });
+        await G.lesson('A IA ensina e interpreta. *A conta, você confere.*\n- Peça a conta à mostra, passo a passo.\n- Deixe a planilha (ou a ferramenta de análise) calcular, e confira os totais.\n- Refaça o número importante por outro caminho.\n- Causa de variação é hipótese: confirme com quem conhece a operação.', { titulo: 'Números na mesa' });
       },
     ],
     summary: (G) => {
@@ -929,8 +951,8 @@
       const lines = [];
       if (s.erroPego) lines.push(s.tentativas === 1 ? 'Erro de conta da IA: pego de primeira ✔' : 'Erro de conta da IA: pego na ' + s.tentativas + 'ª tentativa ✔');
       else if (s.erroPego === false) lines.push('Erro de conta da IA: a Faísca mostrou a linha (da próxima, não passa)');
-      lines.push('Impacto da margem conferido por dois caminhos: R$ 2,4 mi');
-      if (s.minutosEconomizados) lines.push('Tempo poupado: ~' + s.minutosEconomizados + ' min (estimativa, já contando a conferência)');
+      lines.push('Impacto da margem conferido por dois caminhos: R$ 2,8 mi');
+      if (s.minutosEconomizados) lines.push('Tempo poupado: ~' + s.minutosEconomizados + ' min (estimativa do jogo, já contando a conferência)');
       return lines;
     },
   });

@@ -489,7 +489,7 @@
       for (let i = 0; i < P.count; i++) {
         const x = P.getX(i) + p.x, y = P.getY(i) + p.y, z = P.getZ(i) + p.z;
         pos.push(x, y, z); nor.push(N.getX(i), N.getY(i), N.getZ(i));
-        const c = colorFn(x, y, z, N.getY(i), p); col.push(c.r, c.g, c.b);
+        const c = colorFn(x, y, z, N.getY(i), p, N.getX(i), N.getZ(i)); col.push(c.r, c.g, c.b);
         ph.push(p.ph == null ? k * 1.37 : p.ph);
       }
       const ix = g.index.array;
@@ -527,22 +527,27 @@
       const cTop = new T.Color('#9a6ae0'), cMid = new T.Color('#6a3fb0'), cBot = new T.Color('#2e1858'), cCore = new T.Color('#4a2890');
       // nuvem principal (corpo) + cauda que afina até perto do chão
       const puffs = [];
-      // anel externo (silhueta irregular), camada de trás, topo alto e miolo
-      for (let i = 0; i < 30; i++) {
-        const a = (i / 30) * Math.PI * 2 + (rr() - 0.5) * 0.15;
-        const ring = 0.95 + (rr() - 0.5) * 0.25;
-        const r = (i % 3 === 0 ? 0.55 : i % 3 === 1 ? 0.38 : 0.3) + rr() * 0.18;
-        puffs.push({ x: Math.cos(a) * ring * 1.25, y: 2.0 + Math.sin(a) * ring * 0.82 + (Math.sin(a) > 0 ? 0.12 : 0), z: (rr() - 0.5) * 0.5 - 0.05, r });
+      // cúmulo com hierarquia de tamanhos (massa central, coroa de bolhas grandes,
+      // bolhas médias no contorno, bolhinhas quebrando a silhueta) + cauda em redemoinho
+      puffs.push({ x: 0, y: 2.0, z: 0, r: 1.0 });
+      [[-0.98, 2.42, -0.12, 0.62], [-0.42, 2.86, -0.16, 0.6], [0.26, 2.98, -0.2, 0.66], [0.9, 2.62, -0.1, 0.6], [1.32, 2.12, -0.16, 0.52], [-1.38, 2.0, -0.12, 0.5],
+        [-1.16, 1.58, 0.02, 0.44], [1.18, 1.6, 0.0, 0.46], [-0.62, 1.24, 0.12, 0.44], [0.58, 1.22, 0.1, 0.46], [0.0, 1.12, 0.14, 0.42],
+        [-0.5, 2.3, -0.58, 0.62], [0.52, 2.2, -0.62, 0.64], [0.0, 2.72, -0.52, 0.52], [-0.82, 1.82, 0.52, 0.38], [0.82, 1.84, 0.5, 0.38]].forEach(([x, y, z, r]) => puffs.push({ x, y, z, r }));
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2 + 0.2 + (rr() - 0.5) * 0.2;
+        const rad = 1.42 + rr() * 0.16;
+        const yk = Math.sin(a) > 0 ? 0.95 : 0.72;
+        puffs.push({ x: Math.cos(a) * rad * 1.08, y: 2.04 + Math.sin(a) * rad * yk, z: (rr() - 0.5) * 0.45 - 0.05, r: 0.17 + rr() * 0.14 });
       }
-      for (let i = 0; i < 12; i++) { const a = rr() * Math.PI * 2; puffs.push({ x: Math.cos(a) * 0.7, y: 2.0 + Math.sin(a) * 0.5, z: 0.25 + rr() * 0.15, r: 0.45 + rr() * 0.2 }); }
-      for (let i = 0; i < 10; i++) puffs.push({ x: (rr() - 0.5) * 1.6, y: 2.3 + rr() * 0.55, z: -0.4 + rr() * 0.35, r: 0.42 + rr() * 0.3 });
-      puffs.push({ x: 0, y: 2.0, z: 0.0, r: 0.95 });
-      // cauda em espiral, afinando
-      for (let i = 0; i < 6; i++) { const k = i / 5; puffs.push({ x: Math.sin(k * 3.2) * 0.32 * (1 - k * 0.5), y: 1.22 - k * 0.85, z: -0.1 + Math.cos(k * 3.2) * 0.15, r: 0.36 * (1 - k * 0.7) }); }
-      const geo = puffCloud(puffs, (x, y, z, ny) => {
+      for (let i = 0; i < 7; i++) { const k = i / 6; puffs.push({ x: Math.sin(k * 3.4 + 0.3) * 0.34 * (1 - k * 0.45), y: 1.02 - k * 0.78, z: -0.04 + Math.cos(k * 3.4) * 0.14, r: 0.34 * (1 - k * 0.72) }); }
+      const geo = puffCloud(puffs, (x, y, z, ny, pf, nx, nz) => {
         const c = cMid.clone();
-        if (y > 2.0) c.lerp(cTop, smooth(2.0, 3.0, y) * 0.8); else c.lerp(cBot, smooth(2.0, 0.4, y) * 0.9);
-        if (ny < -0.3) c.lerp(cBot, 0.35);
+        if (y > 2.0) c.lerp(cTop, smooth(2.0, 3.1, y) * 0.85); else c.lerp(cBot, smooth(2.0, 0.5, y) * 0.9);
+        if (ny < -0.3) c.lerp(cBot, 0.3);
+        // oclusão nas dobras entre bolhas (normal apontando para dentro da nuvem)
+        const ox = pf.x, oy = pf.y - 2.0, oz = pf.z, ol = Math.hypot(ox, oy, oz) || 1;
+        const k = (nx * ox + ny * oy + nz * oz) / ol;
+        c.multiplyScalar(0.72 + 0.28 * smooth(-0.6, 0.5, ol < 0.2 ? 1 : k));
         return c;
       }, 18);
       const cloudM = cloudMaterial('#c890ff', 0.85);
@@ -583,8 +588,8 @@
       // palavras de preocupação orbitando (legíveis: contorno escuro + brilho)
       const WORDS = ['E SE?', 'CARO?', 'VAZOU?', 'VELHO?', 'MENTIRA?', 'MODINHA?', 'EMPREGO?', 'CONTROLE?'];
       const words = WORDS.map((w, i) => {
-        const sp = textSprite(w, { color: '#f4ecff', stroke: '#2a1450', strokeW: 14, size: 76, w: 512, h: 128, glow: '#b07aff', blur: 22 });
-        sp.scale.set(1.15, 0.29, 1);
+        const sp = textSprite(w, { color: '#fbf6ff', stroke: '#2a1450', strokeW: 16, size: 84, w: 512, h: 128, glow: '#c08cff', blur: 26, weight: '900' });
+        sp.scale.set(1.3, 0.325, 1);
         big.add(sp);
         mats.push(sp.material);
         return { m: sp, ph: (i / WORDS.length) * Math.PI * 2, tilt: (i % 3) * 0.35 - 0.35 };
@@ -695,12 +700,14 @@
           teeth.forEach((th) => (th.visible = !friendly));
           // palavras orbitando
           words.forEach((w, i) => {
-            const ang = w.ph + t * 0.32;
-            const rad = 2.05 + Math.sin(t + i) * 0.12;
-            w.m.position.set(Math.cos(ang) * rad, 2.05 + Math.sin(ang * 2 + w.tilt) * 0.5 - droop * (1 + i * 0.3), Math.sin(ang) * rad * 0.62 + 0.35);
+            // órbita inclinada: dos lados na altura do rosto, pela frente passa ACIMA da cabeça (nunca cobre o rosto)
+            const ang = w.ph + t * 0.28;
+            const rad = 2.15 + Math.sin(t * 0.7 + i) * 0.1 + (i % 2) * 0.22;
+            const fz = Math.sin(ang);
+            w.m.position.set(Math.cos(ang) * rad, 2.15 + fz * 0.85 + w.tilt * 0.4 - droop * (1 + i * 0.3), fz * rad * 0.7 + 0.2);
             w.m.material.opacity = (1 - droop) * op;
             const s = 1 + Math.sin(t * 2 + i) * 0.04;
-            w.m.scale.set(1.15 * s, 0.29 * s, 1);
+            w.m.scale.set(1.3 * s, 0.325 * s, 1);
           });
           // raios no ataque
           bolts.forEach((b, i) => {

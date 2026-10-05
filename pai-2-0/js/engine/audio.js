@@ -174,6 +174,8 @@
     'A5:2 C6:2 A5:2 F5:2 G5:2 B5:2 D6:2 B5:2', // F G
     'C6:8 .:2 G5:2 E5:2 D5:2' //               C   (anacruse volta ao E5)
   );
+  // A2 (fim do loop, volta para a intro): última nota resolve sem anacruse
+  const TEMA_FIM = TEMA.split(' | ').slice(0, 7).concat(['C6:12 .:4']).join(' | ');
   const TEMA_C = bars('Cadd9', 'G', 'Am7', 'Fmaj7', 'Cadd9', 'G', 'Fmaj7:8 G:8', 'C');
   const TEMA_BS = bars(bp('C2', 'G2'), bp('G2', 'D2'), bp('A2', 'E2'), bp('F2', 'C2'), bp('C2', 'G2'), bp('G2', 'D2'),
     'F2:6 F2:2 G2:6 G2:2', 'C2:6 C2:2 .:2 C2:2 G1:4');
@@ -287,7 +289,7 @@
     'D2 D2 A2 D2 D2 D2 Ab2 D2', 'D2 D2 Ab2 D2 D2 D2 Ab2 D2', 'Bb1 Bb1 F2 Bb1 Bb1 Bb1 E2 Bb1', 'A1 A1 E2 A1 A1 A1 Eb2 A1'
   );
   // cordas agudas sustentando a tensão (b6, maj7, b9…)
-  const TENS_C = bars('A5:16', 'Bb5:16', 'Bb5:16', 'A5:16', 'A5:16', 'Ab5:16', 'A5:16', 'Bb5:8 A5:8');
+  const TENS_C = bars('A5:16', 'A5:8 Bb5:8', 'Bb5:16', 'A5:16', 'A5:16', 'Ab5:16', 'A5:16', 'Bb5:8 A5:8');
   const HEART = 'b:3 b?:3 .:10';
 
   const SONHO_L = bars(
@@ -381,7 +383,7 @@
           cfg: { arp: { pattern: 'updown', vol: 0.095 }, lead: { index: 1.3 } },
         },
         A2: {
-          lead: TEMA, counter: up(TEMA, 1), pad: TEMA_C, arp: TEMA_C, bass: TEMA_BS,
+          lead: TEMA_FIM, counter: up(TEMA_FIM, 1), pad: TEMA_C, arp: TEMA_C, bass: TEMA_BS,
           drums: bars('k+c:2 h:1 h?:1 r:2 h:1 h?:1 k:2 k?:1 h?:1 r:2 h:1 h?:1', rep(T_GROOVE2, 6),
             'k:2 h:1 h?:1 r:2 h:1 h?:1 k:2 r?:1 r?:1 t:2 v:2'),
           cfg: { counter: { vol: 0.03 }, arp: { pattern: 'up8' } },
@@ -856,7 +858,7 @@
         },
         C: {
           lead: bars('D6:4 C6:4 A5:4 F5:4', 'C6:6 B5:2 G5:8', 'E5:4 G5:4 C6:8', 'D6:4 A5:4 B5:4 F5:4'),
-          pad: bars('Dm7', 'G', 'Em7:8 Am7:8', 'Dm7:8 G7:8'),
+          pad: bars('Dm7', 'Gsus4:6 G:10', 'Em7:8 Am7:8', 'Dm7:8 G7:8'),
           counter: bars('.:16', '.:8 D7:4 B6:4', '.:8 G6:4 C7:4', '.:16'),
           bass: bars('D2:8 A1:8', 'G1:8 D2:8', 'E2:8 A1:8', 'D2:8 G1:8'),
           drums: bars(rep('k:4 h?:4 h:4 h?:4', 3), 'k:4 h?:4 s?:2 s?:2 s?:2 s:2'),
@@ -1017,6 +1019,7 @@
       name: name, bpm: T.bpm, key: T.key, mode: T.mode, stepDur: 60 / T.bpm / 4, loopSteps: offset,
       bars: offset / STEPS, seconds: (offset * 60) / T.bpm / 4, events: events, chords: chords, parts: parts,
       form: T.form.slice(), errors: errors, chans: chans, bus: bus, delay: T.delay || null, crackle: T.crackle || 0,
+      trim: T.trim || 0,
     };
     compiled[name] = S;
     return S;
@@ -1440,8 +1443,10 @@
     }
     node.connect(g);
     g.connect(out);
+    let lg = null;
     if (o.vib) {
-      const l = c.createOscillator(), lg = c.createGain();
+      const l = c.createOscillator();
+      lg = c.createGain();
       l.frequency.value = o.vr || 6;
       lg.gain.value = o.vib;
       l.connect(lg);
@@ -1451,7 +1456,7 @@
     }
     oc.start(t);
     oc.stop(t + d + 0.03);
-    oc.onended = () => { after(g); if (bq) after(bq); };
+    oc.onended = () => { after(g); if (bq) after(bq); if (lg) after(lg); };
     return oc;
   }
 
@@ -1664,12 +1669,15 @@
     this.nodes = [];
     this.act = {};
     this.wow = {};
+    // trim: normalização de loudness da faixa (dB, medida BS.1770 pela cadeia do jogo)
+    const lvl = (this.lvl = Math.pow(10, (S.trim || 0) / 20));
     const out = (this.out = c.createGain()), wet = (this.wet = c.createGain());
     [out, wet].forEach((g) => {
       if (fadeIn > 0) {
+        g.gain.value = 0;
         g.gain.setValueAtTime(0, Math.min(c.currentTime, t0));
-        g.gain.linearRampToValueAtTime(1, t0 + fadeIn);
-      } else g.gain.value = 1;
+        g.gain.linearRampToValueAtTime(lvl, t0 + fadeIn);
+      } else g.gain.value = lvl;
     });
     out.connect(dest);
     let rev = dest && dest._rev;
@@ -1859,6 +1867,14 @@
   const softPad = (c, o, t, notes, dur, vol, p, a) => notes.split(' ').forEach((n) => nt(c, o, t, 'pad', nf(n) * p, dur, { wave: 'triangle', vol: vol, a: a || 0.08, r: 0.5, det: 6 }));
 
   const SFX = {
+    click: (c, o, t, p) => { // botão físico (despertador, interruptor): "tic" + "clac" suave da volta
+      noise(c, o, t, { d: 0.018, v: 0.15, type: 'bandpass', f: 2600 * p, q: 1.4, lp2: 7000 });
+      tone(c, o, t, { w: 'sine', f: 1150 * p, f1: 700 * p, ft: 0.015, d: 0.03, v: 0.09, a: 0.001, exp: true });
+      tone(c, o, t, { w: 'sine', f: 210 * p, f1: 150 * p, ft: 0.03, d: 0.045, v: 0.08, a: 0.002, exp: true });
+      noise(c, o, t + 0.05, { d: 0.012, v: 0.06, type: 'bandpass', f: 3400 * p, q: 1.6, lp2: 8000 });
+      tone(c, o, t + 0.05, { w: 'sine', f: 1480 * p, d: 0.018, v: 0.03, a: 0.001, exp: true });
+      return 0.12;
+    },
     blip: (c, o, t, p) => { nt(c, o, t, 'kalimba', 1319 * p, 0.05, { vol: 0.14, d: 0.16, index: 1.1 }); return 0.22; },
     select: (c, o, t, p) => {
       nt(c, o, t, 'marimba', 1047 * p, 0.05, { vol: 0.2, d: 0.22 });
@@ -2204,19 +2220,21 @@
       nt(c, o, t + 0.12, 'bell', 1976 * p, 0.3, { vol: 0.09, d: 1.8 });
       return 2.0;
     },
-    jingle_capitulo: (c, o, t, p) => { // fragmento do Tema da Faísca + acorde
-      const st = 0.1;
-      seq(c, o, t, 'G4 C5 E5:2 G5:2 E5 G5 C6:7', { inst: 'ep', step: st, vol: 0.2, p: p, d: 1.4, tail: 0.3 });
-      seq(c, o, t, 'G5 C6 E6:2 G6:2 E6 G6 C7:7', { inst: 'bell', step: st, vol: 0.03, p: p, d: 1.0 });
-      softPad(c, o, t + st * 8, 'C4 E4 G4 D5', st * 7 + 0.2, 0.035, p, 0.15);
-      seq(c, o, t, 'C2:4 E2:2 G2:2 C2:7', { inst: 'sub', step: st, vol: 0.22, p: p });
+    jingle_capitulo: (c, o, t, p) => { // o motivo do Tema da Faísca (E–G–C', B–D'–C') + Cadd9
+      const st = 0.085;
+      seq(c, o, t, 'E5:3 G5:1 C6:4 B5:2 D6:2 C6:8', { inst: 'ep', step: st, vol: 0.2, p: p, d: 1.4, tail: 0.3 });
+      seq(c, o, t, 'E6:3 G6:1 C7:4 B6:2 D7:2 C7:8', { inst: 'bell', step: st, vol: 0.03, p: p, d: 1.0 });
+      softPad(c, o, t + st * 12, 'C4 E4 G4 D5', st * 8 + 0.2, 0.035, p, 0.15);
+      seq(c, o, t, 'C2:8 G1:4 C2:8', { inst: 'sub', step: st, vol: 0.22, p: p });
       drum(c, o, o, t, 'k', 0.7);
       drum(c, o, o, t + st * 2, 'z', 0.8);
       drum(c, o, o, t + st * 4, 'r', 0.8);
       drum(c, o, o, t + st * 6, 'z', 0.8);
-      drum(c, o, o, t + st * 8, 'k', 0.8);
-      drum(c, o, o, t + st * 8, 'c', 0.9);
-      return 2.1;
+      drum(c, o, o, t + st * 8, 'k', 0.7);
+      drum(c, o, o, t + st * 10, 'r', 0.6);
+      drum(c, o, o, t + st * 12, 'k', 0.8);
+      drum(c, o, o, t + st * 12, 'c', 0.9);
+      return st * 20 + 0.5;
     },
     jingle_vitoria: (c, o, t, p) => { // C – Dm7 – G – C, "ta-ta-ta TAAA" subindo
       const st = 0.085;
@@ -2237,7 +2255,7 @@
   };
   // Quanto de cada efeito vai para o reverb (o resto é seco)
   const SFX_REV = {
-    blip: 0.04, select: 0.06, tick: 0.03, typing: 0.03, card: 0.05, step: 0.03, camera: 0.04, pop: 0.08,
+    click: 0.04, blip: 0.04, select: 0.06, tick: 0.03, typing: 0.03, card: 0.05, step: 0.03, camera: 0.04, pop: 0.08,
     sparkle: 0.45, magic: 0.5, notify: 0.3, chime: 0.4, star: 0.3, coin: 0.2, email: 0.25, heal: 0.35,
     success: 0.25, achievement: 0.3, level_up: 0.3, jingle_capitulo: 0.3, jingle_vitoria: 0.3, jingle_fato: 0.35,
     boss_hit: 0.2, boss_heal: 0.3, boss_roar: 0.2, thunder: 0.3, phone_ring: 0.18, confetti: 0.25,
@@ -2247,15 +2265,18 @@
   // =====================================================================
   // 7. Vozes (blips de diálogo) — bem suaves: tocam o tempo todo
   // =====================================================================
+  // Níveis calibrados (BS.1770, 20 blips/s, volume de efeitos padrão): todas entre −30 e −33 LUFS
+  // (~12–15 LU abaixo da música). Vozes graves ganham harmônicos (h2–h4) para aparecerem em
+  // alto-falantes pequenos sem ficarem mais altas que as agudas no fone de ouvido.
   const VOICES = {
-    pai: { f: 185, h2: 0.3, h3: 0.08, v: 0.08, d: 0.05, off: [0, 2, -2, 3, 0, -1, 4, 1] },
-    filho: { f: 277, h2: 0.2, v: 0.0445, d: 0.042, off: [0, 3, 5, 2, -2, 4, 7, 0] },
-    faisca: { f: 880, fm: 2, idx: 0.5, glide: 1.06, v: 0.0224, d: 0.045, wet: 0.25, off: [0, 4, 7, 5, 9, 2, 12, 7] },
-    chefe: { f: 165, h2: 0.32, h3: 0.1, v: 0.073, d: 0.045, off: [0, 0, 2, -2, 0, 3, -1, 0] },
-    jorge: { f: 247, h2: 0.2, bounce: 1.12, v: 0.043, d: 0.05, off: [0, 5, 2, 7, 4, 9, 0, 5] },
-    golpista: { f: 131, h2: 0.35, h3: 0.12, det: 22, wob: 25, v: 0.028, d: 0.055, off: [0, -1, 1, -2, 0, 1, -3, 0] },
-    duvida: { f: 147, h2: 0.2, wob: 70, v: 0.086, d: 0.06, off: [0, -3, 2, -5, 0, 3, -2, 1] },
-    narrador: { f: 523, h2: 0.12, v: 0.032, d: 0.035, off: [0, 2, 4, 2, -1, 0, 5, 3] },
+    pai: { f: 185, h2: 0.5, h3: 0.2, h4: 0.06, v: 0.0404, d: 0.05, off: [0, 2, -2, 3, 0, -1, 4, 1] },
+    filho: { f: 277, h2: 0.3, h3: 0.06, v: 0.0405, d: 0.042, off: [0, 3, 5, 2, -2, 4, 7, 0] },
+    faisca: { f: 880, fm: 2, idx: 0.5, glide: 1.06, v: 0.0291, d: 0.045, wet: 0.25, off: [0, 4, 7, 2, 9, 4, 12, 7] },
+    chefe: { f: 165, h2: 0.5, h3: 0.2, h4: 0.06, v: 0.0433, d: 0.045, off: [0, 0, 2, -2, 0, 3, -1, 0] },
+    jorge: { f: 247, h2: 0.3, h3: 0.06, bounce: 1.12, v: 0.0366, d: 0.05, off: [0, 5, 2, 7, 4, 9, 0, 5] },
+    golpista: { f: 131, h2: 0.6, h3: 0.3, h4: 0.1, det: 22, detA: 0.35, wob: 25, v: 0.032, d: 0.055, off: [0, -1, 1, -2, 0, 1, -3, 0] },
+    duvida: { f: 147, h2: 0.5, h3: 0.22, h4: 0.07, wob: 70, v: 0.0389, d: 0.06, off: [0, -3, 2, -5, 0, 3, -2, 1] },
+    narrador: { f: 523, h2: 0.12, v: 0.0377, d: 0.035, off: [0, 2, 4, 2, -1, 0, 5, 3] },
   };
   function voiceAt(c, out, t, who, k) {
     const V = VOICES[who] || VOICES.narrador;
@@ -2288,9 +2309,10 @@
       return o;
     };
     const o1 = mk(f, 1);
-    if (V.det) mk(f, 0.7).detune.value = V.det;
+    if (V.det) mk(f, V.detA || 0.7).detune.value = V.det;
     if (V.h2) mk(f * 2, V.h2);
     if (V.h3) mk(f * 3, V.h3);
+    if (V.h4) mk(f * 4, V.h4);
     if (V.fm) {
       const m = c.createOscillator(), mg = c.createGain();
       m.frequency.value = f * V.fm;
@@ -2555,7 +2577,7 @@
           if (so.send) after(so.send);
           const i = h.outs.indexOf(out);
           if (i >= 0) h.outs.splice(i, 1);
-        }, (dur + 0.6) * 1000);
+        }, (dur * (pitch < 1 ? 1 / Math.sqrt(pitch) : 1) + 0.6) * 1000); // pitch grave = caudas mais longas
         if (opts.loop) {
           const every = opts.every || { phone_ring: 2.6, phone_vibrate: 1.4, alarm: 0.9 }[name] || dur + 0.25;
           h.timer = setTimeout(fire, every * 1000);
@@ -2605,9 +2627,11 @@
         if (!ctx) return;
         if (document.hidden) {
           if (ctx.state === 'running') { hiddenPause = true; ctx.suspend(); }
-        } else if (hiddenPause) {
+        } else {
+          // volta à aba: retoma se fomos nós que pausamos (ou se o som foi ligado com a aba oculta)
+          const was = hiddenPause;
           hiddenPause = false;
-          if (enabled) { const r = ctx.resume(); if (r && r.catch) r.catch(() => {}); }
+          if (enabled && (was || ctx.state === 'suspended')) { const r = ctx.resume(); if (r && r.catch) r.catch(() => {}); }
         }
       } catch (e) { /* ok */ }
     });

@@ -138,6 +138,36 @@
     return out;
   }
 
+  /**
+   * "Assa" um grupo estático: junta as malhas simples (MeshStandard sem textura, opacas, face única)
+   * numa malha por tipo de material (cor por vértice) → bem menos draw calls. Animados: não usar.
+   */
+  function bake(K, group) {
+    group.updateMatrixWorld(true);
+    const inv = new T.Matrix4().copy(group.matrixWorld).invert();
+    const buckets = new Map(), kill = [];
+    group.traverse((o) => {
+      if (!o.isMesh || o.isInstancedMesh || o.userData.noBake) return;
+      const m = o.material;
+      if (!m || Array.isArray(m) || !m.isMeshStandardMaterial || m.map || m.transparent || m.vertexColors || m.side !== T.FrontSide) return;
+      const em = m.emissive && m.emissiveIntensity > 0 && m.emissive.r + m.emissive.g + m.emissive.b > 0;
+      const key = (em ? M.hex(m.emissive) + m.emissiveIntensity : '') + (m.metalness > 0.3 ? 'm' : '') + (m.flatShading ? 'f' : '');
+      if (!buckets.has(key)) buckets.set(key, { parts: [], cast: false, rough: 0, n: 0, m, em });
+      const b = buckets.get(key);
+      b.parts.push({ g: o.geometry, m: new T.Matrix4().multiplyMatrices(inv, o.matrixWorld), c: m.color });
+      b.cast = b.cast || o.castShadow; b.rough += m.roughness; b.n++;
+      kill.push(o);
+    });
+    kill.forEach((o) => o.parent.remove(o));
+    buckets.forEach((b) => {
+      const mat = K.vc({ rough: b.rough / b.n, metal: b.m.metalness > 0.3 ? b.m.metalness : 0, flat: b.m.flatShading, emissive: b.em ? b.m.emissive : null, ei: b.m.emissiveIntensity });
+      const mesh = new T.Mesh(K.geo(mergeParts(b.parts)), mat);
+      mesh.castShadow = b.cast; mesh.receiveShadow = true;
+      group.add(mesh);
+    });
+    return group;
+  }
+
   /** Pinta de "musgo" as faces viradas para cima (geometria não indexada, normais planas). */
   function mossify(geo, moss, thresh, amount) {
     const n = geo.attributes.normal, c = geo.attributes.color;
@@ -150,6 +180,24 @@
     }
     c.needsUpdate = true;
     return geo;
+  }
+
+  /**
+   * "Cerca" invisível de colisão ao longo de um contorno fechado (lista de [x,z]):
+   * retângulos girados por fora de cada segmento. Devolve {colliders, bounds}.
+   */
+  function fenceColliders(pts, cx, cz, thick) {
+    const out = [], b = { minX: 1e9, maxX: -1e9, minZ: 1e9, maxZ: -1e9 };
+    const th = thick || 0.6, n = pts.length;
+    pts.forEach((p, i) => {
+      const q = pts[(i + 1) % n];
+      const dx = q[0] - p[0], dz = q[1] - p[1], len = Math.hypot(dx, dz);
+      let ox = dz / len, oz = -dx / len;
+      if (((p[0] + q[0]) / 2 - cx) * ox + ((p[1] + q[1]) / 2 - cz) * oz < 0) { ox = -ox; oz = -oz; }
+      out.push({ x: (p[0] + q[0]) / 2 + ox * th / 2, z: (p[1] + q[1]) / 2 + oz * th / 2, w: len + th / 2, d: th, rot: Math.atan2(-dz, dx) });
+      b.minX = Math.min(b.minX, p[0]); b.maxX = Math.max(b.maxX, p[0]); b.minZ = Math.min(b.minZ, p[1]); b.maxZ = Math.max(b.maxZ, p[1]);
+    });
+    return { colliders: out, bounds: b };
   }
 
   /** Pedra low-poly deformada (deslocamento por posição → facetas sem rachaduras). */
@@ -723,10 +771,22 @@
         pos: [2.75, -0.95, -1.05], rx: 1.5, rz: 1.2, seed: 41, NA: 26, depth: 0.55, wob: 1.6, tip: -4.5, topMat: bossTopM, undMat: bossUndM,
         grass: ['#3f8f6a', '#5aa86e', '#2c6655'], soil: ['#6b4a3c', '#54382f'], rock: ['#5b4a7c', '#3e3160', '#231a3d'],
       });
-      crystalCluster(darkParts, cg, { x: 3.8, y: -0.95, z: -1.5, n: 5, size: 1.0, color: '#4a1f7a', tip: '#ff7ae8', seed: 21, out: [0.35, 1, -0.2] });
-      crystalCluster(darkParts, cg, { x: 1.65, y: -0.95, z: -0.45, n: 3, size: 0.6, color: '#4a1f7a', tip: '#ff7ae8', seed: 22, out: [-0.3, 1, 0.3] });
-      crystalCluster(darkParts, cg, { x: 2.9, y: -0.95, z: -2.2, n: 4, size: 0.8, color: '#4a1f7a', tip: '#ff7ae8', seed: 23, out: [0, 1, -0.4] });
-      const darkMesh = new T.Mesh(K.geo(mergeParts(darkParts)), darkM); darkMesh.castShadow = true; root.add(darkMesh);
+      // cristais escuros (coordenadas locais da ilha do chefão: acompanham a flutuação dela)
+      crystalCluster(darkParts, cg, { x: 1.05, y: 0, z: -0.45, n: 5, size: 1.0, color: '#4a1f7a', tip: '#ff7ae8', seed: 21, out: [0.35, 1, -0.2] });
+      crystalCluster(darkParts, cg, { x: -1.1, y: 0, z: 0.6, n: 3, size: 0.6, color: '#4a1f7a', tip: '#ff7ae8', seed: 22, out: [-0.3, 1, 0.3] });
+      crystalCluster(darkParts, cg, { x: 0.15, y: 0, z: -1.15, n: 4, size: 0.8, color: '#4a1f7a', tip: '#ff7ae8', seed: 23, out: [0, 1, -0.4] });
+      const darkMesh = new T.Mesh(K.geo(mergeParts(darkParts)), darkM); darkMesh.castShadow = true; bossIsle.add(darkMesh);
+      // grama que cresce na ilha do chefão depois da vitória (escala com calm)
+      const bossGrassParts = [], big = bossIsle.userData.ig;
+      for (let i = 0; i < 60; i++) {
+        const s = Math.sqrt(r()) * 0.86, a = r() * TAU, q = big.loc(s, a);
+        if (Math.hypot(q[0] + 0.15, q[1]) < 0.55) continue; // o centro fica livre (onde a Dúvida pousa)
+        const hh = 0.1 + r() * 0.14;
+        for (let b = 0; b < 4; b++) bossGrassParts.push({ g: blade, m: mat4([q[0] + (r() - 0.5) * 0.09, -0.02, q[1] + (r() - 0.5) * 0.09], [(r() - 0.5) * 0.8, r() * TAU, (r() - 0.5) * 0.8], [1, hh * (0.7 + r() * 0.6), 1]), c: bladeC });
+      }
+      const bossGrass = new T.Mesh(K.geo(mergeParts(bossGrassParts)), K.vc({ rough: 0.9 }));
+      bossGrass.receiveShadow = true; bossGrass.castShadow = false;
+      bossIsle.add(bossGrass);
       bossIsle.userData.base = bossIsle.position.y;
       // vórtice (disco em espiral)
       const spiralTex = K.tex(512, 512, (ctx, w) => {
@@ -749,6 +809,41 @@
       const vortex1 = new T.Mesh(M.planeGeo(6.5, 6.5), vortexM1); vortex1.rotation.x = -Math.PI / 2; vortex1.position.set(2.75, -0.62, -1.05); root.add(vortex1);
       const vortex2 = new T.Mesh(M.planeGeo(3.8, 3.8), vortexM2); vortex2.rotation.x = -Math.PI / 2; vortex2.position.set(2.75, -0.52, -1.05); root.add(vortex2);
       const bossGlow = addGlow('#b04aff', 5.5, 2.7, 1.2, -1.4, 0.35);
+
+      // ---------------- planeta gigante com anéis (céu cósmico) ----------------
+      const planetTex = K.tex(512, 256, (ctx, w, h) => {
+        const rr = M.rng(61);
+        const bands = ['#5a3fa8', '#7a5cc8', '#4a3590', '#9a7ad8', '#6a4ab8', '#b49ae6', '#5a3fa8', '#43307f'];
+        let y = 0;
+        while (y < h) { const bh = 8 + rr() * 26; ctx.fillStyle = bands[Math.floor(rr() * bands.length)]; ctx.fillRect(0, y, w, bh + 1); y += bh; }
+        for (let i = 0; i < 70; i++) { ctx.fillStyle = 'rgba(255,255,255,' + (0.03 + rr() * 0.06).toFixed(3) + ')'; ctx.beginPath(); ctx.ellipse(rr() * w, rr() * h, 20 + rr() * 90, 2 + rr() * 6, 0, 0, TAU); ctx.fill(); }
+        ctx.fillStyle = 'rgba(255,190,240,0.5)'; ctx.beginPath(); ctx.ellipse(w * 0.62, h * 0.58, 26, 13, 0, 0, TAU); ctx.fill();
+      });
+      planetTex.encoding = T.LinearEncoding; // decodificado à mão no shader
+      const planetU = { map: { value: planetTex }, lightDir: { value: new T.Vector3(0.75, 0.35, 0.55).normalize() }, rim: { value: col('#c8a8ff') }, opacity: { value: 1 }, day: { value: 0 } };
+      const planetM = K.mat(new T.ShaderMaterial({
+        uniforms: planetU, transparent: true, fog: false,
+        vertexShader: 'varying vec2 vUv; varying vec3 vN; varying vec3 vV; void main(){ vUv = uv; vN = normalize(mat3(modelMatrix) * normal); vec4 wp = modelMatrix * vec4(position, 1.0); vV = normalize(cameraPosition - wp.xyz); gl_Position = projectionMatrix * viewMatrix * wp; }',
+        fragmentShader: 'uniform sampler2D map; uniform vec3 lightDir; uniform vec3 rim; uniform float opacity; uniform float day; varying vec2 vUv; varying vec3 vN; varying vec3 vV; void main(){ vec3 n = normalize(vN); vec3 base = texture2D(map, vUv).rgb; base = pow(base, vec3(2.2)); float l = smoothstep(-0.25, 0.6, dot(n, lightDir)); float f = pow(1.0 - max(dot(n, normalize(vV)), 0.0), 2.5); vec3 c = base * (0.12 + 1.05 * l) + rim * f * (0.35 + 0.65 * l) * 0.9; c = mix(c, vec3(1.0, 0.93, 0.95) * (0.55 + 0.45 * l), day); gl_FragColor = vec4(c, opacity * (1.0 - day * 0.55)); #include <encodings_fragment> }',
+      }));
+      const planet = new T.Mesh(K.geo(new T.SphereGeometry(7, 48, 32)), planetM);
+      planet.position.set(-27, 23, -61); planet.rotation.set(0.35, 0, -0.32);
+      planet.castShadow = planet.receiveShadow = false; planet.renderOrder = -5;
+      root.add(planet);
+      const ringTex = K.tex(512, 512, (ctx, w) => {
+        const c = w / 2, rr = M.rng(62);
+        for (let rad = c * 0.6; rad < c; rad += 1.5) {
+          const k = (rad - c * 0.6) / (c * 0.4);
+          const a = (0.25 + 0.6 * rr()) * Math.sin(k * Math.PI) * (k > 0.55 && k < 0.6 ? 0.1 : 1);
+          ctx.strokeStyle = 'rgba(255,255,255,' + a.toFixed(3) + ')'; ctx.lineWidth = 1.6;
+          ctx.beginPath(); ctx.arc(c, c, rad, 0, TAU); ctx.stroke();
+        }
+      });
+      const ringM = K.mat(new T.MeshBasicMaterial({ map: ringTex, color: '#d8c0ff', transparent: true, opacity: 0.75, side: T.DoubleSide, depthWrite: false, fog: false, toneMapped: false }));
+      const ring = new T.Mesh(K.geo(new T.RingGeometry(8.6, 15.5, 96, 1)), ringM);
+      ring.rotation.set(-1.25, 0.18, 0.1);
+      planet.add(ring);
+      ring.renderOrder = -4;
 
       // ---------------- ilhotas flutuantes ----------------
       const minis = [];
@@ -909,6 +1004,8 @@
         if (sc && sc.fog) lerpC(sc.fog.color, STORM.fog, DAWN.fog, k).multiplyScalar(1 - 0.25 * I);
         if (sc && sc.background && sc.background.isColor) sc.background.copy(SU.cMid.value);
         lerpC(seaM.color, STORM.sea, DAWN.sea, k);
+        planetU.day.value = k * 0.85;
+        ringM.opacity = lerp(0.75, 0.3, k);
         lerpC(T1, STORM.cloud, DAWN.cloud, k);
         cloudSprites.forEach((s) => s.material.color.copy(T1));
         lerpC(runeMat.color, STORM.rune, DAWN.rune, k);
@@ -923,6 +1020,8 @@
         bossTopM.color.copy(col('#4a3272')).lerp(col('#ffffff'), k);
         bossUndM.color.copy(col('#6a5a92')).lerp(col('#ffffff'), k);
         darkM.emissiveIntensity = lerp(0.65, 0.12, k);
+        bossGrass.scale.y = Math.max(0.001, sstep(0.25, 1, c));
+        bossGrass.visible = c > 0.02;
         lerpC(darkM.emissive, col('#c03aff'), col('#ffb0e0'), k);
         st.crystalBase = lerp(0.6, 0.35, k);
         bloom(c);
@@ -930,23 +1029,46 @@
       st.crystalBase = 0.6;
       applyCalm(st.calm, st.inten);
 
+      // ---------------- primeira pessoa: colisões ----------------
+      // "cerca" invisível acompanhando a borda da ilha (a 88% do raio) + objetos sólidos + morros
+      const fence = [];
+      for (let i = 0; i < 28; i++) { const q = ig.loc(0.88, (i / 28) * TAU); fence.push([ICX + q[0], ICZ + q[1]]); }
+      const FC = fenceColliders(fence, ICX, ICZ);
+      const colliders = FC.colliders, bnd = FC.bounds;
+      [[0.4, -2.25, 0.3], [-4.95, -0.6, 0.8], [-1.75, -3.05, 0.1]].forEach((p) => colliders.push({ x: p[0], z: p[1], w: 0.85, d: 0.85, rot: p[2] }));
+      colliders.push({ x: -4.1, z: 1.05, w: 0.7, d: 0.55, rot: 0.6 }); // tambor caído
+      [[-3.7, -2.75, 0.95], [1.0, -1.45, 0.55], [-5.65, 1.35, 0.5], [1.25, -0.25, 0.34], [-0.15, 1.75, 0.28], [-4.2, 1.95, 0.32], [-2.75, -3.1, 0.45]].forEach((b) => colliders.push({ x: b[0], z: b[1], w: b[2] * 1.9, d: b[2] * 1.9 }));
+      [[-5.55, -1.55, 1.1], [-0.75, -3.0, 0.7], [0.95, 1.15, 0.5], [-4.3, 1.85, 0.45], [-3.45, -2.3, 0.45]].forEach((c) => colliders.push({ x: c[0], z: c[1], w: c[2], d: c[2] }));
+      colliders.push({ x: -4.35, z: -2.15, w: 0.6, d: 0.6 }); // árvore
+      // morros (octógono = 2 quadrados): em primeira pessoa o chão é plano, então não se sobe neles
+      colliders.push({ x: -4.75, z: -2.35, w: 3.2, d: 3.2 }, { x: -4.75, z: -2.35, w: 3.2, d: 3.2, rot: Math.PI / 4 });
+      colliders.push({ x: -0.7, z: -2.75, w: 1.9, d: 1.9, rot: Math.PI / 4 });
+      colliders.push({ x: -5.6, z: 0.9, w: 1.6, d: 1.6, rot: Math.PI / 4 });
+
       // ---------------- contrato ----------------
       const env = {
         root,
         spots: {
           pai: { x: -2.5, z: 0.35, rot: 1.15 },
-          faisca: { x: -1.75, z: 0.95, rot: 1.0, y: 1.25 },
+          faisca: { x: -2.95, z: 0.9, rot: 1.15, y: 1.25 },
           boss: { x: 2.6, z: -1.0, rot: -0.55 },
           centro: { x: -1.0, z: 0.55, rot: 0.6 },
           heroi2: { x: -3.2, z: -0.35, rot: 1.0 },
+          // primeira pessoa
+          inicio: { x: -2.5, z: 0.35, rot: 1.8 },            // no lugar do pai (círculo de runas), olhando direto para a Dúvida
+          arvore: { x: -3.25, z: -0.45, rot: -2.57 },         // diante da árvore dos sonhos (no morro, frutos de luz)
+          cristais: { x: -3.9, z: -0.35, rot: -2.2 },         // diante do grande cristal azul
+          borda: { x: 0.35, z: 0.3, rot: 2.0 },               // na beira da ilha, olhando o vórtice/abismo
         },
+        colliders,
+        bounds: { minX: bnd.minX, maxX: bnd.maxX, minZ: bnd.minZ, maxZ: bnd.maxZ },
         shots: {
           geral: { target: [0.0, 1.45, -0.4], yaw: 0.08, pitch: 0.13, dist: 11.8, fov: 40 },
-          herois: { target: [-2.15, 1.35, 0.6], yaw: 1.0, pitch: 0.06, dist: 4.2, fov: 38 },
+          herois: { target: [-2.6, 1.3, 0.55], yaw: 0.95, pitch: 0.06, dist: 4.4, fov: 38 },
           boss: { target: [2.6, 2.05, -1.0], yaw: -0.45, pitch: -0.06, dist: 6.6, fov: 42 },
           baixo: { target: [1.8, 1.9, -0.8], yaw: -1.147, pitch: -0.115, dist: 6.85, fov: 46 },
           confronto: { target: [0.1, 1.5, -0.3], yaw: 0.42, pitch: 0.24, dist: 9.6, fov: 40 },
-          amanhecer: { target: [0.5, 2.6, -1.0], yaw: 0.22, pitch: 0.02, dist: 13.5, fov: 46 },
+          amanhecer: { target: [-0.5, 1.9, -0.9], yaw: 0.3, pitch: 0.05, dist: 12.5, fov: 44 },
           ilha: { target: [-2.2, -0.9, -0.3], yaw: 0.55, pitch: -0.1, dist: 12.5, fov: 42 },
         },
         defaultShot: 'geral',
@@ -1033,7 +1155,7 @@
         .replace('#include <emissivemap_fragment>', [
           '#include <emissivemap_fragment>',
           'if (vWin.z > 0.0) {',
-          '  vec2 cell = floor(vWin.xy); vec2 f = fract(vWin.xy);',
+          '  vec2 cell = floor(vWin.xy); vec2 f = fract(vWin.xy); float sd = floor(vWin.z + 0.5);',
           '  #if __VERSION__ >= 300',
           '  vec2 fw = fwidth(vWin.xy);',
           '  #else',
@@ -1044,8 +1166,11 @@
           '  float avg = (uWin.y - uWin.x) * (uWin.w - uWin.z);',
           '  float tiny = smoothstep(0.22, 0.55, max(fw.x, fw.y));',
           '  float inside = mix(lo.x * hi.x * lo.y * hi.y, avg, tiny);',
-          '  float hw = fract(sin(dot(cell + vec2(vWin.z * 13.7, vWin.z * 7.1), vec2(12.9898, 78.233))) * 43758.5453);',
-          '  float hr = fract(sin(dot(vec2(cell.y, vWin.z * 3.1), vec2(39.346, 11.135))) * 24634.6345);',
+          // semente arredondada: a interpolação do atributo varia ~1e-6 e o hash viraria ruído por pixel
+          '  vec3 h3 = fract(vec3(cell.x, cell.y, sd) * vec3(0.1031, 0.1030, 0.0973)); h3 += dot(h3, h3.yzx + 33.33);',
+          '  float hw = fract((h3.x + h3.y) * h3.z);',
+          '  vec3 r3 = fract(vec3(cell.y, sd, sd * 1.7) * vec3(0.1031, 0.1030, 0.0973)); r3 += dot(r3, r3.yzx + 33.33);',
+          '  float hr = fract((r3.x + r3.y) * r3.z);',
           '  float hs = mix(hw, hr, uRow);',
           '  float on = mix(step(hs, uLit) * inside, uLit * avg * 0.9, tiny);',
           '  float sky = clamp(f.y, 0.0, 1.0);',
@@ -1399,7 +1524,10 @@
         spots: {
           faisca: { x: 1.0, z: 3.9, rot: 0.3, y: 1.1 },
           centro: { x: 0, z: 1.4, rot: 0 },
+          inicio: { x: 0, z: 1.4, rot: Math.PI },   // (tela de título: não se anda aqui — só por contrato)
         },
+        colliders: [{ x: -0.7, z: -1.2, w: 1.7, d: 1.7 }],
+        bounds: { minX: -3.4, maxX: 3.4, minZ: -3.4, maxZ: 3.4 },
         shots: {
           geral: { target: [0, 2.3, 0.8], yaw: 0.35, pitch: 0.6, dist: 15.5, fov: 34 },
           torre: { target: [-0.7, 2.7, -1.2], yaw: 0.55, pitch: 0.12, dist: 4.6, fov: 36 },
@@ -1610,7 +1738,7 @@
       L.hemi.color.set('#ffd9b0'); L.hemi.groundColor.set('#3a2a30'); L.hemi.intensity = 0.5;
       L.sun.color.set('#ffd6a8'); L.sun.intensity = 0.9; L.sun.position.set(2.2, 8, 4.5); L.sun.target.position.set(0, 0, -0.3);
       L.amb.intensity = 0.12;
-      const lanternL = new T.PointLight('#ffbe78', 1.9, 9, 2); lanternL.position.set(0.0, 2.85, 0.4); root.add(lanternL);
+      const lanternL = new T.PointLight('#ffbe78', 1.9, 9, 2); lanternL.position.set(0.0, 2.45, 0.4); root.add(lanternL);
       const deskL = new T.PointLight('#ffcf8a', 0.9, 3.2, 2); deskL.position.set(-1.45, 1.15, -1.05); root.add(deskL);
 
       // ---------------- piso + base ----------------
@@ -1670,6 +1798,31 @@
       const left = wall('parede_esq', 2 * D, [-W, 0, 0], Math.PI / 2, [1, 0, 0]);
       const right = wall('parede_dir', 2 * D, [W, 0, 0], -Math.PI / 2, [-1, 0, 0]);
       const front = wall('parede_frente', 2 * W + 0.24, [0, 0, D], Math.PI, [0, 0, -1]);
+
+      // teto de gesso com vigas de madeira e uma claraboia (as estrelas aparecem lá em cima)
+      const ceil = M.group({ parent: root, name: 'teto' });
+      const ceilM = M.mat('#f3e6cc', { rough: 0.95 });
+      const beamM = M.mat('#6a4030', { rough: 0.7 });
+      const CY = H + 0.05, SKX = 1.0, SKZ0 = -0.55, SKZ1 = 0.95;
+      const slab = (x0, x1, z0, z1) => M.box(x1 - x0, 0.1, z1 - z0, ceilM, { parent: ceil, pos: [(x0 + x1) / 2, CY, (z0 + z1) / 2] });
+      slab(-W - 0.12, -SKX, -D - 0.12, D + 0.12); slab(SKX, W + 0.12, -D - 0.12, D + 0.12);
+      slab(-SKX, SKX, -D - 0.12, SKZ0); slab(-SKX, SKX, SKZ1, D + 0.12);
+      [-2.0, -SKX - 0.07, SKX + 0.07, 2.0].forEach((x) => M.box(0.14, 0.16, 2 * D, beamM, { parent: ceil, pos: [x, H - 0.08, 0] }));
+      [SKZ0 - 0.07, SKZ1 + 0.07].forEach((z) => M.box(2 * SKX, 0.16, 0.14, beamM, { parent: ceil, pos: [0, H - 0.08, z] }));
+      [-1.75, 1.75].forEach((z) => M.box(2 * W, 0.12, 0.12, beamM, { parent: ceil, pos: [0, H - 0.06, z] }));
+      // caixilho da claraboia + vidro
+      [-SKX / 3, SKX / 3].forEach((x) => M.box(0.04, 0.05, SKZ1 - SKZ0, beamM, { parent: ceil, pos: [x, CY + 0.02, (SKZ0 + SKZ1) / 2] }));
+      M.box(2 * SKX, 0.05, 0.04, beamM, { parent: ceil, pos: [0, CY + 0.02, (SKZ0 + SKZ1) / 2] });
+      const skyGlass = M.box(2 * SKX, 0.01, SKZ1 - SKZ0, M.glass('#9fb0ff', 0.1), { parent: ceil, pos: [0, CY + 0.03, (SKZ0 + SKZ1) / 2], cast: false });
+      skyGlass.renderOrder = 3;
+      // spots embutidos (luz quente)
+      const downM = M.mat('#fff4dc', { emissive: '#ffd59a', emissiveIntensity: 1.4 });
+      [[-2.5, -1.2], [-2.5, 1.2], [2.5, -1.2], [2.5, 1.2], [0, -1.75], [0, 1.75]].forEach((p) => {
+        M.cyl(0.07, 0.07, 0.012, '#d8c8a8', { parent: ceil, pos: [p[0], H - 0.004, p[1]], cast: false });
+        M.cyl(0.05, 0.05, 0.014, downM, { parent: ceil, pos: [p[0], H - 0.008, p[1]], cast: false });
+      });
+      M.shadows(ceil, false, false); // o "sol" de preenchimento continua entrando (o teto não faz sombra)
+      walls.push({ obj: ceil, px: 0, py: H, pz: 0, normal: [0, -1, 0] });
 
       // lousa
       const BX = -0.2;
@@ -1814,7 +1967,7 @@
       M.cyl(0.04, 0.035, 0.1, '#f4f1e6', { parent: TD, pos: [-0.12, 0.83, 0.18] });
       [0, 1, 2].forEach((i) => M.cyl(0.004, 0.004, 0.14, ['#e6b33a', '#c0392b', '#2e6da4'][i], { parent: TD, pos: [-0.12 + (i - 1) * 0.012, 0.9, 0.18 + (i % 2) * 0.01], rot: [(i - 1) * 0.15, 0, (i - 1) * 0.15] }));
       // cadeira do professor
-      chair(M, TD, [0, 0, -0.62], Math.PI, '#5a3a2a');
+      chair(M, TD, [-0.52, 0, -0.74], Math.PI - 0.55, '#5a3a2a'); // afastada: o ponto 'mesa' fica livre
 
       // ---------------- carteiras ----------------
       const desk = (x, z, rot, withProps) => {
@@ -1852,7 +2005,8 @@
       // ---------------- lanternas de papel flutuando ----------------
       const lanternM = M.mat('#ffe2b0', { emissive: '#ffb35c', emissiveIntensity: 1.25, rough: 0.9 });
       const capM = M.mat('#5e3622', { rough: 0.8 });
-      const lanterns = [[-1.9, 3.0, 1.2, 0.2], [1.5, 3.3, 1.4, 0.23], [-0.2, 3.25, 0.2, 0.17], [2.3, 2.85, -0.6, 0.15]].map((p, i) => {
+      // (nas laterais: nunca na frente da lousa vista pelos planos geral/quadro/aluno)
+      const lanterns = [[-2.3, 2.45, 1.35, 0.17], [2.35, 2.5, 0.5, 0.18], [-2.4, 2.55, -1.3, 0.15], [-1.0, 2.5, 2.1, 0.14]].map((p, i) => {
         const g = M.group({ parent: root, pos: [p[0], p[1], p[2]] });
         M.sphere(p[3], lanternM, { parent: g, scale: [1, 1.15, 1], cast: false });
         M.cyl(p[3] * 0.45, p[3] * 0.45, 0.04, capM, { parent: g, pos: [0, p[3] * 1.12, 0], cast: false });
@@ -1946,6 +2100,36 @@
         M.rbox(0.3, 0.08, 0.22, 0.01, '#3f7ac0', { parent: g, pos: [0.45, 0.04, 0.2], rot: [0, 0.4, 0] });
         M.rbox(0.3, 0.06, 0.22, 0.01, '#e6b33a', { parent: g, pos: [0.45, 0.11, 0.2], rot: [0, 0.2, 0] });
       })();
+      // cantinho de leitura (frente-direita): poltrona, abajur de pé e mesinha com livros
+      (function () {
+        const fab = M.mat('#c8862f', { rough: 0.95 }), fab2 = M.mat('#e0a548', { rough: 0.95 });
+        const ch = M.group({ parent: root, pos: [2.2, 0, 1.8], rot: [0, -2.5, 0] });
+        M.rbox(0.84, 0.3, 0.76, 0.08, fab, { parent: ch, pos: [0, 0.21, 0] });
+        M.rbox(0.62, 0.12, 0.6, 0.05, fab2, { parent: ch, pos: [0, 0.41, 0.05] });
+        M.rbox(0.84, 0.62, 0.2, 0.08, fab, { parent: ch, pos: [0, 0.62, -0.29], rot: [-0.12, 0, 0] });
+        [-1, 1].forEach((sx) => M.rbox(0.14, 0.24, 0.74, 0.06, fab, { parent: ch, pos: [sx * 0.36, 0.48, 0.01] }));
+        [[-0.33, -0.28], [0.33, -0.28], [-0.33, 0.28], [0.33, 0.28]].forEach((q) => M.cyl(0.025, 0.02, 0.07, '#4a2c1c', { parent: ch, pos: [q[0], 0.035, q[1]], seg: 8 }));
+        M.rbox(0.32, 0.28, 0.1, 0.05, '#e8604a', { parent: ch, pos: [0.16, 0.6, -0.14], rot: [-0.2, -0.3, 0.15] });
+        M.rbox(0.36, 0.03, 0.5, 0.02, '#3f6a8a', { parent: ch, pos: [-0.38, 0.62, 0.05], rot: [0, 0, -0.08] }); // manta no braço
+        // abajur de pé
+        const fl = M.group({ parent: root, pos: [2.68, 0, 2.22] });
+        M.cyl(0.14, 0.15, 0.03, '#3a2a20', { parent: fl, pos: [0, 0.015, 0], metal: 0.3 });
+        M.cyl(0.012, 0.012, 1.42, '#c9a46a', { parent: fl, pos: [0, 0.72, 0], metal: 0.6 });
+        const shadeM = M.mat('#fff0d4', { emissive: '#ffbf70', emissiveIntensity: 0.9, rough: 0.9, side: 'double' });
+        const fshade = new T.Mesh(K.geo(new T.CylinderGeometry(0.15, 0.22, 0.28, 24, 1, true)), shadeM);
+        fshade.position.set(0, 1.5, 0); fl.add(fshade);
+        const flGlow = M.glow('#ffc070', 1.1, 0.42); flGlow.position.set(0, 1.42, 0); fl.add(flGlow);
+        const pool = M.glow('#ffb860', 1.6, 0.16); pool.position.set(-0.25, 0.05, -0.25); fl.add(pool);
+        // mesinha redonda
+        const st2 = M.group({ parent: root, pos: [1.52, 0, 2.18] });
+        M.cyl(0.24, 0.24, 0.035, '#8a5434', { parent: st2, pos: [0, 0.55, 0], seg: 28 });
+        M.cyl(0.025, 0.03, 0.53, '#6e4026', { parent: st2, pos: [0, 0.27, 0], seg: 10 });
+        M.cyl(0.16, 0.18, 0.025, '#6e4026', { parent: st2, pos: [0, 0.012, 0], seg: 20 });
+        [['#2e6da4', 0], ['#e6b33a', 0.04], ['#3f8a5a', 0.075]].forEach((b, i) => M.rbox(0.22 - i * 0.02, 0.035, 0.16, 0.008, b[0], { parent: st2, pos: [-0.04, 0.585 + b[1], 0.02], rot: [0, 0.3 - i * 0.25, 0] }));
+        M.cyl(0.035, 0.03, 0.08, '#f4f1e6', { parent: st2, pos: [0.12, 0.607, -0.08] });
+        M.torus(0.02, 0.005, '#f4f1e6', { parent: st2, pos: [0.155, 0.607, -0.08], cast: false });
+      })();
+
       // vaso de planta no canto esquerdo do fundo
       const potG = M.group({ parent: root, pos: [-2.6, 0, -2.1] });
       M.cyl(0.18, 0.14, 0.34, '#c97a52', { parent: potG, pos: [0, 0.17, 0] });
@@ -1966,10 +2150,30 @@
         st.linesKey = key;
         boardTex.userData.redraw((ctx, w, h) => drawChalk(ctx, w, h, lines, tema));
       }
+      // primeira pessoa: colisões (paredes = bounds; móveis = colliders; os adereços do tema trocam junto)
+      const baseCols = [
+        { x: -1.75, z: -1.05, w: 1.47, d: 0.74, rot: 0.25 },    // mesa do professor
+        { x: -2.41, z: -1.62, w: 0.46, d: 0.46, rot: 0.25 },    // cadeira do professor
+        { x: 0.6235, z: 0.7456, w: 0.84, d: 0.52, rot: -2.894 }, // carteira do aluno (a cadeira é ponto de sentar)
+        { x: -1.248, z: 0.869, w: 0.84, d: 0.52, rot: -2.75 },   // 2ª carteira
+        { x: 2.8, z: -0.95, w: 0.4, d: 1.06 },                   // estante
+        { x: -2.6, z: -2.1, w: 0.42, d: 0.42 },                  // vaso
+        { x: -2.88, z: -0.35, w: 0.24, d: 1.8 },                 // parapeito da janela
+        { x: 2.2, z: 1.8, w: 0.86, d: 0.8, rot: -2.5 },          // poltrona
+        { x: 2.68, z: 2.22, w: 0.32, d: 0.32 },                  // abajur de pé
+        { x: 1.52, z: 2.18, w: 0.5, d: 0.5 },                    // mesinha
+      ];
+      const temaCols = {
+        violao: [{ x: 2.45, z: -1.95, w: 0.5, d: 0.45, rot: -0.55 }, { x: 2.0, z: -1.25, w: 0.34, d: 0.34 }],
+        ingles: [],
+        negocios: [{ x: 2.3, z: -1.75, w: 0.8, d: 0.5, rot: -0.6 }],
+      };
+      let envRef = null;
       function setTema(tema) {
         tema = themeG[tema] ? tema : 'violao';
         Object.keys(themeG).forEach((k) => (themeG[k].visible = k === tema));
         cork.visible = tema !== 'ingles';
+        if (envRef) envRef.colliders = baseCols.concat(temaCols[tema]);
       }
 
       const env = {
@@ -1982,13 +2186,21 @@
           aluno2: { x: -1.05, z: 1.35, rot: -2.75 },
           centro: { x: 0.1, z: 0.2, rot: 0 },
           porta: { x: -2.1, z: 1.85, rot: Math.PI },
+          // primeira pessoa
+          inicio: { x: -2.0, z: 1.75, rot: 2.72 },      // junto à porta, olhando a lousa
+          lousa: { x: -0.2, z: -1.3, rot: Math.PI },     // diante da lousa (ler o que está escrito)
+          janela: { x: -2.3, z: -0.35, rot: -Math.PI / 2 }, // diante da janela (lua e cidade)
+          estante: { x: 2.15, z: -0.7, rot: Math.PI / 2 },  // diante da estante de livros
+          mural: { x: 2.2, z: 1.0, rot: Math.PI / 2 },      // diante do mural de recados (ou do mapa, tema 'ingles')
         },
+        colliders: baseCols.concat(temaCols[params.tema && temaCols[params.tema] ? params.tema : 'violao']),
+        bounds: { minX: -W + 0.05, maxX: W - 0.05, minZ: -D + 0.05, maxZ: D - 0.05 },
         shots: {
           geral: { target: [0.0, 1.2, -0.35], yaw: 0.28, pitch: 0.3, dist: 8.2, fov: 40 },
           quadro: { target: [-0.2, 1.62, -2.45], yaw: 0, pitch: 0.04, dist: 3.5, fov: 40 },
           aluno: { target: [0.1, 1.3, -1.2], yaw: 0.3, pitch: 0.14, dist: 4.3, fov: 40 },
           mesa: { target: [-1.7, 1.05, -1.25], yaw: 0.55, pitch: 0.16, dist: 3.3, fov: 38 },
-          janela: { target: [-2.3, 1.5, 0.35], yaw: 1.2, pitch: 0.08, dist: 3.6, fov: 40 },
+          janela: { target: [-2.4, 1.55, -0.35], yaw: 1.25, pitch: 0.08, dist: 3.4, fov: 40 },
         },
         defaultShot: 'geral',
         walls,
@@ -2013,6 +2225,7 @@
         },
         dispose() { K.dispose(root); },
       };
+      envRef = env;
       drawBoard(params);
       setTema(params.tema || 'violao');
       return env;
@@ -2092,6 +2305,7 @@
         shapes.push({ o: obj, y, ph: r() * TAU, sx: (r() - 0.5) * 0.4, sy: (r() - 0.5) * 0.5 });
       }
       const halo = M.glow('#7c6cff', 9, 0.22); halo.position.set(0, 1.6, -7); root.add(halo);
+      const VF = fenceColliders(Array.from({ length: 20 }, (_, i) => [Math.cos((i / 20) * TAU) * 3.05, Math.sin((i / 20) * TAU) * 3.05]), 0, 0);
       // partículas
       const pts = glowPoints(K, 260, 0.09, { tex: dotTex(K), color: '#d8d0ff', opacity: 0.85 });
       root.add(pts);
@@ -2133,7 +2347,10 @@
           esquerda: { x: -1.3, z: 0.3, rot: 0.35 },
           direita: { x: 1.3, z: 0.3, rot: -0.35 },
           faisca: { x: 0.8, z: 0.5, rot: -0.2, y: 1.3 },
+          inicio: { x: 0, z: 2.0, rot: Math.PI },   // primeira pessoa: na borda do palco, olhando o centro
         },
+        colliders: VF.colliders,                    // borda circular do palco (não se cai no vazio)
+        bounds: VF.bounds,
         shots: {
           geral: { target: [0, 1.1, 0], yaw: 0, pitch: 0.12, dist: 6.5, fov: 38 },
           close: { target: [0, 1.45, 0], yaw: 0.25, pitch: 0.06, dist: 2.6, fov: 36 },

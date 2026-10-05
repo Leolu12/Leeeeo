@@ -1,50 +1,71 @@
 /* PAI 2.0 — env-casa.js
- * Ambientes 3D da casa do CEO (dioramas com paredes que somem para a câmera girar 360°):
+ * Ambientes 3D da casa do CEO (dioramas com paredes e forro que somem para a câmera girar 360°,
+ * e que também funcionam em PRIMEIRA PESSOA: forro com spots, colliders, bounds e ponto 'inicio'):
  *   quarto · cozinha · sala · mesa_cafe
  *
- * Convenções: metros, Y para cima, chão em y = 0, rot 0 = olhando para +Z.
- * Assentos: o ponto (spot) é o centro do assento (~0,45 m); a mesa fica ~0,5 m à frente.
+ * Convenções: metros, Y para cima, chão em y = 0, rot 0 = olhando para +Z (rot = atan2(dx, dz)).
+ * Spots abaixo no formato {x, z, rot[, y]}. Assentos: o ponto é o centro do assento (~0,45 m);
+ * a mesa fica ~0,5 m à frente (+Z local do ator). Pontos de sentar/deitar podem ficar dentro de um
+ * collider (o jogador chega perto — raio do hotspot 1,6 m — e a cena o coloca no lugar com .at()).
+ * walls: 'wall:back' | 'wall:left' | 'wall:right' | 'wall:front' | 'ceiling' (normal [0,-1,0]).
  *
- * ── quarto ─────────────────────────────────────────────────────────
- *  params: clock ('06:47'), alarm (bool: dígitos piscam em vermelho), phoneLit (bool: celular acende),
- *          lamp (bool, padrão true), time ('amanhecer' padrão | 'noite'),
- *          coberta (true/false força o edredom "por cima do corpo"; padrão: automático —
- *          cobre quando há um ator com anim 'sleep' no ponto cama).
- *  spots:  cama  {x:-0.38, z:-0.12, rot:0}  → deitado: anim 'sleep' (os PÉS ficam no ponto,
- *                                              a cabeça vai para a cabeceira em -Z, no travesseiro)
- *          beira_cama {x:-0.62, z:-0.55, rot:-π/2}  sentado na beirada (anim 'sit'), virado p/ criado-mudo
- *          banco  {x:-0.3, z:0.3, rot:0}     sentado na calçadeira ao pé da cama, de frente p/ câmera
- *          lado_cama {x:-1.2, z:-0.8, rot:0.5}  em pé ao lado da cama (chinelos)
- *          janela {x:-1.85, z:-0.35, rot:-π/2} · porta {x:2.0, z:1.35, rot:-π/2} · centro {x:0.4, z:1.2, rot:0}
- *          faisca {x:-0.9, z:-1.2, y:1.0} (flutuando perto do criado-mudo)
+ * ── quarto (5,2 × 4,4 m, pé-direito 2,7) ─────────────────────────────
+ *  params: clock ('06:47' padrão) · alarm (bool: dígitos piscam em vermelho + luz vermelha no canto)
+ *          phoneLit (bool: celular acende) · lamp (bool, padrão true: abajur esquerdo)
+ *          time ('amanhecer' padrão | 'noite') · coberta (true/false força o edredom "com corpo";
+ *          padrão automático: cobre quando há um ator com anim 'sleep'/'lie' no ponto cama).
+ *  spots:  cama        {x:-0.38, z:-0.12, rot:0}   deitado (anim 'sleep'): os PÉS ficam no ponto e a
+ *                                                  cabeça vai para o travesseiro em z≈-1.62; em 1ª pessoa
+ *                                                  deitado a visão olha para o ventilador de teto (pitch ~1)
+ *          beira_cama  {x:-0.62, z:-0.55, rot:-π/2} sentado na beirada (anim 'sit'), virado p/ o criado-mudo
+ *          banco       {x:-0.3,  z:0.3,   rot:0}    sentado na calçadeira ao pé da cama
+ *          lado_cama   {x:-1.2,  z:-0.8,  rot:0.5}  em pé ao lado da cama (chinelos)
+ *          janela      {x:-1.85, z:-0.35, rot:-π/2} · porta {x:2.0, z:1.35, rot:-π/2} · centro {x:0.4, z:1.2, rot:0}
+ *          faisca      {x:-0.9,  z:-1.2,  rot:0.4, y:1.0} (flutuando perto do criado-mudo)
+ *          inicio      {x:1.75,  z:1.25,  rot:-2.2} (entrada do jogador, olhando a cama)
+ *          interação:  despertador {x:-1.2, z:-1.2, rot:π} · foto {x:1.2, z:-1.25, rot:π}
+ *                      guarda_roupa {x:1.55, z:-0.9, rot:π/2} · tv {x:-0.2, z:1.15, rot:0} · paleto {x:-1.45, z:0.62, rot:-0.8}
  *  shots:  geral, cama, despertador, celular, janela, porta, dramatico
+ *  colliders: cama, 2 criados-mudos, guarda-roupa, cômoda, poltrona, planta, pasta, calçadeira, puff.
  *
- * ── cozinha ────────────────────────────────────────────────────────
- *  params: time ('manha' padrão | 'noite'), steam (bool, padrão true)
- *  spots:  mesa1 {x:0.15, z:-0.25, rot:0} (sentado, de frente p/ câmera) · mesa3 {x:0.95, z:-0.25, rot:0}
- *          mesa2 {x:1.85, z:0.45, rot:-π/2} (sentado na cabeceira direita) · mesa4 {x:-0.75, z:0.45, rot:π/2}
- *          cafe {x:-0.75, z:-1.3, rot:2.8} (em pé na cafeteira) · geladeira {x:1.95, z:-1.25, rot:π}
- *          pia {x:-1.95, z:-0.85, rot:-π/2} · porta {x:2.25, z:1.35, rot:-π/2} · centro {x:-0.6, z:1.3, rot:0}
- *          faisca {x:0.55, z:0.45, y:1.05} (sobre a mesa)
- *  shots:  geral, mesa, cafe, geladeira, janela, porta, dupla
+ * ── cozinha (5,6 × 4,6 m) ──────────────────────────────────────────
+ *  params: time ('manha' padrão | 'noite': pendentes + LED sob a prateleira acesos) · steam (bool, padrão true)
+ *  spots:  mesa1 {x:0.15, z:-0.45, rot:0} · mesa3 {x:0.95, z:-0.45, rot:0} (sentados no lado do fundo,
+ *          de frente p/ câmera) · mesa2 {x:1.8, z:0.5, rot:-π/2} (cabeceira direita) · mesa4 {x:-0.7, z:0.5, rot:π/2}
+ *          (cabeceira esquerda; mesa2 e mesa4 ficam frente a frente)
+ *          cafe {x:-0.9, z:-1.3, rot:2.9} (em pé na cafeteira) · geladeira {x:1.6, z:-1.1, rot:π}
+ *          pia {x:-1.84, z:-0.85, rot:-π/2} · janela {x:-1.84, z:-0.85, rot:-π/2} · porta {x:2.25, z:1.35, rot:-π/2}
+ *          centro {x:-0.55, z:1.45, rot:0} · faisca {x:0.55, z:0.5, rot:0, y:1.08} (sobre a mesa)
+ *          inicio {x:2.2, z:1.55, rot:-1.75}
+ *          interação: fogao {x:0.2, z:-1.3, rot:π} · filtro {x:2.42, z:-1.4, rot:π} · mural {x:2.2, z:-1.3, rot:π/2}
+ *                     relogio {x:2.1, z:-0.55, rot:π/2} · aparador {x:1.0, z:1.55, rot:0}
+ *  shots:  geral, mesa, dupla, cafe, geladeira, janela, porta
+ *  colliders: bancada do fundo, bancada da pia, geladeira, filtro, mesa, aparador, planta.
  *
- * ── sala ───────────────────────────────────────────────────────────
- *  params: tv ('off' | 'on' (futebol) | 'jornal'), alert (bool: vermelho pulsante — golpe),
- *          lamp (bool, padrão true)
- *  spots:  sofa1 {x:-0.55, z:-1.7, rot:0} · sofa2 {x:0.45, z:-1.7, rot:0} (sentados, de frente p/ câmera e TV)
- *          poltrona {x:2.0, z:-0.9, rot:-1.2} (sentado) · tv {x:0.0, z:1.45, rot:π} (em pé diante da TV)
- *          abajur {x:-1.75, z:-1.0, rot:0.5} · janela {x:2.35, z:0.6, rot:π/2}
- *          porta {x:-2.4, z:1.5, rot:π/2} · centro {x:0.0, z:0.55, rot:0}
- *          faisca {x:0.0, z:-0.6, y:0.95} (sobre a mesa de centro)
+ * ── sala (6,0 × 4,8 m) ─────────────────────────────────────────────
+ *  params: tv ('off' padrão | 'on' (futebol) | 'jornal' (golpe da voz clonada)) · alert (bool: vermelho
+ *          pulsante — ligação do golpe) · lamp (bool, padrão true: abajur de chão âmbar)
+ *  spots:  sofa1 {x:-0.6, z:-1.72, rot:0} · sofa2 {x:0.5, z:-1.72, rot:0} (sentados, de frente p/ a TV em +Z)
+ *          poltrona {x:2.0, z:-0.85, rot:-1.2} (sentado) · tv {x:0.0, z:1.45, rot:0} (em pé, de frente p/ a TV)
+ *          abajur {x:-1.75, z:-1.05, rot:0.5} · janela {x:2.3, z:0.4, rot:π/2} · porta {x:-2.4, z:1.55, rot:π/2}
+ *          centro {x:0.0, z:0.55, rot:0} · faisca {x:0.0, z:-0.6, rot:0, y:0.98} (sobre a mesa de centro)
+ *          inicio {x:-2.3, z:1.55, rot:2.0}
+ *          interação: foto {x:-0.2, z:-1.15, rot:π} · quadro {x:0.4, z:-1.15, rot:π} · estante {x:-2.2, z:-0.45, rot:-π/2}
+ *                     vitrola {x:-2.25, z:-0.25, rot:-π/2} · celular {x:0.35, z:0.06, rot:π}
  *  shots:  geral, sofa, tv, abajur, janela, porta, alerta
+ *  colliders: sofá (encosto + braços; assento livre), mesa de centro, abajur, mesinha, planta, estante,
+ *             rack, aparador, palmeira, poltrona.
  *
- * ── mesa_cafe ──────────────────────────────────────────────────────
- *  params: (nenhum obrigatório) steam (bool, padrão true)
- *  spots:  pai {x:0.0, z:-0.75, rot:0} (sentado, de frente p/ câmera) · filho {x:1.05, z:0.0, rot:-π/2}
- *          (sentado na cabeceira) · faisca {x:-1.0, z:0.0, rot:π/2, y:1.0} (flutua sobre a 3ª cadeira)
- *          duvida {x:-0.45, z:0.15, y:0.8} (pequena, sobre a mesa) · grade {x:2.2, z:0.4, rot:π/2}
- *          porta {x:-0.9, z:-1.7, rot:0} · centro {x:0.3, z:1.25, rot:0}
+ * ── mesa_cafe (varanda 6,0 × 4,6 m; manhã dourada, cobogó, cidade) ─────
+ *  params: steam (bool, padrão true)
+ *  spots:  pai {x:0.0, z:-0.9, rot:0} (sentado, de frente p/ câmera) · filho {x:1.15, z:0.0, rot:-π/2}
+ *          (sentado na cabeceira) · faisca {x:-1.15, z:0.0, rot:π/2, y:1.0} (flutua sobre a 3ª cadeira)
+ *          duvida {x:-0.45, z:0.15, rot:0.3, y:0.8} (pequena, sobre a mesa) · grade {x:2.15, z:0.4, rot:π/2}
+ *          porta {x:-0.85, z:-1.75, rot:0} · churrasqueira {x:1.75, z:-1.38, rot:π} · centro {x:0.3, z:1.25, rot:0}
+ *          inicio {x:-0.85, z:-1.55, rot:0.35} · cidade {x:2.15, z:-0.9, rot:π/2} · cobogo {x:-2.35, z:0.6, rot:-π/2}
+ *          mesa {x:0.0, z:-0.75, rot:0}
  *  shots:  geral, mesa, pai, filho, cidade, cobogo
+ *  colliders: mesa, churrasqueira, floreira, palmeira, costela-de-adão, espada-de-são-jorge, espreguiçadeira.
  */
 (function () {
   'use strict';
@@ -591,7 +612,9 @@
    */
   function ceiling(k, root, W, D, H, o, S) {
     const g = grp({ parent: root, name: 'ceiling' });
-    const cm = M.mat(o.color || '#f3eee6', { rough: 0.95 });
+    // forro com leve emissão própria (luz rebatida): o hemisférico sozinho deixa o teto cinza-escuro
+    const cm = k.umat(o.color || '#f3eee6', { rough: 0.95, emissive: o.color || '#f3eee6', emissiveIntensity: o.glow || 0 });
+    g.userData.mat = cm;
     const flat = (w, d, x, z, y, mat) => { const m = pl(w, d, mat || cm, { parent: g, pos: [x, y, z], rot: [PI / 2, 0, 0], cast: false }); m.receiveShadow = false; return m; };
     const band = o.sanca == null ? 0.45 : o.sanca;
     if (band > 0) {
@@ -599,7 +622,8 @@
       // faixa rebaixada em volta (sanca) + face vertical interna + forro central mais alto
       flat(W, band, 0, -D / 2 + band / 2, y); flat(W, band, 0, D / 2 - band / 2, y);
       flat(band, D - 2 * band, -W / 2 + band / 2, 0, y); flat(band, D - 2 * band, W / 2 - band / 2, 0, y);
-      const vm = M.mat(o.color || '#f3eee6', { rough: 0.95, side: 'double' });
+      const vm = k.umat(o.color || '#f3eee6', { rough: 0.95, side: 'double', emissive: o.color || '#f3eee6', emissiveIntensity: o.glow || 0 });
+      g.userData.vmat = vm;
       [[0, -D / 2 + band, W - 2 * band, 0], [0, D / 2 - band, W - 2 * band, 0], [-W / 2 + band, 0, D - 2 * band, PI / 2], [W / 2 - band, 0, D - 2 * band, PI / 2]].forEach(([x, z, len, ry]) => {
         const m = pl(len, drop, vm, { parent: g, pos: [x, H - drop / 2, z], rot: [0, ry, 0], cast: false }); m.receiveShadow = false;
       });
@@ -618,6 +642,10 @@
       M.mesh(M.cylGeo(0.04, 0.04, 0.004, 14), spotMat, { parent: g, pos: [x, y - 0.013, z], cast: false });
     });
     g.userData.spotMat = spotMat;
+    /** brilho do forro (luz rebatida) — muda com o humor da cena */
+    g.userData.setGlow = (v, color) => {
+      [cm, g.userData.vmat].forEach((m) => { if (!m) return; m.emissiveIntensity = v; if (color) m.emissive.set(color); });
+    };
     S.walls.push({ obj: g, px: 0, py: H - 0.12, pz: 0, normal: [0, -1, 0] });
     return g;
   }
@@ -1050,6 +1078,34 @@
     return { g, shade, mat: shadeMat, bulb: new T.Vector3(o.pos[0], o.pos[1] + 0.38, o.pos[2]) };
   }
 
+  /** Ventilador de teto (corpo claro + pás de madeira + cúpula leitosa). As pás ficam num grupo vivo que gira no update. */
+  function ceilingFan(parent, o) {
+    o = o || {};
+    const g = grp({ parent, pos: o.pos, name: 'ventilador' });
+    g.userData.live = true;
+    const body = M.mat(o.body || '#efe9df', { rough: 0.45 });
+    const metal = M.mat(o.metal || '#c9a25a', { rough: 0.35, metal: 0.7 });
+    const drop = o.drop || 0.3;
+    cy(0.075, 0.06, 0.05, body, { parent: g, pos: [0, -0.025, 0], cast: false }, 18); // canopla
+    cy(0.012, 0.012, drop, metal, { parent: g, pos: [0, -drop / 2, 0], cast: false }, 8); // haste
+    lathe('fanmotor', [[0.001, -0.06], [0.06, -0.06], [0.11, -0.04], [0.125, 0], [0.11, 0.045], [0.06, 0.07], [0.001, 0.07]], body, { parent: g, pos: [0, -drop - 0.04, 0], cast: false }, 20);
+    tor(0.12, 0.008, metal, { parent: g, pos: [0, -drop - 0.04, 0], rot: [PI / 2, 0, 0], cast: false });
+    const blades = grp({ parent: g, pos: [0, -drop - 0.035, 0] });
+    blades.userData.live = true;
+    const wood = M.mat(o.wood || '#a8744c', { rough: 0.6 });
+    const n = o.n || 4;
+    for (let i = 0; i < n; i++) {
+      const arm = grp({ parent: blades, rot: [0, (i / n) * PI * 2, 0] });
+      rb(0.16, 0.014, 0.04, 0.006, metal, { parent: arm, pos: [0.17, -0.004, 0], cast: false }, 1);
+      rb(0.56, 0.012, 0.135, 0.01, wood, { parent: arm, pos: [0.5, 0, 0], rot: [0.1, 0, 0], cast: false }, 1);
+    }
+    const dome = M.mesh(M.sphereGeo(0.095, 18, 10), o.lightMat || M.mat('#f6efe2', { rough: 0.3 }), { parent: g, pos: [0, -drop - 0.1, 0], scale: [1, 0.62, 1], cast: false });
+    dome.userData.live = !!o.lightMat;
+    bake(blades);
+    bake(g);
+    return { g, blades };
+  }
+
   // ------------------------------------------------------------------
   // Luz: pacote com presets por humor
   // ------------------------------------------------------------------
@@ -1099,6 +1155,8 @@
       const deco = grp({ parent: root, name: 'decor' });
       const live = grp({ parent: root, name: 'live' });
       live.userData.live = true;
+      // ventilador de teto (some junto com o forro nas vistas de cima; é o que se vê deitado na cama)
+      const fan = ceilingFan(S.ceiling, { pos: [-0.2, H, -0.5], drop: 0.26, wood: '#93633f' });
 
       // --- Parede do fundo: painel ripado + cabeceira estofada
       const slatMat = M.mat('#7a4e33', { rough: 0.7 });
@@ -1131,9 +1189,12 @@
       duvetBody.userData.live = true;
       rb(1.74, 0.34, 1.42, 0.07, duvetMat, { parent: duvetBody, pos: [0, 0.42, 0.33] }, 3);
       // volume do corpo sob o edredom (tronco + pernas)
-      M.mesh(M.capsuleGeo(0.2, 1.02, 6, 16), duvetMat, { parent: duvetBody, pos: [-0.38, 0.62, 0.36], rot: [PI / 2, 0, 0], scale: [1.95, 1, 1.32] });
-      M.mesh(M.capsuleGeo(0.2, 0.3, 6, 16), duvetMat, { parent: duvetBody, pos: [-0.38, 0.63, -0.12], rot: [PI / 2, 0, 0], scale: [2.15, 1, 1.25] });
-      rb(0.98, 0.12, 0.26, 0.055, foldMat, { parent: duvetBody, pos: [-0.38, 0.8, -0.34], rot: [0.25, 0, 0] }, 2);
+      M.mesh(M.capsuleGeo(0.2, 1.02, 8, 28), duvetMat, { parent: duvetBody, pos: [-0.38, 0.6, 0.36], rot: [PI / 2, 0, 0], scale: [1.95, 1, 1.12] });
+      M.mesh(M.capsuleGeo(0.2, 0.3, 8, 28), duvetMat, { parent: duvetBody, pos: [-0.38, 0.6, -0.1], rot: [PI / 2, 0, 0], scale: [2.15, 1, 1.08] });
+      // pés "levantando" o edredom (cobre a ponta dos pés da pose 'sleep')
+      M.mesh(M.sphereGeo(0.2, 24, 14), duvetMat, { parent: duvetBody, pos: [-0.38, 0.6, 0.82], scale: [1.55, 1.32, 1.6] });
+      // dobra do lençol na altura dos ombros (baixa o bastante para o rosto aparecer)
+      rb(0.98, 0.07, 0.2, 0.034, foldMat, { parent: duvetBody, pos: [-0.38, 0.705, -0.3], rot: [0.3, 0, 0] }, 2);
       rb(0.9, 0.09, 0.3, 0.04, foldMat, { parent: duvetBody, pos: [0.42, 0.6, -0.36] }, 2);
       // travesseiro afundado sob a cabeça
       rb(0.66, 0.08, 0.42, 0.04, '#f7f4ee', { parent: duvetBody, pos: [-0.38, 0.535, -0.78] }, 3);
@@ -1195,6 +1256,13 @@
       rb(0.36, 0.08, 0.3, 0.03, '#efe7da', { parent: bench, pos: [0.38, 0.5, 0.0], rot: [0, 0.15, 0] }, 2);
       rb(0.34, 0.06, 0.28, 0.025, '#d6c8b2', { parent: bench, pos: [0.38, 0.565, 0.0], rot: [0, 0.05, 0] }, 2);
 
+      // --- Puff de tricô (canto da frente, ao lado da cômoda) com o pijama dobrado
+      const pouf = grp({ parent: deco, pos: [1.28, 0, 1.78] });
+      cy(0.25, 0.24, 0.36, M.mat('#d9952f', { rough: 1 }), { parent: pouf, pos: [0, 0.18, 0] }, 24);
+      for (let i = 0; i < 4; i++) tor(0.248, 0.018, M.mat('#c9852a', { rough: 1 }), { parent: pouf, pos: [0, 0.06 + i * 0.08, 0], rot: [PI / 2, 0, 0], cast: false });
+      sp(0.25, M.mat('#d9952f', { rough: 1 }), { parent: pouf, pos: [0, 0.36, 0], scale: [1, 0.16, 1], cast: false }, 24, 8);
+      rb(0.3, 0.05, 0.24, 0.02, '#8fa3b8', { parent: pouf, pos: [0.02, 0.41, 0.0], rot: [0, 0.35, 0] }, 2);
+
       // --- Tapete
       const rugMat = k.tmat(rugTex(k, { bg: '#e9dfcd', c1: '#c8653f', c2: '#2d4a5a', motif: 'linhas', fringe: '#f2ead9' }), { rough: 1 });
       pl(2.9, 2.2, rugMat, { parent: deco, pos: [0, 0.006, -0.45], rot: [-PI / 2, 0, 0], cast: false });
@@ -1231,6 +1299,19 @@
       plant(deco, 'espada', { pos: [-2.25, 0, -1.92], potR: 0.17, potH: 0.36, seed: 3, pot: '#e8e0d4', size: 0.75 });
 
       // --- Parede direita: guarda-roupa embutido + porta
+      // portas de carvalho claro (veio vertical) + uma porta-espelho com reflexo pintado
+      const oakMat = k.tmat(k.tex(256, 512, (ctx, w, h) => {
+        const r = M.rng(19);
+        ctx.fillStyle = '#cfae84'; ctx.fillRect(0, 0, w, h);
+        for (let i = 0; i < 46; i++) { ctx.strokeStyle = 'rgba(' + (120 + r() * 40 | 0) + ',80,40,' + (0.08 + r() * 0.12) + ')'; ctx.lineWidth = 1 + r() * 2; const x = r() * w; ctx.beginPath(); ctx.moveTo(x, 0); ctx.bezierCurveTo(x + (r() - 0.5) * 20, h * 0.3, x + (r() - 0.5) * 20, h * 0.7, x + (r() - 0.5) * 12, h); ctx.stroke(); }
+      }), { rough: 0.55 });
+      const mirrorMat = k.tmat(k.tex(128, 512, (ctx, w, h) => {
+        const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#6c7a92'); g.addColorStop(0.55, '#3a4458'); g.addColorStop(1, '#4a4250');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = 'rgba(255,255,255,0.16)';
+        [[0.1, 0.22], [0.42, 0.08]].forEach(([x0, bw]) => { ctx.beginPath(); ctx.moveTo(w * x0, 0); ctx.lineTo(w * (x0 + bw), 0); ctx.lineTo(w * (x0 + bw - 0.5), h); ctx.lineTo(w * (x0 - 0.5), h); ctx.closePath(); ctx.fill(); });
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 3; ctx.strokeRect(2, 2, w - 4, h - 4);
+      }), { rough: 0.12, metal: 0.35 });
       const wr = grp({ parent: WB.right, pos: [-0.9, 0, 0] }); // local x: -2.2..0.4 (mundo z)
       const wW = 2.6;
       rb(wW, 2.44, 0.6, 0.015, '#e7ded1', { parent: wr, pos: [0, 1.22 + 0.04, 0.3], cast: false }, 1);
@@ -1238,8 +1319,8 @@
       for (let i = 0; i < 4; i++) {
         const dx = -wW / 2 + 0.325 + i * 0.65;
         const mirror = i === 1;
-        rb(0.63, 2.36, 0.025, 0.006, mirror ? M.mat('#9fb3c4', { rough: 0.08, metal: 0.6 }) : '#d8cbb8', { parent: wr, pos: [dx, 1.26, 0.61], cast: false }, 1);
-        if (!mirror) for (let j = 0; j < 7; j++) bx(0.6, 0.006, 0.01, '#c8b9a4', { parent: wr, pos: [dx, 0.4 + j * 0.3, 0.625], cast: false });
+        rb(0.63, 2.36, 0.025, 0.006, mirror ? mirrorMat : oakMat, { parent: wr, pos: [dx, 1.26, 0.61], cast: false }, 1);
+        if (!mirror) for (let j = 0; j < 7; j++) bx(0.6, 0.006, 0.01, '#a8865e', { parent: wr, pos: [dx, 0.4 + j * 0.3, 0.625], cast: false });
         bx(0.016, 0.5, 0.02, '#3a3430', { parent: wr, pos: [dx + (i % 2 ? -0.28 : 0.28), 1.2, 0.635], cast: false });
       }
       doorUnit(WB.right, { x: 1.35, w: 0.84, color: '#efe9df', panelColor: '#e2dbd0' });
@@ -1279,12 +1360,30 @@
       const patch = pl(1.25, 1.35, patchMat, { parent: live, pos: [-1.35, 0.012, -0.25], rot: [-PI / 2, 0, 0], cast: false });
       patch.receiveShadow = false;
 
+      // lavado frio da janela no forro: a madrugada clareando o teto (é o que se vê deitado)
+      const washTex = k.tex(256, 256, (ctx, w, h) => {
+        ctx.filter = 'blur(10px)';
+        const g = ctx.createLinearGradient(0, 0, w, 0);
+        g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.3, 'rgba(255,255,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.moveTo(14, h * 0.3); ctx.lineTo(w - 10, h * 0.06); ctx.lineTo(w - 10, h * 0.94); ctx.lineTo(14, h * 0.7); ctx.closePath(); ctx.fill();
+        // montante central da janela (faixa mais escura)
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.beginPath(); ctx.moveTo(14, h * 0.49); ctx.lineTo(w, h * 0.46); ctx.lineTo(w, h * 0.56); ctx.lineTo(14, h * 0.51); ctx.closePath(); ctx.fill();
+        ctx.filter = 'none';
+      });
+      const washMat = k.bmat(washTex, { add: true, color: '#8a96e8', opacity: 0.3, fog: false, toneMapped: false });
+      const wash = pl(1.9, 2.8, washMat, { parent: live, pos: [-2.6 + 0.42 + 0.95, H - 0.004, -0.35], rot: [PI / 2, 0, 0], cast: false });
+      wash.receiveShadow = false;
+      wash.renderOrder = 4;
+
       // --- Luzes
       const L = lights(root, 'noite', 4.2);
-      const lampLight = M.lampLight('#ffb05a', 2.9, 5.6);
+      const lampLight = M.lampLight('#ffb05a', 3.0, 4.5);
       lampLight.position.copy(lampL.bulb);
       root.add(lampLight);
-      const devLight = new T.PointLight('#ff3030', 0, 2.2, 2);
+      const devLight = new T.PointLight('#ff3030', 0, 3.1, 2);
       devLight.position.set(-1.1, 0.85, -1.55);
       root.add(devLight);
       const lampGlow = M.glow('#ffc477', 0.9, 0.55);
@@ -1302,7 +1401,7 @@
 
       const PRESETS = {
         amanhecer: { sky: '#5a6cc0', ground: '#1e1a30', hemi: 0.46, sun: '#9aaeff', sunI: 0.42, sunPos: [-6, 6.5, 3.5], amb: 0.06 },
-        noite: { sky: '#34428a', ground: '#12162a', hemi: 0.34, sun: '#8ea2ff', sunI: 0.26, sunPos: [-6, 7, 3], amb: 0.05 },
+        noite: { sky: '#3a4a94', ground: '#141a30', hemi: 0.42, sun: '#8ea2ff', sunI: 0.34, sunPos: [-6, 7, 3], amb: 0.06 },
       };
       const state = { clock: null, alarmOn: null, phoneLit: null, time: null };
       function drawClock(txt, on, alarm) {
@@ -1360,9 +1459,11 @@
           { x: -1.95, z: 1.15, w: 0.8, d: 0.78, rot: 0.75 },   // poltrona
           { x: -2.25, z: -1.92, w: 0.38, d: 0.38 },            // planta
           { x: -1.5, z: 1.65, w: 0.46, d: 0.14, rot: 0.3 },    // pasta
+          { x: 0, z: 0.32, w: 1.3, d: 0.3 },                   // calçadeira (ponto 'banco' é de sentar)
+          { x: 1.28, z: 1.78, w: 0.5, d: 0.5 },                // puff
         ],
         shots: {
-          geral: { target: [-0.1, 0.75, -0.35], yaw: 0.5, pitch: 0.42, dist: 8.4, fov: 38 },
+          geral: { target: [-0.15, 0.8, -0.55], yaw: 0.5, pitch: 0.44, dist: 7.6, fov: 38 },
           cama: { target: [-0.55, 0.66, -1.55], yaw: -0.78, pitch: 0.5, dist: 2.1, fov: 40 },
           despertador: { target: [-1.12, 0.63, -1.8], yaw: 0.3, pitch: 0.32, dist: 0.95, fov: 32 },
           celular: { target: [-1.17, 0.6, -1.67], yaw: 0.25, pitch: 1.0, dist: 0.7, fov: 34 },
@@ -1383,12 +1484,17 @@
             else out.set(['#141a44', '#d0808a', '#2a2448'], ringDawn, '#ffb48a', 0.75, 'amanhecer');
             out.sun.position.set(time === 'noite' ? -50 : -60, time === 'noite' ? 24 : 3, time === 'noite' ? 16 : -8);
             out.sun.scale.setScalar(time === 'noite' ? 5 : 24);
-            if (S.ceiling) S.ceiling.userData.led.emissiveIntensity = 0;
+            if (S.ceiling) {
+              S.ceiling.userData.led.emissiveIntensity = 0;
+              // forro frio (luz azul da madrugada rebatida); o abajur esquenta só o canto dele
+              S.ceiling.userData.setGlow(time === 'noite' ? 0.07 : 0.13, time === 'noite' ? '#4a5698' : '#7f8ad0');
+            }
             shaftMat.color.set(time === 'noite' ? '#4a5aa8' : '#8a92e0');
+            washMat.color.set(time === 'noite' ? '#3a4a98' : '#8a96e8');
             patchMat.color.set(time === 'noite' ? '#2c3a80' : '#5a62b8');
           }
           const lampOn = p.lamp !== false;
-          lampLight.userData.light.intensity = lampOn ? 2.9 : 0;
+          lampLight.userData.light.intensity = lampOn ? 3.0 : 0;
           lampGlow.visible = lampOn;
           lampL.mat.emissiveIntensity = lampOn ? 0.9 : 0;
           lampR.mat.emissiveIntensity = 0;
@@ -1400,6 +1506,7 @@
           state.coberta = p.coberta;
         },
         update(t, p) {
+          fan.blades.rotation.y = t * 1.5;
           // despertador piscando
           if (state.alarm) {
             const on = Math.floor(t * 2.4) % 2 === 0;
@@ -1440,10 +1547,11 @@
       const k = kit();
       const root = grp({ name: 'env:cozinha' });
       const W = 5.6, D = 4.6, H = 2.7;
-      const floorMat = k.tmat(tileTex(k, '#cdbfaa', '#a8987f', { n: 2, seed: 4, vary: '#e9dfcf' }), { rough: 0.42 });
-      const wallMat = M.mat('#eadcc6', { rough: 0.95 });
+      // piso de lajota terracota com rejunte claro (dá contraste com as paredes creme e os armários verdes)
+      const floorMat = k.tmat(tileTex(k, '#a86a50', '#cdb79c', { n: 2, seed: 4, vary: '#7e4632' }), { rough: 0.5 });
+      const wallMat = M.mat('#efe3cf', { rough: 0.95 });
       const S = shell(k, root, {
-        w: W, d: D, h: H, floorMat, wallMat, floorTile: 1.2,
+        w: W, d: D, h: H, floorMat, wallMat, floorTile: 0.9,
         openings: {
           left: [{ x: 0.85, w: 1.25, y0: 1.08, h: 1.12 }],
           right: [{ x: 1.35, w: 0.86, y0: 0, h: 2.12 }],
@@ -1510,7 +1618,7 @@
       const shelfG = grp({ parent: WB.back, pos: [-1.25, 0, 0] });
       [1.6, 2.02].forEach((y) => {
         rb(1.6, 0.04, 0.26, 0.01, woodShelf, { parent: shelfG, pos: [0, y, 0.13] }, 1);
-        [-0.7, 0.7].forEach((x) => bx(0.02, 0.1, 0.18, '#2b2522', { parent: shelfG, pos: [x, y - 0.06, 0.09], cast: false }));
+        [-0.7, 0.7].forEach((x) => { bx(0.012, 0.012, 0.2, '#2b2522', { parent: shelfG, pos: [x, y - 0.026, 0.11], cast: false }); bx(0.012, 0.12, 0.012, '#2b2522', { parent: shelfG, pos: [x, y - 0.08, 0.012], cast: false }); });
       });
       // potes de mantimentos
       const jarGlass = M.mat('#e8f2f4', { rough: 0.08, opacity: 0.5, transparent: true });
@@ -1687,7 +1795,32 @@
       const pas = grp({ parent: WB.front, pos: [1.3, 0, 0] });
       [-1, 1].forEach((sd) => bx(0.07, 2.32, 0.03, '#f2ede4', { parent: pas, pos: [sd * 0.585, 1.16, 0.015], cast: false }));
       bx(1.24, 0.07, 0.03, '#f2ede4', { parent: pas, pos: [0, 2.285, 0.015], cast: false });
-      pl(1.1, 2.25, '#3b3230', { parent: pas, pos: [0, 1.125, -0.12], cast: false });
+      // vão da passagem: "pintura" do corredor que leva à sala (não fica um buraco escuro de perto)
+      const hallTex = k.tex(512, 1024, (ctx, w, h) => {
+        const bx0 = w * 0.24, bx1 = w * 0.76, by0 = h * 0.22, by1 = h * 0.7; // parede do fundo
+        const quad = (pts, fill) => { ctx.fillStyle = fill; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); pts.slice(1).forEach((q) => ctx.lineTo(q[0], q[1])); ctx.closePath(); ctx.fill(); };
+        quad([[0, 0], [w, 0], [bx1, by0], [bx0, by0]], '#ece4d6');                       // teto
+        quad([[0, 0], [bx0, by0], [bx0, by1], [0, h]], '#d2c3ae');                       // parede esq.
+        quad([[w, 0], [bx1, by0], [bx1, by1], [w, h]], '#dccdb8');                       // parede dir.
+        quad([[0, h], [bx0, by1], [bx1, by1], [w, h]], '#8a5a3a');                       // piso
+        ctx.strokeStyle = 'rgba(40,20,8,0.35)'; ctx.lineWidth = 2;
+        for (let i = 1; i < 9; i++) { const t = i / 9, y = by1 + (h - by1) * t * t; ctx.beginPath(); ctx.moveTo(bx0 - (bx0) * t * t, y); ctx.lineTo(bx1 + (w - bx1) * t * t, y); ctx.stroke(); }
+        ctx.fillStyle = '#b9654a'; ctx.fillRect(bx0, by0, bx1 - bx0, by1 - by0);        // parede terracota da sala
+        const lg = ctx.createRadialGradient(bx0 + 40, by1 - 120, 4, bx0 + 40, by1 - 120, 200);
+        lg.addColorStop(0, 'rgba(255,214,150,0.9)'); lg.addColorStop(1, 'rgba(255,214,150,0)');
+        ctx.fillStyle = lg; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = '#2b2522'; ctx.fillRect(w * 0.44, by0 + 70, 120, 150);           // quadro
+        ctx.fillStyle = '#efe2c8'; ctx.fillRect(w * 0.44 + 10, by0 + 80, 100, 130);
+        ctx.fillStyle = '#e0a33a'; ctx.beginPath(); ctx.arc(w * 0.44 + 60, by0 + 130, 26, 0, PI * 2); ctx.fill();
+        ctx.fillStyle = '#3e6250'; ctx.fillRect(w * 0.44 + 10, by0 + 165, 100, 45);
+        ctx.fillStyle = '#3e6250'; ctx.fillRect(bx1 - 150, by1 - 90, 130, 70);            // sofá ao longe
+        ctx.fillStyle = '#e0a33a'; ctx.fillRect(bx1 - 140, by1 - 110, 34, 30);
+        const v = ctx.createRadialGradient(w / 2, h * 0.45, h * 0.2, w / 2, h * 0.5, h * 0.75);
+        v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(20,10,5,0.55)');
+        ctx.fillStyle = v; ctx.fillRect(0, 0, w, h);
+      });
+      const hallMat = k.bmat(hallTex, { fog: false });
+      pl(1.1, 2.25, hallMat, { parent: pas, pos: [0, 1.125, -0.12], cast: false }).userData.live = true;
       const ap = grp({ parent: WB.front, pos: [-1.0, 0, 0] });
       rb(1.4, 0.7, 0.42, 0.015, '#a8744c', { parent: ap, pos: [0, 0.45, 0.21] }, 1);
       [[-0.64, 0.05], [0.64, 0.05], [-0.64, 0.37], [0.64, 0.37]].forEach(([a, b]) => cy(0.016, 0.012, 0.12, '#5a3a26', { parent: ap, pos: [a, 0.06, b] }, 6));
@@ -1718,13 +1851,19 @@
       const chairs = { mesa1: [TX - 0.4, TZ - 0.95, 0], mesa3: [TX + 0.4, TZ - 0.95, 0], mesa2: [TX + 1.25, TZ, -PI / 2], mesa4: [TX - 1.25, TZ, PI / 2] };
       Object.keys(chairs).forEach((n) => { const c = chairs[n]; chair(deco, { x: c[0], z: c[1], rot: c[2], wood: '#7a4b2f', seat: '#e0a33a', back: 'palha' }); });
       // pendentes
-      const pendMat = M.mat('#2b2b30', { rough: 0.5, side: 'double' });
+      // pendentes de alumínio esmaltado terracota (altos o bastante para não tapar a visão de quem está em pé)
+      const pendMat = M.mat('#c8653f', { rough: 0.45, side: 'double' });
+      const pendIn = M.mat('#f6efe2', { rough: 0.6, side: 'back' });
       const bulbMat = k.umat('#fff4dc', { emissive: '#ffcf8a', emissiveIntensity: 0.4 });
+      const PY = 1.66;
       [TX - 0.38, TX + 0.38].forEach((x) => {
         const pg = grp({ parent: deco, pos: [x, 0, TZ] });
-        cy(0.004, 0.004, 1.05, '#1d1d22', { parent: pg, pos: [0, 2.7 - 0.525, 0], cast: false }, 4);
-        lathe('pend', [[0.02, 0.22], [0.04, 0.2], [0.12, 0.08], [0.17, 0.0], [0.165, -0.005]], pendMat, { parent: pg, pos: [0, 1.45, 0], cast: false }, 22);
-        sp(0.045, bulbMat, { parent: pg, pos: [0, 1.5, 0], cast: false }, 10, 8);
+        cy(0.004, 0.004, 2.7 - PY - 0.2, '#1d1d22', { parent: pg, pos: [0, (2.7 + PY + 0.2) / 2, 0], cast: false }, 4);
+        cy(0.035, 0.035, 0.02, '#e9e2d6', { parent: deco, pos: [x, 2.69, TZ], cast: false }, 12);
+        const pts = [[0.02, 0.22], [0.04, 0.2], [0.11, 0.09], [0.15, 0.0], [0.148, -0.005]];
+        lathe('pend2', pts, pendMat, { parent: pg, pos: [0, PY, 0], cast: false }, 22);
+        lathe('pend2', pts, pendIn, { parent: pg, pos: [0, PY, 0], scale: [0.985, 0.985, 0.985], cast: false }, 22);
+        sp(0.04, bulbMat, { parent: pg, pos: [0, PY + 0.05, 0], cast: false }, 10, 8);
       });
       // tapete passadeira diante da pia
       const runner = k.tmat(rugTex(k, { bg: '#e8dcc6', c1: '#2f6f8a', c2: '#d9774a', motif: 'linhas', border: 22, fringe: '#f2ead9' }), { rough: 1 });
@@ -1740,9 +1879,9 @@
 
       const L = lights(root, 'manha', 4.6);
       const pend = M.lampLight('#ffc477', 0, 4.2);
-      pend.position.set(TX, 1.38, TZ);
+      pend.position.set(TX, PY - 0.05, TZ);
       root.add(pend);
-      const pendGlows = [TX - 0.38, TX + 0.38].map((x) => { const g = M.glow('#ffc477', 0.5, 0); g.position.set(x, 1.47, TZ); live.add(g); return g; });
+      const pendGlows = [TX - 0.38, TX + 0.38].map((x) => { const g = M.glow('#ffc477', 0.5, 0); g.position.set(x, PY + 0.02, TZ); live.add(g); return g; });
 
       const ringManha = ringTex(k, 'manha', 51), ringNoite = ringTex(k, 'noite', 52);
       const out = outside(k, root, { sky: ['#5aa0e0', '#f4e4c8', '#e8dcc8'], sunPos: [-64, 22, -10], sunColor: '#fff0c8', sunSize: 22, seed: 5 });
@@ -1769,12 +1908,12 @@
           mesa4: { x: TX - 1.25, z: TZ, rot: PI / 2 },
           cafe: { x: -0.9, z: -1.3, rot: 2.9 },
           geladeira: { x: 1.6, z: -1.1, rot: PI },
-          pia: { x: -1.9, z: -0.85, rot: -PI / 2 },
+          pia: { x: -1.84, z: -0.85, rot: -PI / 2 },
           porta: { x: 2.25, z: 1.35, rot: -PI / 2 },
           centro: { x: -0.55, z: 1.45, rot: 0 },
           faisca: { x: TX, z: TZ, rot: 0, y: 1.08 },
           inicio: { x: 2.2, z: 1.55, rot: -1.75 },
-          janela: { x: -1.9, z: -0.85, rot: -PI / 2 },
+          janela: { x: -1.84, z: -0.85, rot: -PI / 2 },
           fogao: { x: 0.2, z: -1.3, rot: PI },
           filtro: { x: 2.42, z: -1.4, rot: PI },
           mural: { x: 2.2, z: -1.3, rot: PI / 2 },
@@ -1792,7 +1931,7 @@
           { x: -2.35, z: 1.8, w: 0.46, d: 0.46 },     // planta
         ],
         shots: {
-          geral: { target: [-0.1, 0.85, -0.3], yaw: 0.52, pitch: 0.4, dist: 8.6, fov: 38 },
+          geral: { target: [-0.15, 0.85, -0.45], yaw: 0.52, pitch: 0.4, dist: 7.8, fov: 38 },
           mesa: { target: [TX, 0.85, TZ - 0.4], yaw: 0.25, pitch: 0.22, dist: 3.6, fov: 38 },
           dupla: { target: [TX + 0.6, 0.85, TZ - 0.3], yaw: 0.75, pitch: 0.18, dist: 3.2, fov: 38 },
           cafe: { target: [-0.95, 1.15, -1.75], yaw: 0.55, pitch: 0.18, dist: 2.4, fov: 38 },
@@ -1815,6 +1954,8 @@
             out.sun.position.set(night ? -50 : -64, night ? 24 : 22, night ? 16 : -10);
             shaftMat.visible = patchMat.visible = !night;
             pend.userData.light.intensity = night ? 2.8 : 0;
+            S.ceiling.userData.setGlow(night ? 0.04 : 0.34, night ? '#ffd9a8' : '#fff1dc');
+            hallMat.color.set(night ? '#a89484' : '#ffffff');
             pendGlows.forEach((g) => (g.material.opacity = night ? 0.6 : 0));
             bulbMat.emissiveIntensity = night ? 2.2 : 0.3;
             ledMat.emissiveIntensity = night ? 2.0 : 0;
@@ -2035,7 +2176,7 @@
 
       const PRE = {
         noite: { sky: '#3e4c8c', ground: '#1a1626', hemi: 0.4, sun: '#8ea2ff', sunI: 0.36, sunPos: [6, 6.5, 3], amb: 0.06 },
-        alerta: { sky: '#4a1424', ground: '#0c0408', hemi: 0.28, sun: '#7a86ff', sunI: 0.26, sunPos: [6, 6.5, 3], amb: 0.04 },
+        alerta: { sky: '#3a1030', ground: '#08040a', hemi: 0.24, sun: '#6a78ff', sunI: 0.42, sunPos: [6, 6.5, 3], amb: 0.03 },
       };
       const st8 = { tv: null, alert: null, lamp: true, tvT: -1 };
       function drawPhone(alert) {
@@ -2134,7 +2275,7 @@
           quadro: { x: 0.4, z: -1.15, rot: PI },
           estante: { x: -2.2, z: -0.45, rot: -PI / 2 },
           vitrola: { x: -2.25, z: -0.25, rot: -PI / 2 },
-          celular: { x: 0.35, z: 0.0, rot: PI },
+          celular: { x: 0.35, z: 0.06, rot: PI },
         },
         bounds: S.bounds,
         colliders: [
@@ -2152,7 +2293,7 @@
           { x: 2.0, z: -0.85, w: 0.7, d: 0.6, rot: -1.2 }, // poltrona (encosto)
         ],
         shots: {
-          geral: { target: [0.1, 0.85, -0.5], yaw: -0.5, pitch: 0.4, dist: 9.0, fov: 38 },
+          geral: { target: [0.15, 0.85, -0.75], yaw: -0.5, pitch: 0.4, dist: 7.9, fov: 38 },
           sofa: { target: [-0.05, 0.85, -1.6], yaw: 0.08, pitch: 0.12, dist: 3.6, fov: 38 },
           tv: { target: [-0.05, 1.05, 1.6], yaw: PI, pitch: 0.12, dist: 3.85, fov: 42 },
           abajur: { target: [-1.3, 1.0, -1.6], yaw: 0.35, pitch: 0.14, dist: 2.8, fov: 38 },
@@ -2178,19 +2319,19 @@
           lamp.userData.light.intensity = st8.lamp ? (alert ? 0.9 : 2.6) : 0;
           lampGlow.visible = st8.lamp;
           lampShadeMat.emissiveIntensity = st8.lamp ? (alert ? 0.45 : 1.0) : 0;
-          if (S.ceiling) S.ceiling.userData.led.emissiveIntensity = alert ? 0 : 1.1;
+          if (S.ceiling) { S.ceiling.userData.led.emissiveIntensity = alert ? 0 : 1.1; S.ceiling.userData.setGlow(alert ? 0 : 0.06, '#ffd9a8'); }
         },
         update(t) {
           // TV animada (redesenha ~12 fps)
           if (st8.tv !== 'off' && t - st8.tvT > 0.083) { st8.tvT = t; drawTV(st8.tv, t); }
           let tvI = 0, tvCol = '#7fb0ff';
-          if (st8.tv === 'on') { tvI = 1.1 + Math.sin(t * 7) * 0.15 + Math.sin(t * 2.3) * 0.2; tvCol = '#9fe0a8'; }
+          if (st8.tv === 'on') { tvI = 0.75 + Math.sin(t * 7) * 0.1 + Math.sin(t * 2.3) * 0.12; tvCol = '#b4e6bc'; }
           else if (st8.tv === 'jornal') { tvI = 1.2 + Math.sin(t * 5) * 0.1; tvCol = '#8fb4ff'; }
           if (st8.alert) {
             const pulse = Math.pow(0.5 + 0.5 * Math.sin(t * 3.4), 2);
-            L.hemi.intensity = 0.14 + pulse * 0.22;
+            L.hemi.intensity = 0.1 + pulse * 0.16;
             tvLight.color.set('#ff2a3a');
-            tvLight.intensity = 0.3 + pulse * 2.6;
+            tvLight.intensity = 0.25 + pulse * 2.1;
             tvGlow.material.opacity = 0;
             phoneGlow.material.opacity = 0.2 + pulse * 0.45;
             phoneGlow.scale.setScalar(0.9 + pulse * 0.9);
@@ -2423,9 +2564,9 @@
       const table = grp({ parent: deco, pos: [0, 0, 0] });
       [[-0.58, -0.33], [0.58, -0.33], [-0.58, 0.33], [0.58, 0.33]].forEach(([a, b]) => cy(0.03, 0.024, 0.74, '#9a6a44', { parent: table, pos: [a, 0.37, b] }, 8));
       rb(1.3, 0.04, 0.8, 0.012, '#a8744c', { parent: table, pos: [0, 0.735, 0] }, 1);
-      const gingham = k.tmat(k.tex(64, 64, (ctx, w, h) => { ctx.fillStyle = '#fbf8f2'; ctx.fillRect(0, 0, w, h); ctx.fillStyle = 'rgba(70,120,190,0.45)'; ctx.fillRect(0, 0, 32, h); ctx.fillRect(0, 0, w, 32); }, { repeat: [10, 6] }), { rough: 0.95 });
+      const gingham = k.tmat(k.tex(64, 64, (ctx, w, h) => { ctx.fillStyle = '#fbf8f2'; ctx.fillRect(0, 0, w, h); ctx.fillStyle = 'rgba(52,98,176,0.5)'; ctx.fillRect(0, 0, 32, h); ctx.fillRect(0, 0, w, 32); }, { repeat: [24, 15] }), { rough: 0.95 });
       rb(1.44, 0.012, 0.94, 0.004, gingham, { parent: table, pos: [0, 0.762, 0] }, 1);
-      const gSide = k.tmat(gingham.map.clone(), { rough: 0.95 }); gSide.map.repeat.set(10, 1.3); gSide.map.needsUpdate = true; k.own.tex.push(gSide.map);
+      const gSide = k.tmat(gingham.map.clone(), { rough: 0.95 }); gSide.map.repeat.set(24, 3.2); gSide.map.needsUpdate = true; k.own.tex.push(gSide.map);
       [[0, 0.47, 1.44, 0.006], [0, -0.47, 1.44, 0.006]].forEach(([x, z, w, d]) => bx(w, 0.2, d, gSide, { parent: table, pos: [x, 0.665, z] }));
       [[0.72, 0], [-0.72, 0]].forEach(([x, z]) => bx(0.006, 0.2, 0.94, gSide, { parent: table, pos: [x, 0.665, z] }));
       const T0 = 0.768;
@@ -2462,11 +2603,12 @@
       garrafaTermica(table, { pos: [-0.3, T0, -0.24], color: '#c8453a', rot: [0, 0.6, 0] });
       const jug = grp({ parent: table, pos: [-0.24, T0, 0.27] });
       lathe('jarra', [[0.001, 0], [0.06, 0], [0.065, 0.16], [0.058, 0.2], [0.065, 0.215], [0.001, 0.215]], M.mat('#e8f4ff', { rough: 0.05, opacity: 0.4, transparent: true }), { parent: jug, cast: false });
-      cy(0.056, 0.058, 0.14, M.mat('#ffa21f', { rough: 0.3, opacity: 0.88, transparent: true }), { parent: jug, pos: [0, 0.075, 0], cast: false }, 14);
+      // suco opaco por dentro do vidro (vidro transparente escreve profundidade e escondia o suco)
+      cy(0.056, 0.058, 0.14, M.mat('#ffa21f', { rough: 0.3 }), { parent: jug, pos: [0, 0.075, 0], cast: false }, 14);
       tor(0.04, 0.008, M.mat('#e8f4ff', { rough: 0.05, opacity: 0.4, transparent: true }), { parent: jug, pos: [-0.07, 0.11, 0], rot: [0, 0, PI / 2], cast: false }, PI);
       [[-0.06, 0.09], [0.3, -0.28]].forEach(([x, z]) => {
         cy(0.032, 0.028, 0.1, M.mat('#e8f4ff', { rough: 0.05, opacity: 0.4, transparent: true }), { parent: table, pos: [x, T0 + 0.05, z], cast: false }, 12);
-        cy(0.028, 0.026, 0.06, M.mat('#ffa21f', { rough: 0.3, opacity: 0.88, transparent: true }), { parent: table, pos: [x, T0 + 0.032, z], cast: false }, 12);
+        cy(0.028, 0.026, 0.06, M.mat('#ffa21f', { rough: 0.3 }), { parent: table, pos: [x, T0 + 0.032, z], cast: false }, 12);
       });
       // vasinho de flores
       plant(table, 'flor', { pos: [-0.5, T0, -0.15], potR: 0.04, potH: 0.11, pot: '#2f6f8a', seed: 11, n: 6, flowers: ['#f2c94c', '#ffffff', '#ff8a65'] });
@@ -2511,7 +2653,7 @@
           duvida: { x: -0.45, z: 0.15, rot: 0.3, y: 0.8 },
           grade: { x: 2.15, z: 0.4, rot: PI / 2 },
           porta: { x: -0.85, z: -1.75, rot: 0 },
-          churrasqueira: { x: 1.75, z: -1.45, rot: PI },
+          churrasqueira: { x: 1.75, z: -1.38, rot: PI },
           centro: { x: 0.3, z: 1.25, rot: 0 },
           inicio: { x: -0.85, z: -1.55, rot: 0.35 },
           cidade: { x: 2.15, z: -0.9, rot: PI / 2 },
@@ -2529,7 +2671,7 @@
           { x: 1.9, z: 1.55, w: 0.68, d: 1.52, rot: -0.6 },    // espreguiçadeira
         ],
         shots: {
-          geral: { target: [0, 0.8, -0.2], yaw: 0.55, pitch: 0.38, dist: 8.4, fov: 38 },
+          geral: { target: [0.05, 0.8, -0.3], yaw: 0.55, pitch: 0.38, dist: 7.8, fov: 38 },
           mesa: { target: [0.1, 0.95, -0.15], yaw: 0.35, pitch: 0.3, dist: 3.4, fov: 38 },
           pai: { target: [0, 1.05, -0.9], yaw: 0.3, pitch: 0.08, dist: 2.1, fov: 36 },
           filho: { target: [1.15, 1.05, 0], yaw: -1.25, pitch: 0.08, dist: 2.1, fov: 36 },
