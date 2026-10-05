@@ -52,6 +52,7 @@
     closeScreen();
     setTopLabel('Pai 2.0');
     onTitle = true;
+    core.player.setMode('cine');
     core.clearActors();
     core.resetCamera();
     core.tint(null);
@@ -423,6 +424,7 @@
     $('#btn-guide').addEventListener('click', (e) => { e.currentTarget.blur(); openGuide(); });
     $('#btn-menu').addEventListener('click', (e) => { e.currentTarget.blur(); if (ui.isMenuOpen()) ui.closeMenu(); else ui.openMenu(); });
     ui.canOpenMenu = () => true;
+    if (core.isTouch && core.isTouch()) document.body.classList.add('touch');
     // Áudio só depois do primeiro gesto (regra dos navegadores)
     const unlock = () => { if (P2.audio) { P2.audio.init(); ui.applySettings(); } };
     window.addEventListener('pointerdown', unlock, { capture: true });

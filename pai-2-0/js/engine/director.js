@@ -134,6 +134,16 @@
   // ------------------------------------------------------------------
   // Conquistas, estatísticas e flags
   // ------------------------------------------------------------------
+  /** Selo de transparência da fonte: quem disse e com qual amostra. */
+  const SELOS = { independente: ['🎓', 'Pesquisa independente'], governo: ['🏛️', 'Governo / regulador / Justiça'], imprensa: ['📰', 'Reportagem'], consultoria: ['📊', 'Consultoria (vende serviços de IA)'], fornecedor: ['🏷️', 'Empresa que vende IA'], empresa: ['🏢', 'A própria empresa contando'] };
+  D.selo = function (f) {
+    if (!f || (!f.selo && !f.amostra)) return null;
+    const s = SELOS[f.selo];
+    const row = ui.el('div', 'fact-seal');
+    if (s) row.appendChild(ui.el('span', 'seal seal-' + f.selo, s[0] + ' ' + s[1]));
+    if (f.amostra) row.appendChild(ui.el('span', 'seal-amostra', 'Base: ' + f.amostra));
+    return row;
+  };
   D.achieve = function (id) {
     const data = P2.save.data;
     if (data.achievements[id]) return false;
@@ -153,6 +163,10 @@
   const talkCam = (D.talkCam = { on: true, last: null });
   function autoFrame(actor) {
     if (!talkCam.on || !actor || P2.skipping || !actor.visible) return;
+    if (core.player.mode === 'fp' && core.player.body()) {
+      if (actor.id !== 'pai') core.player.lookAt(actor);
+      return;
+    }
     if (P2.realTime - core.cam.lastUserAt < 8) return; // respeita quem está olhando em volta
     if (talkCam.last === actor.id) return;
     const other = talkCam.last ? core.getActor(talkCam.last) : null;
@@ -311,6 +325,68 @@
         reset() { core.cam.reset(); },
         handheld(v) { core.cam.handheld = v == null ? 0.6 : v; },
       },
+      /**
+       * PRIMEIRA PESSOA. G.player.fp() / G.player.cine() trocam o modo de câmera;
+       * lookAt(ator|ponto|{x,y,z}) vira a cabeça; walkTo(ponto) anda sozinho (a câmera vai junto).
+       */
+      player: {
+        fp() { core.player.setMode('fp'); },
+        cine() { core.player.setMode('cine'); },
+        get mode() { return core.player.mode; },
+        lookAt(t) {
+          if (typeof t === 'string') { const a = core.getActor(t); if (a) t = a; else { const s = core.spot(t); t = { x: s.x, y: 1.3, z: s.z }; } }
+          core.player.lookAt(t);
+        },
+        async walkTo(spot, speed) { guard(); await core.actor('pai').walk(spot, speed); guard(); },
+        lock() { core.player.setMove(false); },
+      },
+      /**
+       * EXPLORAÇÃO livre em primeira pessoa até o jogador escolher um ponto obrigatório.
+       * o: { objetivo, hotspots: [{id, label, icon, actor | at | pos:{x,y,z}, radius, optional, onInteract: async (G)=>{}}] }
+       * Pontos opcionais rodam onInteract e a exploração continua. Retorna o id do ponto obrigatório escolhido.
+       */
+      async explore(o) {
+        guard();
+        if (P2.skipping) core.setSkipping(false);
+        await ensureVisible();
+        o = o || {};
+        const pl = core.player;
+        pl.setMode('fp');
+        pl.lookAt(null);
+        const R = ui.refs();
+        const clearPanel = () => { ui.setMode('dialog'); if (R.text) R.text.innerHTML = ''; if (R.name) R.name.hidden = true; ui.markEmpty(true); };
+        clearPanel();
+        const list = (o.hotspots || []).map((h) => Object.assign({}, h, { label: D.t(h.label || '') }));
+        const required = list.filter((h) => !h.optional);
+        const objetivo = D.t(o.objetivo || '');
+        const showObj = () => ui.hud.set({ objetivo: { text: objetivo, go: required.length ? () => core.hotspots.pick(required[0], true) : null } });
+        showObj();
+        pl.setMove(true);
+        let busy = false;
+        const id = await core.track((resolve, reject) => {
+          core.hotspots.set(list, async (h) => {
+            if (busy) return;
+            if (h.onInteract) {
+              busy = true;
+              pl.setMove(false);
+              core.hotspots.suspended = true;
+              ui.hud.set({ objetivo: null });
+              try { await h.onInteract(G); } catch (e) { reject(e); return; }
+              busy = false;
+              core.hotspots.suspended = false;
+              if (h.optional && h.once !== false) core.hotspots.remove(h.id);
+              clearPanel();
+              if (h.optional) { showObj(); pl.setMove(true); return; }
+            }
+            if (!h.optional) resolve(h.id);
+          });
+        });
+        core.hotspots.clear();
+        pl.setMove(false);
+        ui.hud.set({ objetivo: null });
+        guard();
+        return id;
+      },
       /** Câmera automática que enquadra quem fala (padrão: ligada). */
       talkCam(on) { talkCam.on = on !== false; talkCam.last = null; },
       tint(color, a) { core.tint(color, a); },
@@ -350,11 +426,11 @@
         let opts;
         if (list.length === 1 && !extra.titulo) {
           const f = Object.assign({}, list[0], extra);
-          opts = { kind: 'fact', kicker: 'Fato real', icon: '📚', titulo: D.t(f.titulo), texto: D.t(f.texto), fontes: [f], sfx: 'jingle_fato' };
+          opts = { kind: 'fact', kicker: 'Fato real', icon: '📚', titulo: D.t(f.titulo), texto: D.t(f.texto), fontes: [f], sfx: 'jingle_fato', node: D.selo(f) };
         } else {
           const node = ui.el('div', 'fact-list');
           list.forEach((f) => {
-            const item = ui.el('div', 'fact-item', [ui.el('h3', null, D.t(f.titulo)), ui.el('div', 'fact-tx', ui.rich(D.t(f.texto)))]);
+            const item = ui.el('div', 'fact-item', [ui.el('h3', null, D.t(f.titulo)), ui.el('div', 'fact-tx', ui.rich(D.t(f.texto))), D.selo(f)]);
             if (f.url) {
               const a = ui.el('a', 'fact-src', 'Fonte: ' + (f.fonte || f.curta) + ' ↗');
               a.href = f.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
@@ -455,6 +531,8 @@
     if (P2.audio && P2.audio.stopSfx) P2.audio.stopSfx();
     talkCam.on = true;
     talkCam.last = null;
+    if (core.hotspots) core.hotspots.clear();
+    if (core.player) { core.player.setMove(false); core.player.lookAt(null); core.player.setMode('fp'); }
     if (core.clearFx) core.clearFx();
     core.clearActors();
     core.resetCamera();
@@ -475,6 +553,8 @@
 
   D.abort = function () {
     if (P2.audio && P2.audio.stopSfx) P2.audio.stopSfx();
+    if (core.hotspots) core.hotspots.clear();
+    if (core.player) { core.player.setMove(false); core.player.lookAt(null); }
     core.abortAll();
     ui.resetAll();
     cutsceneDepth = 0;

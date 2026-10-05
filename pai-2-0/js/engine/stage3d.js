@@ -175,6 +175,259 @@
   };
   cam.reset = function () { cam.userTarget.yaw = 0; cam.userTarget.pitch = 0; cam.userTarget.zoom = 1; };
   cam.userMoved = function () { return Math.abs(cam.user.yaw) > 0.05 || Math.abs(cam.user.pitch) > 0.05 || Math.abs(cam.user.zoom - 1) > 0.05; };
+  // ------------------------------------------------------------------
+  // JOGADOR EM PRIMEIRA PESSOA (o jogador é o pai)
+  //   player.mode 'fp' (olhos do pai) | 'cine' (planos de cinema)
+  //   player.canMove: liberado durante a exploração (G.explore)
+  //   Teclado: WASD/setas · arrastar: olhar · clique no chão: andar até lá
+  //   Celular: joystick na tela + arrastar para olhar
+  // ------------------------------------------------------------------
+  const SIT_RE = /^(sit|type|sittalk|sitthink|sitphone)/;
+  const player = (core.player = {
+    mode: 'cine',
+    canMove: false,
+    yaw: 0, pitch: -0.08,
+    eyeH: 1.6,
+    fov: 68,
+    bobY: 0, bobT: 0,
+    keys: {},
+    joy: { x: 0, y: 0, on: false },
+    moveTarget: null,
+    lookTarget: null,
+    lastLookAt: -99,
+    speed: 1.65,
+    radius: 0.26,
+    onArrive: null,
+  });
+  player.body = () => world.actors.get('pai') || null;
+  player.setMode = function (m) {
+    player.mode = m === 'fp' ? 'fp' : 'cine';
+    const b = player.body();
+    if (b) { b.syncTransform(); if (player.mode === 'fp') { player.yaw = b.rot; } }
+    if (dom.joy) dom.joy.hidden = !(player.mode === 'fp' && player.canMove && isTouch());
+  };
+  player.setMove = function (on) {
+    player.canMove = !!on;
+    if (!on) { player.moveTarget = null; player.keys = {}; player.joy.x = player.joy.y = 0; }
+    const b = player.body();
+    if (b && !on && b.anim === 'walk' && !b._walk) { b.anim = b.baseAnim; b.animT = 0; }
+    if (dom.joy) dom.joy.hidden = !(player.mode === 'fp' && on && isTouch());
+    if (dom.hint && on) { dom.hint.innerHTML = isTouch() ? '<span>🕹️</span> use o controle para andar · arraste para olhar' : '<span>⌨️</span> W A S D para andar · arraste para olhar · E para interagir'; core.showHint(true, 9); }
+  };
+  /** Vira a cabeça (visão) para um ator ou ponto, com suavidade. */
+  player.lookAt = function (target) { player.lookTarget = target || null; };
+  /** Anda sozinho até um ponto {x,z} (desviando de obstáculos simples). */
+  player.goTo = function (pt, onArrive) {
+    player.moveTarget = pt ? { x: pt.x, z: pt.z, stuck: 0, lastD: 1e9 } : null;
+    player.onArrive = onArrive || null;
+  };
+  function isTouch() { return ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0; }
+  core.isTouch = isTouch;
+  function angTo(ax, az, bx, bz) { return Math.atan2(bx - ax, bz - az); }
+  /** Colisão do jogador com retângulos (colliders) e limites do ambiente. */
+  function collide(x, z, r) {
+    const env = world.env;
+    if (!env) return { x, z };
+    const b = env.bounds;
+    if (b) { x = Math.max(b.minX + r, Math.min(b.maxX - r, x)); z = Math.max(b.minZ + r, Math.min(b.maxZ - r, z)); }
+    const cs = env.colliders || [];
+    for (let i = 0; i < cs.length; i++) {
+      const c = cs[i];
+      const th = c.rot || 0, co = Math.cos(th), si = Math.sin(th);
+      const dx = x - c.x, dz = z - c.z;
+      let lx = dx * co - dz * si, lz = dx * si + dz * co;
+      const hw = c.w / 2, hd = c.d / 2;
+      const px = Math.max(-hw, Math.min(hw, lx)), pz = Math.max(-hd, Math.min(hd, lz));
+      const ex = lx - px, ez = lz - pz;
+      const d2 = ex * ex + ez * ez;
+      if (d2 >= r * r) continue;
+      if (d2 > 1e-9) { const d = Math.sqrt(d2); lx = px + (ex / d) * r; lz = pz + (ez / d) * r; }
+      else { const ox = hw - Math.abs(lx), oz = hd - Math.abs(lz); if (ox < oz) lx = Math.sign(lx || 1) * (hw + r); else lz = Math.sign(lz || 1) * (hd + r); }
+      x = c.x + lx * co + lz * si;
+      z = c.z - lx * si + lz * co;
+    }
+    return { x, z };
+  }
+  core.collide = collide;
+  function updatePlayer(dt) {
+    const b = player.body();
+    if (!b) return;
+    // olhar automático para quem fala (se o jogador não mexeu na visão há pouco)
+    if (player.lookTarget && P2.realTime - player.lastLookAt > 2.5) {
+      const tg = typeof player.lookTarget === 'string' ? world.actors.get(player.lookTarget) : player.lookTarget;
+      if (tg) {
+        const tx = tg.x, tz = tg.z;
+        const ty = tg.headWorldY ? tg.headWorldY() - 0.05 : (tg.y == null ? 1.4 : tg.y);
+        const sitting = SIT_RE.test(b.anim);
+        const ey = b.y + (sitting ? 1.17 : player.eyeH);
+        const want = angTo(b.x, b.z, tx, tz);
+        const dist = Math.max(0.3, Math.hypot(tx - b.x, tz - b.z));
+        const wantP = Math.atan2(ty - ey, dist);
+        const k = 1 - Math.exp(-dt * 4);
+        player.yaw += Math.atan2(Math.sin(want - player.yaw), Math.cos(want - player.yaw)) * k;
+        player.pitch += (Math.max(-0.9, Math.min(0.9, wantP)) - player.pitch) * k;
+      }
+    }
+    // caminhada roteirizada (pai.walk): a visão acompanha
+    if (b._walk && P2.realTime - player.lastLookAt > 1) {
+      player.yaw += Math.atan2(Math.sin(b.rot - player.yaw), Math.cos(b.rot - player.yaw)) * Math.min(1, dt * 5);
+      player.pitch += (-0.06 - player.pitch) * Math.min(1, dt * 3);
+    }
+    // movimento
+    let mx = 0, mz = 0;
+    if (player.canMove && !P2.paused) {
+      const K = player.keys;
+      if (K.w || K.arrowup) mz += 1;
+      if (K.s || K.arrowdown) mz -= 1;
+      if (K.a || K.arrowleft) mx -= 1;
+      if (K.d || K.arrowright) mx += 1;
+      if (player.joy.on) { mx += player.joy.x; mz += -player.joy.y; }
+    }
+    const manual = Math.hypot(mx, mz) > 0.15;
+    if (manual) { player.moveTarget = null; player.lookTarget = null; }
+    let moved = false;
+    if (manual) {
+      const len = Math.min(1, Math.hypot(mx, mz));
+      const nx = mx / (Math.hypot(mx, mz) || 1), nz = mz / (Math.hypot(mx, mz) || 1);
+      const fy = player.yaw;
+      // frente = (sin, cos); direita do jogador = (-cos, sin)
+      const vx = Math.sin(fy) * nz + -Math.cos(fy) * nx;
+      const vz = Math.cos(fy) * nz + Math.sin(fy) * nx;
+      const step = player.speed * len * dt;
+      const p = collide(b.x + vx * step, b.z + vz * step, player.radius);
+      moved = Math.hypot(p.x - b.x, p.z - b.z) > step * 0.15;
+      b.x = p.x; b.z = p.z;
+      if (Math.abs(nz) > 0.2) b.rot = player.yaw;
+    } else if (player.moveTarget && !P2.paused) {
+      const t = player.moveTarget;
+      const dx = t.x - b.x, dz = t.z - b.z, d = Math.hypot(dx, dz);
+      if (d < 0.12) {
+        player.moveTarget = null;
+        const cb = player.onArrive; player.onArrive = null;
+        if (cb) cb();
+      } else {
+        const want = Math.atan2(dx, dz);
+        if (P2.realTime - player.lastLookAt > 0.8) player.yaw += Math.atan2(Math.sin(want - player.yaw), Math.cos(want - player.yaw)) * Math.min(1, dt * 6);
+        const step = Math.min(d, player.speed * dt);
+        const p = collide(b.x + (dx / d) * step, b.z + (dz / d) * step, player.radius);
+        const prog = Math.hypot(p.x - b.x, p.z - b.z);
+        b.x = p.x; b.z = p.z; b.rot = want;
+        moved = prog > step * 0.15;
+        t.stuck = moved ? 0 : (t.stuck || 0) + dt;
+        if (t.stuck > 0.5) { player.moveTarget = null; const cb = player.onArrive; player.onArrive = null; if (cb) cb(); }
+      }
+    }
+    if (moved) {
+      b.walkT += dt;
+      player.bobT += dt * 9;
+      player.bobY = (P2.settings && P2.settings.reduceMotion) ? 0 : Math.sin(player.bobT) * 0.018;
+      if (b.anim !== 'walk') { b.anim = 'walk'; b.animT = 0; }
+    } else {
+      player.bobY *= 0.85;
+      if (b.anim === 'walk' && !b._walk) { b.anim = b.baseAnim; b.animT = 0; }
+    }
+    b.syncTransform();
+  }
+  // teclado
+  window.addEventListener('keydown', (e) => {
+    const tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    const k = e.key.toLowerCase();
+    if (player.canMove && player.mode === 'fp' && ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) {
+      player.keys[k] = true;
+      e.preventDefault();
+    }
+  });
+  window.addEventListener('keyup', (e) => { player.keys[e.key.toLowerCase()] = false; });
+  window.addEventListener('blur', () => { player.keys = {}; });
+
+  // ------------------------------------------------------------------
+  // PONTOS DE INTERAÇÃO (hotspots): rótulos na tela sobre objetos/pessoas
+  // ------------------------------------------------------------------
+  const hs = (core.hotspots = { list: [], onPick: null, layer: null, suspended: false });
+  hs.set = function (list, onPick) {
+    hs.clear();
+    hs.list = (list || []).map((h) => Object.assign({ radius: 1.6 }, h));
+    hs.onPick = onPick || null;
+    hs.list.forEach((h) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'hs' + (h.optional ? ' opt' : '');
+      b.innerHTML = '<span class="hs-ic"></span><span class="hs-tx"></span><span class="hs-key">E</span>';
+      b.querySelector('.hs-ic').textContent = h.icon || (h.actor ? '💬' : '👆');
+      b.querySelector('.hs-tx').textContent = h.label || '';
+      b.addEventListener('click', (e) => { e.stopPropagation(); hs.pick(h, true); });
+      hs.layer.appendChild(b);
+      h.el = b;
+    });
+  };
+  hs.clear = function () {
+    hs.list.forEach((h) => h.el && h.el.remove());
+    hs.list = [];
+    hs.onPick = null;
+  };
+  hs.remove = function (id) {
+    const i = hs.list.findIndex((h) => h.id === id);
+    if (i >= 0) { if (hs.list[i].el) hs.list[i].el.remove(); hs.list.splice(i, 1); }
+  };
+  function hsPos(h) {
+    if (h.actor) {
+      const a = typeof h.actor === 'string' ? world.actors.get(h.actor) : h.actor;
+      if (a) return { x: a.x, y: a.headWorldY() + 0.32, z: a.z };
+    }
+    if (h.at) { const s = core.spot(h.at); return { x: s.x, y: h.y == null ? 1.3 : h.y, z: s.z }; }
+    return h.pos || { x: 0, y: 1.2, z: 0 };
+  }
+  hs.posOf = hsPos;
+  /** Escolhe um ponto: se longe, anda até perto dele e depois interage. */
+  hs.pick = function (h, walk) {
+    if (hs.suspended || !hs.onPick || P2.paused) return;
+    const b = player.body();
+    const p = hsPos(h);
+    if (b && walk) {
+      const d = Math.hypot(p.x - b.x, p.z - b.z);
+      if (d > (h.reach || 1.25)) {
+        const k = Math.max(0, (d - (h.reach || 1.1) * 0.85) / d);
+        const dest = h.at ? core.spot(h.at) : { x: b.x + (p.x - b.x) * k, z: b.z + (p.z - b.z) * k };
+        player.lookAt({ x: p.x, y: p.y - 0.25, z: p.z });
+        player.goTo(dest, () => { player.lookAt({ x: p.x, y: p.y - 0.25, z: p.z }); hs.onPick && hs.onPick(h); });
+        return;
+      }
+    }
+    if (b) player.lookAt({ x: p.x, y: p.y - 0.25, z: p.z });
+    hs.onPick(h);
+  };
+  hs.nearest = null;
+  function updateHotspots() {
+    const layer = hs.layer;
+    if (!layer || !camera) return;
+    const W = container.clientWidth, H = container.clientHeight;
+    const b = player.body();
+    let best = null, bestD = 1e9;
+    const v = new T.Vector3();
+    hs.list.forEach((h) => {
+      if (!h.el) return;
+      const p = hsPos(h);
+      v.set(p.x, p.y, p.z).project(camera);
+      const behind = v.z > 1 || v.z < -1;
+      const sx = (v.x * 0.5 + 0.5) * W, sy = (-v.y * 0.5 + 0.5) * H;
+      const show = !behind && !hs.suspended && sx > -40 && sx < W + 40 && sy > -40 && sy < H + 40;
+      h.el.style.display = show ? '' : 'none';
+      if (!show) return;
+      h.el.style.transform = 'translate(-50%, -100%) translate(' + Math.round(sx) + 'px,' + Math.round(sy) + 'px)';
+      const d = b ? Math.hypot(p.x - b.x, p.z - b.z) : 99;
+      const inFront = Math.abs(v.x) < 0.6 && Math.abs(v.y) < 0.8;
+      const near = d < (h.radius || 1.6) && inFront;
+      h.el.classList.toggle('near', near);
+      h.el.classList.toggle('far', d > 6);
+      if (near && d < bestD) { best = h; bestD = d; }
+    });
+    hs.nearest = best;
+  }
+  window.addEventListener('keydown', (e) => {
+    if ((e.key === 'e' || e.key === 'E') && hs.nearest && !P2.paused && !hs.suspended) { e.preventDefault(); hs.pick(hs.nearest, false); }
+  });
+
   function updateCamera(dt) {
     if (cam.to) {
       cam.t += dt;
@@ -204,9 +457,29 @@
       const m = cam.shake.mag * (cam.shake.t / cam.shake.dur) * 0.03;
       ox += Math.sin(t * 61) * m; oy += Math.cos(t * 47) * m;
     }
-    camera.position.set(px + ox, Math.max(0.15, py + oy), pz);
-    camera.lookAt(c.tx + ox * 0.5, c.ty + oy * 0.5, c.tz);
-    if (Math.abs(camera.fov - c.fov) > 0.01) { camera.fov = c.fov; camera.updateProjectionMatrix(); }
+    const fp = player.mode === 'fp' && player.body();
+    if (fp) {
+      updatePlayer(dt);
+      const b = player.body();
+      const sitting = SIT_RE.test(b.anim);
+      const lying = b.anim === 'sleep';
+      if (lying) {
+        // deitado: olhos no travesseiro (o corpo se estende para trás a partir dos pés)
+        const bx = -Math.sin(b.rot), bz = -Math.cos(b.rot);
+        camera.position.set(b.x + bx * 1.5 + ox, b.y + 0.84 + oy, b.z + bz * 1.5);
+      } else {
+        const eyeY = b.y + (sitting ? 1.17 : player.eyeH) * b.scale + player.bobY;
+        const fx = Math.sin(player.yaw), fz = Math.cos(player.yaw);
+        camera.position.set(b.x + fx * 0.06 + ox, eyeY + oy, b.z + fz * 0.06);
+      }
+      camera.rotation.order = 'YXZ';
+      camera.rotation.set(player.pitch, player.yaw + Math.PI, 0);
+      if (Math.abs(camera.fov - player.fov) > 0.01) { camera.fov = player.fov; camera.updateProjectionMatrix(); }
+    } else {
+      camera.position.set(px + ox, Math.max(0.15, py + oy), pz);
+      camera.lookAt(c.tx + ox * 0.5, c.ty + oy * 0.5, c.tz);
+      if (Math.abs(camera.fov - c.fov) > 0.01) { camera.fov = c.fov; camera.updateProjectionMatrix(); }
+    }
     // desloca o enquadramento para cima quando o painel cobre a parte de baixo
     cam.shiftCur += ((cam.screenShift || 0) - cam.shiftCur) * Math.min(1, dt * 6 || 1);
     const W = container ? container.clientWidth : 0, Hh = container ? container.clientHeight : 0;
@@ -217,7 +490,7 @@
     if (env && env.walls) {
       env.walls.forEach((w) => {
         const n = w.normal; // normal apontando para DENTRO do cômodo
-        const d = (camera.position.x - w.px) * n[0] + (camera.position.z - w.pz) * n[2];
+        const d = (camera.position.x - (w.px || 0)) * n[0] + (camera.position.y - (w.py == null ? 1.4 : w.py)) * (n[1] || 0) + (camera.position.z - (w.pz || 0)) * n[2];
         const visible = d > -0.05;
         if (w.obj.visible !== visible) w.obj.visible = visible;
       });
@@ -232,7 +505,7 @@
     const pts = new Map();
     el.addEventListener('pointerdown', (e) => {
       pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (pts.size === 1) drag = { x: e.clientX, y: e.clientY, moved: false, yaw: cam.userTarget.yaw, pitch: cam.userTarget.pitch };
+      if (pts.size === 1) drag = { x: e.clientX, y: e.clientY, moved: false, yaw: cam.userTarget.yaw, pitch: cam.userTarget.pitch, pyaw: player.yaw, ppitch: player.pitch };
       if (pts.size === 2) {
         const [a, b] = Array.from(pts.values());
         drag = { pinch: Math.hypot(a.x - b.x, a.y - b.y), zoom: cam.userTarget.zoom, moved: true };
@@ -252,7 +525,14 @@
       }
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
       if (!drag.moved && Math.hypot(dx, dy) > 7) drag.moved = true;
-      if (drag.moved) {
+      if (drag.moved && player.mode === 'fp' && player.body()) {
+        const w = el.clientWidth || 600;
+        player.yaw = drag.pyaw - (dx / w) * Math.PI * 1.3;
+        player.pitch = Math.max(-1.1, Math.min(1.1, drag.ppitch - (dy / w) * Math.PI * 0.9));
+        player.lastLookAt = P2.realTime;
+        cam.lastUserAt = P2.realTime;
+        if (dom.hint) dom.hint.classList.add('gone');
+      } else if (drag.moved) {
         const w = el.clientWidth || 600;
         cam.userTarget.yaw = drag.yaw - (dx / w) * Math.PI * 1.6;
         cam.userTarget.pitch = Math.max(-0.5, Math.min(1.0, drag.pitch + (dy / w) * Math.PI * 0.8));
@@ -274,8 +554,22 @@
       cam.lastUserAt = P2.realTime;
       if (dom.camBtn) dom.camBtn.hidden = false;
     }, { passive: false });
-    // clique depois de arrastar não conta como "avançar"
-    el.addEventListener('click', (e) => { if (core.wasDrag) { e.stopPropagation(); e.preventDefault(); } }, true);
+    // clique depois de arrastar não conta como "avançar"; explorando, clique no chão = andar até lá
+    el.addEventListener('click', (e) => {
+      if (core.wasDrag) { e.stopPropagation(); e.preventDefault(); return; }
+      if (player.mode === 'fp' && player.canMove && !P2.paused) {
+        const r = el.getBoundingClientRect();
+        const nx = ((e.clientX - r.left) / r.width) * 2 - 1, ny = -((e.clientY - r.top) / r.height) * 2 + 1;
+        const ray = new T.Raycaster();
+        ray.setFromCamera({ x: nx, y: ny }, camera);
+        const hit = new T.Vector3();
+        if (ray.ray.intersectPlane(new T.Plane(new T.Vector3(0, 1, 0), 0), hit)) {
+          const b = player.body();
+          if (b && Math.hypot(hit.x - b.x, hit.z - b.z) < 14) player.goTo({ x: hit.x, z: hit.z });
+        }
+        e.stopPropagation();
+      }
+    }, true);
   }
 
   // ------------------------------------------------------------------
@@ -400,6 +694,7 @@
       if (s.rot != null) this.rot = s.rot;
       this._finishWalk();
       this.syncTransform();
+      if (this.id === 'pai') { player.yaw = this.rot; player.pitch = -0.08; player.moveTarget = null; }
       return this;
     }
     /** Vira para: 'camera', ator, nome de ponto, {x,z}, ou ângulo (rad). */
@@ -501,7 +796,7 @@
       this.group.position.set(this.x, this.y + (this._jy || 0), this.z);
       this.group.rotation.y = this.rot;
       this.group.scale.setScalar(this.scale);
-      this.group.visible = this.visible && this.alpha > 0.01;
+      this.group.visible = this.visible && this.alpha > 0.01 && !(this.id === 'pai' && player.mode === 'fp');
     }
     update(dt) {
       this.t = P2.time;
@@ -537,7 +832,7 @@
         }
       } else this.lookYaw *= 0.9;
       this.syncTransform();
-      if (this.ctl && this.group.visible) this.ctl.update(dt, this);
+      if (this.ctl && (this.group.visible || this.id === 'pai')) this.ctl.update(dt, this);
       else if (this.ctl && this.alpha <= 0.01) this.ctl.update(0, this);
     }
     updateFollow(dt) {
@@ -545,12 +840,17 @@
       const L = f.target;
       if (!L || !world.actors.has(L.id) || !L.visible) return;
       const seated = /^sit|type|sittalk|sitthink|sitphone/.test(L.anim);
-      const right = { x: -Math.cos(L.rot), z: Math.sin(L.rot) }; // direita do líder
-      const fwd = { x: Math.sin(L.rot), z: Math.cos(L.rot) };
+      const fpLead = L.id === 'pai' && player.mode === 'fp';
+      const lrot = fpLead ? player.yaw : L.rot;
+      const right = { x: -Math.cos(lrot), z: Math.sin(lrot) }; // direita do líder
+      const fwd = { x: Math.sin(lrot), z: Math.cos(lrot) };
       const side = f.side || 1;
-      const tx = L.x + right.x * f.gap * side + fwd.x * 0.12;
-      const tz = L.z + right.z * f.gap * side + fwd.z * 0.12;
-      const ty = f.up != null ? f.up : (this.ctl && this.ctl.kind === 'floater' ? (seated ? 1.05 : 1.32) : 0);
+      const ahead = fpLead ? 1.0 : 0.12;
+      const gap = fpLead ? 0.62 : f.gap;
+      const tx = L.x + right.x * gap * side + fwd.x * ahead;
+      const tz = L.z + right.z * gap * side + fwd.z * ahead;
+      const ty = f.up != null ? f.up : (this.ctl && this.ctl.kind === 'floater' ? (seated ? 0.95 : fpLead ? 1.2 : 1.32) : 0);
+      if (fpLead) f.faceCamera = true;
       const k = 1 - Math.exp(-dt * 3.2);
       const dist = Math.hypot(tx - this.x, tz - this.z);
       this.x += (tx - this.x) * k;
@@ -901,6 +1201,39 @@
     dom.camBtn.textContent = '🎥 Centralizar';
     dom.camBtn.addEventListener('click', (e) => { e.stopPropagation(); cam.reset(); dom.camBtn.hidden = true; });
     wrap.appendChild(dom.camBtn);
+    hs.layer = document.createElement('div');
+    hs.layer.className = 'hs-layer';
+    wrap.appendChild(hs.layer);
+    // joystick (celular)
+    dom.joy = document.createElement('div');
+    dom.joy.className = 'joy';
+    dom.joy.hidden = true;
+    dom.joy.innerHTML = '<div class="joy-knob"></div>';
+    wrap.appendChild(dom.joy);
+    (function () {
+      const knob = dom.joy.firstChild;
+      let id = null, cx = 0, cy = 0;
+      const R = 46;
+      const move = (e) => {
+        const dx = e.clientX - cx, dy = e.clientY - cy;
+        const d = Math.hypot(dx, dy), k = d > R ? R / d : 1;
+        knob.style.transform = 'translate(' + dx * k + 'px,' + dy * k + 'px)';
+        player.joy.x = (dx * k) / R; player.joy.y = (dy * k) / R; player.joy.on = true;
+      };
+      dom.joy.addEventListener('pointerdown', (e) => {
+        e.stopPropagation(); e.preventDefault();
+        id = e.pointerId;
+        const r = dom.joy.getBoundingClientRect();
+        cx = r.left + r.width / 2; cy = r.top + r.height / 2;
+        try { dom.joy.setPointerCapture(id); } catch (_) { /* nada */ }
+        move(e);
+      });
+      dom.joy.addEventListener('pointermove', (e) => { if (e.pointerId === id) { e.stopPropagation(); move(e); } });
+      const up = (e) => { if (e.pointerId !== id) return; id = null; player.joy.on = false; player.joy.x = player.joy.y = 0; knob.style.transform = ''; };
+      dom.joy.addEventListener('pointerup', up);
+      dom.joy.addEventListener('pointercancel', up);
+      dom.joy.addEventListener('click', (e) => e.stopPropagation());
+    })();
     dom.hint = document.createElement('div');
     dom.hint.className = 'drag-hint';
     dom.hint.innerHTML = '<span>↔</span> arraste para olhar em volta';
@@ -956,6 +1289,7 @@
     nextFrame.splice(0).forEach((fn) => { try { fn(); } catch (e) { console.error(e); } });
     try {
       updateCamera(P2.paused ? 0 : dt);
+      updateHotspots();
       applyOverlays();
       if (renderer && scene && camera) renderer.render(scene, camera);
     } catch (e) { console.error(e); }

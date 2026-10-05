@@ -734,9 +734,19 @@
     if (!h) return;
     h.innerHTML = '';
     const s = hudState;
-    if (s.clock) {
-      h.appendChild(el('div', 'hud-box hud-clock', [el('span', 'hud-ic', '🕘'), el('b', null, String(s.clock))]));
+    const left = el('div', 'hud-left');
+    if (s.clock) left.appendChild(el('div', 'hud-box hud-clock', [el('span', 'hud-ic', '🕘'), el('b', null, String(s.clock))]));
+    if (s.objetivo && s.objetivo.text) {
+      const ob = el('div', 'hud-box hud-obj', [el('span', 'hud-ic', '🎯'), el('span', 'hud-obj-tx', s.objetivo.text)]);
+      if (s.objetivo.go) {
+        const g = el('button', 'hud-go', 'Ir até lá ▶');
+        g.type = 'button';
+        g.addEventListener('click', (e) => { e.stopPropagation(); try { s.objetivo.go(); } catch (er) { /* nada */ } });
+        ob.appendChild(g);
+      }
+      left.appendChild(ob);
     }
+    if (left.children.length) h.appendChild(left);
     const right = el('div', 'hud-right');
     if (s.rep) {
       const v = Math.max(0, Math.min(s.rep.max || 100, s.rep.value || 0));
