@@ -838,8 +838,9 @@
       const v1 = r(), v2 = r(), v3 = r();
       // "vista": no cone da janela principal os prédios próximos ficam abaixo dos olhos (andar alto) — a vista
       // abre para o céu e o horizonte em vez de dar de cara com uma parede de prédios
-      const vs = o.vista, inVista = !!(vs && Math.cos(ang - vs.a) > vs.cos && rad < vs.r);
-      if (inVista) bh = Math.min(bh, Math.max(6, vs.top - GY - 3));
+      // (além de vs.r o teto sobe devagar: os prédios do fundo formam um horizonte em degraus, sem paredão)
+      const vs = o.vista, inVista = !!(vs && Math.cos(ang - vs.a) > vs.cos);
+      if (inVista) bh = Math.min(bh, Math.max(6, vs.top + Math.max(0, rad - vs.r) * 0.9 - GY - 3));
       part(bw, bh, bd, dayMats[ci], cx, GY + bh / 2, cz, ry);
       let top = GY + bh;
       // recuo no topo (prédios altos ganham um "bolo" mais estreito, silhueta menos de caixa)
