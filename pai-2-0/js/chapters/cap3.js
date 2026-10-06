@@ -220,7 +220,7 @@
   .k3-ln.dim:not(.oculto) { opacity: 0.45; }
   .k3-annex.sel .k3-lt { background: #cfe2ff; }
   .k3-annex.sel .k3-ln.oculto .k3-lt { background: #2f6fe0; color: #fff; }
-  .k3-ln.ok.oculto .k3-lt { background: #2dbf8f; color: #fff; }
+  .k3-annex .k3-ln.ok.oculto .k3-lt { background: #2dbf8f; color: #fff; }
   .k3-list { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
   .k3-list li { display: flex; gap: 8px; line-height: 1.4; }
   .k3-sign { margin-top: 10px; text-align: right; font-family: 'Segoe Script', 'Brush Script MT', cursive; font-size: 1.25em; color: #1f3d8a; }
