@@ -1015,7 +1015,8 @@
           await G.say('faisca', 'Oito de oito. Você separa como quem já fez mil atas.', { anim: 'celebrate' });
           await G.say('pai', 'Fiz. Só que à mão, e de madrugada.', { expr: 'orgulhoso' });
         } else {
-          await G.say('faisca', cl.acertos + ' de ' + cl.total + ' de primeira. O que importa: o que ninguém assumiu fica “a definir”. Não se inventa dono.', { anim: 'teach' });
+          const nome = ['Nenhum', 'Um', 'Dois', 'Três', 'Quatro', 'Cinco', 'Seis', 'Sete'][cl.acertos] || String(cl.acertos);
+          await G.say('faisca', nome + (cl.acertos ? ' de oito de primeira. ' : ' de primeira, e tudo bem: separar ata é treino. ') + 'O critério que mais importa: o que ninguém assumiu fica “a definir”. Não se inventa dono.', { anim: 'teach' });
         }
         await G.say('faisca', 'Agora, o meu rascunho, em quatro partes: decisões, tarefas, pendências e o que conferir. Nomes, números e prazos: essa parte é sua.', { anim: 'point' });
 

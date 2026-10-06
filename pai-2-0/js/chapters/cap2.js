@@ -731,7 +731,7 @@
         G.player.lookAt(TV);
         await G.narrate('A Sônia, de folga hoje, deixou a pauta programada na TV. E o relógio já está andando.');
         G.player.lookAt(null);
-        await G.say('faisca', 'Antes de tudo: em casa eu estava no seu celular, numa conta pessoal. Aqui eu rodo na conta da empresa, a que a TI aprovou e que não usa os seus dados para treinar a IA.', { expr: 'neutro' });
+        await G.say('faisca', 'Antes de tudo: em casa eu rodava no seu celular, numa conta pessoal. Aqui é a conta da empresa: a TI aprovou, e ela não usa os seus dados para treinar a IA.', { expr: 'neutro' });
         await G.say('pai', 'E quem garante que essa tal conta da empresa não espalha nada?', { expr: 'desconfiado' });
         await G.say('faisca', 'O contrato com o fornecedor e a TI, que conferiu as configurações. Material do conselho, só aqui. E senha ou código do banco, nem aqui.', { expr: 'neutro' });
         await G.say('faisca', 'Agora, o combinado da manhã: em cada tarefa, três jeitos. Você faz sozinho; eu rascunho e você revisa; ou eu faço e você manda sem ler.');
@@ -1144,8 +1144,9 @@
           anim(G.faisca, 'celebrate', 1.6);
           G.fx.confetti(G.faisca, null, null, 40);
         }
-        if (v.rep >= 50) await G.say('faisca', hora(v.min) + '. Quatro tarefas resolvidas. Olha só o relógio.', { expr: 'empolgado' });
-        else await G.say('faisca', hora(v.min) + '. Quatro tarefas feitas. Rápido, sim. Agora olha a reputação.', { expr: 'sem_graca' });
+        if (v.rep < 50) await G.say('faisca', hora(v.min) + '. Quatro tarefas feitas. Agora olha a reputação.', { expr: 'sem_graca' });
+        else if (v.min < 120) await G.say('faisca', hora(v.min) + '. Quatro tarefas resolvidas. Olha só o relógio.', { expr: 'empolgado' });
+        else await G.say('faisca', hora(v.min) + '. Quatro tarefas resolvidas, e bem resolvidas. O relógio é que não colaborou.', { expr: 'amigavel' });
         await G.card({ kind: 'ok', kicker: 'Balanço da manhã', icon: '🧾', titulo: resolvido(v), node: balanco(G) });
 
         if (algumSem) await G.say('faisca', 'Quando você mandou sem ler, os meus erros saíram com o seu nome. E eu erro sem mudar o tom de voz: rascunho meu precisa de leitor.', { expr: 'sem_graca' });
