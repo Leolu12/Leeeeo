@@ -647,7 +647,7 @@
         P2.ui.css('cap5', CSS);
         G.scene('sala_reuniao', { clock: '13:50', chaos: 0, slide: SLIDE_VELHA });
         G.pai.at('porta');
-        pousa(G, 2.9, 1.9, 1.35);
+        pousa(G, 3.6, 1.55, 1.4); // à frente e um pouco à direita: inteira na tela também no celular em pé
         G.hud.set({ clock: '13:50' });
         G.music('trabalho');
         G.player.cine();
