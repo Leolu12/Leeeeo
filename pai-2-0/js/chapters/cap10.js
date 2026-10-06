@@ -966,7 +966,7 @@
         G.player.fp();
         G.pai.at('sofa1');
         G.pai.setAnim('sit');
-        G.player.lookAt({ x: 0, y: 1.1, z: 0.6 });
+        G.player.lookAt(G.faisca); // quem fala no debrief é a Faísca: ela fica no quadro
 
         if (!G.v.c1fail) {
           await G.say('faisca', c1 === 'ligar'
@@ -1087,7 +1087,7 @@
         G.sceneParams({ alert: false });
         G.music('misterio');
         G.pai.setAnim('sit');
-        G.player.lookAt({ x: 0, y: 1.1, z: 0.6 });
+        G.player.lookAt(G.faisca); // quem fala no debrief é a Faísca: ela fica no quadro
 
         const dePrimeira = !G.v.c1fail && !G.v.c2fail;
         if (dePrimeira) {
