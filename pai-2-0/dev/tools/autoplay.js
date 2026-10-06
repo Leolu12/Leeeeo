@@ -22,7 +22,7 @@ const GAME = '/home/user/Leeeeo/pai-2-0/index.html';
   const shot = async (tag) => { if (!shots) return; try { await p.screenshot({ path: path.join(shots, String(shotN++).padStart(3, '0') + '-' + tag + '.png'), timeout: 90000 }); } catch (e) { console.error('screenshot falhou (' + tag + '): ' + e.message.split('\n')[0]); } };
   await p.goto('file://' + GAME + '?cap=' + cap + '&speed=instantanea' + (opt('hq', false) ? '' : '&q=low') + (filha ? '&genero=filha' : ''));
   await p.waitForTimeout(800);
-  let done = false, steps = 0, stuck = 0, lastSig = '', modes = {}, lastChange = Date.now();
+  let done = false, steps = 0, stuck = 0, lastSig = '', modes = {}, lastChange = Date.now(), noGo = 0;
   const texts = [];
   while (steps++ < MAX) {
     const st = await p.evaluate(() => {
@@ -101,7 +101,8 @@ const GAME = '/home/user/Leeeeo/pai-2-0/index.html';
         if (hs.length) { hs[0].click(); return 'hs-any'; }
         return null;
       }, pick);
-      if (!did) errs.push('Exploring but no hotspot/go button available');
+      // só é erro se continuar explorando sem botão por 3 checagens seguidas (o pai pode ter acabado de chegar)
+      if (!did) { noGo = (noGo || 0) + 1; if (noGo >= 3) { errs.push('Exploring but no hotspot/go button available'); noGo = 0; } } else noGo = 0;
       await p.waitForTimeout(2600);
       continue;
     }

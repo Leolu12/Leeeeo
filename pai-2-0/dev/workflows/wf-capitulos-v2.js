@@ -113,16 +113,38 @@ ${QUALITY}
 ${RULES(id)}
 Return the structured report (notes: what you changed and any remaining concerns).`
 
+const ORDER = ['prologo', 'cap1', 'cap2', 'cap3', 'cap4', 'cap5', 'cap6', 'cap7', 'cap8', 'cap9', 'cap10', 'cap11', 'epilogo']
+const deepPrompt = (id) => {
+  const i = ORDER.indexOf(id), prev = ORDER[i - 1], next = ORDER[i + 1]
+  return `You are the NARRATIVE DIRECTOR + QA LEAD doing the FULL, CAREFUL final pass on ${GAME}/js/chapters/${id}.js — ${CH[id]} — of "PAI 2.0" (CEO edition): a professional first-person 3D narrative game in Brazilian Portuguese, a gift from a son/daughter to their father, a skeptical Brazilian CEO (55+), to genuinely convince him to use generative AI and teach him the best, safe ways a CEO can use it.
+
+State: the chapter is written and plays end to end; it already had a quick critical review (honesty/safety/child gender/pt-BR) and a partial staging pass (interrupted). Nobody has yet done a full director pass with real attention to pacing, staging and persuasion. That is your job. Take your time and do it well (about an hour), but don't waste effort re-reading files.
+
+${READ(id)}
+Continuity: read the LAST part of ${prev ? GAME + '/js/chapters/' + prev + '.js' : '(none)'} and the FIRST part of ${next ? GAME + '/js/chapters/' + next + '.js' : '(none)'} so the hand-offs (time of day, place, who is present, what was promised) match. Do not edit those files; if a hand-off needs a change on their side, report it in notes.
+Art agents are polishing env-*.js / chars.js / rig.js in parallel (spot and shot names stay stable; an art file may be briefly mid-edit — if a test fails inside an art file, wait a minute and retry).
+
+YOUR TASK:
+1) PLAY IT: ${TEST(id, `${S}/ch3d-${id}-deep`)}
+   Also play it with --filha --mobile --pick=random. (The autoplay tool already tolerates the moment when the father arrives at a hotspot and the "Ir até lá" button disappears.)
+2) Read the --dump text from start to end as the father would, then JUDGE harshly with the lenses below. Pay special attention to: pacing (cut padding, keep it rich), whether each persuasion beat lands, Faísca's charm without sycophancy, the father's ironic warm voice, minigame clarity and feedback, every number backed by a G.fact card shown near the claim, the child-gender tokens, and 3D staging (people facing the player, nobody inside furniture or off-screen while speaking, cinematic shots framing the right people, nothing clipping on 390 px mobile).
+3) FIX everything directly in the chapter file; re-run the tests (desktop filho + mobile filha) until both end with "ok": true.
+
+${QUALITY}
+
+${RULES(id)}
+Return the structured report (notes: what you changed, hand-off issues for neighbouring chapters, remaining concerns).`
+}
 const items = (Array.isArray(args) ? args : []).filter((it) => it && CH[it.id])
 log('Capítulos: ' + items.map((it) => it.id + '(' + it.mode + ')').join(', '))
 const results = await pipeline(
   items,
-  (it) => agent(it.mode === 'finish' ? finishPrompt(it.id) : writePrompt(it.id), {
-    label: (it.mode === 'finish' ? 'finalizar:' : 'escrever:') + it.id,
+  (it) => agent(it.mode === 'deep' ? deepPrompt(it.id) : it.mode === 'finish' ? finishPrompt(it.id) : writePrompt(it.id), {
+    label: (it.mode === 'deep' ? 'revisar:' : it.mode === 'finish' ? 'finalizar:' : 'escrever:') + it.id,
     phase: 'Capítulos',
     schema: REPORT,
   }),
-  (rep, it) => (rep && it.mode !== 'finish'
+  (rep, it) => (rep && it.mode === 'write'
     ? agent(reviewPrompt(it.id, rep), { label: 'revisar:' + it.id, phase: 'Revisão', schema: REPORT }).then((r) => r || rep)
     : rep),
 )
