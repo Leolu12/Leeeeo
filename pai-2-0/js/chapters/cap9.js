@@ -847,7 +847,7 @@
           G.fx.confetti(G.faisca);
           fa(G, 'celebrate', 2);
           await G.say('faisca', 'Cinco de cinco, de primeira. Sem colar: eu vi.', { expr: 'feliz' });
-          await G.say('pai', 'Trinta anos lendo relatório de diretor. Pegadinha eu conheço.', { expr: 'orgulhoso' });
+          await G.say('pai', 'A vida inteira lendo relatório de diretor. Pegadinha eu conheço.', { expr: 'orgulhoso' });
         } else {
           fa(G, 'jump', 1.2);
           const resto = r.total - r.acertos;
@@ -941,7 +941,7 @@
         // honestidade: hoje foi o primeiro dia
         await G.say('faisca', 'Uma coisa honesta antes de você dormir: hoje foi só o primeiro dia. Quem estuda o assunto fala em umas cinco a dez horas de uso de verdade, em tarefa real, para pegar o jeito.');
         await G.say('pai', 'Dez horas, no máximo. Menos que um voo para a Europa.', { expr: 'pensativo' });
-        await G.say('faisca', 'E tem uma vantagem sua: eu ajudo mais quem sabe julgar a resposta. Trinta anos de estrada contam a favor, não contra.', { anim: 'teach' });
+        await G.say('faisca', 'E tem uma vantagem sua: eu ajudo mais quem sabe julgar a resposta. Os seus anos de estrada contam a favor, não contra.', { anim: 'teach' });
         await G.say('faisca', 'Até o CEO da Nvidia recomenda: “arrume um tutor de IA agora mesmo”. E ele faz a mesma pergunta a mais de uma IA. Claro, ele vende chip para IA. Desconto aplicado.');
         await G.fact('huang_tutor_varias_ias');
         await G.say('pai', 'Gostei do desconto. É o primeiro vendedor de tecnologia que me oferece um.', { expr: 'rindo' });

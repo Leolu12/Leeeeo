@@ -67,7 +67,7 @@
     {
       id: 'conta', icon: '💡', titulo: 'A conta de luz', post: 'Conta de luz: R$ 412?!', cor: '#ffc0cc', rot: 2,
       sit: 'Conta de luz: *R$ 412,00*, vence sexta. Mês passado: R$ 298. Consumo: 395 kWh (antes, 290). Na conta: bandeira amarela, iluminação pública e ICMS. No topo: seu nome, CPF, endereço e número de cliente.',
-      intro: 'Trinta anos pagando conta de luz. Hoje você vai entender uma. Como pede?',
+      intro: 'A vida inteira pagando conta de luz. Hoje você vai entender uma. Como pede?',
       opcoes: [
         {
           txt: 'Minha conta de luz veio R$ 412; no mês passado, R$ 298. Consumo: 395 kWh (antes, 290), bandeira amarela, iluminação pública e ICMS. Explique cada item em linguagem simples, por que pode ter subido e o que devo confirmar com a distribuidora.',
@@ -556,7 +556,7 @@
       await G.narrate('Ele abre o aplicativo da distribuidora. Histórico de consumo… e, ao lado de setembro, duas palavras: *leitura estimada*.');
       await G.say('pai', 'Estimada! Nem leram o medidor. Isso não é conta, é palpite.', { expr: 'bravo' });
       await G.say('faisca', 'Aí não é comigo: quem corrige é a distribuidora. Mas agora você sabe exatamente o que pedir.', { anim: 'teach' });
-      await G.say('pai', 'Amanhã eu peço a revisão. Trinta anos pagando conta e nunca tinha olhado esse campo.', { expr: 'pensativo' });
+      await G.say('pai', 'Amanhã eu peço a revisão. Uma vida inteira pagando conta e nunca tinha olhado esse campo.', { expr: 'pensativo' });
     },
     async viagem(G) {
       await G.say('pai', '(lendo baixinho) Serra… trilha sábado cedo… cochilo depois do almoço. Hum.', { expr: 'pensativo' });
