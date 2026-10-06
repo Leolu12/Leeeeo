@@ -673,7 +673,7 @@
               onInteract: async (G) => {
                 await G.say('pai', '"Empresa do Ano". Ninguém lembra do ano seguinte, em que quase quebramos. Eu lembro.');
                 await G.think('pai', 'Minha primeira mesa ficava do lado do banheiro. Sem janela. Foram muitos andares até aqui.');
-                await G.say('faisca', 'Isso eu nunca vou ter: trinta anos de lembrança. Eu ajudo no resto.');
+                await G.say('faisca', 'Isso eu nunca vou ter: uma vida inteira de lembranças. Eu ajudo no resto.');
               },
             },
             {
@@ -1192,10 +1192,10 @@
         G.cam.shot({ target: [-2.2, 1.45, -3.0], yaw: 0.2, pitch: 0.04, dist: 3.4, fov: 40 }, 6).catch(() => {});
         const usouIA = ['t1', 't2', 't3'].some((k) => modos[k] && modos[k] !== 'mao');
         if (usouIA) {
-          await G.say('pai', 'Trinta anos fazendo tudo na mão. E agora uma caixinha laranja escreve o meu rascunho.', { expr: 'pensativo' });
+          await G.say('pai', 'A vida inteira fazendo tudo na mão. E agora uma caixinha laranja escreve o meu rascunho.', { expr: 'pensativo' });
           await G.say('faisca', 'E você continua sendo quem sabe o que está certo. Eu acelero. Você julga.', { expr: 'amigavel' });
         } else {
-          await G.say('pai', 'Trinta anos fazendo tudo na mão. E hoje, de novo, tudo na mão.', { expr: 'pensativo' });
+          await G.say('pai', 'A vida inteira fazendo tudo na mão. E hoje, de novo, tudo na mão.', { expr: 'pensativo' });
           await G.say('faisca', 'Do seu jeito, e bem feito. Quando quiser testar, eu rascunho e você julga.', { expr: 'amigavel' });
         }
         await G.say('pai', 'E quem assina sou eu.', { expr: 'orgulhoso' });

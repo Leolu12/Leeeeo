@@ -922,7 +922,7 @@
           fa(G, 'celebrate', 1.6);
           await G.say('pai', 'E peguei um erro dela no caminho.', { expr: 'orgulhoso' });
         }
-        await G.say('bia', 'Pegou erro da IA? Então já está usando melhor que muita gente. Me ensina: meu time leva dois dias nessa explicação todo trimestre.', { expr: 'empolgado' });
+        await G.say('bia', 'Pegou erro da IA antes de mandar? Bom sinal. Me ensina: meu time leva dois dias nessa explicação todo trimestre.', { expr: 'empolgado' });
         await G.say('bia', 'E o porquê eu fui apurar: o frete dos insumos subiu em agosto.', { expr: 'determinado' });
         await G.say('bia', 'E tem mais: em setembro, o comercial deu desconto pesado para bater a meta.', { expr: 'desconfiado' });
         await G.say('pai', 'O Jorge.', { expr: 'cansado' });

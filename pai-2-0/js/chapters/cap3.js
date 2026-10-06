@@ -685,7 +685,7 @@
         G.player.fp();
         tadeu.face(G.pai, true);
         G.player.lookAt(tadeu);
-        await G.say('pai', 'Trinta anos nisso me ensinaram uma coisa: o problema mora na página que ninguém leu.', { expr: 'determinado' });
+        await G.say('pai', 'Muitos anos nisso me ensinaram uma coisa: o problema mora na página que ninguém leu.', { expr: 'determinado' });
         await G.say('tadeu', 'Por isso eu quero os seus olhos de negócio nele. Volto em quarenta e cinco minutos: você me diz o que te preocupa, e eu fecho a parte jurídica.', { expr: 'amigavel' });
         bg(tadeu.walk(CORREDOR[1]).then(() => tadeu.walk(CORREDOR[0])).then(() => tadeu.walk('porta')).then(() => { G.sfx('door'); tadeu.remove(); }));
 

@@ -778,7 +778,7 @@
           { from: 'ia', text: '1. Quanto do faturamento é do cliente do Sul, e o que acontece se ele sair?\n2. Quanto volume a gente perde com 12%? E com 6%?\n3. Com o fornecedor de embalagens atrasando, vamos subir o preço justo quando a entrega piora?' },
         ], { title: 'Faísca · ferramenta da empresa' });
         await G.say('pai', 'As duas primeiras eu já tinha na cabeça. A terceira, não: subir preço com a entrega atrasando. Boa.', { expr: 'pensativo' });
-        await G.say('faisca', 'Você tem trinta anos de mesa. Eu tenho três segundos de leitura. Juntos, a gente chega preparado.', { anim: 'celebrate' });
+        await G.say('faisca', 'Você tem décadas de mesa. Eu tenho três segundos de leitura. Juntos, a gente chega preparado.', { anim: 'celebrate' });
         await G.say('faisca', 'Mando a pauta para a diretoria, com o que cada um deve trazer? Está na tela, para você ler antes.');
         await G.say('pai', 'Li. Pode mandar. E da próxima vez, na véspera: dez minutos antes ninguém traz nada.', { expr: 'determinado' });
         await G.say('faisca', 'Anotado. Na segunda à tarde, eu te lembro.', { anim: 'jump' });

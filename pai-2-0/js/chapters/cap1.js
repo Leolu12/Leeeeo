@@ -699,7 +699,7 @@
           G.faisca.play('celebrate', 1.6);
           G.fx.confetti(G.faisca);
         } else {
-          api.say('Pedido bom não é dom: é o mesmo briefing que você dá há trinta anos. Agora é só usar.', 'faisca');
+          api.say('Pedido bom não é dom: é o mesmo briefing que você dá há décadas. Agora é só usar.', 'faisca');
           api.sfx('success');
           G.faisca.play('jump', 1);
         }
@@ -788,7 +788,7 @@
     id: 'cap1',
     num: 'Capítulo 1',
     title: 'A Arte de Pedir',
-    subtitle: 'O relatório das dez, um pedido vago e um talento de trinta anos',
+    subtitle: 'O relatório das dez, um pedido vago e um talento de décadas',
     music: 'manha',
     minutes: 10,
     parts: [
@@ -876,7 +876,7 @@
         await G.say('pai', 'Eu ia receber exatamente isso. E a culpa ia ser minha, que expliquei mal.', { expr: 'pensativo' });
         G.faisca.play('teach', 1.6);
         await G.say('faisca', 'Metade da culpa é minha, que não perguntei. Com diretor novo é igual: *quem você é, o que quer, o contexto e o formato.* E deixar que ele pergunte o que faltar.');
-        await G.say('pai', 'Isso tem nome: briefing. Faço há trinta anos.', { expr: 'orgulhoso' });
+        await G.say('pai', 'Isso tem nome: briefing. Faço isso a vida inteira.', { expr: 'orgulhoso' });
         await G.say('filho', 'Então você já sabe usar IA. Só não sabia que sabia.', { expr: 'rindo' });
         await G.say('filho', 'O pessoal chama esse pedido de *prompt*. Mas é só isso: o pedido que você escreve.');
         await G.say('pai', 'Então vamos chamar de pedido. Esta cozinha ainda é minha.', { expr: 'rindo' });
@@ -970,7 +970,7 @@
           G.faisca.play('celebrate', 1.2);
           await G.say('faisca', 'Exato. Eu não vejo o que não está no papel: as pessoas, a história, o clima da sala.');
         }
-        await G.say('pai', 'Trinta anos de conselho. Essa leitura ninguém faz por mim.', { expr: 'orgulhoso' });
+        await G.say('pai', 'Anos de conselho. Essa leitura ninguém faz por mim.', { expr: 'orgulhoso' });
         G.faisca.play('teach', 1.2);
         await G.say('faisca', 'E uma dica para qualquer pedido: termine com "se não souber, diga que não sabe". Um "não sei" honesto vale mais que um chute bonito.');
         await G.say('filho', 'Ela não sabia e admitiu, {apelido}. Tem diretor que leva anos para aprender isso.', { expr: 'rindo' });

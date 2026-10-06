@@ -64,7 +64,7 @@
       porque: 'Conceito estável, que você domina. Se eu escorregar, você percebe na hora.',
       onde: '*Como revisar:* a sua própria experiência. Aqui a fonte é você.',
       faOk: 'Exato. Isso você sabe melhor do que eu.',
-      faBad: 'Aqui a fonte é você: trinta anos de DRE.',
+      faBad: 'Aqui a fonte é você: décadas de DRE.',
     },
     {
       id: 'concorrente', tag: 'Número', certo: 'confira',
@@ -547,7 +547,7 @@
         G.player.lookAt(j);
         await G.fadeIn(0.6);
         await G.say('jorge', 'Quero ver se o chefe tem faro.', { expr: 'rindo' });
-        await G.say('pai', 'Trinta anos de reunião, Jorge. Faro é o que não me falta.', { expr: 'orgulhoso' });
+        await G.say('pai', 'Décadas de reunião, Jorge. Faro é o que não me falta.', { expr: 'orgulhoso' });
         const r = await detector(G);
         const acertos = (r && r.acertos) || 0;
         const pegas = (r && r.pegas) || 0;

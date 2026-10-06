@@ -1065,7 +1065,7 @@
         await G.say('pai', 'Se eu proibir, eles param de contar. Não de usar.', { expr: 'desconfiado' });
         G.player.lookAt(G.faisca);
         G.faisca.setAnim('teach');
-        await G.say('faisca', 'Exato. E a conversa de café da Luana bate com as pesquisas grandes. Olha este dado nacional.');
+        await G.say('faisca', 'Exato. E a conversa de café da Luana vai na mesma linha das pesquisas grandes. Olha este dado do Brasil.');
         G.faisca.setAnim('idle');
         await G.fact('microsoft_wti_byoai');
         await G.say('faisca', 'O caminho que costuma funcionar é outro: uma ferramenta segura da empresa, uma regra curta e o exemplo de quem lidera.', { anim: 'teach' });
