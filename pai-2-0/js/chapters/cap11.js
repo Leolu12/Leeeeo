@@ -84,10 +84,10 @@
       id: 'puxasaco',
       ataque: 'Ela só concorda com você! Puxa-saco de luxo. É só perguntar “tem certeza?” que ela muda de ideia.',
       curta: 'Ela só concorda comigo.',
-      h: { txt: 'Tende a concordar, sim. Então eu não conto a minha opinião antes e peço o melhor argumento contra. Puxa-saco eu reconheço de longe: trinta anos de reunião.', why: 'Esconder a sua preferência e pedir o contra transforma a IA em sparring, não em espelho. No Guia: “Pergunte sem revelar a sua opinião”.' },
+      h: { txt: 'Tende a concordar, sim. Então eu não conto a minha opinião antes e peço o melhor argumento contra. Puxa-saco eu reconheço de longe: décadas de reunião.', why: 'Esconder a sua preferência e pedir o contra transforma a IA em sparring, não em espelho. No Guia: “Pergunte sem revelar a sua opinião”.' },
       v: { txt: 'Melhor assim. Depois de um dia inteiro de reunião, pelo menos alguém concorda comigo.', why: 'Engraçado, mas perigoso: concordância fácil é o que faz uma decisão ruim parecer boa.' },
       x: { txt: 'Que nada. É máquina: não tem vaidade, não tem opinião. É o conselheiro mais imparcial que existe.', why: 'Ela não tem interesse, mas tem tendência: aprendeu a agradar quem pergunta. Imparcial ela não é.' },
-      fa: { h: 'Hahaha! Trinta anos de reunião: o melhor detector de puxa-saco do mercado.', v: 'Hum... eu concordo totalmente com você. Viu o problema?', x: 'Imparcial eu não sou. Eu puxo pro seu lado sem nem perceber.' },
+      fa: { h: 'Hahaha! Décadas de reunião: o melhor detector de puxa-saco do mercado.', v: 'Hum... eu concordo totalmente com você. Viu o problema?', x: 'Imparcial eu não sou. Eu puxo pro seu lado sem nem perceber.' },
     },
     {
       id: 'trabalho',
@@ -121,7 +121,7 @@
       ataque: 'Admita, {pai}. Você está velho pra isso. Sempre fez tudo do seu jeito. Pra que mudar agora?',
       expr: 'rindo',
       curta: 'Velho demais pra isso.',
-      h: { txt: 'Não vou mudar o meu jeito: vou levar o meu jeito pra ela. Ela rende mais nas mãos de quem sabe julgar a resposta. E julgar eu faço há trinta anos.', why: 'Experiência não é atraso: é o filtro. Quem sabe dizer “isso está errado” aproveita o rascunho e descarta a besteira. Pegar o jeito leva algumas horas de prática, sem pressa.' },
+      h: { txt: 'Não vou mudar o meu jeito: vou levar o meu jeito pra ela. Ela rende mais nas mãos de quem sabe julgar a resposta. E julgar eu faço a vida inteira.', why: 'Experiência não é atraso: é o filtro. Quem sabe dizer “isso está errado” aproveita o rascunho e descarta a besteira. Pegar o jeito leva algumas horas de prática, sem pressa.' },
       v: { txt: 'Talvez seja mesmo coisa pros mais novos. Eu deixo isso com {oa} {filho}.', why: 'Não é. Leva algumas horas de prática, no seu ritmo, e a sua experiência pesa a favor, não contra.' },
       x: { txt: 'Velho nada! Com ela, experiência nem conta mais: qualquer um vira especialista em tudo.', why: 'Ao contrário: quem não sabe julgar a resposta copia o erro sem perceber. Os seus trinta anos são justamente o filtro.' },
       fa: { h: '...Essa me arrepiou. E olha que eu nem tenho pele.', v: 'Ei. Não fala assim de quem pegou a multa errada num contrato de 80 páginas.', x: 'Conta, sim! Sem você, eu sou só um estagiário rápido falando besteira com confiança.' },
@@ -401,7 +401,7 @@
         G.player.setLook(0.75, G.pai.rot);
         olharDeitado(G, { x: G.pai.x, y: 2.6, z: G.pai.z + 0.4 });
         await G.fadeIn(0.6);
-        await G.think('pai', 'O corpo apagou às onze. A cabeça, não.');
+        await G.think('pai', 'O corpo deitou faz meia hora. A cabeça, não.');
         await G.think('pai', 'Contrato de 80 páginas. Reunião sem fim. Uma conta errada. E uma Bia que não era a Bia.');
         await G.think('pai', 'Foi um dia e tanto. E o pior: a tal da Faísca ajudou. Ajudou de verdade.');
         await G.think('pai', 'Prometi um veredito amanhã, no café. E ainda tenho mais pergunta do que resposta.', { expr: 'preocupado' });

@@ -809,7 +809,7 @@
               onInteract: async (G) => {
                 await G.say('pai', 'A cidade quieta. Daqui parece tudo calmo.');
                 await G.say('faisca', 'E não está?');
-                await G.say('pai', 'Trinta anos de empresa me ensinaram: quando está calmo demais, alguém está preparando uma surpresa.');
+                await G.say('pai', 'Anos de empresa me ensinaram: quando está calmo demais, alguém está preparando uma surpresa.');
               },
             },
           ],
@@ -972,7 +972,7 @@
           await G.say('faisca', c1 === 'ligar'
             ? 'Você fez exatamente o que salva empresa: desligou e ligou no número que conhece.'
             : 'Uma pergunta que só a Bia saberia, e o golpe desmoronou. Depois, o número que você conhece.', { anim: 'celebrate' });
-          await G.say('pai', 'Trinta anos aprovando pagamento. Nunca aprovei sem conferir. Não ia começar de pijama.');
+          await G.say('pai', 'A vida inteira aprovando pagamento. Nunca aprovei sem conferir. Não ia começar de pijama.');
         } else {
           await G.say('pai', 'Na vida real, eu tinha perdido 1,8 milhão em um minuto.');
           await G.say('faisca', 'E não seria burrice. Gente muito experiente já caiu nisso. O que protege é o processo, não a esperteza.');
@@ -1209,7 +1209,7 @@
           await G.say('filho', 'Pode acontecer com qualquer um, {apelido}. O importante é saber o que fazer agora.', { expr: 'amigavel' });
         } else {
           await G.say('filho', 'E você não caiu.', { expr: 'orgulhoso' });
-          await G.say('pai', 'Trinta anos de conferir assinatura. Uma voz bonita não ia me pegar.');
+          await G.say('pai', 'Uma vida inteira conferindo assinatura. Uma voz bonita não ia me pegar.');
         }
         await G.say('faisca', 'Posso propor uma coisa pros dois?');
         await G.say('faisca', 'Uma palavra-código da família. Se alguém ligar com a voz de vocês pedindo dinheiro, pede a palavra.');
