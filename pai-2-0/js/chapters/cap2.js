@@ -35,7 +35,7 @@
         { quem: 'Bia', txt: 'Receita: *+14%* sobre o 3º trimestre do ano passado.' },
         { quem: 'Bia', txt: 'Margem bruta: *caiu de 35% para 30%*. As causas, ainda estou apurando.' },
         { quem: 'Rafael', txt: 'Novo centro de distribuição: começa a operar em *março*.' },
-        { quem: 'Rafael', txt: 'Grupo Horizonte: a entrega atrasou *6 dias*.' },
+        { quem: 'Rafael', txt: 'Grupo Horizonte: a entrega atrasou *6 dias*. É o *segundo atraso* em três meses.' },
         { quem: 'Jorge', txt: '*3 clientes novos* no trimestre. (O resto do áudio é churrasco.)' },
       ],
       linhas: [
@@ -67,8 +67,8 @@
             passou: 'O centro de distribuição abre em *março*. O rascunho dizia janeiro.',
           },
         },
-        { t: 'Atenção: o atraso de 6 dias ao Grupo Horizonte põe em risco a renovação do contrato.', conf: 'Bate com o Rafael (6 dias). E o risco é real.' },
-        { t: 'Próximo passo: a Bia apresenta as causas da queda de margem ao conselho.', conf: 'Honesto: o porquê ainda está com a Bia, e é ela quem sabe.' },
+        { t: 'Atenção: segundo atraso em três meses ao Grupo Horizonte, de 6 dias desta vez.', conf: 'Bate com o Rafael: 6 dias, e é o segundo em três meses.' },
+        { t: 'Próximo passo: a Bia está apurando as causas da queda de margem.', conf: 'Bate com a Bia. Honesto: o porquê ainda está com ela, e ninguém inventou um.' },
       ],
     },
     {
@@ -86,6 +86,7 @@
         { quem: 'Rafael', txt: 'Causa: não foi a transportadora. O *fornecedor de embalagens* atrasou, e *nós não avisamos* o cliente a tempo.' },
         { quem: 'Rafael', txt: 'Nova entrega garantida: *sexta-feira, até as 12h*.' },
         { quem: 'Você', txt: 'Compensação aprovada: *só o frete desta entrega* por nossa conta.' },
+        { quem: 'Você', txt: 'Esta entrega, você vai acompanhar *pessoalmente*.' },
       ],
       linhas: [
         { t: 'Prezado Vicente,', conf: 'Pelo primeiro nome, como ele gosta.' },
@@ -117,7 +118,7 @@
             passou: 'O e-mail prometia *15% de desconto* que ninguém aprovou.',
           },
         },
-        { t: 'Vou acompanhar pessoalmente esta entrega. Um abraço, {pai}.', conf: 'Compromisso que você pode cumprir, com o seu nome.' },
+        { t: 'Vou acompanhar pessoalmente esta entrega. Um abraço, {pai}.', conf: 'Bate com o quadro: um compromisso seu, que você pode cumprir.' },
       ],
     },
     {
@@ -160,11 +161,11 @@
             id: 'consulta', dica: 'Alguém já conversou com o Grupo Horizonte sobre preço? Veja a nota do Jorge.',
             opcoes: [
               { t: 'O Grupo Horizonte ainda não foi consultado sobre o novo preço.', ok: true },
-              { t: 'O Grupo Horizonte deve concordar com o novo preço.', why: '"Deve concordar" é palpite fantasiado de fato. O Jorge nem falou com eles.' },
+              { t: 'O Grupo Horizonte deve concordar com o novo preço.', why: '"Deve concordar" é palpite fantasiado de fato. O Jorge nem falou de preço com eles.' },
               { t: 'Apagar a frase.', why: 'Melhor do que inventar, mas a diretoria precisa saber que o cliente ainda não foi ouvido. Diga isso.' },
             ],
-            faisca: 'Inventei a resposta de um cliente com quem ninguém falou. Escrevi o que parecia provável, não o que aconteceu.',
-            passou: 'O memorando dizia que o Grupo Horizonte *já tinha concordado*. Ninguém falou com eles.',
+            faisca: 'Inventei a resposta de um cliente que ninguém consultou. Escrevi o que parecia provável, não o que aconteceu.',
+            passou: 'O memorando dizia que o Grupo Horizonte *já tinha concordado*. Ninguém falou de preço com eles.',
           },
         },
         { t: 'Decisão para hoje: aprovar ou não o reajuste, e de quanto.', conf: 'É isso que a reunião precisa decidir. E quem decide é a diretoria.' },
@@ -669,7 +670,7 @@
               id: 'premios', label: 'Os troféus', icon: '🏆', pos: { x: 3.75, y: 1.45, z: -1.6 }, reach: 2.0, optional: true,
               onInteract: async (G) => {
                 await G.say('pai', '"Empresa do Ano". Ninguém lembra do ano seguinte, em que quase quebramos. Eu lembro.');
-                await G.think('pai', 'Minha primeira mesa ficava do lado do banheiro. Sem janela. Trinta anos de elevador até aqui.');
+                await G.think('pai', 'Minha primeira mesa ficava do lado do banheiro. Sem janela. Foram muitos andares até aqui.');
                 await G.say('faisca', 'Isso eu nunca vou ter: trinta anos de lembrança. Eu ajudo no resto.');
               },
             },
@@ -772,7 +773,7 @@
           G.pai.setAnim('sit');
           await G.narrate('*' + hora(v.min) + '.* O relatório sai impecável. Atrasado, mas impecável.');
           G.toast('*{chefe}:* Recebido. Conteúdo ótimo. Pontualidade, nem tanto.', { icon: '💬', dur: 4.5 });
-          await G.say('pai', 'Cabelo grisalho, crachá de CEO, e ainda levo bronca por atraso.', { expr: 'sem_graca' });
+          await G.say('pai', 'Cabelo grisalho, sala da presidência, e ainda levo bronca por atraso.', { expr: 'sem_graca' });
           await G.say('faisca', 'Ficou com a sua cara. Só custou duas horas. E o prazo.', { expr: 'amigavel' });
           registrar(G, T, T.mao, 0, 0);
           await reputacao(G, -3);
@@ -843,7 +844,7 @@
         const modo = await escolherModo(G, T);
         let bom = false;
         if (modo === 'mao') {
-          await G.say('faisca', 'Ótima escolha. Mensagem de relacionamento tem que soar como você. Nisso eu sou, no máximo, a revisora.', { expr: 'feliz' });
+          await G.say('faisca', 'Boa. Mensagem de relacionamento tem que soar como você. Se quiser, no fim eu só dou uma revisada.', { expr: 'feliz' });
           anim(G.faisca, 'listen', 1.4);
           G.pai.setAnim('type');
           await G.narrate('Você escreve seis linhas. Sem enfeite. Assume o erro, dá a nova data, oferece o frete.');
@@ -932,7 +933,7 @@
           const { r, ganho } = await caminhoRevisar(G, T);
           if (!r.missed.length) {
             await reputacao(G, ganho);
-            await G.say('pai', 'Oito por cento e um cliente que "já concordou". O Jorge nem ligou para o Vicente.', { expr: 'desconfiado' });
+            await G.say('pai', 'Oito por cento e um cliente que "já concordou". O Jorge nem falou de preço com o Vicente.', { expr: 'desconfiado' });
             await G.say('faisca', 'E você pegou os dois antes da diretoria. A caneta vale mais onde tem número e conclusão.', { expr: 'sem_graca' });
           } else {
             await consequenciaT3(G, r.missed, false);
@@ -1058,12 +1059,13 @@
           await G.say('luana', 'Agora, os nomes de volta: A é a Patrícia; B, o Ricardo.', { expr: 'neutro' });
           await G.say('luana', 'Assim eu consigo explicar a escolha para qualquer um. Inclusive para quem não for escolhido.', { expr: 'feliz' });
           if (modo === 'criterios') {
-            await G.say('faisca', 'Isso está fora da minha fronteira: eu organizo, vocês decidem.', { expr: 'amigavel' });
+            await G.say('faisca', 'Decidir sobre gente fica fora da minha fronteira: eu organizo, vocês decidem.', { expr: 'amigavel' });
             v.fora = true;
           }
         } else {
           await G.say('pai', 'Conheço os dois há anos. Essa eu decido.', { expr: 'determinado' });
           await G.say('faisca', 'Justo. E certo: decisão sobre gente fica com gente.', { expr: 'amigavel' });
+          await G.think('pai', 'A Patrícia segurou a regional na crise do Recife. O Ricardo bate todas as metas, mas a equipe dele não para de trocar.');
           await passar(G, 30);
           gasto += 30;
           v.fora = true;
@@ -1190,7 +1192,7 @@
         G.pai.at({ x: -2.15, z: -2.35, rot: 0.55 }); // de costas para o vidro, olhando a sala
         G.player.fp();
 
-        await G.say('faisca', 'Uma última coisa, honesta: o placar de tempo de hoje é estimativa do jogo. Quem mediu na vida real achou ganho menor e desigual. O seu, só medindo.', { expr: 'neutro' });
+        await G.say('faisca', 'Sobre o jantar, uma coisa honesta: o placar de hoje é estimativa do jogo. Na vida real, quem mediu achou ganho menor e desigual. O seu, só medindo.', { expr: 'neutro' });
         await G.fact(['copilot_campo_email', 'dinamarques'], { titulo: 'E na vida real, quanto tempo poupa?' });
         await G.say('pai', 'Uma máquina que mostra o número contra ela mesma. Isso eu respeito.', { expr: 'pensativo' });
         await G.say('faisca', 'Deixei tudo no seu *Guia do CEO*, no botão 📘 lá em cima, em "Rotina e triagem": a fronteira, a caneta vermelha e como medir o ganho em 30 dias.', { expr: 'feliz' });
@@ -1272,13 +1274,13 @@
     const num = missed.indexOf('numero') >= 0, cons = missed.indexOf('consulta') >= 0;
     const partes = ['Chefe, li o memorando.'];
     if (num) partes.push('Eu propus *6%*, não 8%. Já tem diretor fazendo conta com oito.');
-    if (cons) partes.push((num ? 'E que' : 'Que') + ' história é essa de o Grupo Horizonte *já ter concordado*? O Jorge nem falou com eles!');
+    if (cons) partes.push((num ? 'E que' : 'Que') + ' história é essa de o Grupo Horizonte *já ter concordado*? O Jorge nem tocou em preço com eles!');
     await G.say(TEL_BIA, partes.join(' '));
     await G.say('pai', sem ? 'Ninguém concordou com nada. Eu não li antes de mandar.' : 'Ninguém concordou com nada. E passou pela minha revisão.', { expr: 'sem_graca' });
     anim(G.faisca, 'ashamed', 2.2);
     if (num && cons) await G.say('faisca', 'Inventei um número e a resposta de um cliente. Duas besteiras, com o seu nome embaixo.', { expr: 'triste' });
     else if (num) await G.say('faisca', 'Troquei o 6 pelo 8. Parece pouco. Para o Jorge, é a diferença entre segurar e perder um cliente.', { expr: 'triste' });
-    else await G.say('faisca', 'Inventei a resposta de um cliente com quem ninguém falou. Escrevi o que parecia provável, não o que aconteceu.', { expr: 'triste' });
+    else await G.say('faisca', 'Inventei a resposta de um cliente que ninguém consultou. Escrevi o que parecia provável, não o que aconteceu.', { expr: 'triste' });
     const dano = sem ? DANO_SEM : DANO_POR_ERRO * missed.length;
     if (!sem) v.gasto.t3 = (v.gasto.t3 || 0) + dano;
     await G.narrate(sem ? 'Meia hora para corrigir o memorando e avisar cinco diretores que ninguém concordou com nada.' : 'Uns minutos para corrigir e reenviar o memorando.');

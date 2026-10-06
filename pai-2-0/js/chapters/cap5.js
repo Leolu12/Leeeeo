@@ -887,6 +887,8 @@
         G.pai.setAnim('sit');
         if ((G.v.pautaRuins || []).length) {
           await G.say('faisca', 'Previsão: sessenta minutos. Realizado: cem. E um bom pedaço foi para o que não pedia decisão.', { anim: 'think' });
+        } else if (PAUTA.some((p) => p.ok && !tem(p.id))) {
+          await G.say('faisca', 'Previsão: sessenta minutos. Realizado: cem. O que ficou fora da pauta entrou do mesmo jeito, sem hora marcada.', { anim: 'think' });
         } else {
           await G.say('faisca', 'Previsão: sessenta minutos. Realizado: cem. Ainda assim, a mais curta que esse relógio já viu. E com decisões.', { anim: 'spin' });
         }
