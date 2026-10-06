@@ -1132,7 +1132,8 @@
           anim(G.faisca, 'celebrate', 1.6);
           G.fx.confetti(G.faisca, null, null, 40);
         }
-        await G.say('faisca', hora(v.min) + '. Quatro tarefas resolvidas. Olha só o relógio.', { expr: 'empolgado' });
+        if (v.rep >= 50) await G.say('faisca', hora(v.min) + '. Quatro tarefas resolvidas. Olha só o relógio.', { expr: 'empolgado' });
+        else await G.say('faisca', hora(v.min) + '. Quatro tarefas feitas. Rápido, sim. Agora olha a reputação.', { expr: 'sem_graca' });
         await G.card({ kind: 'ok', kicker: 'Balanço da manhã', icon: '🧾', titulo: resolvido(v), node: balanco(G) });
 
         if (algumSem) await G.say('faisca', 'Quando você mandou sem ler, os meus erros saíram com o seu nome. E eu erro sem mudar o tom de voz: rascunho meu precisa de leitor.', { expr: 'sem_graca' });
@@ -1157,14 +1158,15 @@
                 await G.say('faisca', 'E eu continuo sem virar peso de papel.', { expr: 'rindo' });
               },
             },
-            {
+            // o porta-retrato só volta para quem não o viu de manhã
+            ...(v.viuFoto ? [] : [{
               id: 'foto', label: 'Porta-retrato', icon: '🖼️', pos: { x: 0.02, y: 0.95, z: -0.95 }, reach: 2.4, optional: true,
               onInteract: async (G) => {
                 S(G).viuFoto = true;
                 await G.narrate('{OA} {filho}, aos seis anos, de beca. Sorrindo como quem sabia de alguma coisa.');
-                await G.think('pai', 'Talvez hoje eu chegue a tempo do jantar.');
+                await G.think('pai', 'Prometi trabalhar menos naquele dia. Talvez hoje eu chegue a tempo do jantar.');
               },
-            },
+            }]),
             { id: 'janela', label: 'Olhar a cidade', icon: '🏙️', at: 'janela' },
           ],
         });
@@ -1184,7 +1186,9 @@
         }
         await G.say('pai', 'E quem assina sou eu.', { expr: 'orgulhoso' });
         await G.say('faisca', 'Sempre.', { expr: 'feliz' });
-        if (usouIA) await G.say('pai', v.viuFoto ? 'Se o dia seguir assim, hoje eu janto com {oa} {filho}. Faz tempo.' : 'Se o dia seguir assim, hoje eu chego em casa para o jantar. Faz tempo.', { expr: 'emocionado' });
+        const jantar = v.viuFoto ? 'hoje eu janto com {oa} {filho}' : 'hoje eu chego em casa para o jantar';
+        if (usouIA && v.semLer) await G.say('pai', 'Se no resto do dia eu ler antes de assinar, ' + jantar + '. Faz tempo.', { expr: 'emocionado' });
+        else if (usouIA) await G.say('pai', 'Se o dia seguir assim, ' + jantar + '. Faz tempo.', { expr: 'emocionado' });
         else await G.say('pai', v.viuFoto ? 'Da próxima, eu deixo você rascunhar. Quem sabe assim eu janto com {oa} {filho}.' : 'Da próxima, eu deixo você rascunhar. Quem sabe assim eu chego para o jantar.', { expr: 'emocionado' });
         G.faisca.emote('heart');
         G.fx.hearts(G.faisca);

@@ -542,9 +542,10 @@
     const g = new T.SphereGeometry(1, ws, hs);
     const P = g.attributes.position;
     const n = P.count, L = list.length;
+    const ik = 1 / k;
     const field = (x, y, z) => {
       let sum = 0;
-      for (let i = 0; i < L; i++) { const p = list[i]; const d = Math.hypot(x - p.x, y - p.y, z - p.z) - p.r; sum += Math.exp(-d / k); }
+      for (let i = 0; i < L; i++) { const p = list[i], dx = x - p.x, dy = y - p.y, dz = z - p.z; sum += Math.exp((p.r - Math.sqrt(dx * dx + dy * dy + dz * dz)) * ik); } // sqrt: Math.hypot é ~10× mais lento
       return -k * Math.log(sum);
     };
     let tMax = 0;
@@ -573,7 +574,7 @@
       // normal analítica (gradiente da união suave) + bolha mais próxima, numa passada só
       let gx = 0, gy = 0, gz = 0, ws2 = 0, mn = 1e9, mi = 0;
       for (let j = 0; j < L; j++) {
-        const p = list[j], dx = x - p.x, dy = y - p.y, dz = z - p.z, dl = Math.hypot(dx, dy, dz) || 1e-6, d = dl - p.r;
+        const p = list[j], dx = x - p.x, dy = y - p.y, dz = z - p.z, dl = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-6, d = dl - p.r;
         const w = Math.exp(-d / k); ws2 += w; gx += (w * dx) / dl; gy += (w * dy) / dl; gz += (w * dz) / dl;
         if (d < mn) { mn = d; mi = j; }
       }
