@@ -233,9 +233,6 @@
   .c5-audio .fala { font-style: italic; line-height: 1.4; }
   .c5-audio .mg-actions { margin-top: 0; justify-content: flex-start; }
   .c5-score { font-family: var(--head); font-weight: 800; }
-  /* Contorno de um bug do style.css: no celular em pé, a regra geral do #btn-skip (top: 14px) vem depois
-     da regra do celular (top: auto; bottom: 30px) e o "Pular cena" vira uma pílula esticada na altura toda. */
-  @media (max-width: 760px) and (orientation: portrait) { body #btn-skip { top: auto; } }
   `;
 
   // ------------------------------------------------------------------

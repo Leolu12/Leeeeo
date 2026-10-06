@@ -988,7 +988,7 @@
         }
         G.faisca.emote('check');
         fa(G, 'jump', 1.0);
-        await G.say('faisca', 'Se quiser, eu rascunho a carta com os pedidos. Você risca o que não gostar.', { cam: false });
+        await G.say('faisca', decisao === 'devolver' ? 'Se quiser, eu rascunho a carta com os pedidos. Você risca o que não gostar.' : 'Se quiser, eu rascunho a pauta da conversa, com os sete pontos. Você risca o que não gostar.', { cam: false });
         // o Tadeu levanta fora do quadro e sai
         tadeu.setAnim('idle');
         tadeu.lookAt(null);

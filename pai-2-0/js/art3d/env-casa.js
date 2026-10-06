@@ -9,7 +9,8 @@
  * collider (o jogador chega perto — raio do hotspot 1,6 m — e a cena o coloca no lugar com .at()).
  * walls: 'wall:back' | 'wall:left' | 'wall:right' | 'wall:front' | 'ceiling' (normal [0,-1,0], py = forro).
  * bounds = piso interno inteiro de cada cômodo (quarto ±2,6 × ±2,2 · cozinha ±2,8 × ±2,3 · sala ±3,0 × ±2,4 ·
- * mesa_cafe x −2,94…2,96, z −2,3…2,26). A vista lá fora (céu + cidade 3D) só aparece com a câmera dentro.
+ * mesa_cafe x −2,94…2,96, z −2,3…2,26). A vista lá fora (céu + cidade 3D) só aparece com a câmera dentro; no cone
+ * de cada janela principal os prédios próximos ficam abaixo dos olhos (andar alto: a vista abre para o horizonte).
  * Primeiro plano: a cômoda (quarto), o aparador (cozinha) e o rack (sala) ficam no chão junto à parede da
  * frente (primeiro plano do plano geral) e SOMEM sozinhos quando a câmera de cinema entra neles ou fica logo
  * atrás deles (planos médios/baixos como quarto 'dramatico', cozinha 'mesa', sala 'porta'); em 1ª pessoa nunca.
@@ -34,7 +35,8 @@
  *                      tv {x:-0.2, z:1.15, rot:0} · paleto {x:-1.45, z:0.62, rot:-0.8} (paletó na poltrona)
  *          (a "foto da formatura" fica no porta-retrato sobre a cômoda, em x≈-0.3, y≈1.1, z≈1.95)
  *  shots:  geral, cama, despertador, celular, janela, porta, dramatico (baixo, rente à parede da frente)
- *  colliders: cama + pé da cama, 2 criados-mudos, guarda-roupa, cômoda, poltrona, planta, pasta, calçadeira, puff.
+ *  colliders: cama + pé da cama, 2 criados-mudos, guarda-roupa, cômoda, poltrona, 2 plantas, pasta, calçadeira, puff.
+ *  (a cômoda e o puff do canto somem nos planos baixos de fora da parede da frente, ex. 'porta' e 'dramatico')
  *
  * ── cozinha (5,6 × 4,6 m) ──────────────────────────────────────────
  *  params: time ('manha' padrão | 'noite': pendentes acesos (cúpulas brilham), LED sob a prateleira)
@@ -51,10 +53,12 @@
  *                     aparador {x:1.0, z:1.55, rot:0}
  *  shots:  geral, mesa, dupla, cafe, geladeira, janela, porta
  *  colliders: bancada do fundo, bancada da pia, geladeira, filtro, mesa, aparador, planta.
+ *  (o centro da mesa fica livre para a Faísca: fruteira à direita, jornal "O DIÁRIO" junto ao lugar mesa4)
  *
  * ── sala (6,0 × 4,8 m) ─────────────────────────────────────────────
  *  params: tv ('off' padrão | 'on' (futebol) | 'jornal' (golpe da voz clonada)) · alert (bool: vermelho
  *          pulsante — ligação do golpe) · lamp (bool, padrão true: abajur de chão âmbar)
+ *          (parede da TV: LED âmbar atrás da tela + 2 arandelas + brilho sob o rack; no alerta viram brasa vermelha)
  *  spots:  sofa1 {x:-0.6, z:-1.72, rot:0} · sofa2 {x:0.5, z:-1.72, rot:0} (sentados, de frente p/ a TV em +Z)
  *          poltrona {x:2.0, z:-0.85, rot:-1.2} (sentado) · tv {x:0.0, z:1.45, rot:0} (em pé, de frente p/ a TV)
  *          abajur {x:-1.75, z:-1.05, rot:0.5} · janela {x:2.3, z:0.4, rot:π/2} · porta {x:-2.4, z:1.55, rot:π/2}
@@ -77,6 +81,7 @@
  *          mesa {x:0.0, z:-0.75, rot:0}
  *  shots:  geral, mesa, pai, filho, cidade, cobogo
  *  colliders: mesa, churrasqueira, floreira, palmeira, costela-de-adão, espada-de-são-jorge, espreguiçadeira.
+ *  (churrasqueira com fornalha de tijolo refratário, grelha, carvão e utensílios: o ponto fica rente a ela)
  */
 (function () {
   'use strict';
@@ -996,9 +1001,9 @@
     const g = grp({ parent, pos: o.pos, rot: o.rot });
     const fw = o.fw || 0.03, d = o.depth || 0.03;
     rb(o.w, o.h, d, 0.006, o.frame || '#2b2522', { parent: g, pos: [0, 0, d / 2], cast: false }, 1);
-    if (o.passe !== false) pl(o.w - fw * 2, o.h - fw * 2, o.passe || '#f6f1e7', { parent: g, pos: [0, 0, d + 0.001], cast: false });
+    if (o.passe !== false) pl(o.w - fw * 2, o.h - fw * 2, o.passe || '#f6f1e7', { parent: g, pos: [0, 0, d + 0.002], cast: false }); // folgas de 2 mm: sem z-fighting em celular (depth 16 bits)
     const inset = o.passe !== false ? (o.inset || 0.05) : fw;
-    pl(o.w - 2 * inset - (o.passe !== false ? fw : 0), o.h - 2 * inset - (o.passe !== false ? fw : 0), o.img, { parent: g, pos: [0, 0, d + 0.002], cast: false });
+    pl(o.w - 2 * inset - (o.passe !== false ? fw : 0), o.h - 2 * inset - (o.passe !== false ? fw : 0), o.img, { parent: g, pos: [0, 0, d + 0.004], cast: false });
     if (o.stand) { // porta-retrato de mesa: inclina e põe apoio
       g.rotation.x = -0.12;
       bx(0.02, o.h * 0.8, 0.02, o.frame || '#2b2522', { parent: g, pos: [0, -o.h * 0.1, -0.06], rot: [0.45, 0, 0], cast: false });
@@ -1366,7 +1371,7 @@
       clockG.userData.live = true;
       rb(0.2, 0.085, 0.08, 0.025, '#2a2830', { parent: clockG, pos: [0, 0.043, 0] }, 2);
       const clockTex = k.tex(512, 192, () => {});
-      const clockFace = pl(0.17, 0.064, k.bmat(clockTex, { toneMapped: false }), { parent: clockG, pos: [0, 0.045, 0.0405], cast: false });
+      const clockFace = pl(0.17, 0.064, k.bmat(clockTex, { toneMapped: false }), { parent: clockG, pos: [0, 0.045, 0.0425], cast: false });
       clockFace.userData.live = true;
       const clockGlow = M.glow('#ff3b3b', 0.42, 0.0);
       clockGlow.position.set(-1.12 + 0.03, 0.66, -1.78);
@@ -1374,7 +1379,7 @@
       const phoneG = grp({ parent: deco, pos: [-1.17, 0.572, -1.67], rot: [0, -0.3, 0] });
       rb(0.075, 0.009, 0.155, 0.008, '#1d1d24', { parent: phoneG, pos: [0, 0.0045, 0] }, 2);
       const phoneTex = k.tex(256, 512, () => {});
-      const phoneScreen = pl(0.066, 0.142, k.bmat(phoneTex, { toneMapped: false }), { parent: phoneG, pos: [0, 0.0095, 0], rot: [-PI / 2, 0, 0], cast: false });
+      const phoneScreen = pl(0.066, 0.142, k.bmat(phoneTex, { toneMapped: false }), { parent: phoneG, pos: [0, 0.0105, 0], rot: [-PI / 2, 0, 0], cast: false });
       phoneScreen.userData.live = true;
       const phoneGlow = M.glow('#bcd8ff', 0.5, 0);
       phoneGlow.position.set(-1.17, 0.64, -1.67);
@@ -1426,8 +1431,9 @@
       const brief = grp({ parent: deco, pos: [-1.5, 0, 1.65], rot: [0, 0.3, 0] });
       rb(0.44, 0.32, 0.11, 0.025, '#5a3424', { parent: brief, pos: [0, 0.16, 0] }, 2);
       tor(0.05, 0.01, '#3a2218', { parent: brief, pos: [0, 0.34, 0], arc: PI });
-      // espada-de-são-jorge no canto
+      // espada-de-são-jorge no canto (e uma irmã menor no canto do guarda-roupa: equilibra a cama no plano geral)
       plant(deco, 'espada', { pos: [-2.25, 0, -1.92], potR: 0.17, potH: 0.36, seed: 3, pot: '#e8e0d4', size: 0.75 });
+      plant(deco, 'espada', { pos: [1.76, 0, -1.96], potR: 0.14, potH: 0.3, seed: 11, pot: '#c8653f', size: 0.62, n: 8 });
 
       // --- Parede direita: guarda-roupa embutido + porta
       // portas de carvalho claro (veio vertical) + uma porta-espelho com reflexo pintado
@@ -1502,7 +1508,7 @@
         ctx.fillStyle = 'rgba(255,255,255,0.05)';
         ctx.beginPath(); ctx.moveTo(w * 0.1, 0); ctx.lineTo(w * 0.36, 0); ctx.lineTo(w * 0.12, h); ctx.lineTo(-w * 0.14, h); ctx.closePath(); ctx.fill();
       });
-      pl(1.06, 0.6, k.tmat(tvOff, { rough: 0.25, metal: 0.2 }), { parent: F, pos: [0.2, 1.62, 0.051], cast: false });
+      pl(1.06, 0.6, k.tmat(tvOff, { rough: 0.25, metal: 0.2 }), { parent: F, pos: [0.2, 1.62, 0.054], cast: false });
       sp(0.006, M.basic('#ff4a3a'), { parent: F, pos: [0.2 + 0.5, 1.315, 0.05], cast: false }, 6, 4); // led de standby
       // perfumes + porta-joias + foto
       cy(0.03, 0.03, 0.12, M.mat('#e8c68a', { rough: 0.1, opacity: 0.8, transparent: true }), { parent: dresser, pos: [-0.5, 0.92, 0.2], cast: false }, 12);
@@ -1657,6 +1663,7 @@
           { x: -0.2, z: 1.96, w: 1.52, d: 0.5 },               // cômoda
           { x: -1.95, z: 1.15, w: 0.8, d: 0.78, rot: 0.75 },   // poltrona
           { x: -2.25, z: -1.92, w: 0.38, d: 0.38 },            // planta
+          { x: 1.76, z: -1.96, w: 0.32, d: 0.32 },             // planta do canto do guarda-roupa
           { x: -1.5, z: 1.65, w: 0.46, d: 0.14, rot: 0.3 },    // pasta
           { x: 0, z: 0.32, w: 1.3, d: 0.3 },                   // calçadeira (ponto 'banco' é de sentar)
           { x: 1.28, z: 1.78, w: 0.5, d: 0.5 },                // puff
@@ -1951,10 +1958,10 @@
         ctx.fillStyle = '#2f9f78'; ctx.fillRect(0, 128, w, 32);
         ctx.fillStyle = '#24324f'; ctx.font = '700 18px Arial'; ctx.fillText('PAI ♥', 10, 150);
       }), { rough: 0.9 });
-      pl(0.22, 0.28, drawing, { parent: fr, pos: [0.08, 1.06, 0.352], rot: [0, 0, 0.05], cast: false });
-      pl(0.13, 0.1, k.tmat(photoTex(k, 3), { rough: 0.5 }), { parent: fr, pos: [0.12, 1.55, 0.352], rot: [0, 0, -0.08], cast: false });
+      pl(0.22, 0.28, drawing, { parent: fr, pos: [0.08, 1.06, 0.354], rot: [0, 0, 0.05], cast: false });
+      pl(0.13, 0.1, k.tmat(photoTex(k, 3), { rough: 0.5 }), { parent: fr, pos: [0.12, 1.55, 0.354], rot: [0, 0, -0.08], cast: false });
       const note = k.track(M.textPanel(0.14, 0.12, { text: ['Comprar', 'café!'], color: '#3a3a44', bg: '#ffe680', size: 80, px: 256, font: '"Comic Sans MS", "Segoe Print", cursive' }));
-      note.position.set(-0.1, 1.62, 0.352); note.rotation.z = 0.06; fr.add(note);
+      note.position.set(-0.1, 1.62, 0.355); note.rotation.z = 0.06; fr.add(note);
       [['#e94b5a', [-0.03, 1.2]], ['#2f9f78', [0.2, 1.22]], ['#4166a8', [0.12, 1.62]], ['#f2a53a', [-0.12, 1.69]], ['#7a5ac8', [0.25, 0.9]], ['#e94b5a', [0.0, 0.8]]].forEach(([c, [x, y]]) => cy(0.02, 0.02, 0.012, c, { parent: fr, pos: [x, y, 0.358], rot: [PI / 2, 0, 0], cast: false }, 10));
 
       // --- Filtro de barro sobre banquinho (canto direito)
@@ -2029,7 +2036,7 @@
         ctx.setLineDash([4, 3]); ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.moveTo(34, -34); ctx.lineTo(34, 34); ctx.stroke(); ctx.setLineDash([]);
         ctx.restore();
       });
-      pl(0.64, 0.44, k.tmat(corkTex, { rough: 0.85 }), { parent: cork, pos: [0, 0, 0.026], cast: false });
+      pl(0.64, 0.44, k.tmat(corkTex, { rough: 0.85 }), { parent: cork, pos: [0, 0, 0.0275], cast: false });
       rb(0.08, 0.12, 0.012, 0.005, '#f7f4ee', { parent: WB.right, pos: [0.8, 1.15, 0.006], cast: false }, 1);
 
       // --- Parede da frente: passagem para a sala + aparador
@@ -2327,7 +2334,7 @@
       phoneG.userData.live = true;
       rb(0.075, 0.009, 0.155, 0.008, '#1d1d24', { parent: phoneG, pos: [0, 0.0045, 0] }, 2);
       const phoneTex = k.tex(256, 512, () => {});
-      const phoneScreen = pl(0.066, 0.142, k.bmat(phoneTex, { toneMapped: false }), { parent: phoneG, pos: [0, 0.0095, 0], rot: [-PI / 2, 0, 0], cast: false });
+      const phoneScreen = pl(0.066, 0.142, k.bmat(phoneTex, { toneMapped: false }), { parent: phoneG, pos: [0, 0.0105, 0], rot: [-PI / 2, 0, 0], cast: false });
       void phoneScreen;
       const candleFlame = M.glow('#ffb45e', 0.12, 0.7);
       candleFlame.position.set(0.42, 0.53, -0.43);
