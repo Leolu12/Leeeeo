@@ -1520,7 +1520,7 @@
       };
       if (kind === 'cloak') {
         // manga em sino ABERTA: a borda dobra para dentro (oco escuro), a mão sai lá de dentro
-        tube([[0.02, 0.05], [-0.05, 0.052], [-ua, 0.05], [-ua - fa * 0.6, 0.062], [-ua - fa + 0.024, 0.08], [-ua - fa + 0.009, 0.084], [-ua - fa + 0.004, 0.078], [-ua - fa + 0.014, 0.066], [-ua - fa + 0.07, 0.036]], (p, n, l) => (n.x * l.x + n.z * l.z < 0 || l.y > -ua - fa + 0.012 && Math.hypot(l.x, l.z) < 0.07 && l.y < -ua - fa * 0.5 ? col('#030205') : cTop.clone().multiplyScalar(0.8 + 0.2 * smooth(-0.6, 0.6, n.y))), REG.knit, { capTop: true });
+        tube([[0.02, 0.05], [-0.05, 0.052], [-ua, 0.05], [-ua - fa * 0.6, 0.06], [-ua - fa + 0.03, 0.07], [-ua - fa + 0.012, 0.073], [-ua - fa + 0.006, 0.068], [-ua - fa + 0.016, 0.058], [-ua - fa + 0.07, 0.034]], (p, n, l) => (n.x * l.x + n.z * l.z < 0 || l.y > -ua - fa + 0.014 && Math.hypot(l.x, l.z) < 0.062 && l.y < -ua - fa * 0.5 ? col('#0a0712') : cTop.clone().multiplyScalar(0.8 + 0.2 * smooth(-0.6, 0.6, n.y))), REG.knit, { capTop: true });
       } else if (short) {
         tube([[0.0, 0.054], [-0.04, 0.058], [-0.1, 0.058], [-0.155, 0.061]], sleeveCol, topReg, { capTop: true, pat: true });
         tube([[-0.09, 0.047], [-ua + 0.02, 0.042], [-ua - 0.04, 0.043], [-ua - fa * 0.55, 0.039], [-ua - fa + 0.02, 0.033], [-ua - fa + 0.004, 0.032]], cSkin, REG.skin);
@@ -1759,7 +1759,7 @@
       // capuz pontudo com abertura no rosto (vazio escuro) e borda marcada
       const hc = col((spec.top && spec.top.color) || '#170c26');
       const R0 = hs.r;
-      const S0 = [[-1.85, 1.2, 1.0, 0.1, 0], [-1.45, 1.12, 1.02, 0.08, 0], [-1.1, 1.08, 1.06, 0.05, 0.42], [-0.6, 1.16, 1.14, 0.02, 0.62], [0.0, 1.22, 1.2, 0.0, 0.7], [0.5, 1.17, 1.18, -0.04, 0.6], [0.95, 0.98, 1.08, -0.12, 0.3], [1.25, 0.72, 0.86, -0.24, 0], [1.5, 0.4, 0.55, -0.4, 0], [1.68, 0.12, 0.2, -0.62, 0]];
+      const S0 = [[-2.05, 1.62, 1.12, 0.02, 0], [-1.78, 1.36, 1.04, 0.06, 0], [-1.45, 1.1, 1.0, 0.08, 0], [-1.1, 1.06, 1.06, 0.05, 0.42], [-0.6, 1.15, 1.14, 0.02, 0.62], [0.0, 1.2, 1.2, 0.0, 0.7], [0.5, 1.13, 1.17, -0.05, 0.6], [0.95, 0.92, 1.06, -0.15, 0.3], [1.28, 0.62, 0.84, -0.3, 0], [1.56, 0.32, 0.52, -0.52, 0], [1.8, 0.08, 0.16, -0.82, 0]];
       // estações densas (Catmull-Rom) → abertura do rosto e ponta do capuz lisas
       const cr = (a, b2, c, d2, t) => 0.5 * (2 * b2 + (-a + c) * t + (2 * a - 5 * b2 + 4 * c - d2) * t * t + (-a + 3 * b2 - 3 * c + d2) * t * t * t);
       const S = [];
@@ -1769,7 +1769,7 @@
         const g = (j) => S0[clamp(j, 0, S0.length - 1)];
         S.push([0, 1, 2, 3, 4].map((c) => cr(g(k - 1)[c], g(k)[c], g(k + 1)[c], g(k + 2)[c], t)).map((v, c) => (c === 4 ? Math.max(0, v) : v)));
       }
-      const mk = (k) => S.map(([y, rx, rz, zc, gp]) => ({ p: new V3(0, y * R0, zc * R0), rx: rx * R0 * k, ry: rz * R0 * k, n: 2.2, gap: gp > 0.04 ? gp : 0 }));
+      const mk = (k) => S.map(([y, rx, rz, zc, gp]) => ({ p: new V3(0, y * R0, zc * R0), rx: rx * R0 * k, ry: rz * R0 * k, n: 2.05, gap: gp > 0.04 ? gp : 0 }));
       const outer = tubeGeo(mk(1), { segs: 40 });
       hb.add(outer, { color: (p, n, l) => hc.clone().multiplyScalar(0.5 + 0.5 * smooth(-0.3, 0.25, l.y / R0)), region: REG.knit });
       const inner = tubeGeo(mk(0.95), { segs: 40 });
@@ -1779,7 +1779,7 @@
       // borda da abertura
       const edge = [];
       const st = mk(0.985);
-      const ptAt = (sx, i) => { const s0 = st[i], a0 = PI / 2 + sx * s0.gap; const c = cos(a0), sn = sin(a0); return new V3(Math.sign(c) * Math.pow(abs(c), 2 / 2.2) * s0.rx, s0.p.y, s0.p.z + Math.sign(sn) * Math.pow(abs(sn), 2 / 2.2) * s0.ry); };
+      const ptAt = (sx, i) => { const s0 = st[i], a0 = PI / 2 + sx * s0.gap; const c = cos(a0), sn = sin(a0); return new V3(Math.sign(c) * Math.pow(abs(c), 2 / 2.05) * s0.rx, s0.p.y, s0.p.z + Math.sign(sn) * Math.pow(abs(sn), 2 / 2.05) * s0.ry); };
       const open = []; st.forEach((x, i) => { if (x.gap > 0) open.push(i); });
       const i0 = open[0], i1 = open[open.length - 1];
       for (let i = i0; i <= i1; i++) edge.push(ptAt(-1, i));
