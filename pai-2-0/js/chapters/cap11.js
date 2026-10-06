@@ -525,6 +525,9 @@
         G.pai.at('pai');
         G.pai.setAnim('idle');
         G.pai.setExpr('desconfiado');
+        // A Dúvida só aparece na revelação (o cenário a põe no 'boss' por padrão).
+        G.duvida.at('boss');
+        G.duvida.set({ scale: 0.3, alpha: 0 });
         G.music('sonho');
         G.talkCam(false);
         G.player.cine();
