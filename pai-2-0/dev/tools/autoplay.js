@@ -20,7 +20,7 @@ const GAME = '/home/user/Leeeeo/pai-2-0/index.html';
   if (shots) fs.mkdirSync(shots, { recursive: true });
   let shotN = 0;
   const shot = async (tag) => { if (!shots) return; try { await p.screenshot({ path: path.join(shots, String(shotN++).padStart(3, '0') + '-' + tag + '.png'), timeout: 90000 }); } catch (e) { console.error('screenshot falhou (' + tag + '): ' + e.message.split('\n')[0]); } };
-  await p.goto('file://' + GAME + '?cap=' + cap + '&speed=instantanea' + (opt('hq', false) ? '' : '&q=low') + (filha ? '&genero=filha' : ''));
+  await p.goto('file://' + GAME + '?cap=' + cap + '&speed=instantanea' + (opt('hq', false) ? '' : '&q=low') + (filha ? '&genero=filha' : ''), { timeout: 300000 });
   await p.waitForTimeout(800);
   let done = false, steps = 0, stuck = 0, lastSig = '', modes = {}, lastChange = Date.now(), noGo = 0;
   const texts = [];
@@ -106,7 +106,7 @@ const GAME = '/home/user/Leeeeo/pai-2-0/index.html';
       await p.waitForTimeout(2600);
       continue;
     }
-    if (st.mode === 'dialog') { if (st.text && texts[texts.length - 1] !== st.text) texts.push((st.name || '') + ': ' + st.text); }
+    if (st.mode === 'dialog' && st.text) { const line = (st.name || '') + ': ' + st.text; if (texts[texts.length - 1] !== line) texts.push(line); }
     if (steps % 25 === 0) await shot('dlg');
     await p.keyboard.press('Space');
     await p.waitForTimeout(140);

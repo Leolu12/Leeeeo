@@ -416,7 +416,11 @@
       const show = !behind && !hs.suspended && sx > -40 && sx < W + 40 && sy > -40 && sy < H + 40;
       h.el.style.display = show ? '' : 'none';
       if (!show) return;
-      h.el.style.transform = 'translate(-50%, -100%) translate(' + Math.round(sx) + 'px,' + Math.round(sy) + 'px)';
+      // o rótulo nunca sai pela borda da tela (no celular em pé a tela é estreita)
+      const hw = (h.el.offsetWidth || 0) / 2, hh = h.el.offsetHeight || 0, m = 8;
+      const cx = W > 2 * (hw + m) ? Math.min(W - hw - m, Math.max(hw + m, sx)) : W / 2;
+      const cy = Math.min(H - m, Math.max(hh + m, sy));
+      h.el.style.transform = 'translate(-50%, -100%) translate(' + Math.round(cx) + 'px,' + Math.round(cy) + 'px)';
       const d = b ? Math.hypot(p.x - b.x, p.z - b.z) : 99;
       const inFront = Math.abs(v.x) < 0.6 && Math.abs(v.y) < 0.8;
       const near = d < (h.radius || 1.6) && inFront;

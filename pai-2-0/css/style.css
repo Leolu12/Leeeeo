@@ -153,14 +153,12 @@ a { color: inherit; }
   #panel.empty { display: none; }
   body.panel-empty #stage-wrap { flex: 1 1 auto; height: auto; }
   #panel { background: #fff !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
-  .drag-hint { top: auto; bottom: 26px; }
   #main { display: flex; flex-direction: column; }
   /* a cena fica do tamanho que cada momento pede: grande nas falas, menor nas escolhas e nos minijogos */
   #stage-wrap { position: relative; inset: auto; flex: 0 0 auto; height: 44vh; height: 44dvh; transition: height 0.35s ease; }
   body.mode-dialog #stage-wrap { height: 62vh; height: 62dvh; }
   body.mode-choices #stage-wrap { height: 46vh; height: 46dvh; }
   body.mode-mini #stage-wrap, body.mode-chat #stage-wrap { height: 30vh; height: 30dvh; }
-  #btn-skip { top: auto; bottom: 30px; right: 12px; }
   #toasts { width: min(78%, 330px); right: 10px; top: 10px; }
   #panel {
     position: relative; left: auto; bottom: auto; transform: none;
@@ -627,4 +625,10 @@ html.reduce-motion *, html.reduce-motion *::before, html.reduce-motion *::after 
   body * { visibility: hidden !important; }
   .printable, .printable * { visibility: visible !important; }
   .printable { position: absolute; left: 0; top: 0; width: 100%; }
+}
+
+/* Celular em pé: botões sobre a cena embaixo (fica no fim do arquivo para vencer as regras base) */
+@media (max-width: 760px) and (orientation: portrait) {
+  .drag-hint { top: auto; bottom: 26px; }
+  #btn-skip { top: auto; bottom: 30px; right: 12px; }
 }

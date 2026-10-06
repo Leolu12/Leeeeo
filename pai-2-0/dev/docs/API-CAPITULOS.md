@@ -1,7 +1,7 @@
 # PAI 2.0 — Chapter API (3D first-person edition) — source of truth: js/engine/director.js, ui.js, stage3d.js
 
 ## File & registration
-`js/chapters/<id>.js` (ids: prologo, cap1 … cap11, epilogo), classic script wrapped in an IIFE:
+`js/chapters/<id>.js` (ids: prologo, cap1 … cap11, epilogo; ?part=N começa em 0), classic script wrapped in an IIFE:
 ```js
 (function () {
   'use strict';

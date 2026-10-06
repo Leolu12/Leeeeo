@@ -104,7 +104,8 @@
       async (G) => {
         G.scene('cozinha', { time: 'manha', steam: true });
         G.music('manha');
-        G.filho.at('mesa2').setAnim('sit').set({ props: { mug: true } });
+        // mesa3 (lado do fundo): de mesa4, o vaso do centro da mesa tapava quem senta em mesa2
+        G.filho.at('mesa3').setAnim('sit').set({ props: { mug: true } });
         G.filho.setExpr('feliz');
         G.pai.at('porta');
         G.player.fp();
@@ -180,8 +181,9 @@
       async (G) => {
         G.scene('cozinha', { time: 'manha', steam: true });
         G.music('manha');
-        G.filho.at('mesa2').setAnim('sit').set({ props: { mug: true } });
+        G.filho.at('mesa3').setAnim('sit').set({ props: { mug: true } });
         G.pai.at('mesa4').setAnim('sit');
+        G.filho.face(G.pai, true);
         G.player.fp();
         await G.fadeIn(0.5);
         G.player.lookAt('filho');
