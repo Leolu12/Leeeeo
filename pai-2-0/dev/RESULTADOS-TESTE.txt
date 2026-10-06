@@ -5,3 +5,6 @@ cap3 "ok": true
 cap1 "ok": true
 cap10 "ok": true
 cap4 "ok": true
+cap11 "ok": false
+cap7 "ok": false
+cap2 "ok": true
