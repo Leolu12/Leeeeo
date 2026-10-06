@@ -8,3 +8,5 @@ cap4 "ok": true
 cap11 "ok": false
 cap7 "ok": false
 cap2 "ok": true
+cap8 "ok": true
+epilogo "ok": true
