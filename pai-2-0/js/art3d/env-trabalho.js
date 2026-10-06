@@ -2246,12 +2246,13 @@
       corA.cyl(0.075, 0.075, 0.02, BRASS, [-1.555, 2.1, CZ1 - 0.03], [HP, 0, 0], 28);
       corA.box(0.34, 0.012, 0.02, BRASS, [-1.6, 1.97, CZ1 - 0.03]);
       // porta dupla de elevador (inox) + batente
-      corA.box(1.3, 2.3, 0.04, '#9aa0a8', [2.3, 1.15, CZ1 - 0.02]);
-      corA.box(0.008, 2.28, 0.045, '#5a5e66', [2.3, 1.14, CZ1 - 0.025]);
-      corA.box(1.46, 0.08, 0.06, '#3a3b40', [2.3, 2.34, CZ1 - 0.03]);
-      corA.box(0.08, 2.38, 0.06, '#3a3b40', [1.58, 1.19, CZ1 - 0.03]);
-      corA.box(0.08, 2.38, 0.06, '#3a3b40', [3.02, 1.19, CZ1 - 0.03]);
-      corA.box(0.08, 0.16, 0.02, '#2a2b30', [3.3, 1.15, CZ1 - 0.015]);
+      corA.box(1.3, 2.3, 0.04, '#b39a72', [2.3, 1.15, CZ1 - 0.02]);                      // portas em bronze champanhe
+      corA.box(0.008, 2.28, 0.045, '#3a3026', [2.3, 1.14, CZ1 - 0.025]);
+      corA.box(1.46, 0.08, 0.06, '#1f1f23', [2.3, 2.34, CZ1 - 0.03]);
+      corA.box(0.08, 2.38, 0.06, '#1f1f23', [1.58, 1.19, CZ1 - 0.03]);
+      corA.box(0.08, 2.38, 0.06, '#1f1f23', [3.02, 1.19, CZ1 - 0.03]);
+      corA.box(0.08, 0.16, 0.02, '#1f1f23', [3.3, 1.15, CZ1 - 0.015]);
+      corA.box(0.36, 0.1, 0.02, '#141416', [2.3, 2.5, CZ1 - 0.012]);                      // indicador de andar
       corA.build(METAL(), own, { parent: corG });
       // gravura abstrata (pôr do sol sobre a cidade) entre o ripado e o elevador — é o que se vê do ponto 'corredor'
       const corArtTex = ctex('art-board', 768, 512, (ctx, w, h) => {
@@ -2276,13 +2277,40 @@
       corG.add(corArtP);
       const callBtn = M.sphere(0.012, M.basic('#ffcf8a'), { parent: corG, pos: [3.3, 1.18, CZ1 - 0.03], cast: false });
       void callBtn;
+      // pedra escura (grafite com veios) em placas grandes atrás do elevador e da gravura: dá contraste ao corredor
+      const stoneTex = ctex('stone-cor', 1024, 512, (ctx, w, h) => {
+        ctx.fillStyle = '#34312e'; ctx.fillRect(0, 0, w, h);
+        const rS = M.rng(131);
+        for (let i = 0; i < 4; i++) { const g3 = ctx.createRadialGradient(rS() * w, rS() * h, 10, rS() * w, rS() * h, 260); g3.addColorStop(0, 'rgba(90,82,74,0.35)'); g3.addColorStop(1, 'rgba(90,82,74,0)'); ctx.fillStyle = g3; ctx.fillRect(0, 0, w, h); }
+        for (let i = 0; i < 26; i++) {
+          ctx.strokeStyle = 'rgba(210,198,180,' + (0.05 + rS() * 0.14) + ')'; ctx.lineWidth = 0.6 + rS() * 1.6;
+          let x = rS() * w, y = rS() < 0.5 ? 0 : rS() * h; ctx.beginPath(); ctx.moveTo(x, y);
+          for (let k = 0; k < 8; k++) { x += (rS() - 0.3) * 90; y += 20 + rS() * 60; ctx.lineTo(x, y); }
+          ctx.stroke();
+        }
+        noise(ctx, w, h, 0.08, 132);
+        // juntas das placas (1,2 m × 0,6 m em 2 colunas × 2 linhas por repetição)
+        ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, w, 2); ctx.fillRect(0, h / 2 - 1, w, 2); ctx.fillRect(0, 0, 2, h); ctx.fillRect(w / 2 - 1, 0, 2, h);
+      });
+      const stoneW = X1 + 0.07;
+      const stone = new T.Mesh(M.planeGeo(stoneW, H - 0.02), stdMat('stone-cor', { map: texRepeat(stoneTex, 'stone-cor-r', stoneW / 2.4, (H - 0.02) / 1.2), rough: 0.32, env: 0.5 }));
+      stone.rotation.y = PI; stone.position.set(stoneW / 2, H / 2, CZ1 - 0.004); stone.receiveShadow = true;
+      corG.add(stone);
+      const floorInd = M.textPanel(0.3, 0.07, { text: ['▲ 32'], color: '#ffb35a', bg: '#141416', px: 64, weight: '800' });
+      floorInd.position.set(2.3, 2.5, CZ1 - 0.023); floorInd.rotation.y = PI;
+      own.add(floorInd.material); own.add(floorInd.material.map);
+      corG.add(floorInd);
+      // luz de quadro sobre a gravura (lava a parede em leque quente)
+      const corWash = M.glow('#ffd29a', 1.6, 0.32); own.add(corWash.material); corWash.position.set(0.78, 1.95, CZ1 - 0.12); corWash.scale.set(1.9, 1.3, 1); corG.add(corWash);
       // vidro da frente (corredor) com faixa jateada e porta
       // 7 vãos: nenhum montante fica bem na frente do ponto 'corredor' (x 1,2) nem da porta (x≈3,35)
       const frontG = curtainWall(own, { parent: root, len: X1 - X0, h: H, z: Z1, rotY: PI, panes: 7, convector: false, frame: '#3a3a3e' });
       walls.push({ obj: frontG, px: 0, pz: Z1, normal: [0, 0, -1] });
       // faixa jateada (película de segurança): fosca, com dois filetes transparentes e o logotipo vazado
-      const frostTex = ctex('frost2', 1024, 128, (ctx, w, h) => {
-        ctx.fillStyle = 'rgba(255,255,255,0.82)'; ctx.fillRect(0, 0, w, h);
+      const frostTex = ctex('frost3', 1024, 128, (ctx, w, h) => {
+        // película jateada em faixas (mais fina embaixo e em cima) — esconde sem "apagar" o corredor
+        ctx.fillStyle = 'rgba(255,255,255,0.62)'; ctx.fillRect(0, h * 0.18, w, h * 0.64);
+        for (let k = 0; k < 6; k++) { ctx.fillStyle = 'rgba(255,255,255,' + (0.5 - k * 0.06) + ')'; ctx.fillRect(0, h * (0.14 - k * 0.022), w, 2); ctx.fillRect(0, h * (0.86 + k * 0.022), w, 2); }
         ctx.globalCompositeOperation = 'destination-out';
         ctx.fillStyle = '#000';
         ctx.fillRect(0, h * 0.1, w, 3); ctx.fillRect(0, h * 0.88, w, 3);
@@ -2293,7 +2321,7 @@
         ctx.fillRect(w / 2 - h * 0.36 - w * 0.12, h * 0.44, w * 0.12, 6);
         ctx.globalCompositeOperation = 'source-over';
       });
-      const frost = new T.Mesh(M.planeGeo(X1 - X0 - 0.1, 0.42), stdMat('frost2', { map: texRepeat(frostTex, 'frost-c7', 7, 1), rough: 0.6, opacity: 0.8, depthWrite: false }));
+      const frost = new T.Mesh(M.planeGeo(X1 - X0 - 0.1, 0.42), stdMat('frost3', { map: texRepeat(frostTex, 'frost-c7', 7, 1), rough: 0.6, opacity: 0.72, depthWrite: false }));
       frost.position.set(0, 1.35, -0.01); frost.rotation.y = 0;
       frost.renderOrder = 3;
       frontG.add(frost);
@@ -2467,10 +2495,10 @@
       [-1, 1].forEach((s) => corM.box(0.04, 0.4, 0.34, BLACKM, [-2.2 + s * 0.6, 0.2, Z1 + 0.85]));
       corM.build(METAL(), own, { parent: root });
       const corP = new Merger();
-      plant(corP, 'espada', [1.2, 0, Z1 + 0.85], 0.75, '#2d2f33', 31);
+      plant(corP, 'espada', [0.02, 0, CZ1 - 0.35], 0.75, '#2d2f33', 31);
       plant(corP, 'figueira', [-3.85, 0, Z1 + 0.85], 1.35, '#e9e3d7', 37);
       // passadeira no corredor
-      const runM = new T.MeshStandardMaterial({ map: rugTex('runner', '#4a3a30', '#2e241e', '#a88a5c'), roughness: 0.95 });
+      const runM = new T.MeshStandardMaterial({ map: rugTex('runner2', '#9a8670', '#6e5c4a', '#d4b98a'), roughness: 0.95 });
       own.add(runM);
       const runner = new T.Mesh(M.boxGeo(6.2, 0.01, 0.78), runM);
       runner.position.set(-0.4, 0.006, Z1 + 0.62); runner.receiveShadow = true; runner.castShadow = false;
