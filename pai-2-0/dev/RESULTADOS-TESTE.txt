@@ -1,15 +1,26 @@
-prologo "ok": true
-cap9 "ok": true
-cap6 "ok": true
-cap3 "ok": true
-cap1 "ok": true
-cap10 "ok": true
-cap4 "ok": true
-cap11 "ok": false
-cap7 "ok": false
-cap2 "ok": true
-cap8 "ok": true
-epilogo "ok": true
-cap5 "ok": true
-cap11 "ok": true
-cap7 "ok": true
+cap1-d "ok": true "done": true
+cap1-mf "ok": true "done": true
+cap10-d "ok": true "done": true
+cap10-mf "ok": true "done": true
+cap11-d "ok": true "done": true
+cap11-mf "ok": true "done": true
+cap2-d "ok": true "done": true
+cap2-mf "ok": true "done": true
+cap3-d "ok": true "done": true
+cap3-mf "ok": true "done": true
+cap4-d "ok": true "done": true
+cap4-mf "ok": true "done": true
+cap5-d "ok": true "done": true
+cap5-mf "ok": true "done": true
+cap6-d "ok": true "done": true
+cap6-mf "ok": true "done": true
+cap7-d "ok": true "done": true
+cap7-mf "ok": true "done": true
+cap8-d "ok": true "done": true
+cap8-mf "ok": true "done": true
+cap9-d "ok": true "done": true
+cap9-mf "ok": true "done": true
+epilogo-d "ok": true "done": true
+epilogo-mf "ok": true "done": true
+prologo-d "ok": true "done": true
+prologo-mf "ok": true "done": true
