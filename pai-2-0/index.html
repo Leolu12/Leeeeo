@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1020">
+  <title>Pai 2.0</title>
+  <meta name="description" content="Pai 2.0: uma aventura em 3D sobre usar inteligência artificial no trabalho e na vida de um CEO — com honestidade, bom humor e segurança.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='10' y='14' width='44' height='40' rx='12' fill='%23ff7a45'/%3E%3Crect x='14' y='6' width='8' height='14' rx='4' fill='%23ff7a45'/%3E%3Crect x='42' y='6' width='8' height='14' rx='4' fill='%23ff7a45'/%3E%3Cellipse cx='24' cy='32' rx='7' ry='8' fill='%23fff'/%3E%3Cellipse cx='40' cy='32' rx='7' ry='8' fill='%23fff'/%3E%3Ccircle cx='25' cy='33' r='4' fill='%231d1830'/%3E%3Ccircle cx='41' cy='33' r='4' fill='%231d1830'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span id="chap-label">Pai 2.0</span>
+      </div>
+      <nav class="tools" aria-label="Controles">
+        <button id="btn-guide" class="tool" type="button" title="Guia do CEO: prompts e práticas"><span class="ic">📘</span><span class="lb">Guia</span></button>
+        <button id="btn-sound" class="tool" type="button" title="Ligar ou desligar o som"><span class="ic">🔊</span><span class="lb">Som</span></button>
+        <button id="btn-speed" class="tool" type="button" title="Velocidade do texto"><span class="ic">⏩</span><span class="lb">Texto: Normal</span></button>
+        <button id="btn-font" class="tool" type="button" title="Tamanho da letra (A / A+ / A++)"><span class="ic">A+</span><span class="lb">Letra</span></button>
+        <button id="btn-menu" class="tool" type="button" title="Menu (Esc)"><span class="ic">☰</span><span class="lb">Menu</span></button>
+      </nav>
+    </header>
+
+    <main id="main">
+      <div id="stage-wrap">
+        <canvas id="stage" aria-label="Cena do jogo em 3D"></canvas>
+        <div id="hud" aria-live="off"></div>
+        <div id="toasts" aria-live="polite"></div>
+        <div id="stage-overlay" hidden></div>
+        <button id="btn-skip" type="button" hidden>Pular cena ⏭</button>
+      </div>
+
+      <section id="panel" data-mode="dialog">
+        <div id="dialog" class="dialog">
+          <div id="dlg-portrait" hidden><canvas width="96" height="96" aria-hidden="true"></canvas></div>
+          <div class="dlg-body">
+            <div id="dlg-name" hidden></div>
+            <div id="dlg-text"></div>
+            <div id="dlg-next" aria-hidden="true">▼</div>
+          </div>
+          <div id="dlg-sr" class="sr-only" aria-live="polite"></div>
+        </div>
+        <div id="choices" hidden></div>
+        <div id="chat" hidden></div>
+        <div id="mini" hidden></div>
+        <div id="panel-menu" hidden></div>
+      </section>
+    </main>
+
+    <div id="screen" hidden></div>
+    <div id="modal" hidden></div>
+    <div id="overlay" hidden></div>
+    <div id="menu" hidden></div>
+    <div id="ach-toasts" aria-live="polite"></div>
+    <div id="boot" class="boot"><div class="boot-mark"></div><div class="boot-tx">Carregando o 3D…</div></div>
+    <noscript><div class="noscript">Este jogo precisa de JavaScript ligado no navegador.</div></noscript>
+  </div>
+
+  <!-- 3D -->
+  <script src="js/lib/three.min.js"></script>
+  <script src="js/engine/m3d.js"></script>
+  <script src="js/engine/rig.js"></script>
+  <script src="js/engine/stage3d.js"></script>
+  <script src="js/engine/audio.js"></script>
+  <!-- Arte 3D -->
+  <script src="js/art3d/chars.js"></script>
+  <script src="js/art3d/env-casa.js"></script>
+  <script src="js/art3d/env-trabalho.js"></script>
+  <script src="js/art3d/env-especial.js"></script>
+  <!-- Interface e história -->
+  <script src="js/content/ceo.js"></script>
+  <script src="js/engine/save.js"></script>
+  <script src="js/engine/ui.js"></script>
+  <script src="js/engine/director.js"></script>
+  <script src="js/content/fontes.js"></script>
+  <script src="js/content/guia-dados.js"></script>
+  <script src="js/content/guia.js"></script>
+  <script src="js/content/achievements.js"></script>
+  <!-- Capítulos -->
+  <script src="js/chapters/prologo.js"></script>
+  <script src="js/chapters/cap1.js"></script>
+  <script src="js/chapters/cap2.js"></script>
+  <script src="js/chapters/cap3.js"></script>
+  <script src="js/chapters/cap4.js"></script>
+  <script src="js/chapters/cap5.js"></script>
+  <script src="js/chapters/cap6.js"></script>
+  <script src="js/chapters/cap7.js"></script>
+  <script src="js/chapters/cap8.js"></script>
+  <script src="js/chapters/cap9.js"></script>
+  <script src="js/chapters/cap10.js"></script>
+  <script src="js/chapters/cap11.js"></script>
+  <script src="js/chapters/epilogo.js"></script>
+  <!-- Início -->
+  <script src="js/main.js"></script>
+</body>
+</html>
