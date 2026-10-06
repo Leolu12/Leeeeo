@@ -142,12 +142,13 @@
    * "Assa" um grupo estático: junta as malhas simples (MeshStandard sem textura, opacas, face única)
    * numa malha por tipo de material (cor por vértice) → bem menos draw calls. Animados: não usar.
    */
-  function bake(K, group) {
+  function bake(K, group, skip) {
     group.updateMatrixWorld(true);
+    const skipped = (o) => { for (let q = o.parent; q && q !== group; q = q.parent) if (skip && skip.indexOf(q) >= 0) return true; return false; };
     const inv = new T.Matrix4().copy(group.matrixWorld).invert();
     const buckets = new Map(), kill = [];
     group.traverse((o) => {
-      if (!o.isMesh || o.isInstancedMesh || o.userData.noBake) return;
+      if (!o.isMesh || o.isInstancedMesh || o.userData.noBake || skipped(o)) return;
       const m = o.material;
       if (!m || Array.isArray(m) || !m.isMeshStandardMaterial || m.map || m.transparent || m.vertexColors || m.side !== T.FrontSide) return;
       const em = m.emissive && m.emissiveIntensity > 0 && m.emissive.r + m.emissive.g + m.emissive.b > 0;
@@ -1176,7 +1177,7 @@
           '  float sky = clamp(f.y, 0.0, 1.0);',
           '  diffuseColor.rgb = mix(diffuseColor.rgb, uGlass * (0.8 + 0.4 * sky), inside);',
           '  float tint = fract(hs * 13.0);',
-          '  totalEmissiveRadiance += mix(uWarm, vec3(1.0, 0.93, 0.78), tint * tint) * on * (0.75 + 0.75 * tint);',
+          '  totalEmissiveRadiance += mix(uWarm, vec3(1.0, 0.86, 0.6), tint * tint * 0.6) * on * (0.8 + 0.7 * tint);',
           '}',
         ].join('\n'));
     };
@@ -1245,20 +1246,20 @@
       root.name = 'env:titulo';
       const r = M.rng(2024);
       const R = 5.0;
-      const lit = { value: 0.32 };
+      const lit = { value: 0.22 };
       const st = { t0: null };
 
       // ---------------- céu de fim de tarde ----------------
-      const SUN = [-0.82, -0.035, -0.57];
-      const sky = makeSky({ cTop: '#121845', cBand: '#5a4a9a', cMid: '#ffa05a', cHor2: '#c4789f', cBot: '#5a4a86', horizonMix: 1, bandH: 0.22, cSun: '#ffc070', sunDir: SUN, sunGlow: 1.1, stars: 0.75, moon: 1, moonDir: [0.55, 0.42, 0.72], nebula: 0.12, cNeb: '#ff9ac0' });
+      const SUN = [-0.66, 0.02, 0.75]; // pôr do sol à frente-esquerda da câmera inicial: fachadas douradas, fundo azul-lilás
+      const sky = makeSky({ cTop: '#121845', cBand: '#5a4a9a', cMid: '#ffa05a', cHor2: '#c4789f', cBot: '#5a4a86', horizonMix: 1, bandH: 0.22, cSun: '#ffc070', sunDir: SUN, sunGlow: 1.1, stars: 0.75, moon: 1, moonDir: [0.5, 0.36, -0.79], nebula: 0.12, cNeb: '#ff9ac0' });
       root.add(sky);
       const SU = sky.userData.U;
 
       // ---------------- luzes ----------------
       const L = M.lighting('tarde', { area: 6.6 });
       root.add(L.group);
-      L.hemi.color.set('#8a96ff'); L.hemi.groundColor.set('#5a3550'); L.hemi.intensity = 0.58;
-      L.sun.color.set('#ffa862'); L.sun.intensity = 2.1; L.sun.position.set(-8.0, 4.0, -4.6);
+      L.hemi.color.set('#7f8cf0'); L.hemi.groundColor.set('#4a2e48'); L.hemi.intensity = 0.5;
+      L.sun.color.set('#ffa25a'); L.sun.intensity = 2.3; L.sun.position.set(-7.0, 3.5, 6.6);
       L.sun.target.position.set(0, 0, 0);
       L.amb.intensity = 0.12;
       L.sun.shadow.camera.far = 30;
@@ -1402,9 +1403,16 @@
         [-3.0, -3.45, 0.2, 0], [0.3, -3.45, 0.2, 0], [1.9, -3.45, 0.2, 0], [3.6, -2.9, 0.2, 0], [-4.3, -2.2, 0.2, 0],
         [4.0, 3.2, 0.22, 2], [3.4, 0.62, 0.17, 0],
       ];
-      const canopyG = rockGeo(K, 7, 1, 0.16, 0.95);
+      const _ao = new T.Color();
+      const aoC = (lo) => (x, y) => _ao.setScalar(lo + (1 - lo) * sstep(-1, 0.75, y)); // base da copa mais escura (volume)
+      const canopyG = K.geo(mergeParts([
+        { g: rockGeo(K, 7, 2, 0.08, 0.95), m: mat4([0, 0, 0]), c: aoC(0.62) },
+        { g: rockGeo(K, 8, 2, 0.08, 0.95), m: mat4([0.42, -0.22, 0.12], null, 0.66), c: aoC(0.55) },
+        { g: rockGeo(K, 9, 2, 0.08, 0.95), m: mat4([-0.36, -0.18, -0.2], null, 0.7), c: aoC(0.55) },
+        { g: rockGeo(K, 10, 2, 0.08, 0.95), m: mat4([0.05, 0.38, -0.05], null, 0.6), c: aoC(0.8) },
+      ]));
       const trunkG = M.cylGeo(0.02, 0.03, 1, 6);
-      const canopyM = K.mat(new T.MeshStandardMaterial({ roughness: 0.85, flatShading: true }));
+      const canopyM = K.mat(new T.MeshStandardMaterial({ roughness: 0.85, vertexColors: true }));
       const trunkM = M.mat('#6a4a3a', { rough: 0.9 });
       const tCan = new T.InstancedMesh(canopyG, canopyM, trees.length);
       const tTr = new T.InstancedMesh(trunkG, trunkM, trees.length);
@@ -1413,7 +1421,7 @@
       trees.forEach((t, i) => {
         const s = t[2];
         tTr.setMatrixAt(i, mat4([t[0], s * 0.75, t[1]], null, [1, s * 1.5, 1]));
-        tCan.setMatrixAt(i, mat4([t[0], s * 1.55, t[1]], [r(), r() * TAU, r()], [s, s * 0.9, s]));
+        tCan.setMatrixAt(i, mat4([t[0], s * 1.55, t[1]], [(r() - 0.5) * 0.3, r() * TAU, (r() - 0.5) * 0.3], [s * 0.86, s * 0.8, s * 0.86]));
         tCan.setColorAt(i, M.color(t[3] === 1 ? '#c86ad4' : t[3] === 2 ? '#f4c430' : greens[i % greens.length]));
       });
       root.add(tCan, tTr);
@@ -1544,7 +1552,7 @@
           if (st.t0 == null) st.t0 = t;
           const lt = t - st.t0;
           SU.time.value = lt;
-          lit.value = 0.3 + 0.42 * sstep(0, 30, lt) + 0.02 * Math.sin(lt * 0.21);
+          lit.value = 0.2 + 0.36 * sstep(0, 30, lt) + 0.02 * Math.sin(lt * 0.21);
           const lc = lampGlow.geometry.attributes.color;
           let changed = false;
           lampOn.forEach((on, i) => {
@@ -2101,7 +2109,7 @@
         M.rbox(0.3, 0.06, 0.22, 0.01, '#e6b33a', { parent: g, pos: [0.45, 0.11, 0.2], rot: [0, 0.2, 0] });
       })();
       // cantinho de leitura (frente-direita): poltrona, abajur de pé e mesinha com livros
-      (function () {
+      const readingCorner = (function () {
         const fab = M.mat('#c8862f', { rough: 0.95 }), fab2 = M.mat('#e0a548', { rough: 0.95 });
         const ch = M.group({ parent: root, pos: [2.2, 0, 1.8], rot: [0, -2.5, 0] });
         M.rbox(0.84, 0.3, 0.76, 0.08, fab, { parent: ch, pos: [0, 0.21, 0] });
@@ -2128,19 +2136,36 @@
         [['#2e6da4', 0], ['#e6b33a', 0.04], ['#3f8a5a', 0.075]].forEach((b, i) => M.rbox(0.22 - i * 0.02, 0.035, 0.16, 0.008, b[0], { parent: st2, pos: [-0.04, 0.585 + b[1], 0.02], rot: [0, 0.3 - i * 0.25, 0] }));
         M.cyl(0.035, 0.03, 0.08, '#f4f1e6', { parent: st2, pos: [0.12, 0.607, -0.08] });
         M.torus(0.02, 0.005, '#f4f1e6', { parent: st2, pos: [0.155, 0.607, -0.08], cast: false });
+        return [ch, fl, st2];
       })();
 
       // vaso de planta no canto esquerdo do fundo
       const potG = M.group({ parent: root, pos: [-2.6, 0, -2.1] });
       M.cyl(0.18, 0.14, 0.34, '#c97a52', { parent: potG, pos: [0, 0.17, 0] });
-      const leafG = rockGeo(K, 13, 1, 0.2, 1.1);
-      [[0, 0.62, 0, 0.26], [0.12, 0.85, 0.05, 0.2], [-0.1, 0.8, -0.06, 0.2], [0.02, 1.02, 0, 0.16]].forEach((p) => { const m = new T.Mesh(leafG, M.mat('#4f8a4a', { rough: 0.8, flat: true })); m.position.set(p[0], p[1], p[2]); m.scale.setScalar(p[3]); m.castShadow = true; potG.add(m); });
+      // espada-de-são-jorge: folhas altas e listradas (lê bem de perto e de longe)
+      M.torus(0.18, 0.022, '#b8643e', { parent: potG, pos: [0, 0.34, 0], rot: [Math.PI / 2, 0, 0] });
+      M.cyl(0.165, 0.165, 0.02, '#3a2a20', { parent: potG, pos: [0, 0.32, 0], cast: false });
+      const leafG = K.geo(new T.ConeGeometry(0.5, 1, 5, 6)); leafG.translate(0, 0.5, 0);
+      const lA = col('#2c5e34'), lB = col('#78b060'), lT = new T.Color();
+      const leafC = (x, y) => lT.copy(lA).lerp(lB, 0.25 + 0.45 * Math.pow(0.5 + 0.5 * Math.sin(y * 26), 3) + 0.3 * y);
+      const leafParts = [];
+      for (let i = 0; i < 11; i++) {
+        const a = (i / 11) * TAU + r() * 0.4, rad = 0.03 + r() * 0.09, h = 0.55 + r() * 0.5;
+        leafParts.push({ g: leafG, m: mat4([Math.cos(a) * rad, 0.3, Math.sin(a) * rad], { dir: [Math.cos(a) * (0.12 + r() * 0.18), 1, Math.sin(a) * (0.12 + r() * 0.18)], spin: -a - Math.PI / 2 + (r() - 0.5) * 0.8 }, [0.075, h, 0.016]), c: leafC });
+      }
+      const leaves = new T.Mesh(K.geo(mergeParts(leafParts)), K.vc({ rough: 0.55 }));
+      leaves.castShadow = true; leaves.receiveShadow = true; potG.add(leaves);
 
       // poeira de giz flutuando
       const motes = glowPoints(K, 70, 0.07, { tex: dotTex(K), color: '#ffe6b8', opacity: 0.7 });
       root.add(motes);
       const md = [];
       for (let i = 0; i < 70; i++) md.push({ x: (r() - 0.5) * 5.5, y: 0.3 + r() * 2.4, z: (r() - 0.5) * 4.5, ph: r() * TAU, sp: 0.03 + r() * 0.05 });
+
+      // menos draw calls: junta as peças estáticas (cada parede/teto continua num grupo próprio)
+      [back, left, front, ceil, TD, d1.g, d2.g, potG, SH, cork, themeG.violao, themeG.ingles, themeG.negocios].forEach((g) => bake(K, g));
+      bake(K, right, [cork, themeG.ingles]);
+      readingCorner.forEach((g) => bake(K, g));
 
       function drawBoard(p) {
         const lines = Array.isArray(p.lines) ? p.lines : p.lines ? [String(p.lines)] : [];
@@ -2279,6 +2304,15 @@
         return { m, sp: d[3] };
       });
 
+      // portal: anéis verticais finos atrás do palco (moldura elegante para quem está no centro)
+      const portalM = K.mat(new T.MeshBasicMaterial({ color: '#c8c0ff', transparent: true, opacity: 0.7, blending: T.AdditiveBlending, depthWrite: false, toneMapped: false }));
+      const portal = M.group({ parent: root, pos: [0, 1.75, -3.4] });
+      const pr1 = new T.Mesh(M.torusGeo(2.35, 0.014, 6, 160), portalM); portal.add(pr1);
+      const pr2 = new T.Mesh(M.torusGeo(2.6, 0.007, 4, 160, 4.4), portalM); pr2.rotation.z = 0.8; portal.add(pr2);
+      const pr3 = new T.Mesh(M.torusGeo(2.12, 0.006, 4, 160, 2.2), portalM); pr3.rotation.z = 3.6; portal.add(pr3);
+      const portalGlow = M.glow('#7c6cff', 6.5, 0.28); portal.add(portalGlow);
+      [pr1, pr2, pr3].forEach((m) => { m.castShadow = m.receiveShadow = false; });
+
       // formas flutuando
       const pearlM = K.mat(new T.MeshStandardMaterial({ color: '#d8d2ff', roughness: 0.22, metalness: 0.15, emissive: col('#7c6cff'), emissiveIntensity: 0.18 }));
       const glassM = K.mat(new T.MeshStandardMaterial({ color: '#b8b0ff', roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.35, emissive: col('#7c6cff'), emissiveIntensity: 0.25, depthWrite: false }));
@@ -2335,6 +2369,8 @@
         pts.material.color.copy(tc).lerp(col('#ffffff'), 0.55);
         rim.color.copy(tc);
         halo.material.color.copy(tc);
+        portalM.color.copy(tc).lerp(col('#ffffff'), 0.5);
+        portalGlow.material.color.copy(tc);
         L.hemi.color.copy(tc).lerp(col('#ffffff'), 0.7);
         const sc = P2.core && P2.core.scene;
         if (sc && sc.background && sc.background.isColor) sc.background.copy(SU.cMid.value);
@@ -2367,6 +2403,8 @@
           const lt = t - st.t0;
           SU.time.value = lt * 3;
           rings.forEach((rg) => (rg.m.rotation.z = lt * rg.sp));
+          pr2.rotation.z = 0.8 + lt * 0.07; pr3.rotation.z = 3.6 - lt * 0.11;
+          portal.position.y = 1.75 + Math.sin(lt * 0.4) * 0.04;
           shapes.forEach((s) => { s.o.position.y = s.y + Math.sin(lt * 0.5 + s.ph) * 0.18; s.o.rotation.x += s.sx * (dt || 0.016); s.o.rotation.y += s.sy * (dt || 0.016); });
           const pa = pts.geometry.attributes.position;
           pd.forEach((d, i) => pa.setXYZ(i, d.x + Math.sin(lt * 0.3 + d.ph) * 0.15, (d.y + lt * d.sp) % 7, d.z));

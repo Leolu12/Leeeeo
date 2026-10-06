@@ -356,8 +356,8 @@
           arp: bars('Fmaj7', 'G', 'Am7', 'G7sus4:8 G:8'),
           counter: bars('E6:3 G6:1 C7:4 B6:2 G6:2 E6:4', '.:16', 'C6:3 E6:1 A6:4 G6:2 E6:2 C6:4', '.:8 G5:2 A5:2 B5:2 D6:2'),
           bass: bars('F2:16', 'G2:16', 'A2:16', 'G2:16'),
-          drums: bars('.:16', '.:16', '.:16', 'v:16'),
-          cfg: { arp: { vol: 0.085 }, bass: { vol: 0.1 } },
+          drums: bars('.:16', '.:16', 'z?:4 z?:4 z?:4 z?:2 z?:2', 'v:16'),
+          cfg: { arp: { vol: 0.1 }, bass: { vol: 0.13 } },
         },
         A: {
           lead: TEMA, pad: TEMA_C, arp: TEMA_C, bass: TEMA_BS,
@@ -1978,6 +1978,14 @@
       softPad(c, o, t, 'C4 G4 E5', 0.7, 0.035, p, 0.2);
       return 1.3;
     },
+    heart: (c, o, t, p) => { // corações (momento de carinho): "tum-tum" macio + kalimba + celesta em Fá maj7
+      [0, 0.16].forEach((dt, i) => tone(c, o, t + dt, { w: 'sine', f: 92 * p, f1: 62 * p, ft: 0.08, d: 0.16, v: i ? 0.1 : 0.13, a: 0.006, exp: true }));
+      nt(c, o, t, 'kalimba', nf('E5') * p, 0.2, { vol: 0.1 });
+      nt(c, o, t + 0.16, 'kalimba', nf('A5') * p, 0.2, { vol: 0.09 });
+      seq(c, o, t + 0.3, 'C6 E6 A6:4', { inst: 'bell', step: 0.075, vol: 0.06, p: p, d: 1.1 });
+      softPad(c, o, t, 'F4 A4 C5 E5', 0.9, 0.028, p, 0.12);
+      return 1.4;
+    },
     heart_lose: (c, o, t, p) => { // descida triste com a última nota "murchando"
       seq(c, o, t, 'A5:2 E5:2 C5:2', { inst: 'ep', step: 0.09, vol: 0.17, p: p, index: 0.9 });
       nt(c, o, t + 0.54, 'ep', 440 * p, 0.6, { vol: 0.17, index: 0.9, bend: -60 });
@@ -2258,9 +2266,15 @@
     click: 0.04, blip: 0.04, select: 0.06, tick: 0.03, typing: 0.03, card: 0.05, step: 0.03, camera: 0.04, pop: 0.08,
     sparkle: 0.45, magic: 0.5, notify: 0.3, chime: 0.4, star: 0.3, coin: 0.2, email: 0.25, heal: 0.35,
     success: 0.25, achievement: 0.3, level_up: 0.3, jingle_capitulo: 0.3, jingle_vitoria: 0.3, jingle_fato: 0.35,
-    boss_hit: 0.2, boss_heal: 0.3, boss_roar: 0.2, thunder: 0.3, phone_ring: 0.18, confetti: 0.25,
+    heart: 0.35, boss_hit: 0.2, boss_heal: 0.3, boss_roar: 0.2, thunder: 0.3, phone_ring: 0.18, confetti: 0.25,
   };
   const SFX_REV_DEF = 0.12;
+  // Ajuste fino de nível (dB) por efeito, medido em loudness momentânea (BS.1770) contra a música:
+  // micro-UI audível sem incomodar, e os efeitos frequentes de acerto/erro sem estourar.
+  const SFX_TRIM = {
+    click: 5, tick: 3, typing: 4, card: 3, camera: 2, glitch: 4, whoosh: 3, page: 2,
+    success: -3, fail: -2.5, heart_lose: -2.5, boss_heal: -2.5, buzz: -2, pickup: -1.5,
+  };
 
   // =====================================================================
   // 7. Vozes (blips de diálogo) — bem suaves: tocam o tempo todo
@@ -2401,7 +2415,7 @@
   }
   // Efeito com saída própria (volume, stop) + envio para o reverb.
   function sfxOut(c, dest, name, vol) {
-    const out = gainNode(c, vol);
+    const out = gainNode(c, vol * (SFX_TRIM[name] ? Math.pow(10, SFX_TRIM[name] / 20) : 1));
     out.connect(dest);
     let s = null;
     if (dest._rev) {
@@ -2433,7 +2447,7 @@
     try {
       if (!ctx) return;
       if (ctx.state === 'running') {
-        const until = ctx.currentTime + 0.12;
+        const until = ctx.currentTime + 0.22; // folga para engasgos do thread principal (cena 3D)
         if (player) player.pump(until);
         for (let i = fading.length - 1; i >= 0; i--) {
           const f = fading[i];

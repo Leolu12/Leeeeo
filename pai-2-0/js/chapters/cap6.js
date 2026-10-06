@@ -150,6 +150,11 @@
   .c6-doc h4 { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   .c6-doc h4 small { font-family: var(--read); font-weight: 400; color: var(--muted); font-size: 0.78em; }
   .c6-pp { margin-top: 6px; font-size: 0.78em; color: var(--muted); }
+  .c6-pp .c6-so { display: none; }
+  @media (max-width: 859px) {
+    .c6-aula .c6-dre tbody tr:not(.hl) { display: none; }
+    .c6-aula .c6-pp .c6-so { display: inline; }
+  }
   .c6-steps { display: flex; gap: 6px; align-items: center; }
   .c6-steps i { width: 11px; height: 11px; border-radius: 50%; background: #d9dde8; display: inline-block; }
   .c6-steps i.on { background: var(--brand); }
@@ -221,11 +226,11 @@
       P2.ui.css('cap6', CSS);
       const el = api.el;
       const R = (s) => api.rich(api.t(s), true);
-      const doc = el('div', 'mg-doc c6-doc');
+      const doc = el('div', 'mg-doc c6-doc c6-aula');
       doc.appendChild(el('h4', null, ['DRE do 3º trimestre ', el('small', null, api.t('{empresaNome}'))]));
       const tab = tabelaDRE(api);
       doc.appendChild(tab.node);
-      doc.appendChild(el('div', 'c6-pp', 'p.p. = pontos percentuais'));
+      doc.appendChild(el('div', 'c6-pp', [el('span', 'c6-so', 'Só as linhas deste passo · '), 'p.p. = pontos percentuais']));
 
       const expl = el('div', 'c6-expl');
       const head = el('div', 'mg-row');

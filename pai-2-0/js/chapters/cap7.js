@@ -208,6 +208,16 @@
   /** Animação temporária da Faísca (reação a uma escolha). */
   const fa = (G, anim, secs) => bg(G.faisca.play(anim, secs || 1.6));
   const fmt = (v) => v.toFixed(2).replace('.', ',');
+  /** Feedback do minigame: troca texto e estilo; com "after", muda de lugar para logo abaixo do item tocado; rola até ele. */
+  function setFb(api, fb, kind, text, after) {
+    fb.className = 'mg-feedback ' + kind;
+    fb.textContent = '';
+    fb.appendChild(api.rich(api.t(text), true));
+    if (after && after.parentNode) after.after(fb);
+    if (fb.scrollIntoView) fb.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  /** Rola um elemento (ex.: o botão de seguir) para dentro da área visível. */
+  const ver = (node) => { if (node && node.scrollIntoView) node.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); };
 
   function sentaNaMesa(G) {
     G.pai.at('mesa');
@@ -259,7 +269,8 @@
   .c7-steps i.ok { background: var(--mint); }
   .c7-steps b { font-family: var(--head); font-size: 0.98em; color: var(--ink); }
   .c7-wrap { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
-  @media (min-width: 860px) { .c7-wrap.two { grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.7fr); align-items: start; } }
+  @media (min-width: 860px) { .c7-wrap.two { grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.7fr); align-items: start; } .c7-wrap.two.mxw { grid-template-columns: minmax(0, 1.7fr) minmax(0, 0.78fr); } }
+  .c7-causas > .mg-feedback { grid-column: 1 / -1; }
   .c7-sabe { background: #f7f3e8; border: 1px solid #e7dcc1; border-radius: 14px; padding: 10px 12px; }
   .c7-sabe ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 5px 14px; grid-template-columns: minmax(0, 1fr); font-size: 0.9em; }
   @media (min-width: 520px) and (max-width: 859px) { .c7-sabe ul { grid-template-columns: 1fr 1fr; } }
@@ -388,18 +399,16 @@
           fFa('ashamed');
           if (pegou) {
             api.sfx('success');
-            fb.className = 'mg-feedback ok';
-            fb.textContent = '';
-            fb.appendChild(api.rich('*Bem pego.* A Vale Verde só distribui produto nacional: não importa nada. Eu inventei essa premissa para completar a lista.', true));
+            setFb(api, fb, 'ok', '*Bem pego.* A Vale Verde só distribui produto nacional: não importa nada. Eu inventei essa premissa para completar a lista.');
             api.say('Riscado. Quando me falta informação, eu completo com chute. Com cara de certeza.', 'faisca');
           } else {
             api.sfx('page');
-            fb.className = 'mg-feedback warn';
-            fb.textContent = '';
-            fb.appendChild(api.rich('Eu mesma risco: *a causa do dólar não se aplica*. A Vale Verde só distribui produto nacional. Eu inventei essa premissa para completar a lista.', true));
-            api.say('Essa passou. Acontece: a lista é longa e o texto parece sério. Por isso o quadro do "que você sabe" fica do lado.', 'faisca');
+            setFb(api, fb, 'warn', 'Eu mesma risco: *a causa do dólar não se aplica*. A Vale Verde só distribui produto nacional. Eu inventei essa premissa para completar a lista.');
+            api.say('Essa passou. Acontece: o texto parece sério e a lista é longa. Por isso vale comparar com o que você sabe.', 'faisca');
           }
+          acts.before(fb);
           acts.appendChild(api.btn('Próximo: as 3 que mais preocupam ▶', () => passo2(), { cls: 'primary', key: '9' }));
+          ver(acts);
         };
         lista.forEach((c, i) => {
           const b = cardCausa(c, i);
@@ -411,9 +420,7 @@
             api.sfx('fail');
             b.classList.add('bad');
             api.timeout(() => b.classList.remove('bad'), 900);
-            fb.className = 'mg-feedback bad';
-            fb.textContent = '';
-            fb.appendChild(api.rich('Essa faz sentido: ' + c.ok + (st.erros >= 2 ? ' *Dica:* de onde vêm os produtos que a Vale Verde distribui?' : ' Procure uma que dependa de algo que a Vale Verde *não faz*.'), true));
+            setFb(api, fb, 'bad', 'Essa faz sentido: ' + c.ok + (st.erros >= 2 ? ' *Dica:* de onde vêm os produtos que a Vale Verde distribui?' : ' Procure uma que dependa de algo que a Vale Verde *não faz*.'), b);
             if (st.erros >= 4) fim(false);
           });
           grid.appendChild(b);
@@ -422,9 +429,7 @@
           st.nenhuma++;
           api.sfx('cancel');
           if (st.nenhuma >= 2) { fim(false); return; }
-          fb.className = 'mg-feedback warn';
-          fb.textContent = '';
-          fb.appendChild(api.rich('Tem certeza? Leia de novo o quadro: *o que* a Vale Verde distribui, e de onde vem?', true));
+          setFb(api, fb, 'warn', 'Tem certeza? Leia de novo o quadro: *o que* a Vale Verde distribui, e de onde vem?');
         }, { key: '9' });
         acts.appendChild(todas);
         col.append(grid, fb, acts);
@@ -463,13 +468,10 @@
             if (b.disabled) return;
             const r = st.top.indexOf(c.id);
             if (r >= 0) { st.top.splice(r, 1); api.sfx('back'); } else if (st.top.length < 3) { st.top.push(c.id); api.sfx('select'); } else {
-              fb.className = 'mg-feedback warn';
-              fb.textContent = 'Já são três. Toque numa marcada para trocar.';
+              setFb(api, fb, 'warn', 'Já são três. Toque numa marcada para trocar.');
               return;
             }
-            fb.className = 'mg-feedback info';
-            fb.textContent = '';
-            fb.appendChild(api.rich(st.top.length === 3 ? 'Ordem escolhida. Pode confirmar.' : 'Escolhidas: *' + st.top.length + ' de 3*.', true));
+            setFb(api, fb, 'info', st.top.length === 3 ? 'Ordem escolhida. Pode confirmar.' : 'Escolhidas: *' + st.top.length + ' de 3*.');
             pinta();
           });
           grid.appendChild(b);
@@ -502,19 +504,16 @@
               col.querySelectorAll('.mg-card').forEach((x) => { if (x !== b) { x.disabled = true; x.classList.add('dim'); } });
               api.sfx('success');
               fFa('jump');
-              fb.className = 'mg-feedback ok';
-              fb.textContent = '';
-              fb.appendChild(api.rich('*Isso.* ' + c.porqueBom, true));
+              setFb(api, fb, 'ok', '*Isso.* ' + c.porqueBom);
               acts.appendChild(api.btn(k < 2 ? 'Próxima causa ▶' : 'Ver o pré-mortem ▶', () => (k < 2 ? passo3(k + 1) : resumo()), { cls: 'primary', key: '3' }));
+              ver(acts);
             } else {
               st.mitigErros++;
               b.classList.add('bad');
               b.disabled = true;
               api.sfx('fail');
               fFa('doubt');
-              fb.className = 'mg-feedback bad';
-              fb.textContent = '';
-              fb.appendChild(api.rich('*Fraco.* ' + c.porqueRuim + ' Tente a outra.', true));
+              setFb(api, fb, 'bad', '*Fraco.* ' + c.porqueRuim + ' Tente a outra.');
             }
           });
           col.appendChild(b);
@@ -598,9 +597,7 @@
           extra.classList.add('bad');
           api.sfx('buzz');
           fFa('ashamed');
-          fb.className = 'mg-feedback warn';
-          fb.textContent = '';
-          fb.appendChild(api.rich('*Esse não entra!* Eu não sou critério: sou a calculadora com opinião. Quem diz o que importa é você.', true));
+          setFb(api, fb, 'warn', '*Esse não entra!* Eu não sou critério: sou a calculadora com opinião. Quem diz o que importa é você.');
         });
         root.append(col, el('div', 'mg-row', extra), fb, el('div', 'mg-actions', api.btn('Ver as notas da Faísca ▶', () => { api.sfx('confirm'); passo2(); }, { cls: 'primary', key: '9' })));
       }
@@ -610,8 +607,7 @@
         root.innerHTML = '';
         api.say('Minhas notas, de 1 a 5. São *opinião*, não fato. Toque numa nota para ver o porquê. Alguma está *otimista demais*?', 'faisca');
         root.appendChild(passos(api, 2, 3, 'As notas da Faísca'));
-        const wrap = el('div', 'c7-wrap two');
-        wrap.appendChild(quadroSabe(api));
+        const wrap = el('div', 'c7-wrap two mxw');
         const col = el('div', 'mg-col');
         const tbl = el('table', 'c7-mx');
         tbl.appendChild(el('tr', null, [el('th', 'c7-cr', 'Critério (peso)')].concat(OPC.map((o) => el('th', null, o.curto)))));
@@ -635,11 +631,9 @@
           pen.innerHTML = '';
           fFa('ashamed');
           api.sfx(porMim ? 'success' : 'page');
-          fb.className = porMim ? 'mg-feedback ok' : 'mg-feedback warn';
-          fb.textContent = '';
-          fb.appendChild(api.rich(porMim
+          setFb(api, fb, porMim ? 'ok' : 'warn', porMim
             ? '*Bem pego.* Risco da compra: de 4 para *2*. Eu dei "risco baixo" para uma empresa *sem auditoria*. Otimismo puro.'
-            : 'Eu mesma corrijo: risco da compra, de 4 para *2*. "Risco baixo" sem auditoria nenhuma era otimismo meu.', true));
+            : 'Eu mesma corrijo: risco da compra, de 4 para *2*. "Risco baixo" sem auditoria nenhuma era otimismo meu.');
         };
         CRIT.forEach((c) => {
           const tr = el('tr');
@@ -657,43 +651,38 @@
               b.classList.add('on');
               api.sfx('select');
               pen.innerHTML = '';
-              fb.className = 'mg-feedback info';
-              fb.textContent = '';
               if (x.otimista && corrigido) {
-                fb.appendChild(api.rich('*' + o.curto + ' · ' + c.t + ': ' + x.fixN + '* (corrigida). ' + x.fixWhy + ' Falta saber: *a auditoria*.', true));
+                setFb(api, fb, 'info', '*' + o.curto + ' · ' + c.t + ': ' + x.fixN + '* (corrigida). ' + x.fixWhy + ' Falta saber: *a auditoria*.');
                 return;
               }
-              fb.appendChild(api.rich('*' + o.curto + ' · ' + c.t + ': ' + x.n + '.* ' + x.why + ' Falta saber: *' + x.falta + '*.', true));
+              setFb(api, fb, 'info', '*' + o.curto + ' · ' + c.t + ': ' + x.n + '.* ' + x.why + ' Falta saber: *' + x.falta + '*.');
               pen.appendChild(api.btn('✍️ Otimista demais', () => {
                 if (x.otimista) { corrige(true); return; }
                 api.sfx('cancel');
                 fFa('think');
-                fb.className = 'mg-feedback info';
-                fb.textContent = '';
-                fb.appendChild(api.rich('Essa eu sustento: ' + x.why.charAt(0).toLowerCase() + x.why.slice(1) + ' Se você tiver um dado que eu não tenho, me conte. Procure uma nota que dependa de algo que *ninguém conferiu*.', true));
+                setFb(api, fb, 'info', 'Essa eu sustento: ' + x.why.charAt(0).toLowerCase() + x.why.slice(1) + ' Se você tiver um dado que eu não tenho, me conte. Procure uma nota que dependa de algo que *ninguém conferiu*.');
                 pen.innerHTML = '';
               }, { cls: 'small', key: '7' }));
-              pen.appendChild(api.btn('✔ Faz sentido', () => { pen.innerHTML = ''; api.sfx('confirm'); fb.className = 'mg-feedback info'; fb.textContent = 'Anotado. Toque em outra nota, ou calcule.'; }, { cls: 'small', key: '8' }));
+              pen.appendChild(api.btn('✔ Faz sentido', () => { pen.innerHTML = ''; api.sfx('confirm'); setFb(api, fb, 'info', 'Anotado. Toque em outra nota, ou calcule.'); }, { cls: 'small', key: '8' }));
+              ver(pen);
             });
             tr.appendChild(el('td', null, b));
           });
           tbl.appendChild(tr);
         });
         col.append(tbl, fb, pen);
-        wrap.appendChild(col);
+        wrap.append(col, quadroSabe(api));
         root.appendChild(wrap);
         root.appendChild(el('div', 'mg-actions', api.btn('Calcular com a conta à mostra ▶', () => {
           if (!corrigido && dicas === 0) {
             dicas++;
             api.sfx('notify');
             fFa('doubt');
-            fb.className = 'mg-feedback warn';
-            fb.textContent = '';
-            fb.appendChild(api.rich('Antes de calcular: alguma nota está otimista demais? Olhe o quadro: *a auditoria já foi feita?*', true));
+            setFb(api, fb, 'warn', 'Antes de calcular: alguma nota está otimista demais? Olhe o quadro: *a auditoria já foi feita?*');
             return;
           }
-          if (!corrigido) corrige(false);
-          api.timeout(() => passo3(), corrigiuSozinho ? 0 : 900);
+          if (!corrigido) { corrige(false); return; } // mostra a correção; o próximo toque calcula
+          passo3();
         }, { cls: 'primary', key: '9' })));
       }
 
@@ -706,6 +695,7 @@
         const tie = empate(r);
         api.say(tie ? 'Deu *empate* com os seus pesos. Quando a conta empata, a decisão é ainda mais sua.' : 'Com os seus pesos, a conta aponta: *' + r[0].t + '*. Mas veja a conta e teste os pesos.', 'faisca');
         root.appendChild(passos(api, 3, 3, 'A conta à mostra'));
+        root.appendChild(el('div', 'mg-small', 'Cada opção: soma de (nota × peso), dividida pela soma dos pesos. Pouco = 1, Médio = 2, Muito = 3.'));
         const ops = el('div', 'c7-ops');
         r.forEach((x, i) => {
           const termos = CRIT.map((c) => notas[c.id][x.id] + '×' + pesos[c.id]).join(' + ');
@@ -809,28 +799,25 @@
         ln.btn = b;
         b.addEventListener('click', () => {
           if (b.disabled) return;
-          fb.textContent = '';
           if (ln.bad) {
             corrige(ln, b, true);
             api.sfx('success');
             fFa('ashamed');
-            fb.className = 'mg-feedback ok';
-            fb.appendChild(api.rich('*Riscado.* ' + ln.why, true));
+            setFb(api, fb, 'ok', '*Riscado.* ' + ln.why, b);
+            if (fixed === 2) ver(assinar);
             return;
           }
           okTaps++;
           api.sfx('select');
           b.classList.add('on');
           api.timeout(() => b.classList.remove('on'), 700);
-          fb.className = 'mg-feedback info';
-          fb.appendChild(api.rich(ln.why + (okTaps >= 3 && fixed < 2 ? ' *Dica:* procure frases que prometem demais, ou que tiram a decisão das suas mãos.' : ''), true));
+          setFb(api, fb, 'info', ln.why + (okTaps >= 3 && fixed < 2 ? ' *Dica:* procure frases que prometem demais, ou que tiram a decisão das suas mãos.' : ''), b);
           if (okTaps >= 5 && fixed < 2 && !revelou) {
             revelou = true;
             LINHAS.filter((x) => x.bad && !x.feita).forEach((x) => corrige(x, x.btn, false));
             fFa('ashamed');
-            fb.className = 'mg-feedback warn';
-            fb.textContent = '';
-            fb.appendChild(api.rich('Eu mesma marco: o *"retorno garantido"* eu inventei, e *"decisão tomada pela IA"* não é verdade. Quem decidiu foi você.', true));
+            setFb(api, fb, 'warn', 'Eu mesma marco: o *"retorno garantido"* eu inventei, e *"decisão tomada pela IA"* não é verdade. Quem decidiu foi você.');
+            ver(assinar);
           }
         });
         memo.appendChild(b);

@@ -126,6 +126,12 @@
     return { title: 'Pauta de hoje · ' + tot + ' min', lines };
   }
 
+  // Em 1ª pessoa, a Faísca que "segue" o pai fica presa ao olhar dele: quando ela fala, o olhar
+  // automático a persegue e a visão gira. Nas conversas, ela pousa num ponto fixo perto dele.
+  function pousa(G, x, z, y) { G.faisca.unfollow(); G.faisca.at({ x, z }, y); G.faisca.face(G.pai); }
+  // Na cabeceira: em cima da ponta da mesa, um pouco abaixo da linha dos olhos (não cobre ninguém)
+  const FAISCA_MESA = [2.1, 0, 0.98];
+
   // Animação curta sem esperar (e sem promessa solta ao sair do capítulo)
   function anim(actor, name, secs) {
     if (!actor) return;
@@ -620,7 +626,7 @@
         await G.titleCard();
         G.scene('sala_reuniao', { clock: '13:50', chaos: 0, slide: SLIDE_VELHA });
         G.pai.at('porta');
-        G.faisca.follow(G.pai);
+        pousa(G, 2.9, 1.9, 1.35);
         G.hud.set({ clock: '13:50' });
         G.music('trabalho');
         G.player.cine();
@@ -637,6 +643,7 @@
         const env = G.core.world.env || {};
         const rel = env.shots && env.shots.relogio;
         const relPos = rel ? { x: rel.target[0], y: rel.target[1], z: rel.target[2] } : { x: 4.2, y: 2.1, z: -0.3 };
+        G.faisca.follow(G.pai);
         await G.explore({
           objetivo: 'Sente-se na cabeceira antes de a diretoria chegar',
           hotspots: [
@@ -645,7 +652,7 @@
               onInteract: async (G) => {
                 G.player.lookAt({ x: -4.2, y: 1.6, z: 0 });
                 await G.say('pai', 'A pauta do mês passado ainda está na tela. Onze itens. Lembro de ter discutido todos.', { expr: 'pensativo' });
-                await G.say('faisca', 'E decidido?', { anim: 'doubt' });
+                await G.say('faisca', 'E decidido?', { anim: 'doubt', cam: false });
                 await G.say('pai', 'Próxima pergunta.', { expr: 'sem_graca' });
               },
             },
@@ -660,7 +667,7 @@
               id: 'relogio', label: 'O relógio da fundação', icon: '🕰️', pos: relPos, optional: true,
               onInteract: async (G) => {
                 await G.say('pai', 'Esse relógio está aqui desde o primeiro dia. Já viu reunião acabar no escuro. Eu estava em todas.', { expr: 'orgulhoso' });
-                await G.say('faisca', 'Ele merecia hora extra.', { anim: 'spin' });
+                await G.say('faisca', 'Ele merecia hora extra.', { anim: 'spin', cam: false });
               },
             },
             { id: 'cabeceira', label: 'Sentar na cabeceira', icon: '🪑', at: 'cabeceira', y: 1.2 },
@@ -668,6 +675,7 @@
         });
         G.pai.at('cabeceira');
         G.pai.setAnim('sit');
+        pousa(G, ...FAISCA_MESA);
         G.player.lookAt(null);
         await G.say('pai', 'Toda terça é igual. Duas horas de reunião. Na quarta, ninguém lembra quem ficou com o quê.', { expr: 'cansado' });
         await G.say('faisca', 'Posso ajudar antes, durante e depois. Antes: uma pauta enxuta e o que cada diretor deve trazer.', { anim: 'teach' });
@@ -735,7 +743,7 @@
         G.scene('sala_reuniao', { clock: '14:02', chaos: 0, slide: slidePauta(sel) });
         G.pai.at('cabeceira');
         G.pai.setAnim('sit');
-        G.faisca.follow(G.pai);
+        pousa(G, ...FAISCA_MESA);
         const bia = G.actor('bia').at('c4').setAnim('sit').setExpr('neutro');
         const rafael = G.actor('rafael').at('c3').setAnim('sitcoffee').setExpr('cansado');
         const luana = G.actor('luana').at('c2').setAnim('sit').setExpr('amigavel');
@@ -867,6 +875,7 @@
         jorge.face(G.pai);
         jorge.lookAt(G.pai);
         G.hud.set({ clock: '15:43' });
+        G.faisca.follow(G.pai);
         await G.fadeIn(0.6);
         await G.explore({
           objetivo: 'Desça para o carro: a ata se faz no caminho',

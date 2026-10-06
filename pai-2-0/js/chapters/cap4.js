@@ -27,6 +27,7 @@
   const PAI_BAR = { x: 0.7, z: 2.0, rot: 0.12 };
   const CAFE = { x: 0.95, y: 1.0, z: 2.62 };
   const TV = { x: -4.0, y: 1.6, z: -1.1 };
+  const FA_MESA = { x: 0.35, z: -1.35 }; // Faísca pairando sobre a mesa do CEO (close da confissão)
 
   /** As 10 respostas do minigame. certo: 'pode' (usar, revisando) | 'confira' (na fonte). */
   const ITENS = [
@@ -54,7 +55,7 @@
       ia: 'EBITDA é o lucro antes de juros, impostos, depreciação e amortização. Mostra quanto a operação gera, antes das decisões de financiamento e dos impostos.',
       porque: 'Conceito estável, que você domina. Se eu escorregar, você percebe na hora.',
       onde: '*Como revisar:* a sua própria experiência. Aqui a fonte é você.',
-      faOk: 'Exato. Trinta anos de DRE não se confere no Google.',
+      faOk: 'Exato. Isso você sabe melhor do que eu.',
       faBad: 'Aqui a fonte é você: trinta anos de DRE.',
     },
     {
@@ -124,7 +125,11 @@
   const N_LOROTAS = ITENS.filter((it) => it.certo === 'confira').length; // 6
 
   const CSS = `
-.c4-wrap{width:100%;max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.c4-wrap{width:100%;max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.c4-main{display:grid;gap:12px;grid-template-columns:1fr;align-items:start}
+@media (min-width:860px){.c4-main{grid-template-columns:1.05fr 1fr}}
+.c4-right{display:flex;flex-direction:column;gap:10px}
+.c4-hint{font-size:.9em}
 .c4-top{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap}
 .c4-dots{display:flex;gap:6px;flex-wrap:wrap}
 .c4-dots i{width:16px;height:16px;border-radius:50%;background:#e4e7ef;box-sizing:border-box;border:2px solid transparent;transition:background .2s,border-color .2s}
@@ -243,7 +248,9 @@
       const prox = api.btn('Próxima ▶', () => avanca(), { cls: 'primary', key: '3' });
       const acts = el('div', 'mg-actions', prox);
       acts.hidden = true;
-      [top, card, btns, fb, acts].forEach((n) => wrap.appendChild(n));
+      const dica = el('div', 'mg-hint c4-hint', RI('💡 Pense: se estiver errado, *quem percebe?* Se é coisa sua ou que você domina, você mesmo. Se veio de fora, só a fonte.'));
+      const right = el('div', 'c4-right', [btns, dica, fb, acts]);
+      [top, el('div', 'c4-main', [card, right])].forEach((n) => wrap.appendChild(n));
 
       function placar() {
         bAc.textContent = '✔ Acertos: ' + acertos;
@@ -262,6 +269,7 @@
         [bPode, bConf].forEach((b) => { b.disabled = false; b.classList.remove('ok', 'bad', 'right', 'dim'); });
         fb.hidden = true;
         acts.hidden = true;
+        dica.hidden = false;
         placar();
         api.say(i === 0 ? 'Você pediu, eu respondi. Agora você decide: *pode usar* ou *confira antes*?' : 'Próxima. Pode usar ou confira antes?', 'faisca');
       }
@@ -291,6 +299,7 @@
         fb.appendChild(el('div', null, RI(it.onde)));
         fb.hidden = false;
         acts.hidden = false;
+        dica.hidden = true;
         prox.querySelector('.kbd') && (prox.lastChild.textContent = i === ITENS.length - 1 ? 'Ver resultado ▶' : 'Próxima ▶');
         api.say(ok ? it.faOk : it.faBad, 'faisca');
         api.sfx(ok ? 'confirm' : 'cancel');
@@ -581,16 +590,20 @@
         await G.say('jorge', 'Agora ela concorda comigo!', { expr: 'empolgado', emote: 'star' });
         await G.think('pai', 'Virou a casaca. E eu não dei nenhum dado novo.', { expr: 'desconfiado' });
         // Close na Faísca: a confissão
+        // (no modo cinema ela deixa de seguir o olhar: fica parada sobre a mesa, de frente para o pai)
         G.player.cine();
-        await G.cam.focus(G.faisca, 'close', { dur: 0.8 });
+        G.faisca.unfollow();
+        G.faisca.at(FA_MESA, 0.92);
+        G.faisca.face(G.pai, true);
+        await G.cam.focus(G.faisca, 'close', { yaw: Math.PI + 0.55, pitch: 0.1, dur: 0.8 });
         fa(G, 'ashamed', 2.2);
-        await fsay(G, 'Pois é. Fiz de propósito, para você ver. Mas acontece de verdade, sem querer: a IA tende a dar razão a quem pergunta. Você duvidou, eu virei.');
+        await fsay(G, 'Pois é. Fiz de propósito, para você ver. Mas acontece de verdade, sem querer: a IA tende a dar razão a quem pergunta. Os próprios fabricantes admitem. Você duvidou, eu virei.');
         await fsay(G, 'Para um CEO, isso é perigoso. Você já vive cercado de gente que hesita em discordar do chefe. Não precisa de mais um sim-senhor.');
         G.player.fp();
+        G.faisca.follow(G.pai);
         G.player.lookAt(j);
-        await G.say('jorge', 'Ei!', { expr: 'sem_graca' });
-        await G.say('pai', 'Não é com você, Jorge.', { expr: 'neutro' });
-        await G.say('pai', '...É, sim.', { expr: 'rindo' });
+        await G.say('jorge', 'Ei! Eu discordo de você toda semana!', { expr: 'sem_graca' });
+        await G.say('pai', 'E é por isso que eu ainda te aguento, Jorge.', { expr: 'rindo' });
         bg(j.play('laugh', 1.4));
         await fsay(G, 'Por isso o teste do meio não é um "tem certeza?" solto. É: "Qual o seu grau de certeza? O que pode estar errado?". Aí eu tenho que mostrar motivo, não trocar de lado.', { anim: 'teach' });
         await fsay(G, 'E o antídoto: não me conte o que você acha antes, de preferência numa conversa nova. Ou peça o contrário, de propósito.');

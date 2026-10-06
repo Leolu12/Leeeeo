@@ -923,24 +923,32 @@
         G.pai.setAnim('sitphone');
         await ligarBiaVerdadeira(G, c1 === 'perguntar');
 
-        // ---- Revelação: quem estava do outro lado (plano de cinema)
-        Call.show(G, { kind: 'video', name: 'Bia · Financeiro', sub: 'número novo', state: 'reveal' });
-        Call.reveal();
+        // ---- Revelação: quem estava do outro lado
+        // (1) em 1ª pessoa: a última imagem da chamada se desfaz na tela do celular
         G.pai.setAnim('sitlookphone');
-        G.player.cine();
-        await G.letterbox(true, 0.6);
+        G.player.lookAt(PHONE_LOOK);
+        Call.show(G, { kind: 'video', name: 'Bia · Financeiro', sub: 'número novo', state: 'reveal' });
+        G.sfx('glitch');
+        Call.reveal();
+        await G.narrate('Na tela, a última imagem da chamada. Por um segundo, o rosto da Bia se desfaz.');
+        Call.hide();
+        // (2) plano de cinema: a sombra estava "ali" o tempo todo, ao lado do sofá
         const narrow = window.innerWidth < window.innerHeight * 1.2;
-        await G.cam.shot({ target: [0.1, 1.05, -1.4], yaw: -0.05, pitch: 0.1, dist: 3.0, fov: narrow ? 54 : 42 }, 0);
         const gol = G.golpista;
-        gol.at({ x: 0.75, z: -1.12 }); // de pé, ao lado do sofá: estava "ali" o tempo todo
+        gol.at({ x: -1.45, z: -1.2 });
         gol.face(G.pai, true);
         gol.setAnim('lurk');
         gol.alpha = 0;
+        G.faisca.follow(G.pai, { side: -1 }); // do lado oposto ao da sombra
+        G.faisca.setAnim('scared');
+        G.player.cine();
+        await G.letterbox(true, 0.6);
+        await G.cam.shot({ target: [-1.0, 1.0, -1.5], yaw: 0.84, pitch: 0.15, dist: 3.95, fov: narrow ? 50 : 40 }, 0);
         G.sfx('glitch');
         G.fx.smoke(gol);
         gol.fadeIn(1.4).catch(() => {});
         await G.cutscene(async () => {
-          G.cam.shot({ target: [0.15, 1.1, -1.4], yaw: 0.04, pitch: 0.08, dist: 2.6, fov: narrow ? 54 : 42 }, 6).catch(() => {});
+          G.cam.shot({ target: [-1.0, 1.05, -1.5], yaw: 0.78, pitch: 0.12, dist: 3.35, fov: narrow ? 50 : 40 }, 6).catch(() => {});
           await G.narrate('Do outro lado da tela não estava a Bia.');
           await G.narrate('Estava alguém com o rosto dela, a voz dela… e uma pressa que ela nunca teve.');
           await G.say('golpista', 'Hoje não deu. Mas eu tenho paciência…', { cam: false });
@@ -948,11 +956,13 @@
         gol.setAnim('vanish');
         G.fx.smoke(gol);
         G.sfx('whoosh');
-        await gol.fadeOut(1.0);
-        Call.hide();
+        gol.fadeOut(1.0).catch(() => {});
+        await G.wait(1.0);
         G.sceneParams({ alert: false });
         G.music('misterio');
         await G.letterbox(false, 0.5);
+        G.faisca.follow(G.pai);
+        G.faisca.setAnim('idle');
         G.player.fp();
         G.pai.at('sofa1');
         G.pai.setAnim('sit');

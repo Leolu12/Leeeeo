@@ -280,14 +280,14 @@
   @media (min-width: 860px) {
     .c1-build { grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); grid-template-areas: "pick prev" "pick act"; align-items: start; }
   }
-  .c1-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .c1-tabs { display: flex; flex-wrap: wrap; gap: 6px; order: -2; }
   .c1-tab { font: inherit; font-family: var(--head); font-weight: 800; font-size: 0.78em; border-radius: 99px; padding: 6px 13px; border: 2px solid transparent; cursor: pointer; min-height: 38px; display: inline-flex; align-items: center; gap: 6px; }
   .c1-tab.ctx { background: #e3ecff; color: #24468f; }
   .c1-tab.task { background: #ffe9df; color: #93360f; }
   .c1-tab.fmt { background: #dcf6ea; color: #12684b; }
   .c1-tab.on { border-color: currentColor; box-shadow: 0 2px 8px rgba(10, 20, 50, 0.12); }
   .c1-tab .st { font-size: 0.95em; opacity: 0.9; }
-  .c1-q { font-family: var(--head); font-weight: 800; font-size: 0.92em; color: var(--ink); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+  .c1-q { font-family: var(--head); font-weight: 800; font-size: 0.92em; color: var(--ink); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; order: -1; }
   .c1-card { display: flex !important; gap: 10px; align-items: flex-start; font-size: 0.86em; padding: 9px 12px; min-height: 52px; border-left-width: 6px; line-height: 1.35; }
   .c1-card.ctx { border-left-color: #7fa1ec; }
   .c1-card.task { border-left-color: #ff9d78; }
@@ -344,7 +344,7 @@
   .c1-fim > div { flex: 1 1 auto; }
   .c1-total { font-family: var(--head); font-weight: 800; font-size: 1.05em; color: var(--ink); text-align: center; margin-top: 4px; }
   .c1-fino { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); grid-template-areas: "chips" "doc" "act"; }
-  @media (min-width: 860px) { .c1-fino { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); grid-template-areas: "chips doc" "act doc"; align-items: start; } }
+  @media (min-width: 860px) { .c1-fino { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); grid-template-areas: "chips doc" "chips act"; align-items: start; } }
   .c1-chips { grid-area: chips; display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   @media (min-width: 860px) { .c1-chips { grid-template-columns: minmax(0, 1fr); } }
   .c1-chip { display: flex !important; align-items: center; gap: 8px; font-size: 0.86em; padding: 9px 11px; min-height: 52px; }
@@ -476,9 +476,7 @@
           b.addEventListener('click', () => { if (st.cur !== s.k) { st.cur = s.k; api.sfx('select'); builder(); } });
           tabs.appendChild(b);
         });
-        pick.appendChild(tabs);
         const s = SLOTS.find((x) => x.k === st.cur);
-        pick.appendChild(el('div', 'c1-q', [el('span', 'mg-badge c1-b-' + s.cls, s.nome), s.pergunta]));
         st.ordem[s.k].forEach((j, n) => {
           const c = st.R.slots[s.k][j];
           const b = el('button', 'mg-card c1-card ' + s.cls, [el('span', 'c1-kbd', String(n + 1)), el('span', 'c1-ct', '“' + T(c.t) + '”')]);
@@ -502,6 +500,10 @@
           if (st.bonus) api.say('Bônus ligado: em vez de supor o que falta, eu pergunto. Diretor novo bom faz isso.', 'faisca');
           builder();
         });
+        // abas e pergunta vêm depois dos cartões no DOM (a ordem visual é feita no CSS):
+        // assim o teclado e os testes automáticos encontram primeiro as peças.
+        pick.appendChild(tabs);
+        pick.appendChild(el('div', 'c1-q', [el('span', 'mg-badge c1-b-' + s.cls, s.nome), s.pergunta]));
         wrap.appendChild(pick);
         // ações: a 4ª peça (bônus) fica junto do envio, embaixo do pedido
         const act = el('div', 'c1-act');
@@ -845,8 +847,8 @@
           { from: 'voce', text: PRIMEIRO_PEDIDO },
           { from: 'ia', text: '*Relatório Trimestral*\n- *Introdução:* este trimestre foi marcado por desafios e oportunidades.\n- *Resultados:* a empresa apresentou desempenho sólido, com foco em eficiência.\n- *Perspectivas:* seguiremos comprometidos com o crescimento sustentável e a inovação.\n- *Conclusão:* o futuro é promissor.', thinking: 1.2 },
         ], { title: 'Faísca' });
-        // o ceticismo que ele escolheu no Prólogo (G.v é por capítulo; lê o do prólogo)
-        const cet = ((P2.save.data.progress.vars || {}).prologo || {}).ceticismo;
+        // o ceticismo que ele escolheu no Prólogo
+        const cet = G.flag('ceticismo') || ((P2.save.data.progress.vars || {}).prologo || {}).ceticismo;
         if (cet === 'inventou') await G.say('pai', 'Pelo menos não inventou número. Também não disse absolutamente nada.', { expr: 'desconfiado' });
         else if (cet === 'modinha') await G.say('pai', '"O futuro é promissor." Moda é isso: muito brilho e nenhum conteúdo.', { expr: 'desconfiado' });
         else await G.say('pai', 'Isso eu escrevia à mão, de olhos fechados, em 1995. E já era ruim.', { expr: 'desconfiado' });
@@ -860,7 +862,7 @@
         await G.say('filho', 'Então você já sabe usar IA. Só não sabia que sabia.', { expr: 'rindo' });
         await G.say('filho', 'O pessoal chama esse pedido de *prompt*. Mas é só isso: o pedido que você escreve.');
         await G.say('pai', 'Então vamos chamar de pedido. Esta cozinha ainda é minha.', { expr: 'rindo' });
-        await G.say('faisca', 'Combinado: pedido. Um aviso: aqui no celular eu sou uma conta pessoal. Número do trimestre, dado de cliente e papel do conselho ficam para a ferramenta da empresa.');
+        await G.say('faisca', 'Combinado: pedido. Um aviso: no celular eu sou uma conta pessoal. Número do trimestre, dado de cliente e papel do conselho ficam para a ferramenta da empresa.');
         await G.say('faisca', 'Aqui a gente treina o *pedido*. E pedido bom não precisa de segredo: contexto, sim; segredo, não.');
         await G.say('pai', 'Um estagiário que pede para não ver segredo. Essa é nova.', { expr: 'desconfiado' });
         await G.fadeOut(0.5);
@@ -998,7 +1000,8 @@
         await G.fact(['google_21_palavras', 'sem_palavras_magicas', 'noy_zhang_escrita'], { titulo: 'Pedir bem compensa' });
         await G.say('pai', 'Vinte e uma palavras. O meu primeiro pedido tinha cinco.', { expr: 'pensativo' });
         G.faisca.play('teach', 1.4);
-        await G.say('faisca', 'Não é para contar palavras: é para não economizar contexto. A receita vai ficar no seu Guia do CEO, no botão 📘 Guia, lá em cima. É só copiar e trocar o que está entre colchetes.');
+        await G.say('faisca', 'Não é para contar palavras: é para não economizar contexto.');
+        await G.say('faisca', 'A receita vai ficar no seu Guia do CEO, no botão 📘 Guia, lá em cima. É só copiar e trocar o que está entre colchetes.');
         await G.lesson('Você já sabe usar IA: é igual explicar serviço para um diretor novo. Diga quem você é, o que quer, o contexto e o formato. E deixe que ela pergunte o que faltar.\nContexto, sim. Segredo, não.', { titulo: 'A arte de pedir' });
         await G.fadeOut(0.8);
       },

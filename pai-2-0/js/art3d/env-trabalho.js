@@ -1,43 +1,77 @@
 /* PAI 2.0 — env-trabalho.js
  * Ambientes 3D do mundo do CEO: escritorio, sala_reuniao, carro.
- * Tudo procedural (canvas + geometria), sem arquivos externos.
+ * Tudo procedural (canvas + geometria), sem arquivos externos. Unidades em metros, Y para cima,
+ * rot 0 = olhando para +Z. Primeira pessoa: os três têm `colliders` (retângulos no chão), `bounds`
+ * (piso andável) e `spots.inicio`; escritorio e sala_reuniao têm teto com luminárias (grupo em `walls`,
+ * normal [0,−1,0], py = 3,1); o carro controla o próprio teto/estufa em update().
  *
- * ── escritorio — sala da presidência num arranha-céu de São Paulo ─────────
+ * ── escritorio — sala da presidência num arranha-céu de São Paulo (sala 8,4 × 6,3 m, pé-direito 3,1 m)
+ *   Vidro do piso ao teto ao fundo (−Z) com a cidade; parede esq. (−X) ripada com TV + aparador;
+ *   parede dir. (+X) com estante embutida, prêmios, diplomas e a porta (z = 1,8); parede da frente (+Z)
+ *   com quadro + bar. Mesa de nogueira no centro (DX 0,3 · DZ −1,25), teto com painel ripado sobre a mesa.
  *   params:
  *     time    'dia' | 'tarde' (pôr do sol) | 'noite'            (padrão 'dia')
  *     screen  monitor: 'off' | 'on' | 'chat' | 'doc' | 'planilha' (padrão 'on')
  *     laptop  opcional: 'off'|'on'|'chat'|'doc'|'planilha'|'email'|'agenda'
- *             (padrão: complementa o monitor — chat→email, doc/planilha→chat, on→agenda)
+ *             (padrão: complementa o monitor — chat→email, doc/planilha→chat, on→agenda, off→off)
  *     chat    opcional: [['eu','texto'], ['ia','texto'], ...] — conversa nas telas de chat
  *     typing  opcional: false desliga o "Faísca digitando…" (padrão true)
  *     papers  0..1 altura da pilha de papéis na mesa (1 = pilha cômica, 0 = mesa limpa; padrão 0.6)
- *     tv      TV da parede: falsy = desligada · true = painel · 'texto' ou ['Título','linha',...] = slide
- *   spots: mesa (cadeira do CEO, sentado, rot 0) · visita1, visita2 (cadeiras de visita, sentado, rot π)
- *          sofa, sofa2 (sentado, rot π/2) · porta · janela (olhando a cidade) · tv (apresentador)
- *          pe1, pe2, pe3 (em pé, área livre) · centro
- *   shots: geral · mesa · tela (sobre o ombro, monitor) · tv · janela · sofa · porta · poder (contra-plongée)
+ *     tv      TV da parede: falsy = desligada · true | 'painel' = painel de indicadores ·
+ *             'Título' | ['Título','linha',...] | {title, lines:[...]} = slide
+ *   spots (x, z, rot):
+ *     mesa (0.3, −2.22, 0) cadeira do CEO, sentado · notebook (= mesa) · visita1 (−0.25, −0.3, π) ·
+ *     visita2 (0.85, −0.3, π) poltronas de visita, sentado · sofa (−3.58, 1.3, π/2) · sofa2 (−3.58, 2.2, π/2)
+ *     sentado · porta (3.6, 1.8, −π/2) · janela (−2.3, −2.7, π) olhando a cidade · tv (−3.35, 0.25, 1.75)
+ *     apresentador ao lado da TV · pe1 (−1.2, 0.9) · pe2 (1.7, 0.9) · pe3 (0.35, 1.5) · centro (0.35, 0.9)
+ *     primeira pessoa / interação (rot = olhando para o objeto):
+ *     inicio (3.45, 1.65, −2.25) logo após a porta, vendo mesa + janela · foto (−0.25, −2.12, 0.2) porta-retrato
+ *     (na mesa em (0.02, 0.84, −0.95), virado para o CEO: o filho/a filha de beca) · estante = premios
+ *     (3.05, −1.55, π/2) troféus em x≈3.9, z −2.0…−1.0 · cafe (0.5, 2.12, 0) bar em (0.5, 0.8, 2.7) ·
+ *     quadro (0.5, 1.7, 0) quadro em (0.5, 1.78, 2.9) · ver_tv (−2.35, −1.1, −π/2) · vista (2.4, −2.6, π+0.25)
+ *   objetos citados pelos capítulos: pilha principal (1.27, ~1.0, −1.12) · troféus (3.75, 1.45, −1.6)
+ *   shots: geral · mesa (por trás das visitas) · tela (sobre o ombro, monitor) · tv · janela · sofa · porta ·
+ *          poder (contra-plongée baixo entre as poltronas de visita)
+ *   bounds: x −4.2…4.2, z −2.98…3.0 · colliders: mesa, aparador do vidro, 2 poltronas, aparador da TV,
+ *          sofá, mesa de centro, luminária, 2 plantas, estante, bar
  *
- * ── sala_reuniao — sala do conselho ─────────────────────────────────────────
+ * ── sala_reuniao — sala do conselho (8,6 × 6,2 m + corredor de 1,35 m atrás do vidro da frente)
+ *   Vidro ao fundo (−Z) com a cidade; telão na parede esq. (−X); parede dir. (+X) com painel acústico,
+ *   aparador do café e relógio; vidro jateado para o corredor (+Z, porta em x≈3,35) com elevador ao fundo.
  *   params:
- *     slide   {title, lines:[...]} | ['Título','linha',...] | 'Título'
+ *     slide   {title, lines:[...]} | ['Título','linha',...] | 'Título'  (padrão: pauta do conselho)
  *     clock   'HH:MM' (padrão '14:00') — relógio de parede analógico (ponteiros giram até a hora nova)
- *     chaos   0..1 — xícaras de café, papéis, post-its, bolinhas de papel, pizza (reunião que não acaba)
- *     time    opcional 'dia'|'tarde'|'noite' — se ausente, deduzido do relógio (≥17h tarde, ≥19h noite)
- *   spots: c1..c4 (lado do fundo, de frente p/ câmera, rot 0, da esquerda p/ direita)
- *          c5..c8 (lado da frente, de costas p/ câmera, rot π, esquerda→direita)
- *          cabeceira (sentado na ponta, olhando a tela, rot −π/2) · tela (apresentador ao lado da tela)
- *          porta · janela · pe1, pe2 · centro
+ *     chaos   0..1 — xícaras de café, copos de viagem, papéis (mesa e chão), post-its (mesa, telão, vidro),
+ *             bolinhas de papel, garrafa térmica (≥0,4) e pizza (≥0,82) (reunião que não acaba)
+ *     time    opcional 'dia'|'tarde'|'noite' — se ausente, deduzido do relógio (≥17h30 tarde, ≥19h noite)
+ *   spots (x, z, rot):
+ *     c1..c4 (−1.7 | −0.57 | 0.57 | 1.7, −1.12, 0) lado do fundo, sentado, de frente p/ a câmera geral
+ *     c5..c8 (−1.7 | −0.57 | 0.57 | 1.7, 1.12, π) lado da frente, sentado, de costas
+ *     cabeceira (2.85, 0, −π/2) sentado na ponta, olhando o telão · tela (−3.45, 1.75, 1.35) apresentador
+ *     porta (3.35, 2.55, π) · janela (0.4, −2.55, π) · pe1 (−2.6, 2.2) · pe2 (1.4, 2.25) · centro (0, 2.2)
+ *     primeira pessoa / interação: inicio (3.3, 2.45, −1.95) logo após a porta · relogio (3.25, −0.3, π/2)
+ *     relógio em (4.21, 2.15, −0.3) · cafe (3.25, −0.85, π/2) aparador do café · ver_tela (−1.6, 2.15, −2.2)
+ *     corredor (1.2, 2.75, 0) olhando o corredor pelo vidro
  *   shots: geral · mesa · tela · cabeceira · relogio · janela · lateral
+ *   bounds: x −4.3…4.3, z −2.8…3.06 · colliders: mesa, 2 fileiras de cadeiras (c1–c4, c5–c8), console do
+ *          telão, aparador do café, 2 plantas (a cadeira da cabeceira fica livre para o pai sentar)
  *
- * ── carro — banco de trás de um sedã executivo rodando por São Paulo ────────
+ * ── carro — banco de trás de um sedã executivo preto rodando por São Paulo (frente do carro = −X)
+ *   Rua animada (prédios, lojas, árvores, postes, trânsito) rolando em update(). Casco e interior sempre
+ *   visíveis; vidros laterais/colunas/teto/vidro traseiro somem conforme a câmera ("corte conversível"
+ *   visto de fora e de cima; por dentro, tudo fechado). Motorista de quepe (rig) no banco esquerdo.
  *   params:
  *     time    'dia' | 'tarde' | 'noite'                          (padrão 'dia')
- *     phone   tela do celular no suporte: 'chat' | 'off' | 'mapa' | 'call' (padrão 'chat')
+ *     phone   tela do celular no suporte (encosto do passageiro): 'chat' | 'off' | 'mapa' | 'call' (padrão 'chat')
+ *     chat    opcional: [['eu','texto'], ['ia','texto'], ...] (no celular) · typing: false desliga "digitando…"
  *     speed   0..1.5 velocidade da rua (padrão 1; 0 = parado no trânsito)
- *   spots: banco (pai, traseiro direito, sentado, rot −π/2 = olhando para a frente do carro)
- *          banco2 (traseiro esquerdo, sentado) · centro (entre os bancos de trás; y=0.95 para a Faísca)
- *          motorista (só referência)
+ *   spots (x, z, rot):
+ *     banco (0.55, −0.37, −π/2) pai, traseiro direito, sentado, olhando para a frente do carro
+ *     banco2 (0.55, 0.37, −π/2) traseiro esquerdo, sentado · centro (0.62, 0, −π/2, y 0.95) Faísca entre os bancos
+ *     motorista (−0.72, 0.38, −π/2) só referência · inicio (= banco) · celular (= banco; celular em
+ *     (−0.19, 0.99, −0.38)) · janela (0.55, −0.37, π) olhando pela janela direita
  *   shots: geral · banco · frente · janela · celular · alto
+ *   bounds: x 0.3…0.8, z −0.5…0.5 (o pai fica sentado) · colliders: nenhum
  */
 (function () {
   'use strict';
@@ -1634,14 +1668,18 @@
       walls.push({ obj: front, px: 0, pz: Z1, normal: [0, 0, -1] });
       const fgw = M.group({ parent: root, name: 'parede-frente' });
       walls.push({ obj: fgw, px: 0, pz: Z1, normal: [0, 0, -1] });
-      const artTex = ctex('art-office', 512, 320, (ctx, w, h) => {
+      const artTex = ctex('art-office2', 1024, 640, (ctx, w, h) => {
         ctx.fillStyle = '#efe7da'; ctx.fillRect(0, 0, w, h);
         ctx.fillStyle = '#1f2c4a'; ctx.beginPath(); ctx.arc(w * 0.34, h * 0.55, h * 0.36, 0, PI * 2); ctx.fill();
         ctx.fillStyle = '#e0773f'; ctx.beginPath(); ctx.arc(w * 0.58, h * 0.42, h * 0.24, 0, PI * 2); ctx.fill();
         ctx.fillStyle = '#c9a25e'; ctx.fillRect(w * 0.1, h * 0.8, w * 0.8, 4);
         ctx.strokeStyle = '#2b2b2e'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(w * 0.7, h * 0.12); ctx.bezierCurveTo(w * 0.9, h * 0.3, w * 0.6, h * 0.6, w * 0.85, h * 0.85); ctx.stroke();
         ctx.fillStyle = '#8fa89a'; ctx.fillRect(w * 0.72, h * 0.18, w * 0.12, h * 0.5);
-        noise(ctx, w, h, 0.05, 2);
+        // pinceladas e trama da tela
+        const ra = M.rng(44);
+        for (let i = 0; i < 260; i++) { ctx.strokeStyle = 'rgba(' + (ra() > 0.5 ? '255,255,255' : '0,0,0') + ',' + (0.03 + ra() * 0.05) + ')'; ctx.lineWidth = 2 + ra() * 6; const x = ra() * w, y = ra() * h; ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + 20 + ra() * 40, y + (ra() - 0.5) * 30, x + 40 + ra() * 80, y + (ra() - 0.5) * 20); ctx.stroke(); }
+        ctx.fillStyle = 'rgba(0,0,0,0.035)'; for (let y = 0; y < h; y += 3) ctx.fillRect(0, y, w, 1); for (let x = 0; x < w; x += 3) ctx.fillRect(x, 0, 1, h);
+        noise(ctx, w, h, 0.02, 2);
       }, false);
       const art = new Merger();
       art.rbox(2.04, 1.28, 0.05, 0.01, '#1b1b1e', [0.5, 1.78, Z1 - 0.1]);
@@ -1727,14 +1765,14 @@
       sm2.cyl(0.035, 0.035, 0.1, '#1d1d20', [DX - 0.62, 0.8, DZ - 0.32], null, 14);
       for (let i = 0; i < 4; i++) sm2.cyl(0.004, 0.004, 0.14, ['#1b2233', '#c9a25e', '#7a2f35', '#1b2233'][i], [DX - 0.62 + (i - 1.5) * 0.012, 0.88, DZ - 0.32 + (i % 2) * 0.01], [0.1 * (i - 1.5), 0, 0.12 * (i - 1.5)]);
       sm2.rbox(0.075, 0.008, 0.15, 0.004, '#141416', [DX - 0.05, 0.754, DZ - 0.05], [0, 0.4, 0]);
-      sm2.at([DX - 0.28, 0.75, DZ + 0.3], PI - 0.35, (m) => { m.box(0.18, 0.14, 0.012, '#1b1b1e', [0, 0.075, 0], [-0.18, 0, 0]); m.box(0.025, 0.12, 0.012, '#1b1b1e', [0, 0.06, -0.04], [0.4, 0, 0]); m.box(0.16, 0.12, 0.002, '#efe8da', [0, 0.075, 0.0068], [-0.18, 0, 0]); });
+      sm2.at([DX - 0.28, 0.75, DZ + 0.3], PI - 0.35, (m) => { m.box(0.23, 0.175, 0.014, '#1b1b1e', [0, 0.092, 0], [-0.18, 0, 0]); m.box(0.03, 0.15, 0.012, '#1b1b1e', [0, 0.072, -0.05], [0.4, 0, 0]); m.box(0.205, 0.15, 0.002, '#efe8da', [0, 0.092, 0.0078], [-0.18, 0, 0]); });
       sm2.at([DX + 0.25, 0.75, DZ + 0.42], 0, (m) => { m.add(M.boxGeo(0.34, 0.06, 0.05), '#2a1a10', [0, 0.03, 0], [-0.35, 0, 0]); });
       sm2.build(SATIN(), own, { parent: root });
       // foto do porta-retrato (o filho/a filha aos 8 anos, de beca, na formatura do jardim)
       const photoTex = ctex('photo-beca', 320, 240, drawPhotoBeca, false);
-      const photoM = new T.Mesh(M.planeGeo(0.138, 0.1), stdMat('photo-beca', { map: photoTex, rough: 0.35, env: 0.4 }));
+      const photoM = new T.Mesh(M.planeGeo(0.172, 0.125), stdMat('photo-beca', { map: photoTex, rough: 0.35, env: 0.4 }));
       const photoG = M.group({ parent: root, pos: [DX - 0.28, 0.75, DZ + 0.3], rot: [0, PI - 0.35, 0] });
-      const photoT = M.group({ parent: photoG, pos: [0, 0.075, 0.0098], rot: [-0.18, 0, 0] });
+      const photoT = M.group({ parent: photoG, pos: [0, 0.092, 0.0108], rot: [-0.18, 0, 0] });
       photoT.add(photoM);
       const namePlate = M.textPanel(0.3, 0.04, { text: ['DIRETOR-PRESIDENTE'], color: '#e8cf98', bg: '#2a1a10', px: 64, weight: '800' });
       namePlate.material.toneMapped = true;
@@ -1925,7 +1963,7 @@
           foto: { x: -0.25, z: -2.12, rot: 0.2 },
           estante: { x: 3.05, z: -1.55, rot: HP },
           premios: { x: 3.05, z: -1.55, rot: HP },
-          cafe: { x: 0.5, z: 1.95, rot: 0 },
+          cafe: { x: 0.5, z: 2.12, rot: 0 },
           quadro: { x: 0.5, z: 1.7, rot: 0 },
           ver_tv: { x: -2.35, z: -1.1, rot: -HP },
           vista: { x: 2.4, z: -2.6, rot: PI + 0.25 },
@@ -1954,7 +1992,7 @@
           janela: { target: [-2.0, 1.45, -3.0], yaw: 0.35, pitch: 0.06, dist: 4.4, fov: 40 },
           sofa: { target: [X0 + 0.9, 0.9, sofaZ], yaw: 1.15, pitch: 0.16, dist: 3.8, fov: 38 },
           porta: { target: [X1 - 0.6, 1.2, doorZ], yaw: -1.05, pitch: 0.1, dist: 4.4, fov: 38 },
-          poder: { target: [DX, 1.25, -2.1], yaw: 0.2, pitch: -0.08, dist: 2.9, fov: 34 },
+          poder: { target: [DX, 1.22, -2.12], yaw: 0, pitch: -0.2, dist: 1.95, fov: 36 },
         },
         defaultShot: 'geral',
         setParams(p) {
@@ -2098,9 +2136,10 @@
       corG.add(corSlat);
       const corA = new Merger();
       // logotipo da empresa em latão sobre o ripado
-      corA.box(0.9, 0.05, 0.03, BRASS, [-1.6, 1.78, CZ1 - 0.03]);
-      corA.cyl(0.16, 0.16, 0.03, BRASS, [-1.6, 2.05, CZ1 - 0.03], [HP, 0, 0], 28);
-      corA.cyl(0.1, 0.1, 0.034, '#2a1a10', [-1.6, 2.05, CZ1 - 0.03], [HP, 0, 0], 24);
+      corA.box(0.62, 0.018, 0.02, BRASS, [-1.6, 1.8, CZ1 - 0.03]);
+      corA.tor(0.17, 0.011, BRASS, [-1.6, 2.06, CZ1 - 0.03]);
+      corA.cyl(0.075, 0.075, 0.02, BRASS, [-1.555, 2.1, CZ1 - 0.03], [HP, 0, 0], 28);
+      corA.box(0.34, 0.012, 0.02, BRASS, [-1.6, 1.97, CZ1 - 0.03]);
       // porta dupla de elevador (inox) + batente
       corA.box(1.3, 2.3, 0.04, '#9aa0a8', [2.3, 1.15, CZ1 - 0.02]);
       corA.box(0.008, 2.28, 0.045, '#5a5e66', [2.3, 1.14, CZ1 - 0.025]);
@@ -2477,7 +2516,7 @@
   const CAR_LIGHT = {
     dia: { sky: '#e6f0ff', ground: '#6a6460', hemi: 0.85, sun: '#fff3e2', sunI: 2.2, sunPos: [3, 9, 6], amb: 0.14, inner: 0.25 },
     tarde: { sky: '#ffcfa8', ground: '#5a4250', hemi: 0.6, sun: '#ff9a50', sunI: 2.8, sunPos: [-8, 2.6, 6], amb: 0.1, inner: 0.4 },
-    noite: { sky: '#3a4a8a', ground: '#1a1826', hemi: 0.3, sun: '#8fa0ff', sunI: 0.25, sunPos: [4, 9, 5], amb: 0.08, inner: 0.75 },
+    noite: { sky: '#5a6ab0', ground: '#2a2436', hemi: 0.5, sun: '#8fa0ff', sunI: 0.35, sunPos: [4, 9, 5], amb: 0.1, inner: 1.1 },
   };
   const CAR_ENV = {
     dia: ['#bcd6f0', '#e8e2d8', '#4a4642', [[0, 4, 0, 8, 3, '#ffffff'], [6, 2, 5, 4, 2, '#fff2dc']]],
@@ -2736,7 +2775,7 @@
       const car = M.group({ parent: root, name: 'carro' });
       const PAINT = stdMat('car-paint', { color: '#101217', rough: 0.2, metal: 0.55, env: 1.3 });
       const TRIM = stdMat('car-trim', { color: '#2a2b30', rough: 0.6 });
-      const LTH = '#b98654', LTH2 = '#9c6b44';
+      const LTH = '#c9a47c', LTH2 = '#a9835c';
       const ROOFY = 1.42;
       const tub = new T.Group(); tub.name = 'casco'; car.add(tub);
       const tb = new Merger();
@@ -2807,18 +2846,18 @@
         wheels.push(wg);
       });
       // ---------- interior
-      const qTex = ctex('quilt', 256, 256, (ctx, w, h) => {
+      const qTex = ctex('quilt2', 256, 256, (ctx, w, h) => {
+        // couro capitonê discreto: gomos 8×8, pesponto fino, leve volume
         ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);
-        const n = 4, s = w / n;
+        const n = 8, s3 = w / n;
         for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
-          const g = ctx.createRadialGradient(i * s + s / 2, j * s + s / 2, 2, i * s + s / 2, j * s + s / 2, s * 0.72);
-          g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(70,40,20,0.22)');
-          ctx.fillStyle = g; ctx.fillRect(i * s, j * s, s, s);
+          const g = ctx.createRadialGradient(i * s3 + s3 / 2, j * s3 + s3 * 0.42, 1, i * s3 + s3 / 2, j * s3 + s3 / 2, s3 * 0.75);
+          g.addColorStop(0, 'rgba(255,250,240,0.10)'); g.addColorStop(1, 'rgba(60,35,18,0.13)');
+          ctx.fillStyle = g; ctx.fillRect(i * s3, j * s3, s3, s3);
         }
-        ctx.strokeStyle = 'rgba(60,34,16,0.55)'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
-        for (let i = 0; i <= n; i++) { ctx.beginPath(); ctx.moveTo(i * s, 0); ctx.lineTo(i * s, h); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, i * s); ctx.lineTo(w, i * s); ctx.stroke(); }
-        ctx.setLineDash([]);
-        noise(ctx, w, h, 0.06, 19);
+        ctx.strokeStyle = 'rgba(70,42,22,0.32)'; ctx.lineWidth = 1;
+        for (let i = 0; i <= n; i++) { ctx.beginPath(); ctx.moveTo(i * s3 + 0.5, 0); ctx.lineTo(i * s3 + 0.5, h); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, i * s3 + 0.5); ctx.lineTo(w, i * s3 + 0.5); ctx.stroke(); }
+        noise(ctx, w, h, 0.05, 19);
       }, false);
       const QUILT = stdMat('vc-quilt', { vc: true, map: qTex, rough: 0.48, env: 0.3 });
       const inQ = new Merger();
@@ -2838,7 +2877,8 @@
         const z = sd * 0.38;
         inQ.rbox(0.52, 0.13, 0.48, 0.06, LTH, [-0.76, 0.41, z]);
         inL.rbox(0.42, 0.28, 0.42, 0.05, '#2a2622', [-0.76, 0.18, z]);
-        inQ.rbox(0.15, 0.6, 0.48, 0.07, LTH, [-0.43, 0.76, z], [0, 0, 0.14]);
+        inL.rbox(0.15, 0.6, 0.48, 0.07, LTH, [-0.43, 0.76, z], [0, 0, 0.14]);
+        inL.rbox(0.012, 0.5, 0.4, 0.006, LTH2, [-0.351, 0.771, z], [0, 0, 0.14]);        // painel de couro das costas
         inL.rbox(0.13, 0.12, 0.42, 0.05, LTH2, [-0.37, 1.1, z], [0, 0, 0.14]);
         inL.rbox(0.11, 0.15, 0.26, 0.06, LTH2, [-0.33, 1.3, z], [0, 0, 0.1]);
         inL.rbox(0.02, 0.04, 0.44, 0.01, '#2a2622', [-0.355, 0.62, z], [0, 0, 0.14]); // bolso do encosto
@@ -3080,9 +3120,9 @@
         colliders: [],
         shots: {
           geral: { target: [0.05, 0.85, 0], yaw: 0.32, pitch: 0.2, dist: 5.4, fov: 40 },
-          banco: { target: [0.5, 1.05, -0.37], yaw: -0.62, pitch: 0.08, dist: 1.75, fov: 38 },
+          banco: { target: [0.52, 1.02, -0.37], yaw: -0.3, pitch: 0.06, dist: 1.95, fov: 38 },
           frente: { target: [0.1, 0.95, 0], yaw: -HP + 0.18, pitch: 0.1, dist: 4.2, fov: 38 },
-          janela: { target: [0.2, 1.0, -0.85], yaw: 0.42, pitch: 0.14, dist: 1.6, fov: 42 },
+          janela: { target: [0.4, 1.05, -0.9], yaw: 0.25, pitch: 0.22, dist: 1.5, fov: 44 },
           celular: { target: [-0.19, 1.0, -0.38], yaw: HP - 0.1, pitch: 0.12, dist: 0.75, fov: 36 },
           alto: { target: [0, 0.6, 0], yaw: 0.5, pitch: 1.0, dist: 6.2, fov: 40 },
         },

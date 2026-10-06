@@ -56,6 +56,7 @@
         { t: 'Toda sexta: anotar onde ela acertou e onde errou.', why: 'Essa estava boa: em poucas semanas você sabe onde confiar e onde conferir.' },
       ],
       quadroPlano: ['Plano: 4 semanas', '15 min por dia, tarefa real', 'Conferir e pedir o contra', 'Regras da casa'],
+      reacaoPlano: 'Planilha do RH em conta grátis? A IA escolhendo quem contratar? Esse rascunho quase me fez assinar uma encrenca.',
       quadroFim: ['Como a IA funciona', 'Prevê palavras. Às vezes chuta.', 'Gosta de agradar: peça o contra', 'Só sabe o que você conta'],
       aula: [
         {
@@ -147,6 +148,7 @@
         { t: 'No começo de cada sessão: 2 perguntas sobre a anterior.', why: 'Essa estava boa: revisar no começo de cada sessão segura o que você aprendeu.' },
       ],
       quadroPlano: ['Plano: 4 semanas', '15 min por dia', 'Uma meta pequena por semana', 'Professor + IA'],
+      reacaoPlano: 'Uma hora por dia? “Garota de Ipanema” em um mês? Você tem futuro em agência de publicidade.',
       quadroFim: ['Aula 1: feita', 'C = Dó · G = Sol', 'Troca devagar', '15 min por dia'],
       aula: [
         {
@@ -238,6 +240,7 @@
         { t: 'Pronúncia: uma conversa por mês com professor; o resto, treino diário.', why: 'Essa estava boa: o professor pega o que a IA deixa passar.' },
       ],
       quadroPlano: ['Plano: 4 semanas', '15 min por dia', 'Ensaio por voz', 'Caso inventado, não o real'],
+      reacaoPlano: 'Duas horas de gramática? Fluente em um mês? E colar o contrato de verdade? Você tem futuro em agência de publicidade.',
       quadroFim: ['Aula 1: feita', 'Could we discuss…?', 'Let me check…', 'Leia antes de enviar'],
       aula: [
         {
@@ -318,7 +321,7 @@
   // Falas da Faísca dentro da aula (variações)
   const DE_NOVO = ['Pergunta repetida é a minha favorita. De outro jeito:', 'Claro! Com outro exemplo:', 'Quantas vezes você quiser. Olha só:', 'Adoro. Mais uma vez, de outro ângulo:'];
   const ERROU = ['Boa tentativa. Muita gente pensa assim.', 'Quase. Vou explicar de outro jeito.', 'Sem problema: aqui errar é de graça.'];
-  const ACERTOU = ['Isso!', 'Exatamente.', 'Na mosca.', 'Perfeito.', 'Muito bem.'];
+  const ACERTOU = ['De primeira. Gostei.', 'Certinho.', 'Na mosca.', 'Isso mesmo.', 'Muito bem.'];
 
   // ------------------------------------------------------------------
   // Estilos do capítulo (plano com caneta vermelha + aula)
@@ -336,7 +339,6 @@
   .c9-tx { transition: color 0.2s; }
   .c9-line.strike .c9-tx { text-decoration: line-through; text-decoration-color: #e5484d; text-decoration-thickness: 3px; color: #8a90a3; }
   .c9-line.strike .c9-num { background: #e5484d; color: #fff; }
-  .c9-line.strike .c9-num::after { content: ''; }
   .c9-fix { display: block; margin-top: 4px; color: #c0262d; font-weight: 700; }
   .c9-fix::before { content: '✍️ '; }
   .c9-why { display: block; margin-top: 4px; font-size: 0.86em; color: #4b5266; line-height: 1.4; }
@@ -357,12 +359,12 @@
   .c9-chalk { position: relative; background: linear-gradient(180deg, #2f4f42, #284438); color: #f4f1e6; border-radius: 14px; padding: 12px 14px 12px 16px; line-height: 1.5; box-shadow: inset 0 0 0 4px #7a5434, inset 0 0 0 6px #5c3d24, 0 6px 18px rgba(10, 20, 50, 0.12); }
   .c9-chalk .mg-label { color: #cfe3d6; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .c9-chalk .c9-alt { font-family: var(--head); font-size: 0.66em; letter-spacing: 0.06em; background: rgba(255,255,255,0.14); color: #fff; border-radius: 99px; padding: 1px 9px; }
-  .c9-chalk-tx { margin-top: 4px; }
+  .c9-chalk-tx { margin-top: 4px; font-size: 0.96em; }
   .c9-chalk-tx.swap { animation: c9swap 0.45s ease-out; }
   @keyframes c9swap { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   .c9-q { font-family: var(--head); font-weight: 800; color: var(--ink); line-height: 1.3; font-size: 1.02em; }
   .c9-ops { display: flex; flex-direction: column; gap: 8px; }
-  .c9-op { display: flex !important; gap: 10px; align-items: center; min-height: 52px; }
+  .c9-op { display: flex !important; gap: 10px; align-items: center; min-height: 52px; font-size: 0.96em; }
   .c9-op .c9-num { margin-top: 0; }
   .c9-op.bad { opacity: 0.85; }
   .c9-op.bad .c9-num { background: var(--red); color: #fff; }
@@ -563,7 +565,7 @@
           b.addEventListener('click', () => responder(o, b));
           ops.appendChild(b);
         });
-        if (idx > 0) api.timeout(() => { try { root.parentNode.scrollTop = 0; } catch (e) { /* nada */ } }, 0);
+        if (idx > 0) api.timeout(() => { const pn = document.getElementById('panel'); if (pn) pn.scrollTop = 0; }, 0);
       }
       function responder(o, b) {
         if (answered || b.disabled) return;
@@ -577,8 +579,8 @@
           Array.from(ops.children).forEach((x) => { x.disabled = true; if (x !== b && !x.classList.contains('bad')) x.classList.add('dim'); });
           fb.className = 'mg-feedback ok';
           fb.innerHTML = '';
-          fb.appendChild(api.rich('*' + (first ? ACERTOS_FALA(idx) : 'Agora foi.') + '* ' + T(o.why), true));
-          api.say(first ? 'Na primeira. Gostei.' : 'Viu? Mais uma explicação e pronto. É assim que se aprende.', 'faisca');
+          fb.appendChild(api.rich('✔ ' + T(o.why), true));
+          api.say(first ? ACERTOU[idx % ACERTOU.length] : 'Viu? Mais uma explicação e pronto. É assim que se aprende.', 'faisca');
           api.sfx('success');
           fa(G, first ? 'celebrate' : 'jump', 1.3);
           proxima.textContent = '';
@@ -620,7 +622,6 @@
       render();
     }, { title: 'Aula 1 · ' + c.nome, size: 'l' });
   }
-  const ACERTOS_FALA = (i) => ACERTOU[i % ACERTOU.length];
 
   // ------------------------------------------------------------------
   // Falas que dependem do prólogo (ceticismo da manhã)
@@ -665,15 +666,15 @@
         G.pai.at('janela').setAnim('idle');
         G.pai.setExpr('cansado');
         G.player.cine();
-        await G.cam.focus(G.pai, 'plano', { dur: 0, yaw: G.pai.rot + Math.PI + 0.45, pitch: 0.1 });
+        await G.cam.focus(G.pai, 'plano', { dur: 0, yaw: G.pai.rot + Math.PI + 0.62, pitch: 0.12 });
         await G.fadeIn(1.2);
         await G.cutscene(async () => {
           await G.narrate('Nove e meia da noite. Lá fora, a cidade acesa. Aqui dentro, o dia ainda não terminou de passar.');
-          bg(G.cam.focus(G.pai, 'medio', { dur: 3.5, yaw: G.pai.rot + Math.PI + 0.35, pitch: 0.06 }));
+          bg(G.cam.focus(G.pai, 'medio', { dur: 3.5, yaw: G.pai.rot + Math.PI + 0.85, pitch: 0.06 }));
           G.sfx('notify');
-          G.toast('*Dona Marta:* Amanhã, depois do trimestre, me dê 5 minutos sobre IA. O conselho quer entender o que é e como a empresa vai usar. Sem jargão, por favor. 🙂', { icon: '💬', kind: 'notif', dur: 8 });
-          bg(G.pai.play('lookphone', 2.4));
-          await G.wait(2.2);
+          G.toast('*Dona Marta:* Amanhã, depois do resultado do trimestre, me dê 5 minutos sobre IA. O conselho quer entender o que é e como a empresa vai usar. Sem jargão, por favor. 🙂', { icon: '💬', kind: 'notif', dur: 8 });
+          bg(G.pai.play('lookphone', 2.6));
+          await G.wait(2.4);
         });
         await G.fadeOut(0.35);
         G.player.fp();
@@ -814,14 +815,12 @@
         G.player.lookAt(QUADRO_OLHAR);
         const r = await miniPlano(G, c);
         G.sceneParams({ lines: c.quadroPlano });
+        await G.say('pai', c.reacaoPlano, { expr: r && r.caught === r.total ? 'rindo' : 'desconfiado' });
+        fa(G, 'ashamed', 1.4);
         if (r && r.caught === r.total && !r.falsos) {
-          await G.say('pai', 'Uma hora por dia? Fluente em um mês? Você tem futuro em agência de publicidade.', { expr: 'rindo' });
-          fa(G, 'ashamed', 1.4);
-          await G.say('faisca', 'Fui pega no flagra. Rascunho que promete demais é o mais perigoso: parece bom.');
+          await G.say('faisca', 'Fui pega no flagra. Rascunho bem formatado é o mais perigoso: parece certo.');
         } else {
-          await G.say('pai', 'Esse rascunho veio otimista.', { expr: 'desconfiado' });
-          fa(G, 'ashamed', 1.4);
-          await G.say('faisca', 'Veio. Rascunho que promete demais é o mais perigoso: parece bom. Por isso a caneta é sua.');
+          await G.say('faisca', 'Rascunho bem formatado é o mais perigoso: parece certo. Por isso a caneta é sua, e a assinatura também.');
         }
         await G.say('pai', 'Quinze minutos eu tenho. Eu perco quinze minutos por dia procurando a caneta.', { expr: 'rindo' });
         await G.fadeOut(0.5);
@@ -851,7 +850,8 @@
           await G.say('pai', 'Trinta anos lendo relatório de diretor. Pegadinha eu conheço.', { expr: 'orgulhoso' });
         } else {
           fa(G, 'jump', 1.2);
-          await G.say('faisca', r.acertos + ' de ' + r.total + ' de primeira. As outras vieram depois de uma explicação a mais. É exatamente assim que se aprende.');
+          const resto = r.total - r.acertos;
+          await G.say('faisca', r.acertos + ' de ' + r.total + ' de primeira. ' + (resto === 1 ? 'A outra veio' : 'As outras vieram') + ' depois de uma explicação a mais. É exatamente assim que se aprende.');
           await G.say('pai', 'No cursinho, explicação a mais custava hora extra.', { expr: 'rindo' });
         }
         const rep = G.v.repetiu || 0;
@@ -896,13 +896,12 @@
         G.player.setLook(-0.05);
         await G.fadeIn(0.8);
         G.player.lookAt(G.faisca);
-        await G.narrate('De volta ao sofá. Ninguém viu ele sentado numa carteira. Melhor assim.');
-        await G.say('faisca', 'Quando você vai praticar? Escolhe um horário que sobreviva a uma terça-feira como a de hoje.');
+        await G.narrate('De volta ao sofá. Ninguém o viu numa carteira escolar. Melhor assim.');
         const quando = await G.choose([
           { text: 'De manhã, com o café', sub: 'Antes de o dia me engolir.', value: 'manha' },
           { text: 'No almoço, entre uma reunião e outra', sub: 'Bloqueado na agenda, como cliente importante.', value: 'almoco' },
           { text: 'À noite, depois do jornal', sub: 'Quinze minutos, sem celular de trabalho.', value: 'noite' },
-        ], { prompt: 'Quinze minutos por dia. Quando?', who: 'pai' });
+        ], { prompt: 'Quinze minutos por dia. Que horário sobrevive a uma terça-feira como a de hoje?', who: 'faisca' });
         G.v.quando = quando;
         fa(G, 'jump', 1);
         if (quando === 'manha') await G.say('faisca', 'De manhã costuma funcionar: o dia ainda não te pegou. E o café de todo dia vira o lembrete.');
@@ -940,10 +939,10 @@
         await G.say('pai', 'Depois disso, eu digo o que a empresa vai fazer. Mas isso eu decido amanhã, com café.', { expr: 'determinado' });
 
         // honestidade: hoje foi o primeiro dia
-        await G.say('faisca', 'Uma coisa honesta antes de você dormir: hoje foi o primeiro dia. Pegar o jeito leva umas dez horas de uso de verdade, em tarefa real.');
-        await G.say('pai', 'Dez horas. Menos que um voo para a Europa.', { expr: 'pensativo' });
+        await G.say('faisca', 'Uma coisa honesta antes de você dormir: hoje foi só o primeiro dia. Quem estuda o assunto calcula de cinco a dez horas de uso de verdade, em tarefa real, para pegar o jeito.');
+        await G.say('pai', 'Dez horas, no máximo. Menos que um voo para a Europa.', { expr: 'pensativo' });
         await G.say('faisca', 'E tem uma vantagem sua: eu ajudo mais quem sabe julgar a resposta. Trinta anos de estrada contam a favor, não contra.', { anim: 'teach' });
-        await G.say('faisca', 'Até o presidente da Nvidia diz que tem um tutor de IA. Claro: ele vende chip para IA. Desconto aplicado.');
+        await G.say('faisca', 'Até o CEO da Nvidia recomenda: “arrume um tutor de IA”. Claro, ele vende chip para IA. Desconto aplicado.');
         await G.say('pai', 'Gostei do desconto. É o primeiro vendedor de tecnologia que me oferece um.', { expr: 'rindo' });
         await G.say('faisca', 'Os pedidos de hoje, o do plano e o da aula com analogias, estão no seu Guia do CEO, no botão 📘. É só trocar o tema.');
         if (G.flag('aposta')) {

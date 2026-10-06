@@ -126,7 +126,7 @@
           txt: 'Recebi um exame com estes valores: LDL 162 e glicemia de jejum 104 (os dois marcados acima da referência), HDL 48 e triglicerídeos 140. Sem dar diagnóstico, explique em linguagem simples o que cada um significa e sugira 5 perguntas para eu levar ao médico.',
           crit: [1, 1, 1],
           ans: '*LDL:* o chamado "colesterol ruim". A meta ideal muda de pessoa para pessoa, conforme o histórico; isso o médico avalia.\n*HDL:* o "colesterol bom".\n*Triglicerídeos:* outro tipo de gordura no sangue; comida e bebida pesam.\n*Glicemia de jejum:* o açúcar no sangue depois de horas sem comer.\n*Para levar ao médico:*\n- Esses valores pedem tratamento ou só mudança de hábito?\n- Qual deve ser a minha meta de LDL?\n- Preciso repetir algum exame?\n- O que da minha rotina mais pesa nisso?\n- Quando volto para reavaliar?\n*Isto não é diagnóstico:* quem interpreta o seu caso é o médico.',
-          why: 'Termos e valores sem nome, CPF ou número do pedido, um "sem diagnóstico" e o pedido certo: preparar a conversa com o médico.',
+          why: 'Só termos e valores: sem nome, CPF ou número do pedido, um "LDL 162" não diz de quem é. Mais um "sem diagnóstico" e o pedido certo: preparar a conversa com o médico.',
         },
         {
           txt: 'O que significam LDL, HDL, triglicerídeos e glicemia de jejum?',
@@ -242,7 +242,7 @@
   .c8-kbd { display: inline-grid; place-items: center; min-width: 1.6em; height: 1.6em; padding: 0 4px; border-radius: 6px; background: rgba(255, 255, 255, 0.75);
     border: 1px solid rgba(0, 0, 0, 0.12); font-family: var(--head); font-weight: 800; font-size: 0.72em; color: #5d6478; }
   .c8-total { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
-  .c8-total .stars { font-size: 1.35em; }
+  .c8-total .c8-tnum { font-family: var(--head); font-size: 1.15em; }
   .c8-sit { background: #fffbea; border: 1px solid #f0dfa0; border-left: 7px solid var(--cor, #f5a524); border-radius: 12px; padding: 10px 14px; line-height: 1.45; }
   .c8-opts { display: flex; flex-direction: column; gap: 10px; }
   .c8-opt { display: flex; gap: 10px; align-items: flex-start; }
@@ -335,7 +335,7 @@
         board.appendChild(b);
       });
       root.appendChild(board);
-      const tot = el('div', 'c8-total', [el('span', 'mg-label', 'Estrelas da noite'), el('span', null, [api.stars(Math.round(total / 6), 3), el('b', null, '  ' + total + ' / ' + MAX)])]);
+      const tot = el('div', 'c8-total', [el('span', 'mg-label', 'Estrelas da noite'), el('b', 'c8-tnum', '⭐ ' + total + ' / ' + MAX)]);
       root.appendChild(tot);
       if (final) root.appendChild(el('div', 'mg-actions', api.btn('Fechar o mural ▶', () => done('fim'), { cls: 'primary', key: '1' })));
     }, { title: final ? '📌 Mural de recados: tudo feito' : '📌 Mural de recados', size: 'l' });
@@ -419,6 +419,7 @@
         const doc = el('div', 'mg-doc c8-draft');
         const fb = el('div', 'mg-feedback info', 'Duas frases não são suas. Ache as duas.');
         let riscadas = 0;
+        const linhasDraft = [];
         RASCUNHO_BETO.forEach((ln, i) => {
           const b = el('button', 'mg-line', [kbd(api, i + 1), el('span', 'c8-lt', ln.t), el('span', 'c8-pen', '✍️')]);
           b.type = 'button';
@@ -437,8 +438,12 @@
             api.sfx('confirm');
             fb.className = 'mg-feedback warn';
             fb.textContent = '✍️ Riscado. ' + ln.why;
-            if (riscadas === 2) api.timeout(lembranca, 650);
+            if (riscadas === 2) {
+              linhasDraft.forEach((x) => { x.disabled = true; });
+              api.timeout(lembranca, 650);
+            }
           });
+          linhasDraft.push(b);
           doc.appendChild(b);
         });
         root.appendChild(doc);
@@ -732,6 +737,7 @@
           { text: 'Omelete recheada', value: 'omelete', sub: '15 minutos. A fome está grande.' },
         ], { prompt: 'Qual das duas?', who: 'pai' });
         G.v.prato = prato;
+        bg(G.faisca.play('jump', 0.8));
         await G.say('pai', prato === 'arroz' ? 'Arroz de frigideira. Mas o tempero é por minha conta.' : 'Omelete. Mas o tempero é por minha conta.', { expr: 'determinado' });
         await G.say('filho', 'Você vai cozinhar?!', { cam: false, expr: 'surpreso' });
         await G.say('pai', 'Eu sei cozinhar. O que eu não tinha era tempo.', { expr: 'orgulhoso' });
@@ -805,6 +811,7 @@
         bg(G.filho.play('sitlookphone', 1.4));
         const cfg = await configurar(G);
         G.v.treinoOff = !!cfg.treinoOff;
+        G.faisca.emote(cfg.treinoOff ? 'check' : '...', 1.4);
         G.v.tempChat = !!cfg.temp;
         G.save();
         await G.say('filho', 'E essas regras mudam. De vez em quando a gente confere de novo, que nem extrato do banco.', { expr: 'amigavel' });
@@ -912,7 +919,7 @@
         await G.fadeIn(0.8);
         bg(G.cam.shot({ target: [0.0, 0.95, -1.72], yaw: 0.22, pitch: 0.08, dist: 2.7, fov: 38 }, 14));
         await G.say('filho', 'E aí? Como foi a noite com ela?', { expr: 'amigavel' });
-        await G.say('pai', 'A conta de luz eu entendi pela primeira vez em trinta anos. E descobri que nem leram o medidor.', { expr: 'orgulhoso' });
+        await G.say('pai', 'A conta de luz, eu finalmente entendi. E descobri que nem leram o medidor.', { expr: 'orgulhoso' });
         if (G.v.beto === 'ligar') {
           await G.say('pai', 'E liguei pro Beto.', { expr: 'sem_graca' });
           await G.say('filho', 'Você LIGOU pro tio Beto?', { expr: 'surpreso' });

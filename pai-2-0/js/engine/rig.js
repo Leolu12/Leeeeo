@@ -1239,7 +1239,7 @@
     const vTop = 0.2, vNeck = 0.548; // decote em V do blazer: botão em 0.2
     if (kind === 'cloak') {
       // manto longo do golpista (até o chão)
-      const rings = [[0.556, 0.18, 0.13], [0.53, 0.3, 0.17], [0.5, 0.42, 0.22], [0.42, 0.44, 0.25], [0.25, 0.42, 0.26], [0.05, 0.44, 0.3], [-0.2, 0.5, 0.36], [-0.5, 0.58, 0.44], [-0.79, 0.66, 0.52]].reverse();
+      const rings = [[0.566, 0.15, 0.12], [0.55, 0.25, 0.155], [0.525, 0.345, 0.19], [0.495, 0.41, 0.22], [0.44, 0.445, 0.245], [0.25, 0.42, 0.26], [0.05, 0.44, 0.3], [-0.2, 0.5, 0.36], [-0.5, 0.58, 0.44], [-0.79, 0.66, 0.52]].reverse();
       const st = rings.map((r) => ({ p: new V3(0, yHip + r[0] * H, -0.02), rx: r[1] / 2, ry: r[2] / 2, n: 2.2 }));
       const cc = col(top.color || '#140b22');
       b.add(tubeGeo(st, { segs: 28, close1: true }), { color: (p, n) => cc.clone().multiplyScalar(0.55 + 0.45 * smooth(0.0, 1.1, p.y)), region: REG.knit, weight: (p) => (p.y > yHip ? wTorso(p) : [[BI.hips, 1]]) });

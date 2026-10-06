@@ -133,6 +133,17 @@
   }
 
   /**
+   * Tira um móvel do grupo da parede e o põe na decoração do chão (mantendo a posição no mundo):
+   * móveis baixos encostados na parede da frente continuam visíveis quando a parede some,
+   * dando um primeiro plano ao plano geral em vez de um chão vazio.
+   */
+  function keepOnFloor(root, deco, obj) {
+    root.updateMatrixWorld(true);
+    deco.attach(obj);
+    return obj;
+  }
+
+  /**
    * "Assa" a decoração estática de um grupo: junta todas as malhas com o mesmo material numa só
    * (mesmo sombreamento), derrubando o número de draw calls. Objetos com userData.live são ignorados.
    */
@@ -1395,6 +1406,8 @@
       const out = outside(k, root, { sky: ['#1a2050', '#c27a8a', '#2a2448'], sunPos: [-60, 3, -8], sunColor: '#ffb48a', sunSize: 24, seed: 3 });
       const nearViews = [win.userData.view];
 
+      // cômoda fica no chão (primeiro plano do plano geral; a TV continua na parede)
+      keepOnFloor(root, deco, dresser);
       // assar decoração estática (menos draw calls)
       bake(deco);
       S.walls.forEach((w) => bake(w.obj));
@@ -1887,6 +1900,7 @@
       const out = outside(k, root, { sky: ['#5aa0e0', '#f4e4c8', '#e8dcc8'], sunPos: [-64, 22, -10], sunColor: '#fff0c8', sunSize: 22, seed: 5 });
       const nearViews = [WB.left.children.find((c) => c.userData.view).userData.view];
 
+      keepOnFloor(root, deco, ap); // aparador com rádio e fruteira fica no chão (primeiro plano)
       bake(deco);
       S.walls.forEach((w) => bake(w.obj));
 
@@ -2171,6 +2185,7 @@
       out.set(['#050918', '#1e2c5a', '#0c1022'], ringNoite, '#fff6dc', 0.5, 'noite');
       const nearViews = [WB.right.children.find((c) => c.userData.view).userData.view];
 
+      keepOnFloor(root, deco, rack); // rack baixo fica no chão (primeiro plano); TV e ripado ficam na parede
       bake(deco);
       S.walls.forEach((w) => bake(w.obj));
 

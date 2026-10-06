@@ -218,6 +218,7 @@
     return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
   }
   function hora(min) { const s = hhmm(min).replace(/^0/, ''); return s.replace(':00', 'h').replace(':', 'h'); }
+  function resolvido(v) { return (v.min < 180 ? 'Manhã resolvida às ' : 'Tudo resolvido às ') + hora(v.min); }
   function feitas(G) { return Object.keys(S(G).modo).length; }
   function hudBase(G) {
     const v = S(G);
@@ -360,7 +361,7 @@
       let fixed = 0, falsos = 0, finished = false, panel = null, openIdx = -1;
       const state = T.linhas.map(() => 'novo');
 
-      root.appendChild(el('div', 'mg-hint c2-hint', api.rich(t('🖊️ *Toque numa frase* para conferir com o quadro *O que você sabe*. Olho em números, nomes, datas e promessas.'), true)));
+      root.appendChild(el('div', 'mg-hint c2-hint', api.rich(t('🖊️ *Toque numa frase* (ou aperte o número dela) e confira com o quadro *O que você sabe*. Olho em números, nomes, datas e promessas.'), true)));
       const cols = el('div', 'mg-cols c2-cols');
       root.appendChild(cols);
       // quadro de fatos
@@ -1126,7 +1127,7 @@
           G.fx.confetti(G.faisca, null, null, 40);
         }
         await G.say('faisca', hora(v.min) + '. Quatro tarefas resolvidas. Olha só o relógio.', { expr: 'empolgado' });
-        await G.card({ kind: 'ok', kicker: 'Balanço da manhã', icon: '🧾', titulo: 'Manhã resolvida às ' + hora(v.min), node: balanco(G) });
+        await G.card({ kind: 'ok', kicker: 'Balanço da manhã', icon: '🧾', titulo: resolvido(v), node: balanco(G) });
 
         if (algumSem) await G.say('faisca', 'Quando você mandou sem ler, eu errei com toda a confiança do mundo. Não é raro: é o meu jeito de errar.', { expr: 'sem_graca' });
         if (revTudo) await G.say('faisca', 'Quando eu rascunhei e você revisou, foi rápido e saiu certo. Essa é a dupla.', { expr: 'feliz' });
@@ -1172,6 +1173,7 @@
         G.faisca.emote('heart');
         G.fx.hearts(G.faisca);
         await G.letterbox(false, 0.4);
+        G.pai.at({ x: -2.15, z: -2.35, rot: 0.55 }); // de costas para o vidro, olhando a sala
         G.player.fp();
 
         await G.say('faisca', 'E não é só impressão minha. Tem estudo, inclusive um que me deixa mal na foto.', { expr: 'neutro' });
@@ -1191,8 +1193,8 @@
       const v = S(G);
       const tot = errosTotal(v), fix = errosFix(v);
       const lines = [];
-      lines.push('Manhã resolvida às ' + hora(v.min) + ' · Reputação ' + v.rep + '/100');
-      lines.push('Tempo poupado (vs. tudo na mão): ' + durTxt(economizado(v)));
+      lines.push(resolvido(v) + ' · Reputação ' + v.rep + '/100');
+      lines.push('Tempo poupado (vs. tudo na mão): ' + durTxt(economizado(v)) + (v.semLer ? ', mas a reputação pagou a conta' : ''));
       if (tot) lines.push('Erros da IA corrigidos: ' + fix + ' de ' + tot);
       else lines.push('Rascunhos da IA: nenhum. Tudo do seu jeito.');
       lines.push(v.fora ? 'Promoção: decisão sua, fora da fronteira da IA' : 'Promoção: a IA tentou decidir; você retomou a decisão');

@@ -109,12 +109,14 @@
         base(dt, Object.assign({}, a, { alpha: al, anim: anim === 'phone' ? 'showphone' : anim, props }));
         ctl.root.position.y = 0.05 + Math.sin(a.t * 1.3) * 0.03;
         const t = a.t;
+        // fumaça: nasce na barra do manto, se espalha rente ao chão e sobe dissolvendo
         wisps.forEach((w, i) => {
-          const ang = t * 0.5 + i * 0.63;
-          const k = ((t * 0.22 + i * 0.137) % 1);
-          w.position.set(Math.cos(ang) * (0.22 + k * 0.15), 0.05 + k * 1.1, Math.sin(ang) * 0.2 - 0.05);
-          w.scale.setScalar(0.5 + k * 0.7);
-          w.material.opacity = 0.5 * (1 - k) * al;
+          const ang = t * 0.4 + i * 0.63;
+          const k = ((t * 0.18 + i * 0.137) % 1);
+          const rad = 0.2 + k * 0.32;
+          w.position.set(Math.cos(ang) * rad, -0.02 + k * k * 0.75, Math.sin(ang) * rad * 0.8 - 0.03);
+          w.scale.setScalar(0.45 + k * 0.6);
+          w.material.opacity = 0.75 * Math.sin(Math.min(1, k * 1.15) * Math.PI) * al;
         });
       };
       return ctl;
@@ -479,6 +481,56 @@
   // Imponente e um pouco ameaçadora (sem ser assustadora): nuvem que respira,
   // contorno luminoso, olhos acesos, boca serrilhada e palavras orbitando.
   // ------------------------------------------------------------------
+  /**
+   * Nuvem "fofa" de verdade: união suave (metaball) das bolhas → uma superfície
+   * só, com dobras macias. Malha esférica projetada a partir do centro.
+   * colorFn(x, y, z, nx, ny, nz, crease, puff) → Color.
+   */
+  function blobCloud(list, ctr, k, ws, hs, colorFn) {
+    const g = new T.SphereGeometry(1, ws, hs);
+    const P = g.attributes.position;
+    const n = P.count;
+    const field = (x, y, z) => {
+      let sum = 0;
+      for (let i = 0; i < list.length; i++) { const p = list[i]; const d = Math.hypot(x - p.x, y - p.y, z - p.z) - p.r; sum += Math.exp(-d / k); }
+      return -k * Math.log(sum);
+    };
+    let tMax = 0;
+    list.forEach((p) => (tMax = Math.max(tMax, Math.hypot(p.x - ctr[0], p.y - ctr[1], p.z - ctr[2]) + p.r)));
+    tMax += 0.25;
+    const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), col = new Float32Array(n * 3), ph = new Float32Array(n);
+    const dir = new T.Vector3();
+    const step = tMax / 46;
+    for (let i = 0; i < n; i++) {
+      dir.fromBufferAttribute(P, i).normalize();
+      let t = tMax, prev = tMax;
+      while (t > 0 && field(ctr[0] + dir.x * t, ctr[1] + dir.y * t, ctr[2] + dir.z * t) > 0) { prev = t; t -= step; }
+      let lo = Math.max(0, t), hi = prev;
+      for (let it = 0; it < 9; it++) { const m = (lo + hi) / 2; if (field(ctr[0] + dir.x * m, ctr[1] + dir.y * m, ctr[2] + dir.z * m) > 0) hi = m; else lo = m; }
+      const tt = (lo + hi) / 2;
+      const x = ctr[0] + dir.x * tt, y = ctr[1] + dir.y * tt, z = ctr[2] + dir.z * tt;
+      pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z;
+      const e = 0.01;
+      let gx = field(x + e, y, z) - field(x - e, y, z), gy = field(x, y + e, z) - field(x, y - e, z), gz = field(x, y, z + e) - field(x, y, z - e);
+      const gl = Math.hypot(gx, gy, gz) || 1; gx /= gl; gy /= gl; gz /= gl;
+      nor[i * 3] = gx; nor[i * 3 + 1] = gy; nor[i * 3 + 2] = gz;
+      // dobra: perto de duas bolhas ao mesmo tempo (fora de todas por um tiquinho)
+      let mn = 1e9, mi = 0;
+      for (let j = 0; j < list.length; j++) { const p = list[j]; const d = Math.hypot(x - p.x, y - p.y, z - p.z) - p.r; if (d < mn) { mn = d; mi = j; } }
+      const c = colorFn(x, y, z, gx, gy, gz, smooth(0.0, k * 0.7, mn), list[mi]);
+      col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+      ph[i] = mi * 1.37;
+    }
+    const geo = new T.BufferGeometry();
+    geo.setAttribute('position', new T.BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new T.BufferAttribute(nor, 3));
+    geo.setAttribute('color', new T.BufferAttribute(col, 3));
+    geo.setAttribute('phase', new T.BufferAttribute(ph, 1));
+    geo.setIndex(g.index);
+    geo.computeBoundingSphere();
+    g.dispose();
+    return geo;
+  }
   function puffCloud(list, colorFn, segs) {
     // junta várias esferas numa geometria só, com fase por esfera (para ondular no shader)
     const pos = [], nor = [], col = [], ph = [], idx = [];
@@ -540,16 +592,14 @@
         puffs.push({ x: Math.cos(a) * rad * 1.08, y: 2.04 + Math.sin(a) * rad * yk, z: (rr() - 0.5) * 0.45 - 0.05, r: 0.17 + rr() * 0.14 });
       }
       for (let i = 0; i < 7; i++) { const k = i / 6; puffs.push({ x: Math.sin(k * 3.4 + 0.3) * 0.34 * (1 - k * 0.45), y: 1.02 - k * 0.78, z: -0.04 + Math.cos(k * 3.4) * 0.14, r: 0.34 * (1 - k * 0.72) }); }
-      const geo = puffCloud(puffs, (x, y, z, ny, pf, nx, nz) => {
+      const geo = blobCloud(puffs, [0, 2.05, 0], 0.07, 104, 72, (x, y, z, nx, ny, nz, crease) => {
         const c = cMid.clone();
         if (y > 2.0) c.lerp(cTop, smooth(2.0, 3.1, y) * 0.85); else c.lerp(cBot, smooth(2.0, 0.5, y) * 0.9);
-        if (ny < -0.3) c.lerp(cBot, 0.3);
-        // oclusão nas dobras entre bolhas (normal apontando para dentro da nuvem)
-        const ox = pf.x, oy = pf.y - 2.0, oz = pf.z, ol = Math.hypot(ox, oy, oz) || 1;
-        const k = (nx * ox + ny * oy + nz * oz) / ol;
-        c.multiplyScalar(0.72 + 0.28 * smooth(-0.6, 0.5, ol < 0.2 ? 1 : k));
+        if (ny < -0.3) c.lerp(cBot, 0.3 * smooth(-0.3, -0.9, ny));
+        c.lerp(cBot, crease * 0.55); // dobras escuras entre as bolhas
+        c.lerp(cTop, 0.25 * smooth(0.4, 0.95, ny) * (1 - crease)); // topo das bolhas iluminado
         return c;
-      }, 18);
+      });
       const cloudM = cloudMaterial('#c890ff', 0.85);
       mats.push(cloudM);
       const cloud = new T.Mesh(geo, cloudM); cloud.castShadow = true; cloud.receiveShadow = true; big.add(cloud);
@@ -610,7 +660,7 @@
       }
       // versão pequena: a "dúvida saudável" (fofa)
       const small = M.group({ parent: root, name: 'duvidaSmall' });
-      const smallGeo = puffCloud([{ x: 0, y: 0, z: 0, r: 0.12 }, { x: -0.11, y: -0.025, z: 0, r: 0.088 }, { x: 0.11, y: -0.025, z: 0, r: 0.088 }, { x: 0.035, y: 0.075, z: -0.02, r: 0.09 }, { x: -0.055, y: 0.06, z: 0.0, r: 0.075 }, { x: 0, y: -0.06, z: 0.02, r: 0.085 }], (x, y) => new T.Color('#c9b3f2').lerp(new T.Color('#f0e6ff'), smooth(-0.05, 0.15, y) * 0.6), 20);
+      const smallGeo = blobCloud([{ x: 0, y: 0, z: 0, r: 0.12 }, { x: -0.11, y: -0.025, z: 0, r: 0.088 }, { x: 0.11, y: -0.025, z: 0, r: 0.088 }, { x: 0.035, y: 0.075, z: -0.02, r: 0.09 }, { x: -0.055, y: 0.06, z: 0.0, r: 0.075 }, { x: 0, y: -0.06, z: 0.02, r: 0.085 }], [0, 0, 0], 0.012, 48, 32, (x, y, z, nx, ny, nz, crease) => new T.Color('#c9b3f2').lerp(new T.Color('#f2eaff'), smooth(-0.05, 0.15, y) * 0.65).lerp(new T.Color('#a58ad8'), crease * 0.4));
       const smallM = cloudMaterial('#ffffff', 0.45);
       smallM.userData.U.uAmp.value = 0.006;
       mats.push(smallM);
