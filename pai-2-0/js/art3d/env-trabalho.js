@@ -7,9 +7,11 @@
  *
  * ── escritorio — sala da presidência num arranha-céu de São Paulo (sala 8,4 × 6,3 m, pé-direito 3,1 m)
  *   Vidro do piso ao teto ao fundo (−Z) com a cidade; parede esq. (−X) ripada com TV + aparador;
- *   parede dir. (+X) com estante embutida, prêmios, diplomas e a porta (z = 1,8); parede da frente (+Z)
- *   com quadro + bar. Mesa de nogueira no centro (DX 0,3 · DZ −1,25), teto com painel ripado sobre a mesa,
- *   piso de carvalho em espinha, tapete marinho sob a mesa e tapete claro de lã no canto do sofá.
+ *   parede dir. (+X) com estante embutida, prêmios, 3 diplomas emoldurados (graduação 1989, MBA 2004,
+ *   "Empresário do Ano" 2019 — legíveis de perto) e a porta (z = 1,8); parede da frente (+Z) com quadro +
+ *   bar. Mesa de nogueira no centro (DX 0,3 · DZ −1,25) com luminária de banqueiro (cúpula de vidro verde),
+ *   teto com painel ripado sobre a mesa, piso de carvalho em espinha, tapete marinho sob a mesa e tapete
+ *   claro de lã no canto do sofá.
  *   params:
  *     time    'dia' | 'tarde' (pôr do sol) | 'noite'            (padrão 'dia')
  *     screen  monitor: 'off' | 'on' | 'chat' | 'doc' | 'planilha' (padrão 'on')
@@ -39,9 +41,10 @@
  *
  * ── sala_reuniao — sala do conselho (8,6 × 6,2 m + corredor de 1,35 m atrás do vidro da frente)
  *   Vidro ao fundo (−Z) com a cidade; telão na parede esq. (−X); parede dir. (+X) com painel acústico,
- *   aparador do café e relógio; vidro para o corredor (+Z, 7 vãos, faixa jateada com o logotipo vazado,
- *   porta em x≈3,35) com elevador e gravura no fundo do corredor. Piso de porcelanato cor de travertino +
- *   tapete grafite.
+ *   aparador do café, relógio e 2 gravuras; vidro para o corredor (+Z, 7 vãos, película jateada em faixas
+ *   com o logotipo vazado, porta em x≈3,35). Fundo do corredor: ripado com logotipo em latão + parede de
+ *   pedra grafite com elevador em bronze (indicador de andar) e gravura com luz de quadro; passadeira clara.
+ *   Piso de porcelanato cor de travertino + tapete grafite.
  *   params:
  *     slide   {title, lines:[...]} | ['Título','linha',...] | 'Título'  (padrão: pauta do conselho)
  *     clock   'HH:MM' (padrão '14:00') — relógio de parede analógico (ponteiros giram até a hora nova)
@@ -69,7 +72,9 @@
  *   e janelas acesas, poças de luz dos postes e facho dos faróis no asfalto. Interior em couro capitonê
  *   (losangos), vidros com insulfilm. Casco e interior sempre visíveis; vidros laterais/colunas/teto/vidro
  *   traseiro somem conforme a câmera ("corte conversível" visto de fora e de cima; por dentro, tudo
- *   fechado). Motorista de quepe (rig) no banco esquerdo.
+ *   fechado). Motorista de quepe (rig) no banco esquerdo. Costas dos bancos da frente em couro capitonê;
+ *   ao entardecer/noite acende a luz ambiente âmbar (fita sob os apoios de braço das portas e no painel).
+ *   O motoboy passa pela faixa do lado direito (z −1,75), nunca entre a câmera 'geral' e o carro.
  *   params:
  *     time    'dia' | 'tarde' | 'noite'                          (padrão 'dia')
  *     phone   tela do celular no suporte (encosto do passageiro): 'chat' | 'off' | 'mapa' | 'call' (padrão 'chat')
@@ -80,7 +85,8 @@
  *     banco2 (0.55, 0.37, −π/2) traseiro esquerdo, sentado · centro (0.62, 0, −π/2, y 0.95) Faísca entre os bancos
  *     motorista (−0.72, 0.38, −π/2) só referência · inicio (= banco) · celular (= banco; celular em
  *     (−0.19, 0.99, −0.38)) · janela (0.55, −0.37, π) olhando pela janela direita
- *   shots: geral · banco · frente · janela · celular · alto
+ *   shots: geral · banco · frente · janela · celular (sobre o ombro direito do pai, olhando o celular no
+ *          suporte; não atravessa a cabeça dele) · alto
  *   bounds: x 0.3…0.8, z −0.5…0.5 (o pai fica sentado) · colliders: nenhum
  */
 (function () {
@@ -1024,6 +1030,14 @@
   };
 
   function ringTex(time) {
+    const k = 'ring|' + time;
+    if (TEX[k]) return TEX[k];
+    const t = ringTexDraw(time);
+    t.wrapT = T.ClampToEdgeWrapping;   // repetir só na horizontal: senão a última linha (opaca) vaza no topo como um "fio" no céu
+    t.needsUpdate = true;
+    return t;
+  }
+  function ringTexDraw(time) {
     const P = CITY_PAL[time];
     return ctex('ring|' + time, 2048, 1024, (ctx, w, h) => {
       ctx.clearRect(0, 0, w, h);
@@ -1855,9 +1869,16 @@
       bankShade.userData.wantsEnv = 0.8;
       own.add(bankShade);
       const shadeG = M.group({ parent: root, pos: [DX - 0.9, 0.75, DZ + 0.22], rot: [0, 0.3, 0] });
-      const bs = new T.Mesh(M.cylGeo(0.075, 0.075, 0.3, 20, true), bankShade);
-      bs.rotation.z = HP; bs.scale.set(1, 1, 0.75); bs.position.set(0, 0.36, 0.02); bs.castShadow = true;
+      const bsGeo = new T.CylinderGeometry(0.078, 0.078, 0.3, 20, 1, true, 0, PI); own.add(bsGeo);    // meia-cana aberta embaixo
+      const bs = new T.Mesh(bsGeo, bankShade);
+      bs.rotation.z = HP; bs.scale.set(1, 1, 0.8); bs.position.set(0, 0.33, 0.02); bs.castShadow = true;
       shadeG.add(bs);
+      const capGeo = new T.CircleGeometry(0.078, 16, 0, PI); own.add(capGeo);
+      [-1, 1].forEach((sx) => { const cp = new T.Mesh(capGeo, bankShade); cp.rotation.y = HP; cp.scale.set(0.8, 1, 1); cp.position.set(sx * 0.15, 0.33, 0.02); shadeG.add(cp); });
+      const rimL = new Merger();
+      rimL.box(0.31, 0.008, 0.008, BRASS, [0, 0.33, 0.02 + 0.078 * 0.8]);
+      rimL.box(0.31, 0.008, 0.008, BRASS, [0, 0.33, 0.02 - 0.078 * 0.8]);
+      rimL.build(METAL(), own, { parent: shadeG, cast: false });
       const deskLight = new T.PointLight('#ffd08a', 0, 3.6, 2);
       deskLight.position.set(DX - 0.85, 1.05, DZ + 0.1);
       root.add(deskLight);
@@ -2310,7 +2331,7 @@
       // faixa jateada (película de segurança): fosca, com dois filetes transparentes e o logotipo vazado
       const frostTex = ctex('frost3', 1024, 128, (ctx, w, h) => {
         // película jateada em faixas (mais fina embaixo e em cima) — esconde sem "apagar" o corredor
-        ctx.fillStyle = 'rgba(255,255,255,0.62)'; ctx.fillRect(0, h * 0.18, w, h * 0.64);
+        ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(0, h * 0.18, w, h * 0.64);
         for (let k = 0; k < 6; k++) { ctx.fillStyle = 'rgba(255,255,255,' + (0.5 - k * 0.06) + ')'; ctx.fillRect(0, h * (0.14 - k * 0.022), w, 2); ctx.fillRect(0, h * (0.86 + k * 0.022), w, 2); }
         ctx.globalCompositeOperation = 'destination-out';
         ctx.fillStyle = '#000';
@@ -3112,7 +3133,7 @@
       });
       // outros veículos
       const traffic = [];
-      [['onibus', '#2f7fbf', -3.5, 1.8, 20], ['carro', '#f2f2ee', 3.5, -2.2, -6], ['moto', '#c0392b', 1.75, -5.5, 8], ['carro', '#8a1f2a', -3.5, 1.2, -24]].forEach((v) => {
+      [['onibus', '#2f7fbf', -3.5, 1.8, 20], ['carro', '#f2f2ee', 3.5, -2.2, -6], ['moto', '#c0392b', -1.75, -5.5, 8], ['carro', '#8a1f2a', -3.5, 1.2, -24]].forEach((v) => {
         const mg = new Merger(), gm = new Merger();
         vehicle(mg, gm, v[0], v[1]);
         const g = M.group({ parent: street, pos: [v[4], 0, v[2]] });
