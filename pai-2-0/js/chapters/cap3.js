@@ -23,12 +23,13 @@
   const TADEU_PE = { x: -1.25, z: -1.1 }; // em pé, na cabeceira esquerda da mesa, a 1,5 m do pai
   const MESA_ESQ = { x: -0.5, y: 0.95, z: -1.2 }; // ponta esquerda da mesa, onde o contrato cai
   const CORREDOR = [{ x: 2.4, z: 0.45 }, { x: -0.95, z: 0.45 }]; // atrás das poltronas: porta → lado esquerdo
-  // O contrato caindo na mesa: câmera atrás da mesa, à direita, de frente para o Tadeu (o pai à direita do quadro)
+  // O contrato caindo na mesa: câmera atrás da mesa, à direita, mirando ENTRE o Tadeu e o pai (plano a dois:
+  // Tadeu à esquerda, o pai à direita, ±12°), para os dois caberem também no celular em pé.
   // À mesa, a Faísca para de seguir o olhar e paira sobre a mesa, a 1 m do pai, logo à direita do monitor
   // (a 0,75 m ela tapava a tela e ocupava meio quadro). Seguindo o pai em primeira pessoa ela se posiciona pela
   // direção da visão; olhar para ela assim faz a visão girar sem parar.
   const FA_MESA = { x: 0.4, z: -1.2 };
-  const PLANO_TIJOLO = { target: [-1.05, 1.15, -1.2], yaw: 2.09, pitch: 0.17, dist: 3.15, fov: 38 };
+  const PLANO_TIJOLO = { target: [-1.31, 1.15, -1.79], yaw: 1.88, pitch: 0.17, dist: 3.15, fov: 38 };
   const TV = ['Hoje · terça-feira', '✓ Relatório do conselho', '✓ Cliente e pauta das 14h', '→ Contrato do fornecedor', '14h · Reunião de diretoria'];
   const ARQUIVO = 'Contrato_Fornecedor_v3.pdf';
   const MIN_POUPADOS = 140; // estimativa do jogo: ~3h de leitura atenta → ~40 min com a IA, conferindo
@@ -196,6 +197,7 @@
   .k3-ref { display: inline-block; margin: 8px 0 6px; font-family: var(--head); font-weight: 800; font-size: 0.82em; background: #24324f; color: #fff; border-radius: 8px; padding: 3px 10px; }
   .k3-quote { margin: 0; padding: 8px 12px; border-left: 4px solid #f5b52a; background: #fffaf0; font-family: Georgia, 'Times New Roman', serif; font-style: italic; color: #3a3226; border-radius: 0 10px 10px 0; }
   .k3-quote b { font-style: normal; }
+  .k3-quote-fb { margin: 6px 0; font-size: 0.95em; }
   .k3-page { background: #fffefb; border: 1px solid #ddd6c8; border-radius: 6px; box-shadow: 0 8px 24px rgba(40, 30, 10, 0.12); font-family: Georgia, 'Times New Roman', serif; color: #2a2620; }
   .k3-page.novo { animation: k3pg 0.35s ease-out; }
   @keyframes k3pg { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: none; } }
@@ -454,7 +456,13 @@
           right.appendChild(pagina(api, pt.p, true));
           sim.disabled = false;
           nao.disabled = false;
-          fb.textContent = 'Compare o trecho da Faísca com a página. Confere?';
+          if (estreito()) {
+            // no celular, o resumo da Faísca ficou lá em cima: o trecho citado vem para junto dos botões
+            fb.innerHTML = '';
+            fb.appendChild(api.el('div', null, 'O trecho que a Faísca citou:'));
+            fb.appendChild(api.el('blockquote', 'k3-quote k3-quote-fb', '“' + pt.trecho + '”'));
+            fb.appendChild(api.el('div', null, 'Está assim na página? Confere?'));
+          } else fb.textContent = 'Compare o trecho da Faísca com a página. Confere?';
           sim.focus({ preventScroll: true });
           mostra(actions);
         }

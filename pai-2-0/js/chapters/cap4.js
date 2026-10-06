@@ -33,6 +33,9 @@
   const CAFE = { x: 0.95, y: 1.0, z: 2.62 };
   const TV = { x: -4.0, y: 1.6, z: -1.1 };
   const FA_MESA = { x: 0.35, z: -1.35 }; // Faísca pairando sobre a mesa do CEO (close da confissão)
+  // ...e onde ela volta a ficar, em primeira pessoa, com o pai sentado olhando o Jorge na poltrona
+  // (mesa → visita1: à direita do olhar e um metro à frente, como no follow do motor)
+  const FA_VOLTA = { x: -0.57, z: -1.43 };
 
   /** As 10 respostas do minigame. certo: 'pode' (usar, revisando) | 'confira' (na fonte). */
   const ITENS = [
@@ -626,8 +629,11 @@
         await G.fact('bajulacao_ia');
         await fsay(G, 'Para um CEO, isso é perigoso. Você já vive cercado de gente que hesita em discordar do chefe. Não precisa de mais um sim-senhor.');
         G.player.fp();
-        G.faisca.follow(G.pai);
         G.player.lookAt(j);
+        // corte seco de volta à primeira pessoa: a Faísca já aparece no canto direito da visão (perto de onde
+        // o follow a deixaria olhando o Jorge), em vez de atravessar a tela de costas, saindo do meio da mesa
+        G.faisca.at(FA_VOLTA, 0.95);
+        G.faisca.follow(G.pai);
         await G.say('jorge', 'Ei! Eu discordo de você toda semana!', { expr: 'sem_graca' });
         await G.say('pai', 'E é por isso que eu ainda te aguento, Jorge.', { expr: 'rindo' });
         bg(j.play('laugh', 1.4));
