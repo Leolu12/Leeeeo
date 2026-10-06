@@ -12,3 +12,4 @@ cap8 "ok": true
 epilogo "ok": true
 cap5 "ok": true
 cap11 "ok": true
+cap7 "ok": true
