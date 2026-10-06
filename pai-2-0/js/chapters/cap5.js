@@ -563,7 +563,26 @@
         r.b.insertAdjacentElement('afterend', painel);
         api.say('Linha ' + (i + 1) + ' de ' + ATA.length + ': o áudio das ' + ln.src.h + '. Confere com a ata?', 'faisca');
         anim(G.faisca, 'listen', 1.4);
-        setTimeout(() => { try { painel && painel.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) { /* nada */ } }, 40);
+        api.timeout(() => encaixa(true), 40);
+        api.timeout(() => encaixa(false), 600); // 2ª passada: garante os dois botões acima do rodapé fixo
+      }
+      // Rola o painel do áudio para cima do rodapé fixo (no celular, o rodapé tapava o “Está errada”)
+      function encaixa(suave) {
+        if (!painel) return;
+        try {
+          let sc = painel.parentElement;
+          while (sc && sc !== document.body) {
+            const o = getComputedStyle(sc).overflowY;
+            if ((o === 'auto' || o === 'scroll') && sc.scrollHeight > sc.clientHeight + 2) break;
+            sc = sc.parentElement;
+          }
+          if (!sc || sc === document.body) { painel.scrollIntoView({ block: 'nearest' }); return; }
+          const sr = sc.getBoundingClientRect(), pr = painel.getBoundingClientRect(), fr = foot.getBoundingClientRect();
+          const limite = Math.min(sr.bottom, fr.height ? fr.top : sr.bottom) - 10;
+          let d = pr.bottom > limite ? pr.bottom - limite : 0;
+          if (pr.top - d < sr.top + 8) d = pr.top - sr.top - 8;
+          if (Math.abs(d) > 1) sc.scrollBy({ top: d, behavior: suave ? 'smooth' : 'auto' });
+        } catch (e) { /* nada */ }
       }
       function proxima(from) {
         for (let k = 1; k <= ATA.length; k++) { const j = (from + k) % ATA.length; if (est[j] == null) return j; }
@@ -850,6 +869,8 @@
           await G.say('rafael', 'O fornecedor de embalagens atrasou de novo. Terceira vez no trimestre.', { expr: 'cansado', emote: 'sweat' });
           await G.say('tadeu', 'E aquele contrato de oitenta páginas tem multa por atraso. Que a gente nunca cobrou.', { expr: 'desconfiado' });
           await G.say('pai', 'Rafael, a conversa com o fornecedor é sua. Tadeu, a carta de cobrança.');
+          // close no Tadeu: o “13” que a transcrição vai ouvir como “30” (câmera sobre o meio da mesa)
+          await G.cam.focus(tadeu, 'close', { yaw: tadeu.rot + 0.3, pitch: 0.08, dur: 0.5 });
           await G.say('tadeu', 'A carta sai até o dia *13*. Sem falta.', { expr: 'determinado' });
           if (tem('slides')) {
             await G.say('jorge', 'Agora, rapidinho: slide 23 de 40. As tendências para 2030!', { expr: 'empolgado' });
@@ -876,6 +897,7 @@
           await G.say('luana', 'E as contratações do turno novo? Doze ou oito?', { expr: 'pensativo' });
           await G.say('bia', 'Depende de o reajuste pegar. Sem esse número, não fecho.', { expr: 'desconfiado' });
           await G.say('pai', 'Então fica para a próxima. Reunião encerrada.', { expr: 'cansado' });
+          await G.cam.focus(jorge, 'close', { yaw: jorge.rot + 0.3, pitch: 0.08, dur: 0.5 });
           G.fx.confetti(jorge);
           await G.say('jorge', 'Uma hora e quarenta! Nunca terminou tão cedo!', { expr: 'empolgado', emote: 'star' });
           ditos.fim = true;

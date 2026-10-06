@@ -36,8 +36,13 @@
  *   pensativo desconfiado sem_graca empolgado impaciente amigavel determinado confuso aliviado serio
  *   emocionado (extras: suor, lágrima, rubor, raiva, olheiras).
  * HAIR: grisalho curto raspado baguncado cacheado careca coque rabo coque_base longo chanel nenhum.
+ *   (longo = franja lateral varrida da risca; careca = ferradura curta e nítida.) A casca do cabelo usa
+ *   uma grade alinhada à linha do cabelo (linhas densas na transição) → borda lisa, sem serrilhado.
+ *   spec.beard = barba fechada curta (costeleta → mandíbula → queixo, abaixo do lábio); o bigode é spec.mustache.
  * HAND_SHAPES: relax fist point open grip pinch thumb flat.
+ * Roupa: blazer/coat/shirt/polo têm colarinho em faixa que abraça o pescoço (cobre a junção tronco/pescoço).
  * Fade (actor.alpha < 1): pré-passo de profundidade → sem "raio-x" das partes internas.
+ * Orçamento: ~10–12 draw calls e ~30 mil triângulos visíveis por humano (+ sombra).
  */
 (function () {
   'use strict';
@@ -468,7 +473,7 @@
    * phi: 0 = frente, + = lado esquerdo (+X). e: elevação (rad).
    */
   function hairShell(hs, def, bucket) {
-    const NT = Math.round((def.nt || 46) * 0.74), NP = def.np || 120, thMax = def.thetaMax || 2.25;
+    const NT = Math.round((def.nt || 46) * 0.74), NP = Math.round((def.np || 120) * 0.84), thMax = def.thetaMax || 2.25;
     const verts = [], qs = [], hn = [];
     const d = new V3(), S = new V3(), Nn = new V3();
     const cBase = col(def.base), cDark = col(def.dark || def.base), cLight = col(def.light || def.base), cSkin = col(def.skin || '#d59c70');
@@ -1348,7 +1353,7 @@
       const rings = [[0.566, 0.15, 0.12], [0.55, 0.25, 0.155], [0.525, 0.345, 0.19], [0.495, 0.41, 0.22], [0.44, 0.445, 0.245], [0.25, 0.42, 0.26], [0.05, 0.44, 0.3], [-0.2, 0.5, 0.36], [-0.5, 0.58, 0.44], [-0.79, 0.66, 0.52]].reverse();
       const st = rings.map((r) => ({ p: new V3(0, yHip + r[0] * H, -0.02), rx: r[1] / 2, ry: r[2] / 2, n: 2.2 }));
       const cc = col(top.color || '#140b22');
-      b.add(tubeGeo(st, { segs: 28, close1: true }), { color: (p, n) => cc.clone().multiplyScalar(0.55 + 0.45 * smooth(0.0, 1.1, p.y)), region: REG.knit, weight: (p) => (p.y > yHip ? wTorso(p) : [[BI.hips, 1]]) });
+      b.add(tubeGeo(st, { segs: 40, close1: true }), { color: (p, n) => cc.clone().multiplyScalar((0.55 + 0.45 * smooth(0.0, 1.1, p.y)) * (0.8 + 0.2 * Math.pow(abs(sin(Math.atan2(p.x, p.z + 0.02) * 4.5)), 0.6) * smooth(1.25, 0.35, p.y))).lerp(col('#3a1850'), 0.18 * smooth(0.6, -0.3, n.y) * smooth(0.6, 0.1, p.y)), region: REG.knit, /* dobras verticais + barra arroxeada */ weight: (p) => (p.y > yHip ? wTorso(p) : [[BI.hips, 1]]) });
     } else {
       let ringsU = up;
       if (!tucked) {
@@ -1771,7 +1776,7 @@
       }
       const mk = (k) => S.map(([y, rx, rz, zc, gp]) => ({ p: new V3(0, y * R0, zc * R0), rx: rx * R0 * k, ry: rz * R0 * k, n: 2.05, gap: gp > 0.04 ? gp : 0 }));
       const outer = tubeGeo(mk(1), { segs: 40 });
-      hb.add(outer, { color: (p, n, l) => hc.clone().multiplyScalar(0.5 + 0.5 * smooth(-0.3, 0.25, l.y / R0)), region: REG.knit });
+      hb.add(outer, { color: (p, n, l) => hc.clone().multiplyScalar((0.5 + 0.5 * smooth(-0.3, 0.25, l.y / R0)) * (0.82 + 0.18 * abs(sin(Math.atan2(l.x, l.z) * 3 + l.y * 9)))), region: REG.knit });
       const inner = tubeGeo(mk(0.95), { segs: 40 });
       { const ix = inner.index.array; for (let i = 0; i < ix.length; i += 3) { const t = ix[i + 1]; ix[i + 1] = ix[i + 2]; ix[i + 2] = t; } inner.computeVertexNormals(); }
       const cIn = col('#020104'), cGlow = col('#3a0612');

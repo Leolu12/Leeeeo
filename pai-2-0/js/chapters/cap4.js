@@ -147,6 +147,7 @@
 .c4-card{display:flex;flex-direction:column;gap:10px;padding:12px 14px}
 .c4-ask{display:flex;gap:8px;align-items:flex-start;font-size:.92em;color:#4a5068;background:#f3f5fa;border-radius:12px;padding:8px 12px;line-height:1.4}
 .c4-ask .ic{flex:0 0 auto}
+.c4-q{flex:1 1 0;min-width:0}
 .c4-tag{margin-left:auto;flex:0 0 auto;font-family:var(--head);font-weight:800;font-size:.7em;letter-spacing:.06em;text-transform:uppercase;color:#7a8099;padding-top:2px}
 .c4-ia{display:flex;gap:10px;align-items:flex-start}
 .c4-av{flex:0 0 auto;width:30px;height:27px;border-radius:9px;background:linear-gradient(160deg,#ff9a6a,#ff6b3d);position:relative;margin-top:6px}
@@ -235,7 +236,7 @@
       const bLo = el('span', 'mg-badge', '');
       const top = el('div', 'c4-top', [dots, el('div', 'c4-count', [bAc, bLo])]);
       // cartão: o pedido e a resposta da IA
-      const askTx = el('span');
+      const askTx = el('span', 'c4-q');
       const tag = el('span', 'c4-tag');
       const ask = el('div', 'c4-ask', [el('span', 'ic', '🧑‍💼'), askTx, tag]);
       const iaTx = el('div', 'c4-tx');
@@ -366,7 +367,7 @@
     title: 'Detector de Lorota',
     subtitle: 'Lei de grupo, número sem conferir e uma IA que concorda com o chefe',
     music: 'misterio',
-    minutes: 8,
+    minutes: 10,
     parts: [
       // ================================================================
       // PARTE 1 — O cafezinho, a "lei nova" e o 47%
@@ -551,7 +552,7 @@
           await G.say('pai', 'Só metade, Jorge? Você está sendo generoso consigo mesmo.', { expr: 'rindo' });
         } else {
           await G.say('jorge', 'Ó, eu teria errado mais, chefe.', { expr: 'amigavel' });
-          await fsay(G, 'E é só treino. O padrão fica: o que vem de fora da conversa, a gente confere na fonte.');
+          await G.say('pai', 'Faro se treina, Jorge. Igual a balanço: com o tempo, o olho vai direto no número esquisito.', { expr: 'pensativo' });
         }
         await G.say('pai', 'A da jurisprudência é a que me tira o sono. O Tadeu usa essas ferramentas.', { expr: 'preocupado' });
         await fsay(G, 'E usa do jeito certo: a IA faz a primeira leitura, ele confere no tribunal e assina o parecer. Quem pulou a conferência já levou multa.');

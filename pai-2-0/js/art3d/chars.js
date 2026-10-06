@@ -11,12 +11,15 @@
  *               brincos); senão filho (cabelo "baguncado"). Moletom verde, jeans, tênis. opts: {skin}
  *   chefe     — Conselheira "Dona Marta": blazer vinho, coque grisalho, óculos gatinho, colar. opts: {skin}
  *   jorge     — diretor comercial: calvo ("careca" em ferradura), camisa estampada amarela, barriga. opts: {skin}
- *   golpista  — sombra encapuzada: rosto vazio fosco, olhos vermelhos, mangas em sino, fumaça.
+ *   golpista  — sombra encapuzada: capuz pontudo com capinha nos ombros, rosto vazio fosco, olhos
+ *               vermelhos, manto com dobras, mangas em sino, fumaça.
  *               anims extras: 'appear' / 'vanish' (dissolve na fumaça, use animT), 'phone' (celular vermelho),
  *               'lurk'; demais poses humanas funcionam.
  *   npc       — figurante por semente: opts {seed (1..∞), female, hair, hairColor, kind, color, skin}.
  *               A semente define gênero, cabelo, cor, roupa (blazer/camisa/polo/suéter/blusa), óculos,
- *               barba, gravata, joias e (desde a v3) proporções do rosto (olhos, nariz, boca, cabeça).
+ *               barba (fechada curta + bigode), gravata, joias e proporções do rosto (olhos, nariz, boca,
+ *               cabeça). Diretores nomeados (P2.CEO.diretores): bia {seed:3, female:true} (óculos),
+ *               rafael {seed:5}, luana {seed:8, female:true}, tadeu {seed:2} (barba grisalha).
  *   faisca    — mascote flutuante (kind 'floater', height 0.42, headY 0.18). anims: idle, walk, jump,
  *               spin, type (teclado holográfico), doubt (?), scared (!), sad, ashamed (bracinhos juntos,
  *               boca ondulada), sleep (Zz), celebrate (confete), enter (giro + brilho; use animT 0..1.1),
@@ -27,7 +30,9 @@
  *   duvida    — chefão (kind 'boss', height 3, headY 2.1): nuvem roxa com palavras de preocupação
  *               orbitando. anims: idle, attack (avança + raios), hurt (recua + clarão), heal (incha e
  *               brilha), defeated (murcha, palavras caem), small (forma pequena e fofa, "dúvida saudável").
- *               exprs: bravo (padrão), rindo, amigavel, surpreso. talking → boca mexe.
+ *               exprs: bravo (padrão), rindo, amigavel, surpreso. talking → boca mexe. Raios do ataque:
+ *               núcleo branco + halo aditivo + galho, cintilando. A malha da nuvem fica em cache
+ *               (reconstruir a Dúvida numa troca de cena é instantâneo).
  *   textSprite(text, o) — utilitário (sprite de texto) usado pela Dúvida/Faísca.
  *
  * CONTROLADOR (contrato com stage3d): {root, height, headY, kind:'human'|'floater'|'boss',

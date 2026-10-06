@@ -24,9 +24,10 @@
   const MESA_ESQ = { x: -0.5, y: 0.95, z: -1.2 }; // ponta esquerda da mesa, onde o contrato cai
   const CORREDOR = [{ x: 2.4, z: 0.45 }, { x: -0.95, z: 0.45 }]; // atrás das poltronas: porta → lado esquerdo
   // O contrato caindo na mesa: câmera atrás da mesa, à direita, de frente para o Tadeu (o pai à direita do quadro)
-  // À mesa, a Faísca para de seguir o olhar e paira sobre a mesa, entre o pai e o monitor. (Seguindo o pai em
-  // primeira pessoa ela se posiciona pela direção da visão; olhar para ela assim faz a visão girar sem parar.)
-  const FA_MESA = { x: 0.5, z: -1.5 };
+  // À mesa, a Faísca para de seguir o olhar e paira sobre a mesa, a 1 m do pai, logo à direita do monitor
+  // (a 0,75 m ela tapava a tela e ocupava meio quadro). Seguindo o pai em primeira pessoa ela se posiciona pela
+  // direção da visão; olhar para ela assim faz a visão girar sem parar.
+  const FA_MESA = { x: 0.4, z: -1.2 };
   const PLANO_TIJOLO = { target: [-1.05, 1.15, -1.2], yaw: 2.09, pitch: 0.17, dist: 3.15, fov: 38 };
   const TV = ['Hoje · terça-feira', '✓ Relatório do conselho', '✓ Cliente e pauta das 14h', '→ Contrato do fornecedor', '14h · Reunião de diretoria'];
   const ARQUIVO = 'Contrato_Fornecedor_v3.pdf';
