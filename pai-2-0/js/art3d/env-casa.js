@@ -2751,7 +2751,7 @@
       sunGlow.material.fog = false;
       sunGlow.position.set(-56, 38, 16);
       far.add(sunGlow);
-      const city = cityscape(k, far, { seed: 12, groundY: -26, rMin: 14, rMax: 50, n: 44, skip: (a) => Math.sin(a) < -0.55, vista: { a: 0.35, cos: 0.55, r: 34, top: -2 } });
+      const city = cityscape(k, far, { seed: 12, groundY: -26, rMin: 14, rMax: 50, n: 44, skip: (a) => Math.sin(a) < -0.55, vista: { a: 0.8, cos: 0.35, r: 36, top: -2 } }); // vista aberta para a frente (pai à mesa) e para a direita (ponto 'cidade')
       city.set('dourado');
       const nearSky = [city.group, ring];
 
