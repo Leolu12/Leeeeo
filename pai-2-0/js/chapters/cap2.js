@@ -789,7 +789,8 @@
             G.pai.set({ props: { pen: true } });
             await G.letterbox(true, 0.35);
             await G.cam.shot('poder', 0);
-            G.cam.shot(Object.assign({}, { target: [0.3, 1.2, -2.1], yaw: 0.32, pitch: -0.04, dist: 2.5, fov: 34 }), 3).catch(() => {});
+            // leve aproximação pela esquerda do monitor (pela direita, o monitor tapava o rosto dele)
+            G.cam.shot({ target: [0.3, 1.18, -2.12], yaw: -0.22, pitch: -0.1, dist: 1.75, fov: 34 }, 3.5).catch(() => {});
             await G.say('pai', 'Você rascunha. Quem assina sou eu.', { expr: 'orgulhoso' });
             G.sfx('page');
             await G.letterbox(false, 0.3);
