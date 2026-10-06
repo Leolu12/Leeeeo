@@ -1,0 +1,440 @@
+{
+ "facts": [
+  {
+   "key": "dietvorst_erro_maquina",
+   "titulo": "O erro da máquina pesa mais que o erro humano",
+   "texto": "Em 5 experimentos da Wharton (Universidade da Pensilvânia), quem viu um modelo estatístico errar perdeu a confiança nele mais depressa do que perderia num humano com o mesmo erro, e passou a preferir o humano. Isso aconteceu até com quem viu o modelo acertar mais que a pessoa. Os modelos faziam previsões numéricas; não eram chatbots.",
+   "fonte": "Berkeley J. Dietvorst, Joseph P. Simmons e Cade Massey. 'Algorithm Aversion: People Erroneously Avoid Algorithms After Seeing Them Err'. Journal of Experimental Psychology: General 144(1): 114-126, 2015",
+   "curta": "Dietvorst et al., 2015",
+   "url": "https://faculty.wharton.upenn.edu/wp-content/uploads/2016/11/20-Dietvorst-Simmons-Massey-2015.pdf",
+   "ano": 2015,
+   "evidencia": "\"We show that people are especially averse to algorithmic forecasters after seeing them perform, even when they see them outperform a human forecaster. This is because people more quickly lose confidence in algorithmic than human forecasters after seeing them make the same mistake. In 5 studies...\"",
+   "confianca": "alta",
+   "notas": "VERIFICADO: baixei o PDF publicado pela URL e conferi o resumo, palavra por palavra (DOI 10.1037/xge0000033; metadados conferidos no Crossref). As tarefas eram previsões, por exemplo do desempenho de alunos de MBA. Os participantes vinham do laboratório comportamental da Wharton e do Amazon Mechanical Turk (voluntários on-line pagos), não eram executivos."
+  },
+  {
+   "key": "dietvorst_poder_editar",
+   "titulo": "Quando pode mexer no resultado, a pessoa aceita a máquina",
+   "texto": "Num experimento da Wharton com 288 pessoas, só 32% de quem não podia alterar as previsões de um modelo estatístico escolheu usá-lo. Entre quem podia fazer pequenos ajustes, de 73% a 76% escolheram o modelo. Num estudo maior, com 816 pessoas on-line, a adesão foi quase igual com ajustes de no máximo 10, 5 ou 2 percentis (71%, 71% e 68%), contra 47% de quem não podia mexer. As tarefas não envolviam IA generativa.",
+   "fonte": "Berkeley J. Dietvorst, Joseph P. Simmons e Cade Massey. 'Overcoming Algorithm Aversion: People Will Use Imperfect Algorithms If They Can (Even Slightly) Modify Them'. Management Science 64(3): 1155-1170, 2018",
+   "curta": "Dietvorst et al., 2018",
+   "url": "https://marketing.wharton.upenn.edu/wp-content/uploads/2020/07/Dietvorst-Overcoming-Algorithm-Aversion.pdf",
+   "ano": 2018,
+   "evidencia": "\"Whereas only 32% of participants in the can't-change condition chose to use the model's forecasts, 73% of participants in the change-10 condition ... and 76% of participants in the adjust-by-10 condition ... chose to use the model.\" / Study 3: \"only 47% of participants in the can't-change condition chose to use the model's forecasts, 70% of participants in the adjust-by-X conditions chose to the model ... 71%, 71%, and 68% chose to the model in the adjust-by-10, adjust-by-5, and adjust-by-2 conditions.\"",
+   "confianca": "alta",
+   "notas": "CORRIGIDO: os números conferem com o manuscrito na URL. Ajustei 'pontos' para 'percentis' e incluí os tamanhos das amostras: Estudo 1 com 288 participantes do laboratório (idade média de 22 anos), prevendo notas de alunos do ensino médio num exame padronizado; Estudo 3 com 816 participantes do MTurk (idade média de 34 anos). O resumo publicado (Crossref, DOI 10.1287/mnsc.2016.2643) diz que poder modificar deixou as pessoas mais satisfeitas com o processo, mais convencidas de que o algoritmo era superior e mais dispostas a usá-lo de novo. A expressão 'more tolerant of errors' aparece no manuscrito, mas não no resumo publicado, por isso não a uso como achado."
+  },
+  {
+   "key": "logg_especialistas_descontam",
+   "titulo": "Especialistas desprezam o conselho do 'algoritmo' e erram mais",
+   "texto": "Num experimento de 2019, 301 leigos e 70 especialistas em segurança nacional dos EUA fizeram estimativas e previsões (duas geopolíticas, uma de negócios e uma do peso de uma pessoa numa foto) e depois receberam um conselho. O conselho era o mesmo para todos; só mudava se diziam que vinha de uma pessoa ou de um algoritmo. Os leigos deram mais peso ao conselho 'do algoritmo'. Os especialistas descontaram qualquer conselho e, quando o rótulo era 'algoritmo', ficaram menos precisos que os leigos.",
+   "fonte": "Jennifer M. Logg, Julia A. Minson e Don A. Moore. 'Algorithm appreciation: People prefer algorithmic to human judgment'. Organizational Behavior and Human Decision Processes 151: 90-103, 2019",
+   "curta": "Logg, Minson & Moore, 2019",
+   "url": "https://doi.org/10.1016/j.obhdp.2018.12.005",
+   "ano": 2019,
+   "evidencia": "\"Paradoxically, experienced professionals, who make forecasts on a regular basis, relied less on algorithmic advice than lay people did, which hurt their accuracy.\" / \"Both samples received the same forecasting tasks and identical advice.\" / \"whereas lay judges placed more weight on algorithmic than human advice, the experts heavily discounted all advice sources\" / \"lay people ironically achieved greater accuracy than experts when they received advice from an algorithm because experts heavily discounted algorithmic advice.\"",
+   "confianca": "alta",
+   "notas": "CORRIGIDO: o texto anterior dizia que os participantes fizeram 'previsões geopolíticas' e que o 'algoritmo' era estatístico. Na verdade, o conselho era idêntico e só o rótulo mudava (pessoa ou algoritmo). As tarefas foram uma estimativa de peso, uma previsão de negócios (vendas da Tesla) e duas geopolíticas. O conselho das previsões vinha de agregados de um torneio de previsões (Good Judgment Open). Experimento 4: leigos do mTurk com idade média de 39 anos; especialistas com idade média de 46, sendo 67 homens. Cuidado: a IA generativa às vezes erra de forma convincente, então descontar conselho nem sempre é erro. O objetivo é calibrar a confiança, não confiar sempre."
+  },
+  {
+   "key": "vaccaro_humano_ia",
+   "titulo": "Humano mais IA: tende a ganhar ao criar e perde ao decidir",
+   "texto": "Uma meta-análise do MIT reuniu 106 experimentos publicados de 2020 a meados de 2023. Em média, a dupla humano mais IA foi bem melhor que o humano sozinho, mas pior que o melhor dos dois trabalhando sozinho. A dupla perdeu desempenho em tarefas de escolher entre opções (em geral, classificações como detectar resenhas falsas) e tendeu a ganhar em tarefas de criar conteúdo, embora esse ganho, sozinho, não tenha sido estatisticamente garantido. Quando a pessoa era melhor que a IA na tarefa, a dupla superou os dois.",
+   "fonte": "Michelle Vaccaro, Abdullah Almaatouq e Thomas Malone. 'When combinations of humans and AI are useful: A systematic review and meta-analysis'. Nature Human Behaviour 8(12): 2293-2303, 2024",
+   "curta": "MIT (Nature Human Behaviour), 2024",
+   "url": "https://www.nature.com/articles/s41562-024-02024-1",
+   "ano": 2024,
+   "evidencia": "\"on average, human–AI combinations performed significantly worse than the best of humans or AI alone (Hedges' g = −0.23...). Second, we found performance losses in tasks that involved making decisions and significantly greater gains in tasks that involved creating content. Finally, when humans outperformed AI alone, we found performance gains in the combination\" / \"Even though the average performance gains for creation tasks were not significantly different from 0 (presumably because of the relatively small sample size of n = 34), the difference between losses for decision tasks and gains for creation tasks was statistically significant.\" / \"we did find potential evidence of publication bias in favour of studies that report results in which the human–AI system outperforms the human alone\"",
+   "confianca": "alta",
+   "notas": "CORRIGIDO (nuance): os números conferem (g de Hedges: +0,64 da dupla contra o humano sozinho; -0,23 contra o melhor dos dois; -0,27 em decisões; +0,19 em criação, com P = 0,18 e só 34 efeitos; +0,46 quando o humano era melhor; -0,54 quando a IA era melhor). Duas ressalvas que faltavam. (1) O ganho em criação não foi significativo isoladamente; só a diferença entre criação e decisão foi. (2) Os autores acharam possível viés de publicação justamente na comparação 'dupla contra humano sozinho', então o +0,64 pode estar inflado. As 'decisões' estudadas eram classificações simples (resenhas falsas, imagens), não decisões estratégicas de empresa. O período vai até junho de 2023, então muitos estudos são de antes do ChatGPT."
+  },
+  {
+   "key": "davis_tam_utilidade",
+   "titulo": "Ser útil pesa mais que ser fácil",
+   "texto": "Nos dois estudos que criaram o Modelo de Aceitação de Tecnologia (TAM), com 152 usuários no total, a utilidade percebida teve correlação de 0,63 com o uso atual (estudo 1) e de 0,85 com o uso futuro previsto (estudo 2). A facilidade de uso teve 0,45 e 0,59. A análise sugere que a facilidade talvez aja menos diretamente e mais fazendo a ferramenta parecer útil.",
+   "fonte": "Fred D. Davis. 'Perceived Usefulness, Perceived Ease of Use, and User Acceptance of Information Technology'. MIS Quarterly 13(3): 319-340, 1989",
+   "curta": "Davis, 1989",
+   "url": "https://doi.org/10.2307/249008",
+   "ano": 1989,
+   "evidencia": "\"two studies involving a total of 152 users and four application programs\" / \"Perceived usefulness was significantly correlated with both self-reported current usage (r=.63, Study 1) and self-predicted future usage (r=.85, Study 2). Perceived ease of use was also significantly correlated with current usage (r=.45, Study 1) and future usage (r=.59, Study 2).\" ... \"perceived ease of use may actually be a causal antecedent to perceived usefulness, as opposed to a parallel, direct determinant of system usage\"",
+   "confianca": "alta",
+   "notas": "CORRIGIDO (redação): conferi o resumo oficial no Crossref. Eram dois estudos (152 usuários no total) e cada correlação vem de um estudo diferente. Troquei 'age principalmente' por 'talvez aja', porque o autor escreve 'may'. O estudo é de 1989, com softwares de escritório, mas é a base de décadas de pesquisa sobre adoção."
+  },
+  {
+   "key": "utaut_idade_esforco",
+   "titulo": "Com mais idade, esforço e apoio contam mais",
+   "texto": "O modelo UTAUT foi testado em 4 organizações e confirmado em outras 2, explicando cerca de 70% da intenção de usar uma tecnologia. A expectativa de esforço (o quanto parece trabalhoso) pesou mais para os trabalhadores mais velhos. As condições de apoio, como ajuda e infraestrutura, só influenciaram o uso de fato entre os mais velhos com mais experiência.",
+   "fonte": "Viswanath Venkatesh, Michael G. Morris, Gordon B. Davis e Fred D. Davis. 'User Acceptance of Information Technology: Toward a Unified View'. MIS Quarterly 27(3): 425-478, 2003",
+   "curta": "Venkatesh et al. (UTAUT), 2003",
+   "url": "https://doi.org/10.2307/30036540",
+   "ano": 2003,
+   "evidencia": "\"UTAUT was then tested using the original data and found to outperform the eight individual models (adjusted R2 of 69 percent). UTAUT was then confirmed with data from two new organizations with similar results (adjusted R2 of 70 percent).\" / \"The effect of effort expectancy on intention is also moderated by gender and age such that it is more significant for women and older workers\" / \"the effect of facilitating conditions on usage was only significant when examined in conjunction with the moderating effects of age and experience-i.e., they only matter for older workers in later stages of experience.\"",
+   "confianca": "alta",
+   "notas": "CORRIGIDO (redação): o texto anterior dizia 'validado em 6 organizações, explicou 70%'. Pelo resumo, foram 4 organizações (69%) e mais 2 para confirmar (70%). Conferi as frases sobre idade no PDF. No mesmo estudo, a expectativa de desempenho é 'the strongest predictor of intention'. Ela pesou mais para homens e jovens; a influência social pesou mais para mulheres, mais velhos, uso obrigatório e pouca experiência. Os dados são de empresas do início dos anos 2000."
+  },
+  {
+   "key": "utaut2_habito",
+   "titulo": "Depois que vira hábito, o hábito manda",
+   "texto": "Na versão do modelo para consumidores (UTAUT2), com 1.512 usuários de internet no celular, incluir hábito, prazer e custo elevou a parte explicada da intenção de uso de 56% para 74%, e a do uso real de 40% para 52%. O efeito do hábito foi mais forte entre homens mais velhos com mais experiência.",
+   "fonte": "Viswanath Venkatesh, James Y. L. Thong e Xin Xu. 'Consumer Acceptance and Use of Information Technology: Extending the Unified Theory of Acceptance and Use of Technology'. MIS Quarterly 36(1): 157-178, 2012",
+   "curta": "Venkatesh, Thong & Xu, 2012",
+   "url": "https://doi.org/10.2307/41410412",
+   "ano": 2012,
+   "evidencia": "\"Compared to UTAUT, the extensions proposed in UTAUT2 produced a substantial improvement in the variance explained in behavioral intention (56 percent to 74 percent) and technology use (40 percent to 52 percent).\" / \"It was theorized in H4(a) and H4(b) that habit's effect will be stronger among older men in later stages of experience. This pattern was borne out.\"",
+   "confianca": "alta",
+   "notas": "VERIFICADO: resumo no Crossref e frase sobre o hábito no PDF. A amostra é de Hong Kong, com internet móvel por volta de 2010. Isso não prova que o pai vá manter o hábito; indica que, para homens mais velhos, o hábito formado tende a pesar mais."
+  },
+  {
+   "key": "morris_venkatesh_idade",
+   "titulo": "O trabalhador mais velho olha para quem respeita e para o controle que tem",
+   "texto": "Pesquisadores acompanharam 118 trabalhadores por 5 meses durante a chegada de um novo software. Os mais jovens decidiam usar pela própria opinião sobre a ferramenta. Os mais velhos se guiavam mais pelo que pessoas importantes pensavam e pela sensação de ter controle sobre o uso. O peso da opinião dos outros diminuiu com o tempo.",
+   "fonte": "Michael G. Morris e Viswanath Venkatesh. 'Age Differences in Technology Adoption Decisions: Implications for a Changing Work Force'. Personnel Psychology 53(2): 375-403, 2000",
+   "curta": "Morris & Venkatesh, 2000",
+   "url": "https://doi.org/10.1111/j.1744-6570.2000.tb00206.x",
+   "ano": 2000,
+   "evidencia": "\"User reactions and technology usage behavior were studied over a 5-month period among 118 workers being introduced to a new software system. At 2 points of measurement, compared to older workers, younger workers' technology usage decisions were more strongly influenced by attitude toward using the technology. In contrast, older workers were more strongly influenced by subjective norm and perceived behavioral control, although the effect of subjective norm diminished over time.\"",
+   "confianca": "alta",
+   "notas": "VERIFICADO: resumo conferido no Crossref. Os autores dizem que o resultado se manteve mesmo controlando renda, ocupação e escolaridade. A amostra é pequena, de uma única organização, nos anos 1990."
+  },
+  {
+   "key": "czaja_create_ansiedade",
+   "titulo": "Ansiedade e autoconfiança explicam parte da distância entre gerações",
+   "texto": "Num estudo com 1.204 adultos de 18 a 91 anos nos EUA, os mais velhos usavam menos tecnologia. A ligação entre idade e uso passou pelas habilidades cognitivas, pela autoconfiança com o computador e pela ansiedade com ele. Os autores recomendam treinos que reduzam a ansiedade, num ambiente acolhedor e sem pressa.",
+   "fonte": "Sara J. Czaja, Neil Charness, Arthur D. Fisk, Christopher Hertzog, Sankaran N. Nair, Wendy A. Rogers e Joseph Sharit. 'Factors Predicting the Use of Technology: Findings From the Center for Research and Education on Aging and Technology Enhancement (CREATE)'. Psychology and Aging 21(2): 333-352, 2006",
+   "curta": "Czaja et al. (CREATE), 2006",
+   "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1524856",
+   "ano": 2006,
+   "evidencia": "\"The sample included 1,204 individuals ranging in age from 18-91 years... older adults were less likely than younger adults to use technology in general, computers, and the World Wide Web... The relationship between age and adoption of technology was mediated by cognitive abilities, computer self-efficacy, and computer anxiety.\" / discussão: \"computer training programs should focus on training techniques that reduce anxiety about using computers as well as provide computer skills training\" / \"training is conducted in a relaxed and supportive environment and that sufficient time is allowed so that trainees do not feel rushed\"",
+   "confianca": "alta",
+   "notas": "VERIFICADO: o resumo foi conferido no Europe PMC e no Crossref, e as recomendações de treino no texto do PMC. A página do PMC bloqueia robôs, mas abre normalmente no navegador. Os dados são do começo dos anos 2000, antes dos smartphones: a lição sobre ansiedade e autoconfiança continua valendo, os percentuais de uso não."
+  },
+  {
+   "key": "rogers_cinco_atributos",
+   "titulo": "Cinco características explicam boa parte da adoção de uma novidade",
+   "texto": "Segundo Everett Rogers, autor de 'Diffusion of Innovations', de 49% a 87% da diferença na velocidade de adoção de inovações vem de cinco características percebidas: vantagem sobre o que já existe, compatibilidade com o jeito de trabalhar, complexidade, possibilidade de experimentar antes e visibilidade dos resultados. Uma meta-análise de 75 artigos achou as relações mais consistentes em três delas: compatibilidade, vantagem relativa e complexidade.",
+   "fonte": "Everett M. Rogers. Diffusion of Innovations, 5ª ed., Free Press, 2003, cap. 6, p. 221. Complemento: Louis G. Tornatzky e Katherine J. Klein, IEEE Transactions on Engineering Management EM-29(1): 28-45, 1982",
+   "curta": "Rogers, 2003; Tornatzky & Klein, 1982",
+   "url": "https://www.legalevolution.org/2017/05/variables-determining-the-rate-of-adoption-of-innovations-008/",
+   "ano": 2003,
+   "evidencia": "Legal Evolution: \"Rogers reports that between '49 and 87 percent' of the variance in the rate of adoption can be explained by five attributes: (1) relative advantage, (2) compatibility, (3) complexity, (4) trialability, and (5) observability (p. 221)\" / Tornatzky & Klein (1982): \"A review and meta-analysis was performed of seventy-five articles... Three innovation characteristics (compatibility, relative advantage, and complexity) had the most consistent significant relationship to innovation adoption.\"",
+   "confianca": "media",
+   "notas": "VERIFICADO (em parte): a faixa de 49% a 87% foi confirmada só na fonte secundária (Legal Evolution, citando a página 221). Não tive acesso ao livro. O resumo de Tornatzky & Klein foi conferido no OpenAlex (DOI 10.1109/TEM.1982.6447463). São estudos antigos e de inovações em geral, não de IA."
+  },
+  {
+   "key": "okeefe_dois_lados",
+   "titulo": "Admitir o lado contrário só convence se você responder a ele",
+   "texto": "Uma meta-análise de 107 comparações, com 20.111 pessoas, mostrou que mensagens que apresentam os argumentos contrários e os rebatem convencem um pouco mais que as de um lado só (r = 0,077). Mensagens que só mencionam o contra, sem rebater, convencem menos (r = -0,049). Fora da publicidade, só a versão que rebate aumentou a credibilidade de quem fala. Os efeitos são pequenos.",
+   "fonte": "Daniel J. O'Keefe. 'How to Handle Opposing Arguments in Persuasive Messages: A Meta-Analytic Review of the Effects of One-Sided and Two-Sided Messages'. Communication Yearbook 22: 209-249, 1999",
+   "curta": "O'Keefe, 1999",
+   "url": "http://www.dokeefe.net/pub/OKeefe99AICA.pdf",
+   "ano": 1999,
+   "evidencia": "\"A total of 107 distinguishable persuasion effect sizes were available, based on 20,111 respondents.\" / \"Refutational two-sided messages enjoyed a dependable persuasive advantage over one-sided messages (mean r = .077), whereas nonrefutational two-sided messages were significantly less persuasive than their one-sided counterparts (mean r = -.049).\" / resumo: \"Compared with one-sided messages, refutational two-sided messages on nonadvertising topics enjoy significantly greater credibility and persuasiveness, nonrefutational two-sided messages on nonadvertising topics are not significantly different in credibility and are significantly less persuasive\"",
+   "confianca": "alta",
+   "notas": "VERIFICADO: baixei de novo o PDF do autor e conferi os números. Ressalvas. (1) A ideia clássica (Hovland, 1949) de que mensagens de dois lados funcionam melhor com público instruído não se confirmou: o autor não achou efeito da escolaridade, e quase todos os estudos usavam universitários. (2) Sobre a posição inicial do público, a análise isolada, com poucos casos (9 a 10), favoreceu a mensagem de um lado só, tanto com público a favor quanto contra. Mesmo assim, o autor conclui que esse fator 'appear not to have substantial influence'. (3) Na credibilidade, a vantagem apareceu quando os argumentos a favor vinham primeiro (r = 0,096) ou misturados aos contrários (r = 0,141), e não quando os contrários vinham primeiro (r = 0,014). Num texto de 2016 (dokeefe.net/pub/OKeefe16IECTP.pdf), O'Keefe resume que dizer a conclusão explicitamente 'is generally more persuasive' que deixá-la implícita; conferido."
+  },
+  {
+   "key": "van_laer_transporte",
+   "titulo": "Histórias mudam atitudes, e a idade não atrapalha",
+   "texto": "Uma meta-análise de 76 artigos (132 efeitos) mostrou que ser 'transportado' por uma história, ou seja, ficar absorvido nela, está ligado a atitudes (ρ = 0,44) e intenções (ρ = 0,31) mais alinhadas à história, e a menos pensamentos críticos (ρ = -0,20). O transporte é maior com personagens identificáveis, enredo fácil de imaginar e verossimilhança. A idade de quem lê não fez diferença (ρ = 0,00).",
+   "fonte": "Tom van Laer, Ko de Ruyter, Luca M. Visconti e Martin Wetzels. 'The Extended Transportation-Imagery Model: A Meta-Analysis of the Antecedents and Consequences of Consumers' Narrative Transportation'. Journal of Consumer Research 40(5): 797-817, 2014",
+   "curta": "van Laer et al., 2014",
+   "url": "https://openaccess.city.ac.uk/id/eprint/6755/",
+   "ano": 2014,
+   "evidencia": "\"a quantitative meta-analysis of 132 effect sizes of narrative transportation from 76 published and unpublished articles\" / \"identifiable characters (ρ = .20...), imaginable plot (ρ = .29...), and verisimilitude (ρ = .27...)\" / \"no significant effect emerges for age (ρ = .00...)\" / \"affective responses (ρ = .57...), ... beliefs (ρ = .26...), attitudes (ρ = .44...), and intentions (ρ = .31...) and a significant, negative effect on critical thoughts (ρ = –.20...)\"",
+   "confianca": "alta",
+   "notas": "VERIFICADO: a página do repositório confirma o resumo (76 artigos, 132 efeitos), e os valores de ρ foram conferidos na versão aceita do artigo (DOI 10.1086/673383). Os números medem a ligação entre ficar absorvido e cada resultado, não o efeito de simplesmente ver uma história. A queda nos pensamentos críticos tem um lado ético: o jogo deve deixar os números verificáveis fora da história (botão de fontes). Em Green & Brock (2000, JPSP 79(5): 701-721), conferido no PDF, os leitores mais transportados acharam menos 'false notes' na história."
+  },
+  {
+   "key": "braddock_dillard_narrativa",
+   "titulo": "Narrativas mudam crenças, atitudes e até comportamento",
+   "texto": "Uma meta-análise de estudos experimentais mostrou que ser exposto a uma narrativa está ligado a crenças (r = 0,17), atitudes (r = 0,19), intenções (r = 0,17) e comportamentos (r = 0,23) coerentes com a história. O dado sobre comportamento vem de apenas 5 estudos. O meio de apresentação (texto, vídeo etc.) não mudou o efeito.",
+   "fonte": "Kurt Braddock e James Price Dillard. 'Meta-analytic evidence for the persuasive effect of narratives on beliefs, attitudes, intentions, and behaviors'. Communication Monographs 83(4): 446-467, 2016",
+   "curta": "Braddock & Dillard, 2016",
+   "url": "https://doi.org/10.1080/03637751.2015.1128555",
+   "ano": 2016,
+   "evidencia": "\"narrative-consistent beliefs (k = 37; N = 7,376; r = .17), attitudes (k = 40; N = 7,132; r = .19), intentions (k = 28; N = 5,211; r = .17), and behaviors (k = 5; N = 978; r = .23). Moderator analyses on the effect of fictionality yielded mixed results. Neither medium of presentation nor research design influenced the magnitude of the narrative-persuasion relationship. However, results suggested the presence of unidentified moderators.\"",
+   "confianca": "alta",
+   "notas": "VERIFICADO: o site da editora bloqueia robôs, mas o resumo completo foi conferido em duas bases independentes, o OpenAlex e o MediaWell do Social Science Research Council (https://mediawell.ssrc.org/?p=52168). Por isso a confiança subiu para alta. O resultado sobre ficção foi misto, e os autores apontam outros fatores ainda não identificados."
+  },
+  {
+   "key": "wouters_jogos_serios",
+   "titulo": "Jogos sérios ensinam mais, mas o visual realista não é o que ensina",
+   "texto": "Uma meta-análise (77 comparações, 5.547 pessoas) mostrou que jogos sérios ensinam mais que aulas convencionais (d = 0,29) e que o conteúdo fica mais tempo na memória (d = 0,36), mas não motivaram mais. Ajudou ter várias sessões, complementar com outra forma de ensino e jogar em grupo. Jogos de visual esquemático foram mais eficazes que os de visual realista. Ressalva importante: nos estudos com grupos sorteados, a vantagem sumiu, e só 2 comparações eram com adultos.",
+   "fonte": "Pieter Wouters, Christof van Nimwegen, Herre van Oostendorp e Erik D. van der Spek. 'A Meta-Analysis of the Cognitive and Motivational Effects of Serious Games'. Journal of Educational Psychology 105(2): 249-265, 2013",
+   "curta": "Wouters et al., 2013",
+   "url": "https://doi.org/10.1037/a0031311",
+   "ano": 2013,
+   "evidencia": "\"serious games were found to be more effective in terms of learning (d = 0.29, p < .01) and retention (d = 0.36, p < .01), but they were not more motivating (d = 0.26, p > .05)\" / \"schematic serious games are more effective than cartoonlike or realistic games\" / \"from the perspective of learning, there is no argument to opt for photorealistic visual designs\" / \"in studies with randomization, serious games are not more effective than conventional instruction methods\" / \"the adults age group comprised only two comparisons\"",
+   "confianca": "alta",
+   "notas": "CORRIGIDO (ressalvas acrescentadas): os números conferem (resumo no Semantic Scholar e texto completo). Faltava dizer que, nos estudos com sorteio dos grupos, os jogos não foram melhores que o ensino convencional, e que entre adultos (só 2 comparações) não houve vantagem significativa. Jogos com narrativa tenderam a ser menos eficazes que jogos sem narrativa, mas a diferença não foi significativa (p = 0,09). Os autores sugerem estudar à parte o 3D e a realidade virtual, que não foram avaliados separadamente."
+  },
+  {
+   "key": "sitzmann_simulacao",
+   "titulo": "Simulações aumentam a autoconfiança de quem treina",
+   "texto": "Numa meta-análise de 65 amostras com 6.476 pessoas em treinamento profissional, os jogos de simulação deixaram a autoconfiança 20% maior, o conhecimento factual 11% maior, o saber fazer 14% maior e a retenção 9% maior que nos grupos de comparação. Funcionaram melhor quando ensinavam de forma ativa, podiam ser repetidos à vontade e complementavam outras formas de ensino. A autora alerta para forte viés de publicação.",
+   "fonte": "Traci Sitzmann. 'A Meta-Analytic Examination of the Instructional Effectiveness of Computer-Based Simulation Games'. Personnel Psychology 64(2): 489-528, 2011",
+   "curta": "Sitzmann, 2011",
+   "url": "https://doi.org/10.1111/j.1744-6570.2011.01190.x",
+   "ano": 2011,
+   "evidencia": "\"(k = 65, N = 6,476)... posttraining self-efficacy was 20% higher, declarative knowledge was 11% higher, procedural knowledge was 14% higher, and retention was 9% higher for trainees taught with simulation games... However, the results provide strong evidence of publication bias... Trainees learned more... when simulation games conveyed course material actively rather than passively, trainees could access the simulation game as many times as desired, and the simulation game was a supplement to other instructional methods rather than stand-alone instruction.\"",
+   "confianca": "alta",
+   "notas": "VERIFICADO: resumo conferido no Crossref. Quando o grupo de comparação também tinha ensino ativo, a simulação perdeu. Num resumo para a revista T+D (ASTD, 2010), a autora diz que o valor de entretenimento 'does not affect learning' e recomenda uma conversa de fechamento depois do jogo (debriefing). Essa recomendação é dela, não um resultado medido da meta-análise; conferi o texto da T+D numa cópia salva."
+  },
+  {
+   "key": "gollwitzer_se_entao",
+   "titulo": "Planejar 'se acontecer X, faço Y' ajuda a cumprir metas",
+   "texto": "Uma meta-análise de 94 testes mostrou que planos do tipo 'se a situação X acontecer, então farei Y' tiveram efeito de tamanho médio a grande no alcance de metas (d = 0,65). Os planos ajudaram a começar, a se proteger de distrações, a largar um caminho que não funcionava e a poupar energia para as próximas metas.",
+   "fonte": "Peter M. Gollwitzer e Paschal Sheeran. 'Implementation Intentions and Goal Achievement: A Meta-Analysis of Effects and Processes'. Advances in Experimental Social Psychology 38: 69-119, 2006",
+   "curta": "Gollwitzer & Sheeran, 2006",
+   "url": "https://www.socmot.uni-konstanz.de/sites/default/files/06_Gollwitzer_Sheeran_Implementation_Intentions_And_Goal.pdf",
+   "ano": 2006,
+   "evidencia": "\"Findings from 94 independent tests showed that implementation intentions had a positive effect of medium-to-large magnitude (d = .65) on goal attainment. Implementation intentions were effective in promoting the initiation of goal striving, the shielding of ongoing goal pursuit from unwanted influences, disengagement from failing courses of action, and conservation of capability for future goal striving.\"",
+   "confianca": "alta",
+   "notas": "VERIFICADO: baixei o PDF da Universidade de Konstanz e li o resumo na página 69, que é digitalizada (DOI 10.1016/S0065-2601(06)38002-1, confirmado no Crossref). As metas eram do dia a dia, como saúde e estudo, não de adoção de tecnologia. Aplicar ao uso de IA é uma extrapolação razoável."
+  },
+  {
+   "key": "lally_habito_66_dias",
+   "titulo": "Hábito leva semanas, e falhar um dia não estraga",
+   "texto": "Num estudo da University College London, 96 voluntários (a maioria pós-graduandos, com idade média de 27 anos) repetiram todo dia, no mesmo contexto (por exemplo, 'depois do café da manhã'), um hábito simples de comer, beber ou se exercitar. Entre os 39 cujos dados permitiram um bom cálculo, o hábito levou de 18 a 254 dias para ficar quase automático, com mediana de 66 dias. Perder um dia isolado não atrapalhou.",
+   "fonte": "Phillippa Lally, Cornelia H. M. van Jaarsveld, Henry W. W. Potts e Jane Wardle. 'How are habits formed: Modelling habit formation in the real world'. European Journal of Social Psychology 40(6): 998-1009, 2010",
+   "curta": "Lally et al. (UCL), 2010",
+   "url": "https://doi.org/10.1002/ejsp.674",
+   "ano": 2010,
+   "evidencia": "\"The median time to reach 95% of asymptote was 66 days, with a range from 18 to 254 days.\" / \"The 96 participants (30 men, 66 women) were predominantly postgraduate students ... with a mean age of 27 (range 21–45).\" / \"Missing one opportunity to perform the behaviour did not materially affect the habit formation process.\"",
+   "confianca": "alta",
+   "notas": "CORRIGIDO: o texto anterior atribuía a mediana de 66 dias a um blog. Ela está no próprio artigo, que li no repositório do ISPA (repositorio.ispa.pt). Vale para os 39 participantes com bom ajuste da curva. A amostra era jovem (21 a 45 anos), bem diferente de um CEO de 60 anos. O estudo durou 84 dias, então 254 dias é uma projeção estatística."
+  },
+  {
+   "key": "singh_habito_manha",
+   "titulo": "Hábitos da manhã e escolhidos pela própria pessoa pegam mais",
+   "texto": "Uma revisão de 2024 com 20 estudos e 2.601 participantes (médias de idade de 21,5 a 73,5 anos) encontrou medianas de 59 a 66 dias para formar um hábito, com enorme variação entre pessoas (de 4 a 335 dias). Práticas feitas de manhã e hábitos escolhidos pela própria pessoa tenderam a ficar mais fortes.",
+   "fonte": "Ben Singh, Andrew Murphy, Carol Maher e Ashleigh E. Smith. 'Time to Form a Habit: A Systematic Review and Meta-Analysis of Health Behaviour Habit Formation and Its Determinants'. Healthcare 12(23): 2488, 2024",
+   "curta": "Singh et al., 2024",
+   "url": "https://doi.org/10.3390/healthcare12232488",
+   "ano": 2024,
+   "evidencia": "\"A total of 20 studies involving 2601 participants (mean age range: 21.5–73.5 years) were included. Most studies had a high risk of bias rating (n = 11)... Four studies reported the median or mean times to reach habit formation, ranging from 59–66 days (median) and 106–154 days (means), with substantial individual variability (4–335 days)... with morning practices and self-selected habits generally exhibiting greater strength.\"",
+   "confianca": "alta",
+   "notas": "CORRIGIDO: o segundo autor é Andrew Murphy, não 'Alyssa Murphy' (conferido no Crossref, no OpenAlex e no PubMed). Só 4 estudos mediram o tempo até o hábito, e 11 dos 20 tinham alto risco de viés. Todos os comportamentos eram de saúde: atividade física, água, fio dental, dieta etc."
+  },
+  {
+   "key": "bad_news_inoculacao",
+   "titulo": "Um jogo curto deixou as pessoas mais resistentes a notícias falsas",
+   "texto": "No jogo 'Bad News', da Universidade de Cambridge, o jogador faz o papel de quem fabrica notícias falsas. Depois de jogar, cerca de 14 mil participantes passaram a dar notas de confiabilidade menores para manchetes falsas (média de 2,61 para 2,06, numa escala de 1 a 7), sem desconfiar mais das verdadeiras. A diferença entre idades foi desprezível. O estudo não teve grupo de controle sorteado.",
+   "fonte": "Jon Roozenbeek e Sander van der Linden. 'Fake news game confers psychological resistance against online misinformation'. Palgrave Communications 5: 65, 2019",
+   "curta": "Roozenbeek & van der Linden, 2019",
+   "url": "https://doi.org/10.1057/s41599-019-0279-9",
+   "ano": 2019,
+   "evidencia": "\"the average inoculation effect was relatively high, Mpre = 2.61, Mpost = 2.06, Mdiff = −0.55... d = 0.52\" / \"older players adjusted their reliability ratings somewhat less... the standardised difference was so small that it can be considered negligible... d = 0.04\" / \"participants did not meaningfully adjust their ratings of the 'real' control items.\" / \"We thus lack a traditional control group\"",
+   "confianca": "alta",
+   "notas": "VERIFICADO: conferi o PDF (de 14.163 a 14.266 respostas pareadas, de um N total de 15.000; escala de 1 a 7). Limites apontados pelos próprios autores: a comparação é de antes e depois, sem grupo de controle sorteado, e a amostra se ofereceu para jogar. O artigo publicado tem uma correção (marcada como 'Corrected' no PDF). A teoria por trás é a da inoculação. Na meta-análise de Banas & Rains (2010, Communication Monographs 77(3): 281-311), com resumo conferido no OpenAlex, a proteção valeu tanto contra o mesmo ataque quanto contra ataques diferentes, mas enfraqueceu depois de duas semanas."
+  },
+  {
+   "key": "reif_penalidade_social",
+   "titulo": "Usar IA pode pegar mal, mas menos com quem também usa",
+   "texto": "Em 4 experimentos com 4.439 pessoas (Duke, 2025), quem usava IA no trabalho esperava ser visto como menos competente e menos esforçado, e de fato foi avaliado assim. Segundo a universidade, a penalidade sumia quando o gestor avaliador também usava IA. Ela também não apareceu na avaliação de adequação à tarefa quando a IA era descrita como claramente útil para aquele trabalho.",
+   "fonte": "Jessica A. Reif, Richard P. Larrick e Jack B. Soll. 'Evidence of a social evaluation penalty for using AI'. Proceedings of the National Academy of Sciences (PNAS) 122(19): e2426766122, maio de 2025; resumo da Duke Fuqua School of Business",
+   "curta": "Reif, Larrick & Soll (PNAS), 2025",
+   "url": "https://doi.org/10.1073/pnas.2426766122",
+   "ano": 2025,
+   "evidencia": "\"We examine these predictions in four preregistered experiments (N = 4,439) and find that people who use AI at work anticipate and receive negative evaluations regarding their competence and motivation. Further, we find evidence that these social evaluations affect assessments of job candidates.\" / Duke Fuqua: \"However, the penalty disappears when managers use AI themselves.\" / \"But for digital tasks where AI was explicitly described as useful, there was no significant difference in task fit ratings\" / \"It occurs more strongly among evaluators who are less frequent users of AI and on work tasks where AI is not directly of use.\"",
+   "confianca": "alta",
+   "notas": "CORRIGIDO: o texto anterior juntava as duas exceções com 'e'. São duas situações separadas: (a) o avaliador que usa IA com frequência; (b) a tarefa em que a IA é descrita como útil, e aqui só para a nota de adequação à tarefa. O resumo do PNAS foi conferido no Crossref e as exceções na matéria da Duke (https://www.fuqua.duke.edu/duke-fuqua-insights/Is-AI-Damaging-Your-Professional-Image). Segundo a Duke, a penalidade valeu para qualquer idade, gênero e ocupação do funcionário avaliado. Os cenários eram fictícios."
+  },
+  {
+   "key": "microsoft_uso_escondido",
+   "titulo": "Muita gente usa IA escondido, com medo de parecer substituível",
+   "texto": "Na pesquisa Work Trend Index 2024, com 31 mil trabalhadores do conhecimento em 31 países, 52% de quem usava IA no trabalho relutava em admitir o uso nas tarefas mais importantes, e 53% temia parecer substituível. Os usuários mais intensos tinham 49% mais chance de parar antes de uma tarefa para se perguntar se a IA poderia ajudar. A pesquisa é da Microsoft, que vende IA.",
+   "fonte": "Microsoft e LinkedIn. 2024 Work Trend Index Annual Report, 'AI at Work Is Here. Now Comes the Hard Part' (pesquisa feita pela Edelman Data & Intelligence de 15 fev. a 28 mar. 2024)",
+   "curta": "Microsoft/LinkedIn, 2024",
+   "url": "https://www.microsoft.com/en-us/worklab/work-trend-index/ai-at-work-is-here-now-comes-the-hard-part",
+   "ano": 2024,
+   "evidencia": "\"52% of people who use AI at work are reluctant to admit to using it for their most important tasks.\" / \"53% of people who use AI at work worry that using it on important work tasks makes them look replaceable.\" / \"Power users are 68% more likely to frequently experiment with different ways of using AI—in fact, it's the #1 predictor... more likely to frequently pause before a task and ask themselves if AI can help (+49%), to keep trying if they don't get the perfect response the first time (+30%)\" / \"Power users also bookend their day with AI—using it to start the day (85%)\" / \"AI power users are 61% more likely to hear from their CEO about the importance of using generative AI at work\"",
+   "confianca": "alta",
+   "notas": "VERIFICADO: baixei a página e conferi todos os números e a metodologia (31.000 pessoas em 31 mercados, de 15/02 a 28/03/2024). Ressalvas: a pesquisa é de uma empresa que vende IA (Copilot), os dados são autodeclarados e as associações não provam causa. A mesma página diz que 71% dos líderes prefeririam um candidato menos experiente com habilidade em IA. É um dado de medo; use com cuidado."
+  },
+  {
+   "key": "lee_pensamento_critico",
+   "titulo": "Confiar demais na IA reduz o senso crítico; confiar em si aumenta",
+   "texto": "Numa pesquisa com 319 profissionais, que contaram 936 casos reais de uso de IA no trabalho, quem confiava mais na IA relatava pensar criticamente menos, e quem confiava mais na própria competência naquela tarefa relatava pensar mais. Com IA, pensar criticamente passa a ser checar informações, juntar as partes e supervisionar o resultado.",
+   "fonte": "Hao-Ping (Hank) Lee, Advait Sarkar, Lev Tankelevitch, Ian Drosos, Sean Rintel, Richard Banks e Nicholas Wilson. 'The Impact of Generative AI on Critical Thinking: Self-Reported Reductions in Cognitive Effort and Confidence Effects From a Survey of Knowledge Workers'. CHI 2025 (Carnegie Mellon e Microsoft Research)",
+   "curta": "Lee et al. (CHI), 2025",
+   "url": "https://doi.org/10.1145/3706598.3713778",
+   "ano": 2025,
+   "evidencia": "\"We survey 319 knowledge workers... Participants shared 936 first-hand examples of using GenAI in work tasks... higher confidence in GenAI is associated with less critical thinking, while higher self-confidence is associated with more critical thinking. Qualitatively, GenAI shifts the nature of critical thinking toward information verification, response integration, and task stewardship.\"",
+   "confianca": "alta",
+   "notas": "VERIFICADO: resumo conferido no Semantic Scholar e no PDF. É uma pesquisa de autorrelato que mostra associação, não causa. Seis dos sete autores são da Microsoft Research."
+  },
+  {
+   "key": "steyvers_resposta_longa",
+   "titulo": "Resposta longa parece mais certa, mas não é",
+   "texto": "Em experimentos publicados na revista Nature Machine Intelligence, as pessoas superestimaram a precisão das respostas de modelos de linguagem, como os do ChatGPT. Explicações mais longas aumentaram a confiança dos usuários mesmo quando não deixavam a resposta mais correta. Quando a explicação refletia a incerteza real do modelo, o julgamento das pessoas melhorou.",
+   "fonte": "Mark Steyvers, Heliodoro Tejeda, Aakriti Kumar, Catarina Belem, Sheer Karny, Xinyue Hu, Lukas W. Mayer e Padhraic Smyth. 'What large language models know and what people think they know'. Nature Machine Intelligence 7(2): 221-231, 2025",
+   "curta": "Steyvers et al. (UC Irvine), 2025",
+   "url": "https://doi.org/10.1038/s42256-024-00976-7",
+   "ano": 2025,
+   "evidencia": "\"Our experiments with multiple-choice and short-answer questions reveal that users tend to overestimate the accuracy of LLM responses when provided with default explanations. Moreover, longer explanations increased user confidence, even when the extra length did not improve answer accuracy. By adjusting LLM explanations to better reflect the models' internal confidence, both the calibration gap and the discrimination gap narrowed\"",
+   "confianca": "alta",
+   "notas": "VERIFICADO: resumo e metadados conferidos no Crossref. As perguntas eram de múltipla escolha e de resposta curta, não documentos de empresa. A melhora veio de ajustar a explicação à confiança interna do modelo, medida pelos pesquisadores. Isso é diferente de simplesmente pedir ao chatbot que diga o quanto tem certeza."
+  },
+  {
+   "key": "pwc_ceos_retorno_2026",
+   "titulo": "A maioria dos CEOs ainda não viu retorno financeiro da IA",
+   "texto": "Na pesquisa global da PwC com 4.454 CEOs de 95 países e territórios, feita de setembro a novembro de 2025, só 12% disseram que a IA trouxe ao mesmo tempo redução de custo e aumento de receita. 33% relataram ganho em custo ou em receita, e 56% não viram benefício financeiro significativo até agora. Empresas com bases sólidas, como regras de uso responsável e tecnologia integrada, tinham três vezes mais chance de relatar retorno relevante.",
+   "fonte": "PwC, 29ª Global CEO Survey, comunicado de imprensa de janeiro de 2026",
+   "curta": "PwC, 2026",
+   "url": "https://www.pwc.com/gx/en/news-room/press-releases/2026/pwc-2026-global-ceo-survey.html",
+   "ano": 2026,
+   "evidencia": "\"Despite widespread experimentation, only one-in-eight (12%) CEOs say AI has delivered both cost and revenue benefits. Overall, 33% report gains in either cost or revenue, while 56% say they have seen no significant financial benefit to date.\" / \"CEOs whose organisations have established strong AI foundations—such as Responsible AI frameworks and technology environments that enable enterprise-wide integration—are three times more likely to report meaningful financial returns.\" / \"We surveyed 4,454 CEOs in 95 countries and territories from 30 September to 10 November 2025.\"",
+   "confianca": "alta",
+   "notas": "VERIFICADO: o site da PwC bloqueia robôs (erro 403). Conferi o mesmo comunicado oficial republicado na Kyodo News PR Wire (https://kyodonewsprwire.jp/index.php/release/202601202683), e o relatório brasileiro da PwC confirma os 12% e os 56%. O comunicado não deixa claro se os 33% incluem os 12%. Pela soma (12 + 33 + 56 ≈ 100), parecem ser quem teve ganho em só um dos dois. Os números falam do retorno para a empresa, não do ganho pessoal de tempo de um executivo. A PwC vende consultoria em IA."
+  },
+  {
+   "key": "ibm_ceos_medo_de_ficar_para_tras",
+   "titulo": "Medo de ficar para trás leva CEOs a investir antes de entender",
+   "texto": "No estudo da IBM com 2.000 CEOs de 33 países (fevereiro a abril de 2025), 64% admitiram que o risco de ficar para trás os leva a investir em algumas tecnologias antes de entender o valor delas. Segundo os CEOs, só 25% das iniciativas de IA dos últimos anos entregaram o retorno esperado, e só 16% foram ampliadas para a empresa toda.",
+   "fonte": "IBM Institute for Business Value, em parceria com a Oxford Economics. 2025 CEO Study, comunicado de 6 de maio de 2025",
+   "curta": "IBM, 2025",
+   "url": "https://newsroom.ibm.com/2025-05-06-ibm-study-ceos-double-down-on-ai-while-navigating-enterprise-hurdles",
+   "ano": 2025,
+   "evidencia": "\"64% of CEOs surveyed acknowledge that the risk of falling behind drives investment in some technologies before they have a clear understanding of the value they bring to the organization, but only 37% say it's better to be 'fast and wrong' than 'right and slow'\" / \"Surveyed CEOs report that only 25% of AI initiatives have delivered expected ROI over the last few years, and only 16% have scaled enterprise wide.\" / \"surveyed 2,000 CEOs from 33 countries and 24 industries between February and April 2025\"",
+   "confianca": "alta",
+   "notas": "VERIFICADO: baixei o comunicado oficial e conferi todos os números. A IBM vende soluções de IA, e os dados são autodeclarados pelos CEOs."
+  },
+  {
+   "key": "goldstein_norma_local",
+   "titulo": "O exemplo de gente parecida convence mais",
+   "texto": "Em dois experimentos num hotel dos EUA, cartões dizendo que a maioria dos hóspedes reutilizava as toalhas superaram o apelo ambiental tradicional: 44,1% contra 35,1% de reutilização no primeiro, e 44,5% contra 37,2% no segundo. No segundo experimento, dizer que a maioria dos hóspedes daquele mesmo quarto reutilizava chegou a 49,3%, contra 42,8% das outras mensagens sobre o que os outros fazem.",
+   "fonte": "Noah J. Goldstein, Robert B. Cialdini e Vladas Griskevicius. 'A Room with a Viewpoint: Using Social Norms to Motivate Environmental Conservation in Hotels'. Journal of Consumer Research 35(3): 472-482, 2008",
+   "curta": "Goldstein, Cialdini & Griskevicius, 2008",
+   "url": "https://doi.org/10.1086/586910",
+   "ano": 2008,
+   "evidencia": "Exp. 1: \"higher towel reuse rate (44.1%) than the environmental protection condition (35.1%...)\" / Exp. 2: \"all four descriptive norm messages combined (44.5%) fared significantly better than the standard environmental message (37.2%...)\" / \"the same room identity descriptive norm condition yielded a significantly higher towel reuse rate (49.3%) than the other three descriptive norm conditions combined (42.8%...)\"",
+   "confianca": "alta",
+   "notas": "CORRIGIDO: o texto anterior juntava números de dois experimentos diferentes, como se os 49,3% do 'mesmo quarto' tivessem sido comparados aos 35,1% do apelo ambiental. Os 44,1% contra 35,1% são do experimento 1. Os 49,3% são do experimento 2, em que o apelo ambiental teve 37,2%. Conferido no PDF. É um comportamento simples num hotel, não a adoção de tecnologia por um CEO. A lição que se transfere: a referência mais próxima e parecida (a 'norma local') pesa mais que uma média genérica."
+  },
+  {
+   "key": "bcg_lideranca_treino",
+   "titulo": "Quando o chefe apoia, a equipe gosta mais da IA",
+   "texto": "Na pesquisa AI at Work 2025 do BCG, com mais de 10.600 pessoas em 11 países e regiões, a parcela de funcionários com visão positiva da IA generativa subiu de 15% para 55% quando a liderança apoiava fortemente o uso. Segundo reportagem sobre o relatório, quem teve mais de cinco horas de treinamento virou usuário regular com mais frequência (79% contra 67%).",
+   "fonte": "Boston Consulting Group. 'AI at Work 2025: Momentum Builds, but Gaps Remain' (26 de junho de 2025); números de treinamento segundo reportagem da UNLEASH",
+   "curta": "BCG, 2025",
+   "url": "https://www.bcg.com/publications/2025/ai-at-work-momentum-builds-but-gaps-remain",
+   "ano": 2025,
+   "evidencia": "BCG: \"The share of employees who feel positive about GenAI rises from 15% to 55% with strong leadership support.\" / \"Regular usage is sharply higher for employees that receive at least five hours of training and have access to in-person training and coaching.\" / UNLEASH: \"Overall, 79% of respondents who received more than five hours of training were found to be regular AI users, compared with 67% of those who received less than five hours training.\"",
+   "confianca": "alta",
+   "notas": "CORRIGIDO: troquei a URL pela página do próprio BCG, que confirmou o 15% para 55%, a amostra (mais de 10.600 pessoas, 11 países e regiões) e a data. Os 79% contra 67% vêm da UNLEASH (https://www.unleash.ai/artificial-intelligence/bcgs-ai-at-work-2025-report-four-takeaways-for-hr-leaders/); a página do BCG só diz que o uso é 'sharply higher'. Corrigi também a citação da UNLEASH, que estava parafraseada. São associações, não causa, e o BCG vende consultoria em IA."
+  },
+  {
+   "key": "li_shi_reatancia",
+   "titulo": "Tom de ordem gera resistência",
+   "texto": "Uma meta-análise publicada em 2025 (33 estudos, 146 efeitos) mostrou que frases que ameaçam a liberdade de escolha, como 'você tem que', aumentaram a raiva e a resistência de quem lê (r = 0,20 para resistência). Falar em ganhos ou em perdas não mudou a resistência. A raiva e os pensamentos negativos estiveram ligados a menos persuasão.",
+   "fonte": "Zixi Li e Jingyuan Shi. 'Message effects on psychological reactance: meta-analyses'. Human Communication Research 52(1): 38-52, 2026 (publicado on-line em 30 jun. 2025)",
+   "curta": "Li & Shi, 2025",
+   "url": "https://doi.org/10.1093/hcr/hqaf016",
+   "ano": 2025,
+   "evidencia": "\"We conducted meta-analyses across 28 articles, comprising 33 studies and 146 effect sizes (2005–2024)... high freedom-threatening language increased anger (k = 28, r = .21), negative cognitions (k = 25, r = .17), and psychological reactance (k = 53, r = .20) compared to low freedom-threatening language... However, gain vs. loss framing showed no significant differences in anger (k = 6, r = –.03), negative cognitions (k = 6, r = –.01), or psychological reactance (k = 12, r = –.02). Both anger (r = –.23, k = 42) and negative cognitions (r = –.18, k = 39) were negatively associated with persuasion outcomes.\"",
+   "confianca": "alta",
+   "notas": "CORRIGIDO: o título anterior ('medo não convence mais') ia além do estudo. A meta-análise mediu a resistência (reatância), não a persuasão direta das mensagens de ganho ou perda, e falar em perdas não é o mesmo que apelar ao medo. Tirei também a afirmação 'a maioria dos estudos é de saúde', que não consta no resumo nem na página da Hong Kong Baptist University. Resumo conferido no Crossref; a data on-line (30/06/2025) foi conferida na página da HKBU. Só 12 efeitos comparam ganho e perda."
+  }
+ ],
+ "insights": [
+  {
+   "titulo": "Comece pela utilidade no trabalho dele, não pela tecnologia",
+   "explicacao": "Nos modelos de aceitação de tecnologia (TAM e UTAUT), o que mais prevê a adoção é a pessoa perceber que a ferramenta melhora o que ela já faz. No TAM, a utilidade teve correlação de 0,63 com o uso, contra 0,45 da facilidade, e a análise sugere que a facilidade pode agir sobretudo fazendo a ferramenta parecer útil. No UTAUT, a expectativa de desempenho é o fator mais forte da intenção de usar. Para os mais velhos, o esforço percebido pesa mais, então a utilidade precisa aparecer sem custo de aprendizado.",
+   "aplicacao_no_jogo": "Cada capítulo abre com uma dor concreta de CEO, nunca com 'o que é IA'. Exemplos: 'o contrato de 80 páginas chegou às 18h e a reunião com o fornecedor é às 9h'; 'a pauta do conselho tem 4 relatórios e uma DRE'; 'a reunião de 2 horas acabou e a ata é sua'. Mostre o ganho em minutos e em qualidade, por exemplo as 5 cláusulas de risco com a página de cada uma. Os documentos do jogo são fictícios. Ao transpor para a vida real, o jogo lembra: documento sigiloso só na ferramenta aprovada pela empresa. Explique cada termo uma vez, sem siglas ('prompt' é o pedido que o senhor escreve ou fala). Mostre uma só ferramenta e três gestos: falar ou digitar o pedido, anexar o documento, pedir revisão.",
+   "fontes": "Davis 1989, MIS Quarterly (https://doi.org/10.2307/249008); Venkatesh et al. 2003, UTAUT (https://doi.org/10.2307/30036540); Venkatesh, Thong & Xu 2012, UTAUT2 (https://doi.org/10.2307/41410412)"
+  },
+  {
+   "titulo": "Deixe tudo pronto para o primeiro uso e respeite o ritmo dele",
+   "explicacao": "No UTAUT, o esforço percebido pesa mais para trabalhadores mais velhos, e as condições de apoio (ajuda, infraestrutura) influenciam o uso real dos mais velhos com experiência. No estudo CREATE (1.204 adultos de 18 a 91 anos), a distância entre idades passou pela ansiedade com o computador e pela autoconfiança. Os autores recomendam treinos que reduzam a ansiedade, num ambiente acolhedor e sem pressa. Numa pesquisa com gerentes e profissionais canadenses, a autoconfiança com computador cresceu com o incentivo do grupo de trabalho e com o uso pelos colegas (Compeau & Higgins, 1995).",
+   "aplicacao_no_jogo": "O presente inclui a configuração. No epílogo, o filho ou a filha aparece dizendo: 'já deixei o aplicativo no seu celular, com a privacidade ajustada; qualquer coisa, me liga'. Entregue um cartão de bolso (PDF ou imagem no celular) com 5 pedidos prontos. Nos trechos de aprendizado, nada de cronômetro: o ritmo é dele, sempre com botões 'repetir' e 'voltar'. Nenhuma tela de erro humilhante. Use a voz (ditar) como entrada padrão. Segundo o fato stanford_voz da rodada 1, ditar foi quase 3 vezes mais rápido que digitar no celular, em testes em inglês e mandarim.",
+   "fontes": "Venkatesh et al. 2003 (https://doi.org/10.2307/30036540); Czaja et al. 2006, CREATE (https://pmc.ncbi.nlm.nih.gov/articles/PMC1524856); Compeau & Higgins 1995, MIS Quarterly (https://doi.org/10.2307/249688)"
+  },
+  {
+   "titulo": "Garanta vitórias logo no início para construir autoconfiança",
+   "explicacao": "Para Bandura, a fonte mais forte de autoconfiança (autoeficácia) é ter feito a coisa com sucesso, mais do que ouvir elogios ou ver outros fazendo. Em treinamentos com simulação, a autoconfiança ficou 20% maior que nos grupos de comparação (Sitzmann, 2011). O 'efeito IKEA' mostra que as pessoas valorizam mais o que ajudaram a construir, mas só quando terminam a tarefa com sucesso; se fracassam, o efeito some.",
+   "aplicacao_no_jogo": "Nos primeiros 5 minutos, ele completa por voz uma tarefa real e fácil, com sucesso garantido. Por exemplo: 'resuma em 5 linhas este e-mail longo de um acionista e diga o que ele está pedindo'. A celebração é sóbria, sem confete infantil, com uma estimativa realista e não inflada do tempo poupado. A dificuldade sobe aos poucos: resumir, comparar duas versões de um contrato, preparar perguntas difíceis para o conselho, simular uma negociação. O próximo desafio só abre quando ele vence o anterior. Ao longo do jogo, ele monta o próprio 'kit de pedidos', que fica salvo e é dele no final.",
+   "fontes": "Bandura 1977, Psychological Review (https://doi.org/10.1037/0033-295X.84.2.191); Sitzmann 2011 (https://doi.org/10.1111/j.1744-6570.2011.01190.x); Norton, Mochon & Ariely 2012, The IKEA effect (https://doi.org/10.1016/j.jcps.2011.08.002)"
+  },
+  {
+   "titulo": "Dê a caneta para ele: a IA rascunha, ele decide",
+   "explicacao": "Pessoas abandonam uma máquina que erra mais depressa do que abandonariam um humano com o mesmo erro (Dietvorst et al., 2015). Quando podem ajustar o resultado, mesmo que pouco, aceitam muito mais: de 32% para 73% a 76%. Ficam também mais satisfeitas com o processo e mais dispostas a usar o modelo de novo (2018). Numa revisão de 61 artigos sobre aversão a algoritmos, a autonomia na decisão é um dos cinco temas centrais (Burton et al., 2020). A teoria da autodeterminação vai na mesma direção: as pessoas se engajam mais quando sentem que escolhem.",
+   "aplicacao_no_jogo": "A mecânica central é a 'caneta vermelha'. Todo resultado da IA aparece como rascunho editável: ele risca, ajusta, pede outra versão e aprova. O documento final leva 'Revisado e aprovado por [nome do pai]'. Uma frase-âncora se repete nos diálogos: 'A IA faz o rascunho. Quem assina é o senhor.' Nunca mostre a IA decidindo sozinha (demitir alguém, aprovar um investimento, mandar um e-mail sem revisão). Nas decisões, a IA aparece como conselheira que levanta contra-argumentos.",
+   "fontes": "Dietvorst, Simmons & Massey 2015 (https://doi.org/10.1037/xge0000033) e 2018 (https://doi.org/10.1287/mnsc.2016.2643); Burton, Stein & Jensen 2020, J. Behavioral Decision Making 33(2) (https://doi.org/10.1002/bdm.2155); Ryan & Deci 2000, American Psychologist (https://doi.org/10.1037/0003-066X.55.1.68)"
+  },
+  {
+   "titulo": "Mostre o erro cedo, sempre com a resposta prática junto",
+   "explicacao": "Numa meta-análise de 107 comparações, a mensagem que apresenta o argumento contrário e o rebate convenceu mais que a de um lado só, e a que apenas admite o problema, sem resposta, convenceu menos. Fora da publicidade, só a versão com resposta aumentou a credibilidade. Ou seja, 'ser honesto' sozinho não basta: é preciso mostrar como contornar o problema. A credibilidade foi maior quando os pontos a favor vinham primeiro ou misturados com os contrários. A teoria da inoculação acrescenta que expor a pessoa a uma versão fraca da crítica, já com a resposta, a protege contra críticas futuras. Os efeitos são pequenos.",
+   "aplicacao_no_jogo": "Cada capítulo segue três passos. (1) A IA ajuda de verdade numa tarefa dele. (2) A IA erra de forma realista: inventa uma cláusula, cita uma lei inexistente, erra uma soma da DRE. (3) Ele aprende o antídoto: pedir a página de origem, conferir números na planilha, não colar dados sigilosos fora da ferramenta aprovada e configurar a privacidade. Inclua uma cena de 'manchete de jornal' em que ele lê sobre o advogado multado por citar processos inventados (fatos avianca e juiz_chatgpt da rodada 1). O jogo mostra por que aconteceu e qual antídoto teria evitado. Nenhuma objeção fica sem resposta prática.",
+   "fontes": "O'Keefe 1999 (http://www.dokeefe.net/pub/OKeefe99AICA.pdf); Allen 1991, Western Journal of Speech Communication 55: 390-404; Banas & Rains 2010, Communication Monographs (https://doi.org/10.1080/03637751003758193)"
+  },
+  {
+   "titulo": "Transforme o ceticismo dele em método de conferência",
+   "explicacao": "A confiança cega é o outro risco. O viés de automação atinge iniciantes e especialistas e não é evitado só com treino ou instruções (Parasuraman & Manzey, 2010). Profissionais que confiam mais na IA relatam pensar criticamente menos, e os que confiam mais em si relatam pensar mais (Lee et al., 2025, autorrelato). Explicações longas aumentam a confiança sem aumentar o acerto (Steyvers et al., 2025). No extremo oposto, especialistas que descontam todo conselho rotulado como de algoritmo acabam errando mais (Logg et al., 2019). A meta é a confiança calibrada: usar a IA e conferir o que importa.",
+   "aplicacao_no_jogo": "O jogo elogia a desconfiança dele e a transforma em técnica. Um personagem diz: 'O senhor desconfia? Ótimo. É exatamente isso que faz a IA funcionar bem.' No minijogo 'Auditor', aparecem três respostas da IA sobre um balanço: uma longa, elegante e errada; uma curta e certa; uma com um número inventado. Ele aprende três testes rápidos: (1) 'mostre a página ou o trecho de onde tirou isso'; (2) 'quais pontos desta resposta são mais incertos?', lembrando que a autoavaliação da IA também pode falhar e serve de pista, não de prova; (3) conferir um número por amostragem no documento original. Mensagem explícita: texto longo e confiante não é sinal de acerto.",
+   "fontes": "Parasuraman & Manzey 2010, Human Factors (https://doi.org/10.1177/0018720810376055); Lee et al. 2025, CHI (https://doi.org/10.1145/3706598.3713778); Steyvers et al. 2025, Nature Machine Intelligence (https://doi.org/10.1038/s42256-024-00976-7); Logg, Minson & Moore 2019 (https://doi.org/10.1016/j.obhdp.2018.12.005)"
+  },
+  {
+   "titulo": "Ensine onde a IA soma e onde atrapalha",
+   "explicacao": "Uma meta-análise do MIT com 106 experimentos mostrou que a dupla humano mais IA rende mais que o humano sozinho, mas em média menos que o melhor dos dois trabalhando sozinho. As perdas apareceram em tarefas de escolher entre opções (nos estudos, em geral classificações simples, como detectar resenhas falsas). Em tarefas de criar conteúdo, a dupla tendeu a ganhar, embora esse ganho isolado não tenha sido estatisticamente garantido. Quando o humano é melhor que a IA na tarefa, a dupla supera os dois. No estudo Harvard/BCG (rodada 1), a IA ajudou muito dentro do que sabe fazer e atrapalhou fora disso: 19 pontos percentuais a menos de respostas corretas. Aplicar isso a decisões estratégicas de CEO é uma extrapolação.",
+   "aplicacao_no_jogo": "No minijogo 'Mesa do CEO', ele distribui as tarefas da semana em três pilhas. 'A IA rascunha, eu reviso': atas, resumos de relatórios, primeira leitura de contratos (na ferramenta aprovada pela empresa), e-mails difíceis, roteiro de reunião. 'A IA como advogada do diabo': plano estratégico, preparação de negociação, perguntas que o conselho pode fazer. 'Só eu': decisões sobre pessoas, decisão final de investimento, relação com sócios. Cada escolha recebe uma explicação curta, com a fonte. A IA aparece como quem amplia o julgamento dele, nunca como quem o substitui.",
+   "fontes": "Vaccaro, Almaatouq & Malone 2024, Nature Human Behaviour (https://www.nature.com/articles/s41562-024-02024-1); Dell'Acqua et al. 2023, Harvard/BCG (https://www.hbs.edu/ris/Publication%20Files/24-013_d9b45b68-9e74-42d6-a1c6-c72fb70c7282.pdf)"
+  },
+  {
+   "titulo": "Proteja a identidade de especialista: a IA amplifica, não substitui",
+   "explicacao": "Profissionais resistem a ferramentas que parecem desvalorizar o que sabem. Um estudo sobre ameaça de identidade no trabalho aponta três fatores: mudanças no trabalho, perda de status e a forma como a pessoa se relaciona com a IA (Mirbabaie et al., 2022). Quem usa IA espera ser visto como preguiçoso ou menos competente, e muitas vezes é. Mas, segundo a Duke, essa penalidade some quando quem avalia também usa IA, e não aparece na avaliação de adequação quando a tarefa claramente se beneficia dela (Reif et al., PNAS 2025). No Work Trend Index, 52% escondiam o uso nas tarefas importantes e 53% temiam parecer substituíveis.",
+   "aplicacao_no_jogo": "A história nunca diz que a IA 'sabe mais' que ele. A metáfora central: 'um estagiário incansável, que leu tudo em segundos e às vezes inventa; o senhor é o sócio sênior que assina'. Numa cena de reunião de conselho, ele diz 'usei IA para preparar o material; as conclusões são minhas'. A reação é realista: um conselheiro torce o nariz, e outro, que também usa IA, elogia a transparência e pergunta como ele conferiu os números. Em outra cena, só a experiência dele percebe que a empresa 'concorrente' citada pela IA não existe no setor: os 30 anos de mercado é que pegam o erro. Evite usar como argumento central dados de medo, como 'líderes preferem contratar jovens que sabem IA'.",
+   "fontes": "Mirbabaie et al. 2022, Electronic Markets 32: 73-99 (https://doi.org/10.1007/s12525-021-00496-x); Reif, Larrick & Soll 2025, PNAS (https://doi.org/10.1073/pnas.2426766122) e matéria da Duke (https://www.fuqua.duke.edu/duke-fuqua-insights/Is-AI-Damaging-Your-Professional-Image); Microsoft/LinkedIn Work Trend Index 2024 (https://www.microsoft.com/en-us/worklab/work-trend-index/ai-at-work-is-here-now-comes-the-hard-part)"
+  },
+  {
+   "titulo": "Convide, não mande: autonomia evita a reação contrária",
+   "explicacao": "Pela teoria da autodeterminação, a motivação que dura vem de sentir autonomia, competência e vínculo. Intervenções que apoiam a autonomia mudam comportamentos de saúde, com efeito modesto (Ntoumanis et al., 2021). Uma meta-análise publicada em 2025 mostrou que frases que ameaçam a liberdade de escolha aumentam a resistência (r = 0,20), e que falar em perdas ('vai ficar para trás') não reduz essa resistência em comparação com falar em ganhos. Ao mesmo tempo, dizer a conclusão com clareza costuma convencer mais que deixá-la implícita (O'Keefe, 2016). A combinação ideal é ser claro sem ser mandão.",
+   "aplicacao_no_jogo": "Nos diálogos, nada de 'o senhor precisa', 'tem que' ou 'quem não usar vai ficar para trás'. Use 'quer testar?' e 'o senhor decide'. Ofereça escolhas reais, como escolher 3 usos para experimentar entre 8. Permita pular um capítulo e voltar depois. O filho ou a filha fala como quem convida: 'fiz isso porque acho que pode te poupar tempo e dor de cabeça, mas quem decide é você'. Feche cada capítulo com uma conclusão curta e explícita: 'Para levar para segunda-feira: ...'.",
+   "fontes": "Ryan & Deci 2000 (https://doi.org/10.1037/0003-066X.55.1.68); Ntoumanis et al. 2021, Health Psychology Review (https://doi.org/10.1080/17437199.2020.1718529); Li & Shi 2025/2026, Human Communication Research (https://doi.org/10.1093/hcr/hqaf016); O'Keefe 2016 (https://dokeefe.net/pub/OKeefe16IECTP.pdf)"
+  },
+  {
+   "titulo": "Use pessoas que ele respeita como exemplo, com honestidade sobre os limites",
+   "explicacao": "Trabalhadores mais velhos são mais influenciados pelo que pessoas importantes pensam (Morris & Venkatesh, 2000; UTAUT). Exemplos de gente próxima e parecida convencem mais que médias genéricas. Num hotel, a mensagem 'hóspedes deste quarto reutilizam toalhas' chegou a 49,3% de reutilização, contra 42,8% das outras mensagens sobre o que os outros fazem e 37,2% do apelo ambiental. Mas 'todo mundo está fazendo' é um argumento fraco para um cético, e em parte é exagero. Na PwC 2026, 56% dos CEOs ainda não viram benefício financeiro da IA. Na IBM 2025, 64% admitem investir por medo de ficar para trás, e só 25% das iniciativas deram o retorno esperado.",
+   "aplicacao_no_jogo": "Crie uma cena de jantar com outros CEOs, todos fictícios, de empresas brasileiras de porte parecido. Um entusiasta gastou muito num projeto grande de IA e não viu retorno. Uma CEO de 58 anos usa IA todo dia para preparar reuniões e fazer a primeira leitura de contratos, na ferramenta aprovada pela empresa dela, e mostra no celular como faz. O pai tira as próprias conclusões. Use os números da PwC e da IBM com honestidade: 'a maioria das empresas ainda não viu retorno nos projetos grandes, mas o uso pessoal, no seu dia a dia, é outra conversa'. Nunca use CEOs reais, marcas reais nem depoimentos inventados apresentados como verdadeiros.",
+   "fontes": "Morris & Venkatesh 2000 (https://doi.org/10.1111/j.1744-6570.2000.tb00206.x); Goldstein, Cialdini & Griskevicius 2008 (https://doi.org/10.1086/586910); PwC Global CEO Survey 2026 (https://www.pwc.com/gx/en/news-room/press-releases/2026/pwc-2026-global-ceo-survey.html); IBM CEO Study 2025 (https://newsroom.ibm.com/2025-05-06-ibm-study-ceos-double-down-on-ai-while-navigating-enterprise-hurdles)"
+  },
+  {
+   "titulo": "Ele também é o exemplo para a empresa dele",
+   "explicacao": "No Work Trend Index 2024, os usuários mais intensos de IA tinham 61% mais chance de ter ouvido do próprio CEO que a IA é importante. No BCG AI at Work 2025, a parcela de funcionários com visão positiva da IA subiu de 15% para 55% com forte apoio da liderança. São associações, não provas de causa, e vêm de empresas que vendem IA ou consultoria. Mesmo assim, combinam com a teoria: quem está no topo define o que é aceitável usar.",
+   "aplicacao_no_jogo": "No último capítulo, o pai descobre que o diretor financeiro e a gerente jurídica já usavam IA escondido, com medo do que ele pensaria (eco dos 52% que escondem o uso). Ele decide em que regras e casos o uso é permitido. É a escolha que encerra o jogo: ele não é só usuário, é quem dá o exemplo de uso seguro. Ofereça um modelo simples de 'regras da casa', escrito por ele dentro do jogo: o que nunca colar em ferramentas não aprovadas, o que sempre revisar, quem aprova o quê.",
+   "fontes": "Microsoft/LinkedIn Work Trend Index 2024 (https://www.microsoft.com/en-us/worklab/work-trend-index/ai-at-work-is-here-now-comes-the-hard-part); BCG AI at Work 2025 (https://www.bcg.com/publications/2025/ai-at-work-momentum-builds-but-gaps-remain)"
+  },
+  {
+   "titulo": "Projete pensando nas cinco características de Rogers",
+   "explicacao": "Segundo Rogers, cinco características percebidas explicam de 49% a 87% da velocidade de adoção de uma inovação: vantagem relativa, compatibilidade, complexidade, possibilidade de experimentar e visibilidade dos resultados. Esse número vem de fonte secundária. Na meta-análise de Tornatzky & Klein (75 artigos), vantagem relativa, compatibilidade e complexidade tiveram as relações mais consistentes com a adoção.",
+   "aplicacao_no_jogo": "Vantagem relativa: um cronômetro lado a lado, 'do jeito de sempre' contra 'com IA', na mesma tarefa, com ganho honesto e não inflado. Compatibilidade: usar os documentos e rituais dele (pauta de conselho, DRE, contrato de fornecedor, mensagens com diretores), em português corporativo brasileiro. Complexidade: um aplicativo e três gestos. Experimentação: o jogo é um ambiente sem risco, com documentos fictícios, e o desafio de 7 dias usa só tarefas de baixo risco. Visibilidade: o resultado aparece na história (a ata pronta que a diretoria elogia, o conselho satisfeito) e num placar final de horas poupadas no jogo.",
+   "fontes": "Rogers 2003, Diffusion of Innovations, 5ª ed., p. 221 (citado em https://www.legalevolution.org/2017/05/variables-determining-the-rate-of-adoption-of-innovations-008/); Tornatzky & Klein 1982 (https://doi.org/10.1109/TEM.1982.6447463)"
+  },
+  {
+   "titulo": "Uma narrativa que envolve: personagem parecido, enredo imaginável, verossimilhança",
+   "explicacao": "Ficar absorvido numa história muda crenças e atitudes (Green & Brock, 2000). Numa meta-análise, o grau de absorção esteve ligado às atitudes (ρ = 0,44) e às intenções (ρ = 0,31), e a absorção cresceu com personagens identificáveis, enredo fácil de imaginar e verossimilhança; a idade não mudou o efeito (van Laer et al., 2014). Narrativas também se ligaram a comportamentos (r = 0,23, só 5 estudos), e o meio de apresentação não mudou o efeito (Braddock & Dillard, 2016). Atenção ética: estar absorvido diminui os pensamentos críticos (ρ = -0,20), e leitores absorvidos notaram menos erros na história. Um jogo que se propõe honesto precisa manter os fatos verificáveis.",
+   "aplicacao_no_jogo": "O protagonista é um CEO brasileiro de uns 60 anos, com dilemas reconhecíveis: o conselho cobrando uma 'estratégia de IA', uma negociação com o banco, a sucessão, uma auditoria. Documentos, telas e respostas da IA devem parecer de verdade, incluindo erros plausíveis. Entram também os toques pessoais do filho ou da filha: fotos, piadas internas, a voz. Todo número citado na história tem um botão 'de onde veio isso?', fora da narrativa, com a fonte. Assim a emoção não substitui o julgamento dele.",
+   "fontes": "Green & Brock 2000, JPSP (https://doi.org/10.1037/0022-3514.79.5.701); van Laer et al. 2014, JCR (https://openaccess.city.ac.uk/id/eprint/6755/); Braddock & Dillard 2016 (https://doi.org/10.1080/03637751.2015.1128555); Bogost 2007, Persuasive Games, MIT Press (https://mitpress.mit.edu/9780262514880/persuasive-games/)"
+  },
+  {
+   "titulo": "O 3D é a moldura; quem ensina é a prática",
+   "explicacao": "Jogos sérios ensinaram mais que aulas convencionais (d = 0,29), e o conteúdo ficou mais tempo na memória (d = 0,36), mas não motivaram mais. Funcionaram melhor com várias sessões e complementados por outra forma de ensino. Os de visual esquemático foram mais eficazes que os de visual realista, e os autores dizem que, para aprender, não há motivo para escolher o visual fotorrealista. Ressalvas honestas: nos estudos com grupos sorteados, a vantagem dos jogos sumiu; entre adultos havia só 2 comparações; os jogos com narrativa tenderam a render menos, sem diferença significativa. Em simulações, funcionou a prática ativa e repetível, que complementa outras formas de ensino; segundo a autora, o entretenimento em si não afetou o aprendizado, e ela recomenda uma conversa de fechamento (Sitzmann). Há viés de publicação nesses estudos.",
+   "aplicacao_no_jogo": "Mantenha o 3D e a câmera 360 profissionais para imersão e emoção: escritório, sala do conselho, casa. É isso que torna o presente memorável. Nos momentos de prática, troque para um 'modo mesa de trabalho' limpo e legível: documento em tela cheia, letra grande, poucos elementos e nada se mexendo ao fundo. A história deve servir à tarefa, não competir com ela. Cada capítulo tem pelo menos uma interação ativa com retorno imediato e explicado. Divida o jogo em capítulos de 10 a 15 minutos para jogar em vários dias, cada um terminando com 'o que muda na sua segunda-feira'. Inclua surpresas, como a IA falhando num momento crítico e o pai tendo de replanejar. Permita rejogar qualquer capítulo.",
+   "fontes": "Wouters et al. 2013 (https://doi.org/10.1037/a0031311); Sitzmann 2011 (https://doi.org/10.1111/j.1744-6570.2011.01190.x); Bogost 2007, 'procedural rhetoric' (https://mitpress.mit.edu/9780262514880/persuasive-games/)"
+  },
+  {
+   "titulo": "Prepare-o contra golpes e contra o primeiro tropeço",
+   "explicacao": "A inoculação expõe a pessoa a uma versão fraca do ataque, já com a resposta, e assim a protege dos ataques reais. No jogo Bad News, quem fez o papel do fabricante de notícias falsas passou a dar notas menores às manchetes falsas (de 2,61 para 2,06, numa escala de 1 a 7), sem desconfiar mais das verdadeiras, e a idade quase não fez diferença. O estudo não teve grupo de controle sorteado. Na meta-análise de Banas & Rains, a proteção valeu também contra ataques diferentes do treinado, mas enfraqueceu depois de cerca de duas semanas, o que pede reforço.",
+   "aplicacao_no_jogo": "No capítulo 'Do outro lado', durante 3 minutos o jogador monta, dentro do jogo, um golpe de voz clonada contra uma empresa fictícia e vê os ingredientes: urgência, autoridade, segredo, pedido de Pix. Depois ele recebe a ligação falsa 'do filho' e reconhece os sinais. O jogo combina a palavra secreta da família (fatos fbi_palavra_secreta e banco_nunca_pede da rodada 1). Como a proteção se desgasta, o filho ou a filha manda um lembrete curto sobre golpes umas duas semanas depois. Faça também a inoculação contra o abandono: 'o senhor vai ver a IA errar; quando acontecer, lembre que é para isso que existe a sua revisão'.",
+   "fontes": "Roozenbeek & van der Linden 2019 (https://doi.org/10.1057/s41599-019-0279-9); Banas & Rains 2010 (https://doi.org/10.1080/03637751003758193); Compton, Jackson & Dimmock 2016, Frontiers in Psychology (https://www.frontiersin.org/articles/10.3389/fpsyg.2016.00122)"
+  },
+  {
+   "titulo": "O desafio de 7 dias como planos 'se, então' escolhidos por ele",
+   "explicacao": "Planos do tipo 'se acontecer X, então faço Y' tiveram efeito médio a grande no cumprimento de metas (d = 0,65, em 94 testes). Num estudo com jovens adultos, formar um hábito levou de 18 a 254 dias (mediana de 66), e perder um dia não estragou o processo. Numa revisão de 2024, hábitos da manhã e escolhidos pela própria pessoa ficaram mais fortes. Os usuários intensos de IA param antes de uma tarefa para perguntar 'a IA pode ajudar aqui?' (+49%), insistem quando a primeira resposta não serve (+30%) e, em 85% dos casos, começam o dia com IA (dados autodeclarados, da Microsoft). No UTAUT2, o hábito pesou mais justamente entre homens mais velhos com experiência.",
+   "aplicacao_no_jogo": "No fim do jogo, ele monta o próprio desafio, escolhendo 7 situações entre cerca de 12, cada uma no formato 'se, então'. Exemplos: 'Se eu tiver reunião de conselho amanhã, então peço 10 perguntas difíceis que os conselheiros podem fazer, descrevendo a pauta sem números sigilosos.' 'Se uma reunião terminar sem ata, então dito em 2 minutos o que foi decidido, na ferramenta aprovada pela empresa, e peço a ata organizada.' 'Se chegar um contrato longo, então peço à IA da empresa (conta corporativa que não usa os dados para treinar) as 5 cláusulas de maior risco, com a página de cada uma.' Se não houver ferramenta aprovada, ele treina com um contrato-modelo público ou com nomes e valores trocados. Sugira fazer de manhã, junto com o café, uma tarefa por dia de 5 a 10 minutos. Mensagem honesta: '7 dias não formam um hábito, são a largada. Um estudo de Londres mostrou que pode levar dois meses ou mais, e falhar um dia não estraga.' O filho ou a filha manda uma mensagem no dia 3 e no dia 7.",
+   "fontes": "Gollwitzer & Sheeran 2006 (https://doi.org/10.1016/S0065-2601(06)38002-1); Lally et al. 2010 (https://doi.org/10.1002/ejsp.674); Singh et al. 2024 (https://doi.org/10.3390/healthcare12232488); Microsoft/LinkedIn Work Trend Index 2024 (https://www.microsoft.com/en-us/worklab/work-trend-index/ai-at-work-is-here-now-comes-the-hard-part); Venkatesh, Thong & Xu 2012 (https://doi.org/10.2307/41410412)"
+  }
+ ],
+ "prompts": [],
+ "resumo": "- Verificação: 28 fatos conferidos nas fontes. 10 corrigidos (Logg, Goldstein, Reif, Vaccaro, Wouters, Lally, Singh, Li & Shi, Dietvorst 2018, BCG) e ajustes de redação em Davis e UTAUT. Nenhum foi descartado. Só Rogers (49% a 87%) fica com confiança média, por vir de fonte secundária.\n- O que mais convence é ver a IA ser útil numa tarefa dele (contrato, DRE, ata, conselho). Comece cada capítulo por uma dor concreta, não pela tecnologia (TAM: utilidade r = 0,63 contra facilidade 0,45; no UTAUT, a expectativa de desempenho é o fator mais forte).\n- Para quem tem 55 anos ou mais, esforço, ansiedade e apoio pesam mais (UTAUT, CREATE). O presente deve chegar configurado, sem cronômetro, com voz e um cartão de bolso.\n- Vitórias garantidas no início criam autoconfiança (Bandura; nas simulações, +20% de autoconfiança).\n- A mecânica central é a 'caneta vermelha': poder ajustar o resultado elevou a aceitação de 32% para 73% a 76% (Dietvorst, 2018). 'A IA faz o rascunho; quem assina é o senhor.'\n- Mostrar só os limites, sem resposta, convence MENOS. Mostrar o limite junto com o antídoto convence mais e aumenta a credibilidade (O'Keefe, 1999; efeitos pequenos). Todo erro da IA no jogo vem com uma prática de segurança.\n- Use o ceticismo dele como ferramenta: confiar demais reduz o senso crítico, e respostas longas parecem mais certas sem ser. Ensine três testes de conferência e deixe claro que a autoavaliação da IA também falha.\n- Ensine onde a IA soma (rascunhar, resumir, levantar contra-argumentos) e onde atrapalha (escolher sozinha entre opções). Correção: na meta-análise do MIT, o ganho em criação não foi significativo isoladamente, e as 'decisões' estudadas eram classificações simples.\n- Proteja a identidade de especialista: a IA amplia o julgamento de 30 anos, não o substitui. Correção: a penalidade social de usar IA some quando o avaliador também usa IA, OU não aparece quando a tarefa claramente se beneficia dela; são duas condições separadas. Mostre reações mistas e realistas no conselho.\n- Convide, não mande: frases como 'tem que' aumentam a resistência. Correção: falar em perdas não reduz a resistência, mas o estudo não mediu 'medo' nem a persuasão direta. Feche cada capítulo com uma conclusão clara.\n- Use pares fictícios e parecidos como exemplo, sem exagero. Correção do hotel: 'hóspedes deste quarto' teve 49,3% contra 37,2% do apelo ambiental, no mesmo experimento; os 35,1% eram de outro experimento. Na PwC 2026, 56% dos CEOs ainda não viram retorno financeiro; na IBM 2025, 64% investem por medo de ficar para trás.\n- Ele é o exemplo da empresa: o apoio do líder se associa a uma visão muito mais positiva da IA na equipe (BCG: de 15% para 55%, confirmado na página do BCG). O final pode ser ele escrevendo as 'regras da casa'.\n- A narrativa funciona em qualquer idade quando tem personagem parecido, enredo imaginável e verossimilhança. Como reduz o senso crítico, todo número precisa de um botão 'de onde veio isso?'.\n- O 3D e o 360 profissionais servem à imersão e à emoção; quem ensina é a prática ativa com retorno imediato. Ressalvas acrescentadas sobre Wouters: o visual realista não melhorou o aprendizado, a vantagem dos jogos sumiu nos estudos com sorteio e entre adultos havia só 2 comparações. Use um 'modo mesa de trabalho' limpo nos exercícios.\n- Contra golpes, ele monta um golpe de voz clonada dentro do jogo e aprende os sinais (modelo Bad News). A proteção enfraquece em cerca de duas semanas (Banas & Rains), então vale mandar um lembrete depois.\n- Desafio de 7 dias com planos 'se, então' escolhidos por ele, de manhã (d = 0,65). Diga com honestidade que um hábito leva cerca de 2 meses (estudo com jovens de idade média de 27 anos) e que falhar um dia não estraga.\n- Segurança: corrigidos os exemplos que mandavam pôr contratos e atas em qualquer IA. Documento sigiloso só na ferramenta aprovada pela empresa (conta corporativa que não treina com os dados); sem ela, use material público ou com nomes e valores trocados.\n- Cuidados com as fontes: vários dados de mercado vêm de empresas que vendem IA (Microsoft, IBM, PwC, BCG) e são autodeclarados. Os experimentos clássicos usaram estudantes e algoritmos estatísticos, não CEOs com chatbots. Os efeitos de persuasão são pequenos ou médios: nenhuma técnica convence sozinha."
+}

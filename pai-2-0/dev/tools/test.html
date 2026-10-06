@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset=utf-8><style>html,body{margin:0;height:100%;background:#111}#wrap{position:relative;width:1280px;height:720px}.fx-layer{position:absolute;inset:0;pointer-events:none;display:none}.cam-btn,.drag-hint{display:none}</style></head><body>
+<div id=wrap><canvas id=stage></canvas></div>
+<script src="/home/user/Leeeeo/pai-2-0/js/lib/three.min.js"></script>
+<script src="/home/user/Leeeeo/pai-2-0/js/engine/m3d.js"></script>
+<script src="/home/user/Leeeeo/pai-2-0/js/engine/rig.js"></script>
+<script src="/home/user/Leeeeo/pai-2-0/js/engine/stage3d.js"></script>
+<script src="/home/user/Leeeeo/pai-2-0/js/art3d/chars.js"></script>
+<script>
+const P2=window.P2, T=THREE, M=P2.m3d;
+P2.envs.teste = { build(){
+  const root=new T.Group();
+  const L=M.lighting('dia'); root.add(L.group);
+  const fl=M.plane(10,10,M.mat('#c9b79c'),{rot:[-Math.PI/2,0,0],parent:root});
+  const wall=M.plane(10,4,M.mat('#e8e2d6'),{pos:[0,2,-3],parent:root});
+  return {root, background:'#20263a', spots:{a:{x:-2,z:0,rot:0},b:{x:-0.8,z:0,rot:0},c:{x:0.4,z:0,rot:0},d:{x:1.6,z:0,rot:0},e:{x:2.8,z:0,rot:0}}, shots:{geral:{target:[0.3,1.0,0],yaw:0,pitch:0.12,dist:7.2,fov:38}}, defaultShot:'geral'};
+}};
+P2.core.init(document.getElementById('wrap'));
+P2.core.setScene('teste',{});
+const q=new URLSearchParams(location.search);
+const anim=q.get('anim')||'idle', expr=q.get('expr')||'neutro';
+const ids=(q.get('ids')||'pai,filho,chefe,jorge,golpista').split(',');
+ids.forEach((id,i)=>{ const a=P2.core.actor(id,{type: id.startsWith('npc')?'npc':undefined, build:{genero: q.get('filha')?'filha':'filho', seed:i+1}}); a.at(['a','b','c','d','e'][i]); a.setAnim(anim); a.expr=expr; if(q.get('talk')) a.talking=true; });
+if(q.get('faisca')){ const f=P2.core.actor('faisca'); f.at({x:0.9,z:0.6}); f.y=1.2; f.setAnim(q.get('fanim')||'idle'); }
+if(q.get('duvida')){ const d=P2.core.actor('duvida'); d.at({x:0,z:-1}); d.setAnim(q.get('danim')||'idle'); d.expr='bravo'; }
+if(q.get('shot')) P2.core.cam.shot(JSON.parse(q.get('shot')),0);
+window.__ready=true;
+</script></body></html>
