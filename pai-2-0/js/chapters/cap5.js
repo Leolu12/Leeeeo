@@ -109,10 +109,11 @@
   const TOTAL = TRECHOS.length + ATA.length; // 15
 
   // De pé ao lado da cabeceira, virado para quem ficou na sala (Tadeu e Jorge)
-  const PAI_DE_PE = { x: 3.1, z: 0.7, rot: -0.93 };
-  // Tadeu na quina da mesa, Jorge no centro: da cabeceira os dois cabem no quadro; da porta, ficam
-  // ~40° um do outro (no lugar antigo, o Jorge se despedia escondido atrás do Tadeu)
-  const TADEU_DE_PE = { x: 2.3, z: 1.55, rot: Math.PI };
+  const PAI_DE_PE = { x: 3.1, z: 0.7, rot: -0.96 };
+  // Tadeu perto da quina da mesa, Jorge no centro: da cabeceira os dois cabem no quadro (a 1,6 m, o
+  // rótulo do Tadeu não sobe para cima do objetivo no celular); da porta, ficam ~22° um do outro
+  // (em pe2, o Jorge se despedia escondido atrás do Tadeu)
+  const TADEU_DE_PE = { x: 1.95, z: 1.8, rot: Math.PI };
   const CHAT_CARRO = [['eu', '🎙️ Reajuste aprovado, Rafael com o fornecedor, Tadeu com a carta, Bia com o caixa.'], ['ia', 'Anotado. Puxando os trechos da transcrição…']];
   const SLIDE_VELHA = { title: 'Pauta da reunião passada', lines: ['11 itens discutidos', 'Itens decididos: nenhum', 'Próxima reunião: terça, 14h'] };
   function slidePauta(sel) {
@@ -905,12 +906,14 @@
           await G.say('bia', 'Depende de o reajuste pegar. Sem esse número, não fecho.', { expr: 'desconfiado' });
           await G.say('pai', 'Então fica para a próxima. Reunião encerrada.', { expr: 'cansado' });
           jorge.lookAt(null);
+          G.faisca.hide(); // pousada na mesa, ela ficaria entre a câmera e o Jorge neste close
           await G.cam.focus(jorge, 'close', { yaw: jorge.rot + 0.25, pitch: 0.06, zoom: 1.45, dur: 0.5 });
           G.fx.confetti(jorge);
           await G.say('jorge', 'Uma hora e quarenta! Nunca terminou tão cedo!', { expr: 'empolgado', emote: 'star' });
           ditos.fim = true;
         });
         G.talkCam(true);
+        G.faisca.show();
         G.sceneParams({ clock: '15:40', chaos: 1 });
         G.hud.set({ clock: '15:40' });
         G.player.fp();
