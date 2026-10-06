@@ -188,7 +188,7 @@
         build: (r() - 0.5) * 0.6,
         face: { jaw: fem ? 0.2 : 0.06 + r() * 0.1, chin: 0.35 + r() * 0.35, cheek: 0.7 + r() * 0.8 },
         hair: { style: hair, color: hairColor },
-        beard, stubble: fem ? 0 : r() * 0.18,
+        beard, mustache: beard ? M.hex(M.mix(beard, '#000', 0.08)) : null, stubble: fem ? 0 : r() * 0.18,
         glasses,
         eyes: ['#3a2416', '#2a1a10', '#4a6a3a', '#3e5a7a'][Math.floor(r() * 4)],
         top: { kind, color: topC, shirt: shirtC, tie: kind === 'blazer' && !fem && r() > 0.55 ? ['#7a2434', '#2a3a6a', '#3a5a3a'][Math.floor(r() * 3)] : null, necklace: fem && r() > 0.5 ? true : null, sleeves: kind === 'shirt' && r() > 0.7 ? 'short' : null, pocketSquare: r() > 0.5 ? undefined : false },

@@ -1331,9 +1331,9 @@
     const nrN = (fem ? 0.047 : 0.057) * (1 + (spec.build || 0) * 0.06);
     // colarinho: faixa que nasce no tronco e abraça o pescoço (cobre a junção), com face interna
     const collarBand = (c, reg, gap) => {
-      const rA = ringAt(up, 0.547), rB = ringAt(up, 0.566);
+      const rA = ringAt(up, 0.553), rB = ringAt(up, 0.566);
       const mk = (g0) => [
-        { p: new V3(0, yHip + 0.547 * H, 0), rx: rA[1] / 2 + 0.004 + g0, ry: rA[2] / 2 + 0.004 + g0, n: 2.2, gap },
+        { p: new V3(0, yHip + 0.553 * H, 0), rx: rA[1] / 2 + 0.003 + g0, ry: rA[2] / 2 + 0.003 + g0, n: 2.2, gap },
         { p: new V3(0, yHip + 0.566 * H, -0.004), rx: Math.max(rB[1] / 2, nrN) + 0.006 + g0, ry: Math.max(rB[2] / 2, nrN * 0.95) + 0.006 + g0, n: 2, gap },
         { p: new V3(0, yNk + 0.027, -0.008), rx: nrN + 0.0065 + g0, ry: nrN * 0.95 + 0.0065 + g0, n: 2, gap: gap * 0.9 },
       ];
@@ -1412,7 +1412,7 @@
       { const ix = lin.index.array; for (let i = 0; i < ix.length; i += 3) { const t = ix[i + 1]; ix[i + 1] = ix[i + 2]; ix[i + 2] = t; } lin.computeVertexNormals(); }
       b.add(lin, { color: cTopD.clone().multiplyScalar(0.8), region: REG.satin, weight: wB });
       // camisa: gola (pontas) por baixo das lapelas
-      [-1, 1].forEach((s) => patch(poly([[s * 0.008, 0.536], [s * 0.074, 0.552], [s * 0.066, 0.5], [s * 0.034, 0.47]]), { color: cShirt.clone().multiplyScalar(0.97), th: 0.004, grow: 0.005 }));
+      [-1, 1].forEach((s) => patch(poly([[s * 0.012, 0.532], [s * 0.07, 0.546], [s * 0.064, 0.5], [s * 0.034, 0.472]]), { color: cShirt.clone().multiplyScalar(0.97), th: 0.004, grow: 0.005 }));
       // lapelas com entalhe, borda interna exatamente no V
       [-1, 1].forEach((s) => {
         const pts = [];
@@ -1710,8 +1710,10 @@
       // barba curta
       if (spec.beard) {
         hairShell(hs, {
-          nt: 40, np: 96, thetaMax: 2.9, feather: 1, ramp: 0.007,
-          qfn: (d) => Math.min((-0.12 + 0.13 * smooth(0.25, -0.25, d.z) - d.y) / 0.14, (d.z + 0.27) / 0.2, (Math.hypot((d.y + 0.52) / 0.09, d.x / 0.3) - 1) * 2 + (1 - smooth(0.6, 0.85, d.z)) * 3),
+          nt: 40, np: 110, thetaMax: 2.9, feather: 1, ramp: 0.01,
+          // barba "fechada" curta: costeleta → linha da mandíbula → queixo, ABAIXO do lábio de baixo
+          // (bochechas e boca livres; o bigode é a peça separada spec.mustache)
+          qfn: (d) => Math.min((lerp(-0.06, -0.6, smooth(0.3, 0.86, d.z)) - d.y) / 0.09, (d.z + 0.22) / 0.16),
           thick: (e, ph, d) => 0.0075 + 0.005 * smooth(-0.55, -0.85, d.y), comb: (d) => Math.atan2(d.x, d.z + 0.2), freq: 30, groove: 0.1, fineK: 0.1, warp: 0.6, occ: 0.3,
           base: spec.beard, dark: M.mix(spec.beard, '#000', 0.3), light: M.mix(spec.beard, '#fff', 0.2), skin: skin.base, edgeSkin: 1.5,
         }, hb);
