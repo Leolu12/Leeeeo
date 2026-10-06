@@ -1084,7 +1084,7 @@
         G.hud.set({ clock: '16:08' });
         await G.narrate('16h08. O carro para na frente do escritório.');
         await G.say('pai', 'Cem minutos de reunião, e a ata pronta antes do elevador. Conferida por mim.', { expr: 'orgulhoso' });
-        await G.say('faisca', 'E assinada por você. Ditar e resumir com IA ganham tempo de verdade, mas os dois deixam escapar coisa. Os estudos mostram as duas coisas.', { anim: 'celebrate' });
+        await G.say('faisca', 'E assinada por você. Ditar e resumir com IA ganham tempo de verdade, mas deixam escapar detalhe. Os estudos mostram os dois lados.', { anim: 'celebrate' });
 
         // Estatísticas e conquista
         const acertos = (G.v.classAcertos || 0) + (G.v.confAcertos || 0);

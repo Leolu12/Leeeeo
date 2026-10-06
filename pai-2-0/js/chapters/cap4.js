@@ -160,6 +160,8 @@
 .mg-card.c4-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:70px;gap:2px;font-family:var(--head);font-weight:800;font-size:1.06em;position:relative}
 .mg-card.c4-btn small{font-family:var(--body,inherit);font-weight:600;margin:0}
 .mg-card.c4-btn.right{box-shadow:0 0 0 3px rgba(45,191,143,.45)}
+.c4-btns.done .mg-card.c4-btn{min-height:46px;padding-top:8px;padding-bottom:8px}
+.c4-btns.done .mg-card.c4-btn small{display:none}
 .c4-kbd{position:absolute;top:6px;left:8px;font-size:.66em;font-weight:800;background:rgba(20,30,60,.08);border-radius:6px;padding:.05em .45em;color:#5b6178}
 .c4-fb{display:flex;flex-direction:column;gap:6px}
 .c4-fb .c4-head{font-family:var(--head);font-weight:800}
@@ -276,6 +278,7 @@
         iaTx.innerHTML = '';
         iaTx.appendChild(R(it.ia));
         [bPode, bConf].forEach((b) => { b.disabled = false; b.classList.remove('ok', 'bad', 'right', 'dim'); });
+        btns.classList.remove('done');
         fb.hidden = true;
         acts.hidden = true;
         dica.hidden = false;
@@ -296,6 +299,8 @@
         escolhido.classList.add(ok ? 'ok' : 'bad');
         if (!ok) certoBtn.classList.add('right');
         [bPode, bConf].forEach((b) => { b.disabled = true; if (b !== escolhido && b !== certoBtn) b.classList.add('dim'); });
+        // respondido: os botões encolhem (a cor continua mostrando a escolha) para a explicação caber sem rolar
+        btns.classList.add('done');
         const d = dots.children[i];
         d.classList.remove('on');
         d.classList.add(ok ? 'ok' : 'bad');
@@ -520,7 +525,8 @@
           await fsay(G, 'Desconfiar é justo. Mas aí vai junto o que eu faço bem: rascunho, ideias, resumo do que você me dá. O truque é saber o que conferir.');
         }
         await fsay(G, 'Quer treinar o olho? Separei dez respostas do tipo que eu daria no seu dia. Você decide: *pode usar* ou *confira antes*.', { anim: 'point' });
-        await G.say('pai', 'Vamos para a mesa. Senta aí, Jorge, que você vai gostar de ver isso.', { expr: 'amigavel' });
+        if (visao === 'calibrado') await G.say('pai', 'Vamos para a mesa. Senta aí, Jorge, que você vai gostar de ver isso.', { expr: 'amigavel' });
+        else await G.say('pai', 'Dez respostas. Vamos ver. Senta aí, Jorge: você é testemunha.', { expr: 'desconfiado' });
         await G.fadeOut(0.5);
       },
 
