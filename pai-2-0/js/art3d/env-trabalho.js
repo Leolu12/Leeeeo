@@ -1019,7 +1019,7 @@
   // ====================================================================
   const CITY_PAL = {
     dia: { top: '#2a6bd2', mid: '#b2d2f0', bot: '#97aec4', haze: '#bdd3ea', fog: '#bcd2e8', fogN: 32, fogF: 170, far: '#8aa5c0', near: '#728fac', lit: 0, facade: '#ffffff', clouds: 1, sun: null },
-    tarde: { top: '#2b2f6a', mid: '#ff9b5e', bot: '#3a2848', haze: '#e3896d', fog: '#d9826e', fogN: 20, fogF: 96, far: '#9a6282', near: '#6d4870', lit: 0.35, facade: '#e0a8a0', clouds: 0.9, sun: '#ffb070' },
+    tarde: { top: '#232a66', mid: '#ff9550', bot: '#33223f', haze: '#ec8d62', fog: '#d27a66', fogN: 30, fogF: 150, far: '#7a4a6e', near: '#4c3258', lit: 0.55, facade: '#c08e92', clouds: 0.9, sun: '#ffb070' },
     noite: { top: '#060b1f', mid: '#353670', bot: '#0b0e22', haze: '#2a2d60', fog: '#1d2250', fogN: 24, fogF: 115, far: '#1a1f46', near: '#12163a', lit: 1, facade: '#3b4466', clouds: 0, sun: null },
   };
 
@@ -1851,7 +1851,8 @@
       });
       deskM.build(METAL(), own, { parent: root });
       // cúpula verde da luminária (emissiva à noite)
-      const bankShade = new T.MeshStandardMaterial({ color: col('#1f6a4a'), roughness: 0.25, metalness: 0.1, emissive: col('#46c28a'), emissiveIntensity: 0, side: T.DoubleSide });
+      const bankShade = new T.MeshStandardMaterial({ color: col('#0f4a33'), roughness: 0.18, metalness: 0.15, emissive: col('#1f8a58'), emissiveIntensity: 0, side: T.DoubleSide });
+      bankShade.userData.wantsEnv = 0.8;
       own.add(bankShade);
       const shadeG = M.group({ parent: root, pos: [DX - 0.9, 0.75, DZ + 0.22], rot: [0, 0.3, 0] });
       const bs = new T.Mesh(M.cylGeo(0.075, 0.075, 0.3, 20, true), bankShade);
@@ -2018,7 +2019,7 @@
         lamp.set(k);
         ceiling.set(tm === 'noite' ? 1 : tm === 'tarde' ? 0.75 : 0.3);
         deskLight.intensity = 1.1 * k;
-        bankShade.emissiveIntensity = 0.55 * k;
+        bankShade.emissiveIntensity = 0.32 * k;
         deskGlow.material.opacity = 0.45 * k;
         picGlow.material.opacity = 0.22 * k;
         ledMesh.material = stdMat('vc-led-' + tm, { vc: true, rough: 1, emissive: '#ffd59a', ei: P.shelf });
@@ -2297,7 +2298,7 @@
       stone.rotation.y = PI; stone.position.set(stoneW / 2, H / 2, CZ1 - 0.004); stone.receiveShadow = true;
       corG.add(stone);
       const floorInd = M.textPanel(0.3, 0.07, { text: ['▲ 32'], color: '#ffb35a', bg: '#141416', px: 64, weight: '800' });
-      floorInd.position.set(2.3, 2.5, CZ1 - 0.023); floorInd.rotation.y = PI;
+      floorInd.position.set(2.3, 2.5, CZ1 - 0.026); floorInd.rotation.y = PI;
       own.add(floorInd.material); own.add(floorInd.material.map);
       corG.add(floorInd);
       // luz de quadro sobre a gravura (lava a parede em leque quente)
@@ -2405,11 +2406,35 @@
       fr.box(0.03, 0.04, 3.36, '#2a1a10', [X1 - 0.09, 2.81, -0.3]);
       fr.build(METAL(), own, { parent: rg });
       // quadros pequenos (gravuras)
-      [[-1.55, '#2b3a55'], [0.95, '#7a4a2a']].forEach((q) => {
+      const printTex = ctex('prints-board', 1024, 640, (ctx, w, h) => {
+        // 1) composição geométrica (marinho + latão)  2) paisagem abstrata em terracota
+        const pw = w / 2;
+        ctx.fillStyle = '#efe7d8'; ctx.fillRect(0, 0, pw, h);
+        ctx.fillStyle = '#22314f'; ctx.beginPath(); ctx.arc(pw * 0.42, h * 0.62, pw * 0.34, PI, 0); ctx.fill(); ctx.fillRect(pw * 0.08, h * 0.62, pw * 0.68, h * 0.2);
+        ctx.fillStyle = '#c9a25e'; ctx.beginPath(); ctx.arc(pw * 0.66, h * 0.3, pw * 0.13, 0, PI * 2); ctx.fill();
+        ctx.strokeStyle = '#22314f'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(pw * 0.42, h * 0.62, pw * 0.44, PI * 1.05, PI * 1.62); ctx.stroke();
+        ctx.fillStyle = '#b5523a'; ctx.fillRect(pw * 0.76, h * 0.5, pw * 0.1, h * 0.32);
+        ctx.fillStyle = '#efe7d8'; ctx.beginPath(); ctx.arc(pw * 0.42, h * 0.62, pw * 0.12, PI, 0); ctx.fill();
+        ctx.save(); ctx.translate(pw, 0);
+        const g4 = ctx.createLinearGradient(0, 0, 0, h); g4.addColorStop(0, '#f2dcc2'); g4.addColorStop(1, '#e7b48e');
+        ctx.fillStyle = g4; ctx.fillRect(0, 0, pw, h);
+        ctx.fillStyle = '#d0603e'; ctx.beginPath(); ctx.arc(pw * 0.62, h * 0.36, pw * 0.16, 0, PI * 2); ctx.fill();
+        [['#9a4a32', 0.56], ['#6e3424', 0.7], ['#3e2a26', 0.84]].forEach((ly, k) => {
+          ctx.fillStyle = ly[0]; ctx.beginPath(); ctx.moveTo(0, h);
+          for (let x = 0; x <= pw; x += 16) ctx.lineTo(x, h * ly[1] - Math.sin(x * 0.012 + k * 1.7) * h * 0.06 - Math.sin(x * 0.031 + k) * h * 0.02);
+          ctx.lineTo(pw, h); ctx.closePath(); ctx.fill();
+        });
+        ctx.restore();
+        ctx.fillStyle = 'rgba(0,0,0,0.03)'; for (let y = 0; y < h; y += 3) ctx.fillRect(0, y, w, 1);
+        noise(ctx, w, h, 0.03, 141);
+      }, false);
+      const prints = new Merger();
+      [[-1.55, 0], [0.95, 1]].forEach((q) => {
         sbD.box(0.03, 0.62, 0.5, '#1b1b1e', [X1 - 0.085, 1.7, q[0]]);
         sbD.box(0.006, 0.54, 0.42, '#efe9de', [X1 - 0.1, 1.7, q[0]]);
-        sbD.box(0.004, 0.26, 0.2, q[1], [X1 - 0.104, 1.74, q[0]]);
+        prints.add(M.planeGeo(0.28, 0.35), '#ffffff', [X1 - 0.1065, 1.72, q[0]], [0, -HP, 0], null, [q[1] / 2, 0, (q[1] + 1) / 2, 1]);
       });
+      prints.build(stdMat('prints-board', { map: printTex, vc: true, rough: 0.85 }), own, { parent: rg, cast: false });
       sbD.build(SATIN(), own, { parent: rg });
       // relógio de parede
       const clockG = M.group({ parent: rg, pos: [X1 - 0.09, 2.15, -0.3], rot: [0, -HP, 0] });
@@ -2679,7 +2704,7 @@
   const CAR_LIGHT = {
     dia: { sky: '#e6f0ff', ground: '#6a6460', hemi: 0.85, sun: '#fff3e2', sunI: 2.2, sunPos: [3, 9, 6], amb: 0.14, inner: 0.25 },
     tarde: { sky: '#ffcfa8', ground: '#5a4250', hemi: 0.6, sun: '#ff9a50', sunI: 2.8, sunPos: [-8, 2.6, 6], amb: 0.1, inner: 0.4 },
-    noite: { sky: '#6a7ac0', ground: '#3a3046', hemi: 0.62, sun: '#8fa0ff', sunI: 0.4, sunPos: [4, 9, 5], amb: 0.12, inner: 1.1 },
+    noite: { sky: '#6a7ac0', ground: '#3a3046', hemi: 0.56, sun: '#8fa0ff', sunI: 0.4, sunPos: [4, 9, 5], amb: 0.12, inner: 0.75 },
   };
   const CAR_ENV = {
     dia: ['#bcd6f0', '#e8e2d8', '#4a4642', [[0, 4, 0, 8, 3, '#ffffff'], [6, 2, 5, 4, 2, '#fff2dc']]],
@@ -3102,7 +3127,7 @@
       const car = M.group({ parent: root, name: 'carro' });
       const PAINT = stdMat('car-paint', { color: '#101217', rough: 0.2, metal: 0.55, env: 1.3 });
       const TRIM = stdMat('car-trim', { color: '#2a2b30', rough: 0.6 });
-      const LTH = '#c9a47c', LTH2 = '#a9835c';
+      const LTH = '#bf9168', LTH2 = '#94693f';
       const ROOFY = 1.42;
       const tub = new T.Group(); tub.name = 'casco'; car.add(tub);
       const tb = new Merger();
@@ -3113,6 +3138,8 @@
       tb.rbox(0.28, 0.42, 1.8, 0.14, '#ffffff', [2.4, 0.1, 0]);                      // para-choque traseiro
       [-1, 1].forEach((sd) => tb.rbox(3.35, 0.8, 0.12, 0.05, '#ffffff', [0.075, 0.3, sd * 0.86])); // portas (casca)
       tb.rbox(1.8, 0.28, 0.5, 0.1, '#ffffff', [-1.95, 0.05, 0]);                     // queixo
+      // para-lamas (arcos salientes sobre as rodas): é o que faz a lateral ler como carro, não caixa
+      [[-1.65, 1], [-1.65, -1], [1.5, 1], [1.5, -1]].forEach((wp) => tb.add(M.torusGeo(0.43, 0.05, 8, 24, PI), '#ffffff', [wp[0], -0.08, wp[1] * 0.915], null, [1, 1, 0.7]));
       tb.build(PAINT, own, { parent: tub });
       const tbT = new Merger();
       tbT.box(3.1, 0.04, 1.6, '#262220', [0.02, 0.005, 0]);                          // piso (carpete)
@@ -3128,6 +3155,7 @@
       [-1, 1].forEach((sd) => {
         [-1.36, -0.12, 1.18].forEach((x) => tbT.box(0.006, 0.66, 0.004, '#050506', [x, 0.33, sd * 0.922]));
       });
+      [-1, 1].forEach((sd) => tbT.rbox(2.2, 0.09, 0.03, 0.012, '#0b0b0d', [-0.07, -0.25, sd * 0.93]));   // saia lateral entre as rodas
       tbT.build(TRIM, own, { parent: tub });
       const tbC = new Merger();
       [-1, 1].forEach((sd) => {
@@ -3233,7 +3261,8 @@
         inQ.rbox(0.52, 0.13, 0.48, 0.06, LTH, [-0.76, 0.41, z]);
         inL.rbox(0.42, 0.28, 0.42, 0.05, '#2a2622', [-0.76, 0.18, z]);
         inL.rbox(0.15, 0.6, 0.48, 0.05, LTH, [-0.43, 0.76, z], [0, 0, -0.14]);
-        inL.rbox(0.014, 0.48, 0.38, 0.006, LTH2, [-0.352, 0.77, z], [0, 0, -0.14]);       // painel de couro das costas
+        inQ.rbox(0.02, 0.38, 0.36, 0.008, LTH, [-0.344, 0.84, z], [0, 0, -0.14]);         // painel capitonê das costas (o que o passageiro vê)
+        inL.rbox(0.014, 0.42, 0.4, 0.006, LTH2, [-0.351, 0.84, z], [0, 0, -0.14]);      // vivo em volta do painel
         inL.rbox(0.13, 0.11, 0.44, 0.04, LTH2, [-0.385, 1.1, z], [0, 0, -0.14]);          // ombro
         [-1, 1].forEach((b) => inL.rbox(0.17, 0.5, 0.06, 0.03, LTH2, [-0.445, 0.76, z + b * 0.235], [0, 0, -0.14])); // abas
         inL.rbox(0.1, 0.19, 0.27, 0.035, LTH2, [-0.37, 1.32, z], [0, 0, -0.1]);            // encosto de cabeça
@@ -3267,6 +3296,13 @@
         inDL.rbox(0.8, 0.24, 0.02, 0.02, LTH2, [-0.75, 0.4, sd * 0.758]);
       });
       inDL.build(LEATHER(), own, { parent: car });
+      // luz ambiente (fita de LED âmbar sob o apoio de braço das portas e no console) — acende ao entardecer/noite
+      const ambMat = new T.MeshBasicMaterial({ color: col('#ffb267'), toneMapped: false });
+      own.add(ambMat);
+      const amb = new Merger();
+      [-1, 1].forEach((sd) => amb.box(2.5, 0.008, 0.006, '#ffffff', [0.05, 0.525, sd * 0.722]));
+      amb.box(0.006, 0.008, 1.4, '#ffffff', [-1.09, 0.695, 0]);
+      const ambStrip = amb.build(ambMat, own, { parent: car, cast: false, receive: false });
       const inW = new Merger();
       inW.box(0.02, 0.05, 1.5, '#ffffff', [-1.09, 0.73, 0]);                            // faixa de madeira no painel
       inW.box(0.3, 0.012, 0.2, '#ffffff', [-0.85, 0.425, 0]);
@@ -3381,7 +3417,7 @@
       rf.rbox(1.95, 0.07, 1.66, 0.035, '#ffffff', [0.075, 1.445, 0]);
       rf.build(PAINT, own, { parent: roofG });
       const hlin = new Merger();
-      hlin.box(1.88, 0.02, 1.56, '#d8d2c6', [0.075, 1.4, 0]);
+      hlin.box(1.88, 0.02, 1.56, '#cbc2b3', [0.075, 1.4, 0]);
       hlin.box(0.12, 0.02, 0.2, '#f6f0e2', [0.3, 1.385, 0]);
       [-1, 1].forEach((sd) => hlin.rbox(0.3, 0.03, 0.06, 0.012, '#cfc8bb', [0.55, 1.375, sd * 0.66])); // alças
       hlin.build(FABRIC(), own, { parent: roofG });
@@ -3456,6 +3492,8 @@
         beam.visible = night;
         tailMat.emissiveIntensity = night ? 1.4 : 0.3;
         domeLight.intensity = P.inner;
+        ambStrip.visible = night || dusk;
+        ambMat.color.set(night ? '#ffb267' : '#c98a52');
         roadMat.color.set(night ? '#8a8a9a' : '#ffffff');
         const e = envMap('car-' + tm, CAR_ENV[tm]);
         if (e) applyEnv(root, e, night ? 0.7 : 1);
@@ -3482,7 +3520,7 @@
           banco: { target: [0.52, 1.02, -0.37], yaw: -0.3, pitch: 0.06, dist: 1.95, fov: 38 },
           frente: { target: [0.1, 0.95, 0], yaw: -HP + 0.18, pitch: 0.1, dist: 4.2, fov: 38 },
           janela: { target: [0.4, 1.05, -0.9], yaw: 0.25, pitch: 0.22, dist: 1.5, fov: 44 },
-          celular: { target: [-0.19, 1.0, -0.38], yaw: HP - 0.1, pitch: 0.12, dist: 0.75, fov: 36 },
+          celular: { target: [-0.19, 1.0, -0.38], yaw: 1.95, pitch: 0.19, dist: 0.78, fov: 36 },     // sobre o ombro direito do pai (perto da janela)
           alto: { target: [0, 0.6, 0], yaw: 0.5, pitch: 1.0, dist: 6.2, fov: 40 },
         },
         defaultShot: 'geral',
