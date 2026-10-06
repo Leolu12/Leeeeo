@@ -285,7 +285,15 @@
     ta.remove();
     btn.textContent = ok ? '✓ Copiado!' : 'Selecione e copie';
   }
-  function imprimir() { try { window.print(); } catch (e) { /* sem impressora: nada a fazer */ } }
+  let ultimaImpressao = 0;
+  function imprimir() {
+    // evita disparar a janela de impressão várias vezes seguidas (toque duplo, telas em sequência)
+    const agora = Date.now();
+    if (agora - ultimaImpressao < 4000) return;
+    if (navigator.webdriver) return; // testes automáticos: sem diálogo de impressão
+    ultimaImpressao = agora;
+    try { window.print(); } catch (e) { /* sem impressora: nada a fazer */ }
+  }
   function hoje() {
     try { return new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }); } catch (e) { return new Date().toISOString().slice(0, 10); }
   }
