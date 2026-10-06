@@ -1325,9 +1325,6 @@
     const shirtCol = (kind === 'blazer' || kind === 'coat') ? cShirt : cTop;
     const tucked = !(kind === 'hoodie' || kind === 'cloak' || kind === 'coat' || top.untucked || top.pattern || kind === 'tshirt' && !top.tucked || kind === 'polo' && !top.tucked);
     const vTop = 0.2, vNeck = 0.548; // decote em V do blazer: botão em 0.2
-    // camisa sem gravata: colarinho aberto → um "V" de pele na frente (a junção tronco/pescoço some)
-    const openNeck = !top.tie && !top.pattern && (kind === 'blazer' || kind === 'coat' || kind === 'shirt' || kind === 'polo');
-    const inV = (p, n) => { const yr = (p.y - yHip) / H; return n.z > 0.2 && p.z > 0 && yr > 0.5 && abs(p.x) < (yr - 0.5) * 1.45 + 0.004; };
     const nrN = (fem ? 0.047 : 0.057) * (1 + (spec.build || 0) * 0.06);
     // colarinho: faixa que nasce no tronco e abraça o pescoço (cobre a junção), com face interna
     const collarBand = (c, reg, gap) => {
@@ -1361,9 +1358,7 @@
       const reg = (kind === 'blazer' || kind === 'coat') ? REG.cloth : topReg;
       const target = pat && !(kind === 'blazer' || kind === 'coat') ? pat : b;
       target.add(tubeGeo(stU, { segs: 26, close0: true, close1: true }), {
-        regionFn: openNeck && target === b ? (p, n) => (inV(p, n) ? REG.skin : reg) : null,
         color: (p, n) => {
-          if (openNeck && target === b && inV(p, n)) return cSkin.clone().multiplyScalar(0.93);
           let c = shade(shirtCol, p, n);
           if ((kind === 'hoodie' || kind === 'sweater') && p.y < yHip + (-0.085 + 0.04) * H) c = c.multiplyScalar(0.84); // barra canelada
           return c;
@@ -1444,7 +1439,7 @@
         patch(poly([[-0.0035, 0.35], [0.0035, 0.35], [0.0035, 0.357], [-0.0035, 0.357]]), { color: M.mix(top.shirt || '#eef3f8', '#000', 0.25), th: 0.003, grow: 0.002 });
       }
       // colarinho em volta do pescoço (aberto na frente quando não há gravata)
-      collarBand(cShirt, REG.cloth, top.tie ? 0.06 : 0.5);
+      collarBand(cShirt, REG.cloth, top.tie ? 0.05 : 0.26);
     } else if (kind === 'hoodie') {
       // capuz embolado atrás do pescoço
       const hp = [];
@@ -1487,7 +1482,7 @@
       const polo = kind === 'polo';
       const cCol = polo ? cTopD.clone().lerp(cTop, 0.4) : cTop.clone().multiplyScalar(0.97);
       [-1, 1].forEach((s) => patch(poly([[s * 0.008, 0.5], [s * 0.07, 0.556], [s * 0.085, 0.522], [s * 0.04, 0.488]]), { color: cCol, th: 0.005, grow: 0.004, region: polo ? REG.knit : REG.cloth }));
-      collarBand(cCol, polo ? REG.knit : REG.cloth, top.tie ? 0.06 : 0.62);
+      collarBand(cCol, polo ? REG.knit : REG.cloth, top.tie ? 0.05 : 0.3);
       const yEnd = polo ? 0.4 : (tucked ? 0.1 : -0.06);
       patch(poly([[-0.011, 0.495], [0.011, 0.495], [0.011, Math.max(0.08, yEnd)], [-0.011, Math.max(0.08, yEnd)]]), { color: M.mix(top.color || '#4a7bd1', '#000', 0.08), th: 0.003, grow: 0.002 });
       const bc = col(top.buttons || (polo ? M.hex(cTopD) : '#f2efe6'));
