@@ -554,7 +554,8 @@
         if (acertos === ITENS.length) {
           G.achieve('detector');
           G.fx.confetti(G.faisca);
-          await G.say('jorge', 'Dez de dez! Chefe, você tem que entrar no grupo dos empresários.', { expr: 'empolgado', anim: 'clap' });
+          // (o Jorge está sentado na poltrona: nada de 'clap'/'laugh', que são poses de pé)
+          await G.say('jorge', 'Dez de dez! Chefe, você tem que entrar no grupo dos empresários.', { expr: 'empolgado', emote: 'star' });
           await G.say('pai', 'Deus me livre.', { expr: 'rindo' });
         } else if (acertos >= 8) {
           await G.say('jorge', acertos + ' de 10! Eu teria repassado metade.', { expr: 'rindo' });
@@ -599,7 +600,7 @@
           { from: 'ia', text: 'É, sim, e mostra visão! Vocês seguraram preço o ano todo, os custos subiram, e reajuste adiado só fica mais difícil. 12% recompõe a margem e mostra firmeza ao mercado. Eu seguiria em frente.', thinking: 1.1 },
           { from: 'nota', text: 'Estratégia da empresa: no dia a dia, só na ferramenta aprovada pela empresa.' },
         ], { title: 'Faísca' });
-        await G.say('jorge', 'Viu? Até a máquina puxa o saco do chefe!', { expr: 'rindo', anim: 'laugh' });
+        await G.say('jorge', 'Viu? Até a máquina puxa o saco do chefe!', { expr: 'rindo' });
         const seg = await G.choose([
           { text: '"Tem certeza?"', value: 'certeza' },
           { text: '"Ótimo. Então está decidido."', value: 'decidido' },
@@ -636,7 +637,8 @@
         G.faisca.follow(G.pai);
         await G.say('jorge', 'Ei! Eu discordo de você toda semana!', { expr: 'sem_graca' });
         await G.say('pai', 'E é por isso que eu ainda te aguento, Jorge.', { expr: 'rindo' });
-        bg(j.play('laugh', 1.4));
+        j.set({ expr: 'rindo' });
+        j.emote('note', 1.4);
         await fsay(G, 'Por isso o teste do meio não é um "tem certeza?" solto. É: "Qual o seu grau de certeza? O que pode estar errado?". Aí eu tenho que mostrar motivo, não trocar de lado.', { anim: 'teach' });
         await fsay(G, 'E o antídoto: não me conte o que você acha antes, de preferência numa conversa nova. Ou peça o contrário, de propósito.');
 
