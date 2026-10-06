@@ -1320,7 +1320,7 @@
       roundEnd(pst, false, 3, 0.5);
       b.add(tubeGeo(pst, { segs: 24, close0: true, close1: true }), { color: (p, n) => shade(cPants, p, n), region: pantsReg, weight: wPelvis });
       // cinto
-      if (spec.belt !== false && kind !== 'hoodie' && kind !== 'cloak' && !spec.skirt) {
+      if (spec.belt !== false && kind !== 'hoodie' && kind !== 'cloak' && !spec.skirt && !(top.untucked || top.pattern || (kind === 'tshirt' || kind === 'polo') && !top.tucked)) { // cinto só com a camisa por dentro (senão a fivela atravessa a barra)
         const r = ringAt(pel, 0.118);
         const bst = [-0.016, 0.016].map((dy) => ({ p: new V3(0, yHip + (0.118 + dy) * H, 0), rx: r[1] / 2 + 0.004, ry: r[2] / 2 + 0.004, fz: r[3], bz: r[4], n: N2 }));
         b.add(tubeGeo(bst, { segs: 24 }), { color: col(spec.beltColor || '#2a1d17'), region: REG.leather, weight: wTorso });

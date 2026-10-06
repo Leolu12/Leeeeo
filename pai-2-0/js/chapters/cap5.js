@@ -200,6 +200,12 @@
   .c5-cat small { margin-top: 0 !important; }
   .c5-cat .c5-kbd { position: absolute; bottom: 8px; right: 10px; }
   .c5-cats .c5-cat:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  /* Celular em pé: cartões de categoria compactos (ícone e nome na mesma linha), para as cinco caberem sem rolar */
+  @media (max-width: 760px) and (orientation: portrait) {
+    .c5-cat { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 8px; row-gap: 1px; min-height: 52px; padding: 8px 10px; }
+    .c5-cat small { flex-basis: 100%; line-height: 1.2; }
+    .c5-frag { padding: 10px 12px; gap: 10px; }
+  }
   @media (min-width: 820px) { .c5-cats .c5-cat:last-child:nth-child(odd) { grid-column: auto; } }
   .c5-ata { padding: 12px 14px; }
   .c5-ata .head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; border-bottom: 2px solid var(--ink); padding-bottom: 6px; margin-bottom: 4px; }

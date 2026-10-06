@@ -178,9 +178,12 @@
       const hair = o.hair || (fem ? NPC_HAIR_F : NPC_HAIR_M)[Math.floor(r() * (fem ? NPC_HAIR_F.length : NPC_HAIR_M.length))];
       let hairColor = o.hairColor || NPC_HAIRC[Math.floor(r() * NPC_HAIRC.length)];
       if (hair === 'grisalho') hairColor = '#b0aeb4';
+      // variedade na mesa: grisalho fica com os homens (o elenco fixo já tem a Dona Marta grisalha)
+      if (fem && hairColor === '#b8b2ac' && !o.hairColor) hairColor = '#7a4630';
       const kinds = fem ? ['blazer', 'blouse', 'sweater', 'blazer', 'shirt'] : ['blazer', 'shirt', 'polo', 'sweater', 'blazer', 'shirt'];
       const kind = o.kind || kinds[Math.floor(r() * kinds.length)];
-      const topC = o.color || NPC_TOP[Math.floor(r() * NPC_TOP.length)];
+      let topC = o.color || NPC_TOP[Math.floor(r() * NPC_TOP.length)];
+      if (!fem && !o.color && topC === '#c0566a') topC = '#4f6f62'; // homens: verde-sálvia no lugar do rosa (evita duplas iguais)
       const shirtC = ['#eef2f6', '#dfe9f5', '#f6efe4', '#e9e4f2'][Math.floor(r() * 4)];
       const glasses = r() > 0.62 ? { color: ['#2a2a32', '#5a3a2a', '#8a8a92', '#3a2a4a'][Math.floor(r() * 4)], w: 0.029 + r() * 0.004, h: 0.019 + r() * 0.005, n: 2.4 + r() * 1.6, metal: r() > 0.6 } : null;
       const beard = !fem && r() > 0.72 ? hairColor : null;

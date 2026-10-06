@@ -181,8 +181,10 @@
   const TV = { x: -4.1, y: 1.62, z: -1.1 };
   // De pé diante da mesa, à vista de quem está sentado (o monitor fica à esquerda do olhar).
   const VISITA = { x: 0.3, z: 0.35 };
-  // A Faísca, durante a conversa no sofá: perto, entre os dois, sem tapar a Luana.
-  const FAISCA_SOFA = { x: -3.12, z: 1.9, rot: -PI / 2 };
+  // Conversa no sofá em plano de cinema: os dois sentados, de frente para a sala; a câmera do lado da
+  // mesa de centro. A Faísca flutua entre as cabeças, um pouco à frente, sem tapar ninguém.
+  const FAISCA_SOFA = { x: -3.3, z: 1.75, rot: PI / 2 };
+  const SOFA_SHOT = { target: [-3.45, 0.98, 1.75], yaw: PI / 2 + 0.2, pitch: 0.08, dist: 3.0, fov: 40 };
 
   // ------------------------------------------------------------------
   // Estado (G.v) e utilidades
@@ -732,7 +734,7 @@
         await G.say('faisca', 'Antes de tudo: em casa eu estava no seu celular, numa conta pessoal. Aqui eu rodo na conta da empresa, a que a TI aprovou e que não usa os seus dados para treinar a IA.', { expr: 'neutro' });
         await G.say('pai', 'E quem garante que essa tal conta da empresa não espalha nada?', { expr: 'desconfiado' });
         await G.say('faisca', 'O contrato com o fornecedor e a TI, que conferiu as configurações. Material do conselho, só aqui. E senha ou código do banco, nem aqui.', { expr: 'neutro' });
-        await G.say('faisca', 'Agora, a regra da manhã: em cada tarefa, três jeitos. Você faz sozinho; eu rascunho e você revisa; ou eu faço e você manda sem ler.');
+        await G.say('faisca', 'Agora, o combinado da manhã: em cada tarefa, três jeitos. Você faz sozinho; eu rascunho e você revisa; ou eu faço e você manda sem ler.');
         await G.say('pai', 'E essa terceira opção existe por quê?', { expr: 'desconfiado' });
         await G.say('faisca', 'Porque muita gente faz. Quero que você veja o que acontece.', { expr: 'serio' });
         await G.say('pai', 'Justo. Vamos ver quanto vale uma manhã com você.', { expr: 'determinado' });
@@ -1003,12 +1005,16 @@
         await G.fadeOut(0.25);
         G.pai.at('sofa');
         G.pai.setAnim('sit');
+        G.pai.set({ rot: PI / 2 - 0.3 }); // os dois levemente virados um para o outro
+        luana.set({ rot: PI / 2 + 0.3 });
         G.faisca.unfollow();
-        G.faisca.at(FAISCA_SOFA, 1.12);
-        G.faisca.face(G.pai);
-        luana.face(G.pai);
-        G.player.lookAt(luana);
-        if (v.cafe) luana.set({ props: { mug: true, tablet: false } });
+        G.faisca.at(FAISCA_SOFA, 1.5);
+        if (v.cafe) { luana.set({ props: { mug: true, tablet: false } }); G.pai.set({ props: { mug: true } }); }
+        // decisão sobre gente: plano de cinema dos dois no sofá (na primeira pessoa, lado a lado, ficava apertado)
+        G.player.cine();
+        G.talkCam(false);
+        await G.cam.shot(SOFA_SHOT, 0);
+        G.cam.shot(Object.assign({}, SOFA_SHOT, { dist: SOFA_SHOT.dist - 0.45 }), 16).catch(() => {});
         await G.fadeIn(0.3);
 
         if (v.cafe) await G.say('luana', 'Café em reunião de RH? Já gostei dessa conversa.', { expr: 'feliz' });
@@ -1032,6 +1038,8 @@
           G.faisca.setAnim('idle');
           await passar(G, 2);
           gasto += 2;
+          G.pai.setExpr('desconfiado');
+          G.pai.emote('?');
           await G.narrate('Seu bigode se mexe sozinho. Promoção decidida por adjetivo?');
           await G.say('luana', 'Engraçado. As duas avaliações foram escritas pelo mesmo diretor, aquele que saiu ano passado. "Assertivo" para ele, "prestativa" para ela.', { expr: 'desconfiado' });
           await G.say('luana', 'E a resposta não diz que a equipe do Ricardo trocou um terço das pessoas no ano. Nem que a Patrícia segurou a regional na crise do Recife.', { expr: 'serio' });
@@ -1099,10 +1107,14 @@
         }
         v.gasto.t4 = gasto;
         G.hud.set({ score: { value: feitas(G) + '/4' } });
+        // de volta à primeira pessoa, ainda no sofá: a Luana sai contornando a mesa de centro
+        G.talkCam(true);
+        G.player.fp();
+        G.player.lookAt(luana);
+        luana.set({ anim: 'idle', props: { mug: false } });
+        luana.walk({ x: -2.9, z: 2.65 }).then(() => luana.walk('porta')).then(() => luana.fadeOut(0.4)).catch(() => {});
+        await G.wait(1.2);
         G.player.lookAt(null);
-        luana.set({ anim: 'idle' });
-        luana.walk('porta').then(() => luana.fadeOut(0.4)).catch(() => {});
-        await G.wait(0.4);
         await pilha(G, 0.5);
         salvarStats(G);
       },
