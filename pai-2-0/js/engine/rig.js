@@ -54,7 +54,7 @@
   const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
 
   const SKINS = {
-    claro: { base: '#f0c6a2', dark: '#d9a582', lip: '#c4716a', cheek: '#f29a8a' },
+    claro: { base: '#eebd97', dark: '#d39a74', lip: '#c26a62', cheek: '#f0907e' },
     medio: { base: '#d59c70', dark: '#b07b52', lip: '#a95a4c', cheek: '#e0806c' },
     escuro: { base: '#8a5a3c', dark: '#6b4229', lip: '#6a3428', cheek: '#a2583f' },
   };
@@ -468,7 +468,7 @@
    * phi: 0 = frente, + = lado esquerdo (+X). e: elevação (rad).
    */
   function hairShell(hs, def, bucket) {
-    const NT = def.nt || 46, NP = def.np || 120, thMax = def.thetaMax || 2.25;
+    const NT = Math.round((def.nt || 46) * 0.74), NP = def.np || 120, thMax = def.thetaMax || 2.25;
     const verts = [], qs = [], hn = [];
     const d = new V3(), S = new V3(), Nn = new V3();
     const cBase = col(def.base), cDark = col(def.dark || def.base), cLight = col(def.light || def.base), cSkin = col(def.skin || '#d59c70');
@@ -476,20 +476,47 @@
     const freq = def.freq || 20, gA = def.groove == null ? 0.22 : def.groove;
     const ramp = def.ramp || 0.016, wv = def.warp == null ? 0.35 : def.warp, fineK = def.fineK == null ? 0.07 : def.fineK;
     const occ = def.occ == null ? 1 : def.occ;
+    const fe = def.feather || 0.12;
+    const qAt = (e, ph) => {
+      d.set(cos(e) * sin(ph), sin(e), cos(e) * cos(ph));
+      if (def.qfn) return def.qfn(d, e, ph);
+      let q = (e - def.lo(ph, e)) / fe;
+      if (def.hi) q = Math.min(q, (def.hi(ph, e) - e) / fe);
+      return q;
+    };
+    // Grade ALINHADA À LINHA DO CABELO: em cada coluna (ph) as linhas começam na própria linha do
+    // cabelo e ficam mais densas na faixa de transição → borda lisa (sem "serrilhado" de triângulos).
+    const eMin = PI / 2 - thMax, NS = 160;
+    const colE = [];
+    const qs0 = new Float32Array(NS + 1), cw = new Float32Array(NS + 1);
+    for (let j = 0; j < NP; j++) {
+      const ph = (j / NP) * PI * 2 - PI;
+      let first = -1, last = -1;
+      for (let s = 0; s <= NS; s++) { const e = lerp(eMin, PI / 2, s / NS); const q = qAt(e, ph); qs0[s] = q; if (q > -0.5) { if (first < 0) first = s; last = s; } }
+      if (first < 0) { first = NS; last = NS; }
+      first = Math.max(0, first - 1); last = Math.min(NS, last + 1);
+      cw[first] = 0;
+      for (let s = first + 1; s <= last; s++) { const qm = (qs0[s] + qs0[s - 1]) * 0.5; cw[s] = cw[s - 1] + 1 + (qm > -0.6 && qm < 1.6 ? 4 : 0); }
+      const tot = cw[last] || 1, es = [];
+      let s = first;
+      for (let i = 0; i <= NT; i++) {
+        const want = tot * (1 - i / NT);
+        if (i === 0) { es.push(lerp(eMin, PI / 2, last / NS)); continue; }
+        if (i === NT) { es.push(lerp(eMin, PI / 2, first / NS)); continue; }
+        while (s < last && cw[s + 1] < want) s++;
+        while (s > first && cw[s] > want) s--;
+        const a = cw[s], b2 = cw[Math.min(last, s + 1)];
+        const f = b2 > a ? clamp((want - a) / (b2 - a), 0, 1) : 0;
+        es.push(lerp(eMin, PI / 2, (s + f) / NS));
+      }
+      colE.push(es);
+    }
     for (let i = 0; i <= NT; i++) {
-      const th = (i / NT) * thMax;
       for (let j = 0; j < NP; j++) {
         const ph = (j / NP) * PI * 2 - PI;
-        d.set(sin(th) * sin(ph), cos(th), sin(th) * cos(ph));
-        const e = PI / 2 - th;
-        const fe = def.feather || 0.12;
-        // distância "com sinal" até a linha do cabelo (em unidades de esfumado): contínua dos dois lados
-        let q;
-        if (def.qfn) q = def.qfn(d, e, ph);
-        else {
-          q = (e - def.lo(ph, e)) / fe;
-          if (def.hi) q = Math.min(q, (def.hi(ph, e) - e) / fe);
-        }
+        const e = colE[j][i];
+        const q = qAt(e, ph);
+        d.set(cos(e) * sin(ph), sin(e), cos(e) * cos(ph));
         const m = smooth(0, 1, q);
         headPoint(d, hs, S); headNormal(d, hs, Nn);
         const cm = def.comb ? def.comb(d, e, ph) : Math.atan2(d.y, d.x);
@@ -512,7 +539,7 @@
         c.lerp(cDark, 0.32 * occ * smooth(0.35, -0.55, d.y));
         if (def.curl) c.multiplyScalar(1 + lump * 0.9);
         if (def.tint) def.tint(c, d, e, ph, m);
-        c.lerp(cSkin, 1 - smooth(0.0, def.edgeSkin == null ? 0.9 : def.edgeSkin, q));
+        c.lerp(cSkin, 1 - smooth(0.0, def.edgeSkin == null ? 0.6 : def.edgeSkin, q));
         colors.push(c);
       }
     }
@@ -684,9 +711,6 @@
         cc.lerp(sk2, 0.5 * smooth(-0.25, -0.75, d.y) * (0.6 + 0.4 * stripe));
       },
     }, hb);
-    // dois redemoinhos discretos no alto da nuca (quebram a silhueta sem virar "folhas" coladas)
-    const lc2 = M.hex(M.mix(c, '#5a5662', 0.2));
-    [-1, 1].forEach((sx) => addLock(hb, hs, { follow: true, ph: sx * 2.55, e: 0.62, dir: [-sx * 0.3, -0.85, -0.45], len: 0.075, w: 0.03, th: 0.006, lift: 0.0115, tipOut: 0.03, profile: (t) => Math.pow(sin(Math.min(1, t * 0.9 + 0.1) * PI), 0.6) * (1 - t * 0.35), shade: { dark: 0.22, light: 0.15 } }, lc2));
   };
   HAIR.curto = (hs, hb, c, sk) => {
     const lo = keys([[0, 0.86], [0.35, 0.9], [0.62, 0.9], [0.86, 0.6], [1.05, 0.16], [1.16, -0.18], [1.28, 0.08], [1.6, 0.2], [1.85, 0.06], [2.3, -0.35], [PI, -0.46]]);
@@ -759,19 +783,19 @@
     }
   };
   HAIR.careca = (hs, hb, c, sk) => {
-    // calvície de "ferradura": cabelo baixinho só nas laterais/nuca, que some aos poucos no couro
-    // cabeludo (borda de cima bem esfumada, nada de "faixa"), com fios mais claros (grisalhos) misturados.
+    // calvície de "ferradura": cabelo curtinho e NÍTIDO só nas laterais/nuca (máquina 2), borda de
+    // cima limpa e levemente esfumada, fios grisalhos misturados; nada de "mancha" borrada.
     const lo = keys([[0.6, 1.2], [0.92, 0.32], [1.04, -0.02], [1.13, -0.14], [1.26, -0.02], [1.42, 0.16], [1.65, 0.18], [1.9, 0.0], [2.3, -0.42], [PI, -0.62]]);
-    const hi = keys([[0.6, 0.3], [0.95, 0.38], [1.1, 0.5], [1.5, 0.6], [2.2, 0.68], [PI, 0.72]]);
-    const sk2 = col(sk), cSalt = M.mix(c, '#b8b2ac', 0.55);
+    const hi = keys([[0.6, 0.26], [0.95, 0.34], [1.1, 0.46], [1.5, 0.56], [2.2, 0.64], [PI, 0.68]]);
+    const sk2 = col(sk), cSalt = M.mix(c, '#c8c2bc', 0.5), cRoot = M.mix(c, '#000', 0.25);
     hairShell(hs, {
-      thetaMax: 2.4, nt: 50, np: 140,
-      qfn: (d, e, ph) => { const a = abs(ph); return Math.min((e - lo(a)) / lerp(0.12, 0.26, smooth(1.6, 2.7, a)), (hi(a) - e) / 0.2); },
-      thick: (e, ph, d) => 0.0062 * (1 - 0.6 * smooth(0.0, -0.55, d.y)), comb: (d) => Math.atan2(d.x, d.z) + d.y * 0.6, freq: 40, groove: 0.12, lump: 0.03, warp: 0.5, occ: 0.4, fineK: 0.16,
-      base: M.hex(M.mix(c, sk, 0.08)), dark: M.mix(c, '#000', 0.25), light: cSalt, skin: sk, edgeSkin: 1.5,
+      thetaMax: 2.4, nt: 44, np: 150,
+      qfn: (d, e, ph) => { const a = abs(ph); return Math.min((e - lo(a)) / lerp(0.07, 0.2, smooth(1.6, 2.7, a)), (hi(a) - e) / 0.075); },
+      thick: (e, ph, d) => 0.0072 * (1 - 0.55 * smooth(0.0, -0.55, d.y)), comb: (d) => Math.atan2(d.x, d.z) + d.y * 0.6, freq: 70, groove: 0.1, lump: 0.02, warp: 0.4, occ: 0.35, fineK: 0.2, ramp: 0.02,
+      base: c, dark: cRoot, light: cSalt, skin: sk, edgeSkin: 0.7,
       tint: (cc, d) => {
-        cc.lerp(cSalt, 0.18 + 0.12 * snoise(d.x * 9, d.y * 9, d.z * 9));
-        cc.lerp(sk2, 0.3 * smooth(-0.1, -0.6, d.y));
+        cc.lerp(cSalt, 0.12 + 0.1 * (0.5 + 0.5 * sin(d.x * 83 + d.y * 41 + d.z * 67)));
+        cc.lerp(sk2, 0.28 * smooth(-0.15, -0.62, d.y));
       },
     }, hb);
   };
@@ -1301,6 +1325,24 @@
     const shirtCol = (kind === 'blazer' || kind === 'coat') ? cShirt : cTop;
     const tucked = !(kind === 'hoodie' || kind === 'cloak' || kind === 'coat' || top.untucked || top.pattern || kind === 'tshirt' && !top.tucked || kind === 'polo' && !top.tucked);
     const vTop = 0.2, vNeck = 0.548; // decote em V do blazer: botão em 0.2
+    // camisa sem gravata: colarinho aberto → um "V" de pele na frente (a junção tronco/pescoço some)
+    const openNeck = !top.tie && !top.pattern && (kind === 'blazer' || kind === 'coat' || kind === 'shirt' || kind === 'polo');
+    const inV = (p, n) => { const yr = (p.y - yHip) / H; return n.z > 0.2 && p.z > 0 && yr > 0.5 && abs(p.x) < (yr - 0.5) * 1.45 + 0.004; };
+    const nrN = (fem ? 0.047 : 0.057) * (1 + (spec.build || 0) * 0.06);
+    // colarinho: faixa que nasce no tronco e abraça o pescoço (cobre a junção), com face interna
+    const collarBand = (c, reg, gap) => {
+      const rA = ringAt(up, 0.547), rB = ringAt(up, 0.566);
+      const mk = (g0) => [
+        { p: new V3(0, yHip + 0.547 * H, 0), rx: rA[1] / 2 + 0.004 + g0, ry: rA[2] / 2 + 0.004 + g0, n: 2.2, gap },
+        { p: new V3(0, yHip + 0.566 * H, -0.004), rx: Math.max(rB[1] / 2, nrN) + 0.006 + g0, ry: Math.max(rB[2] / 2, nrN * 0.95) + 0.006 + g0, n: 2, gap },
+        { p: new V3(0, yNk + 0.027, -0.008), rx: nrN + 0.0065 + g0, ry: nrN * 0.95 + 0.0065 + g0, n: 2, gap: gap * 0.9 },
+      ];
+      const wC = (p) => { const k = smooth(yNk - 0.01, yNk + 0.03, p.y) * 0.45; return [[BI.chest, 1 - k], [BI.neck, k]]; };
+      b.add(tubeGeo(mk(0), { segs: 30 }), { color: (p, n) => c.clone().multiplyScalar(0.93 + 0.07 * smooth(-0.5, 0.8, n.y)), region: reg, weight: wC });
+      const inn = tubeGeo(mk(-0.0028), { segs: 30 });
+      { const ix = inn.index.array; for (let i = 0; i < ix.length; i += 3) { const t = ix[i + 1]; ix[i + 1] = ix[i + 2]; ix[i + 2] = t; } inn.computeVertexNormals(); }
+      b.add(inn, { color: c.clone().multiplyScalar(0.78), region: reg, weight: wC });
+    };
     if (kind === 'cloak') {
       // manto longo do golpista (até o chão)
       const rings = [[0.566, 0.15, 0.12], [0.55, 0.25, 0.155], [0.525, 0.345, 0.19], [0.495, 0.41, 0.22], [0.44, 0.445, 0.245], [0.25, 0.42, 0.26], [0.05, 0.44, 0.3], [-0.2, 0.5, 0.36], [-0.5, 0.58, 0.44], [-0.79, 0.66, 0.52]].reverse();
@@ -1319,7 +1361,9 @@
       const reg = (kind === 'blazer' || kind === 'coat') ? REG.cloth : topReg;
       const target = pat && !(kind === 'blazer' || kind === 'coat') ? pat : b;
       target.add(tubeGeo(stU, { segs: 26, close0: true, close1: true }), {
+        regionFn: openNeck && target === b ? (p, n) => (inV(p, n) ? REG.skin : reg) : null,
         color: (p, n) => {
+          if (openNeck && target === b && inV(p, n)) return cSkin.clone().multiplyScalar(0.93);
           let c = shade(shirtCol, p, n);
           if ((kind === 'hoodie' || kind === 'sweater') && p.y < yHip + (-0.085 + 0.04) * H) c = c.multiplyScalar(0.84); // barra canelada
           return c;
@@ -1399,10 +1443,8 @@
         patch(poly([[-0.0035, 0.43], [0.0035, 0.43], [0.0035, 0.437], [-0.0035, 0.437]]), { color: M.mix(top.shirt || '#eef3f8', '#000', 0.25), th: 0.003, grow: 0.002 });
         patch(poly([[-0.0035, 0.35], [0.0035, 0.35], [0.0035, 0.357], [-0.0035, 0.357]]), { color: M.mix(top.shirt || '#eef3f8', '#000', 0.25), th: 0.003, grow: 0.002 });
       }
-      // colarinho em volta do pescoço
-      const nr = (fem ? 0.056 : 0.062);
-      const cst = [0.536, 0.571].map((yy, i) => ({ p: new V3(0, yHip + yy * H, 0.002), rx: nr + 0.003 * (1 - i), ry: nr * 0.92 + 0.003 * (1 - i), n: 2 }));
-      b.add(tubeGeo(cst, { segs: 24, cut: top.tie ? null : (i, k, a) => sin(a) > 0.93 }), { color: (p, n) => cShirt.clone().multiplyScalar(0.96 + 0.04 * n.y), region: REG.cloth, weight: () => [[BI.chest, 0.6], [BI.neck, 0.4]] });
+      // colarinho em volta do pescoço (aberto na frente quando não há gravata)
+      collarBand(cShirt, REG.cloth, top.tie ? 0.06 : 0.5);
     } else if (kind === 'hoodie') {
       // capuz embolado atrás do pescoço
       const hp = [];
@@ -1445,8 +1487,7 @@
       const polo = kind === 'polo';
       const cCol = polo ? cTopD.clone().lerp(cTop, 0.4) : cTop.clone().multiplyScalar(0.97);
       [-1, 1].forEach((s) => patch(poly([[s * 0.008, 0.5], [s * 0.07, 0.556], [s * 0.085, 0.522], [s * 0.04, 0.488]]), { color: cCol, th: 0.005, grow: 0.004, region: polo ? REG.knit : REG.cloth }));
-      const cb = [0.53, 0.565].map((yy) => ({ p: new V3(0, yHip + yy * H, 0.0), rx: 0.068, ry: 0.06, n: 2 }));
-      b.add(tubeGeo(cb, { segs: 18, cut: (i, k, a) => sin(a) > 0.75 }), { color: cCol, region: REG.cloth, weight: (p) => [[BI.chest, 0.7], [BI.neck, 0.3]] });
+      collarBand(cCol, polo ? REG.knit : REG.cloth, top.tie ? 0.06 : 0.62);
       const yEnd = polo ? 0.4 : (tucked ? 0.1 : -0.06);
       patch(poly([[-0.011, 0.495], [0.011, 0.495], [0.011, Math.max(0.08, yEnd)], [-0.011, Math.max(0.08, yEnd)]]), { color: M.mix(top.color || '#4a7bd1', '#000', 0.08), th: 0.003, grow: 0.002 });
       const bc = col(top.buttons || (polo ? M.hex(cTopD) : '#f2efe6'));
@@ -2586,8 +2627,8 @@
         surf, mat: bodyMat, eyes: E, fem,
         lidColor: lidC, lashColor: col(fem ? '#1a1210' : M.hex(M.mix(spec.browColor || (spec.hair && spec.hair.color) || '#3a2a22', '#000', 0.5))),
         bagColor: M.mix(skin.base, '#5a3a5a', 0.22),
-        browColor: col(spec.browColor || M.hex(M.mix((spec.hair && spec.hair.color) || '#3a2a22', '#000', 0.2))),
-        browIn: 0.02, browOut: fem ? 0.088 : 0.094, browY: ey + (fem ? 0.062 : 0.058), browH: fem ? 0.0088 : (spec.browH || 0.0118), browTaper: fem ? 0.45 : 0.6,
+        browColor: col(spec.browColor || M.hex(M.mix((spec.hair && spec.hair.color) || '#3a2a22', '#000', lum((spec.hair && spec.hair.color) || '#3a2a22') > 0.45 ? 0.42 : 0.2))), // grisalhos: sobrancelha mais escura que o cabelo (rosto legível)
+        browIn: 0.02, browOut: fem ? 0.088 : 0.094, browY: ey + (fem ? 0.062 : 0.058), browH: spec.browH || (fem ? 0.0092 : 0.0118), browTaper: fem ? 0.45 : 0.6,
         mouthY: spec.mouthY || (spec.mustache ? -0.1 : -0.093), mouthW: (fem ? 0.0275 : 0.0305) * (spec.mouthSize || 1),
         lipTop: M.mix(skin.lip, skin.dark, 0.25), lipBot: col(skin.lip), lipUp: fem ? 0.0046 : 0.0037, lipLow: fem ? 0.0068 : 0.0056,
       });
@@ -2630,7 +2671,7 @@
       blushB.visible = false; skull.add(blushB);
       face.extras.blush = [blushB];
       const redM = new T.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, opacity: 0 });
-      const red = new T.Mesh(ov(0, 0.05, 0.13, '#ff2a1a', 0.42), redM);
+      const red = new T.Mesh(ov(0, 0.052, 0.068, '#ff3a26', 0.26), redM); // rubor discreto entre as sobrancelhas (não "mancha")
       red.visible = false; skull.add(red);
       face.extras.red = red;
       face.extras.bags = [];

@@ -535,13 +535,16 @@
    * só, com dobras macias. Malha esférica projetada a partir do centro.
    * colorFn(x, y, z, nx, ny, nz, crease, puff) → Color.
    */
-  function blobCloud(list, ctr, k, ws, hs, colorFn) {
+  const blobCache = {};
+  function blobCloud(list, ctr, k, ws, hs, colorFn, cacheKey) {
+    // cache: a nuvem é determinística → reconstruir a Dúvida (troca de cena) não recalcula a malha
+    if (cacheKey && blobCache[cacheKey]) return blobCache[cacheKey];
     const g = new T.SphereGeometry(1, ws, hs);
     const P = g.attributes.position;
-    const n = P.count;
+    const n = P.count, L = list.length;
     const field = (x, y, z) => {
       let sum = 0;
-      for (let i = 0; i < list.length; i++) { const p = list[i]; const d = Math.hypot(x - p.x, y - p.y, z - p.z) - p.r; sum += Math.exp(-d / k); }
+      for (let i = 0; i < L; i++) { const p = list[i]; const d = Math.hypot(x - p.x, y - p.y, z - p.z) - p.r; sum += Math.exp(-d / k); }
       return -k * Math.log(sum);
     };
     let tMax = 0;
@@ -549,23 +552,35 @@
     tMax += 0.25;
     const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), col = new Float32Array(n * 3), ph = new Float32Array(n);
     const dir = new T.Vector3();
-    const step = tMax / 46;
+    const step = tMax / 46, marg = k * (Math.log(L) + 0.6); // além disso a união suave já é > 0 (fora)
     for (let i = 0; i < n; i++) {
       dir.fromBufferAttribute(P, i).normalize();
-      let t = tMax, prev = tMax;
+      // começa logo depois da bolha mais distante que o raio atravessa (em vez de marchar de longe)
+      let t0 = 0;
+      for (let j = 0; j < L; j++) {
+        const p = list[j], ox = p.x - ctr[0], oy = p.y - ctr[1], oz = p.z - ctr[2];
+        const b = ox * dir.x + oy * dir.y + oz * dir.z, c = ox * ox + oy * oy + oz * oz - (p.r + marg) * (p.r + marg);
+        const disc = b * b - c;
+        if (disc >= 0) t0 = Math.max(t0, b + Math.sqrt(disc));
+      }
+      let t = Math.min(tMax, t0 > 0 ? t0 + step : tMax), prev = t;
       while (t > 0 && field(ctr[0] + dir.x * t, ctr[1] + dir.y * t, ctr[2] + dir.z * t) > 0) { prev = t; t -= step; }
       let lo = Math.max(0, t), hi = prev;
       for (let it = 0; it < 9; it++) { const m = (lo + hi) / 2; if (field(ctr[0] + dir.x * m, ctr[1] + dir.y * m, ctr[2] + dir.z * m) > 0) hi = m; else lo = m; }
       const tt = (lo + hi) / 2;
       const x = ctr[0] + dir.x * tt, y = ctr[1] + dir.y * tt, z = ctr[2] + dir.z * tt;
       pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z;
-      const e = 0.01;
-      let gx = field(x + e, y, z) - field(x - e, y, z), gy = field(x, y + e, z) - field(x, y - e, z), gz = field(x, y, z + e) - field(x, y, z - e);
+      // normal analítica (gradiente da união suave) + bolha mais próxima, numa passada só
+      let gx = 0, gy = 0, gz = 0, ws2 = 0, mn = 1e9, mi = 0;
+      for (let j = 0; j < L; j++) {
+        const p = list[j], dx = x - p.x, dy = y - p.y, dz = z - p.z, dl = Math.hypot(dx, dy, dz) || 1e-6, d = dl - p.r;
+        const w = Math.exp(-d / k); ws2 += w; gx += (w * dx) / dl; gy += (w * dy) / dl; gz += (w * dz) / dl;
+        if (d < mn) { mn = d; mi = j; }
+      }
       const gl = Math.hypot(gx, gy, gz) || 1; gx /= gl; gy /= gl; gz /= gl;
+      void ws2;
       nor[i * 3] = gx; nor[i * 3 + 1] = gy; nor[i * 3 + 2] = gz;
       // dobra: perto de duas bolhas ao mesmo tempo (fora de todas por um tiquinho)
-      let mn = 1e9, mi = 0;
-      for (let j = 0; j < list.length; j++) { const p = list[j]; const d = Math.hypot(x - p.x, y - p.y, z - p.z) - p.r; if (d < mn) { mn = d; mi = j; } }
       const c = colorFn(x, y, z, gx, gy, gz, smooth(0.0, k * 0.7, mn), list[mi]);
       col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
       ph[i] = mi * 1.37;
@@ -578,6 +593,7 @@
     geo.setIndex(g.index);
     geo.computeBoundingSphere();
     g.dispose();
+    if (cacheKey) blobCache[cacheKey] = geo;
     return geo;
   }
   function puffCloud(list, colorFn, segs) {
@@ -649,12 +665,12 @@
         c.lerp(cBot, crease * 0.55); // dobras escuras entre as bolhas
         c.lerp(cTop, 0.25 * smooth(0.4, 0.95, ny) * (1 - crease)); // topo das bolhas iluminado
         return c;
-      });
+      }, 'duvidaBig');
       const cloudM = cloudMaterial('#c890ff', 0.85);
       mats.push(cloudM);
       const cloud = new T.Mesh(geo, cloudM); cloud.castShadow = true; cloud.receiveShadow = true; big.add(cloud);
       // nuvenzinhas satélites orbitando devagar (escala e ameaça; viram "pedaços" ao ser derrotada)
-      const satGeo = blobCloud([{ x: 0, y: 0, z: 0, r: 0.2 }, { x: -0.19, y: -0.05, z: 0.02, r: 0.14 }, { x: 0.2, y: -0.04, z: -0.02, r: 0.15 }, { x: 0.05, y: 0.13, z: -0.03, r: 0.13 }], [0, 0, 0], 0.03, 40, 28, (x, y, z, nx, ny, nz, crease) => cMid.clone().lerp(cTop, 0.35 * Math.max(0, ny)).lerp(cBot, 0.35 * Math.max(0, -ny) + crease * 0.4));
+      const satGeo = blobCloud([{ x: 0, y: 0, z: 0, r: 0.2 }, { x: -0.19, y: -0.05, z: 0.02, r: 0.14 }, { x: 0.2, y: -0.04, z: -0.02, r: 0.15 }, { x: 0.05, y: 0.13, z: -0.03, r: 0.13 }], [0, 0, 0], 0.03, 40, 28, (x, y, z, nx, ny, nz, crease) => cMid.clone().lerp(cTop, 0.35 * Math.max(0, ny)).lerp(cBot, 0.35 * Math.max(0, -ny) + crease * 0.4), 'duvidaSat');
       const sats = [0, 1, 2, 3].map((i) => { const m = new T.Mesh(satGeo, cloudM); m.castShadow = true; big.add(m); return { m, ph: i * 1.7 + 0.4, r: 2.35 + (i % 2) * 0.4, h: [1.05, 3.0, 0.8, 3.35][i], s: [1.25, 0.85, 1.0, 0.7][i] }; });
       // brilho interno e relâmpagos dentro da nuvem
       const inner = M.glow('#8a4aff', 3.2, 0.35); inner.position.set(0, 2.0, 0.2); big.add(inner); mats.push(inner.material);
@@ -698,22 +714,28 @@
         return { m: sp, ph: (i / WORDS.length) * Math.PI * 2, tilt: (i % 3) * 0.35 - 0.35 };
       });
       // raios (fitas luminosas)
-      const boltMat = new T.MeshBasicMaterial({ color: '#fff3a0', transparent: true, opacity: 0.95, depthWrite: false, toneMapped: false, side: T.DoubleSide });
-      mats.push(boltMat);
-      const bolts = [];
-      for (let b = 0; b < 3; b++) {
-        const N = 9;
+      // raio = núcleo branco quente + halo aditivo amarelo-lilás (lê como eletricidade, não como fita)
+      const boltMat = new T.MeshBasicMaterial({ color: '#fffbe8', transparent: true, opacity: 1, depthWrite: false, toneMapped: false, side: T.DoubleSide });
+      const boltGlowMat = new T.MeshBasicMaterial({ color: '#ffd23a', transparent: true, opacity: 0.42, depthWrite: false, toneMapped: false, side: T.DoubleSide, blending: T.AdditiveBlending });
+      mats.push(boltMat, boltGlowMat);
+      const ribbon = (N, mat) => {
         const g = new T.BufferGeometry();
         g.setAttribute('position', new T.BufferAttribute(new Float32Array(N * 2 * 3), 3));
         const ix = []; for (let i = 0; i < N - 1; i++) ix.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
         g.setIndex(ix);
-        const line = new T.Mesh(g, boltMat); line.frustumCulled = false; line.visible = false; root.add(line);
-        const gl = M.glow('#ffe066', 0.7, 0.8); gl.visible = false; root.add(gl); mats.push(gl.material);
-        bolts.push({ line, N, gl });
+        const m = new T.Mesh(g, mat); m.frustumCulled = false; m.visible = false; m.renderOrder = 3; root.add(m);
+        return m;
+      };
+      const bolts = [];
+      for (let b = 0; b < 3; b++) {
+        const N = 11;
+        const line = ribbon(N, boltMat), halo = ribbon(N, boltGlowMat), fork = ribbon(5, boltMat);
+        const gl = M.glow('#ffe066', 0.9, 0.9); gl.visible = false; root.add(gl); mats.push(gl.material);
+        bolts.push({ line, halo, fork, N, gl });
       }
       // versão pequena: a "dúvida saudável" (fofa)
       const small = M.group({ parent: root, name: 'duvidaSmall' });
-      const smallGeo = blobCloud([{ x: 0, y: 0, z: 0, r: 0.12 }, { x: -0.11, y: -0.025, z: 0, r: 0.088 }, { x: 0.11, y: -0.025, z: 0, r: 0.088 }, { x: 0.035, y: 0.075, z: -0.02, r: 0.09 }, { x: -0.055, y: 0.06, z: 0.0, r: 0.075 }, { x: 0, y: -0.06, z: 0.02, r: 0.085 }], [0, 0, 0], 0.012, 48, 32, (x, y, z, nx, ny, nz, crease) => new T.Color('#c9b3f2').lerp(new T.Color('#f2eaff'), smooth(-0.05, 0.15, y) * 0.65).lerp(new T.Color('#a58ad8'), crease * 0.4));
+      const smallGeo = blobCloud([{ x: 0, y: 0, z: 0, r: 0.12 }, { x: -0.11, y: -0.025, z: 0, r: 0.088 }, { x: 0.11, y: -0.025, z: 0, r: 0.088 }, { x: 0.035, y: 0.075, z: -0.02, r: 0.09 }, { x: -0.055, y: 0.06, z: 0.0, r: 0.075 }, { x: 0, y: -0.06, z: 0.02, r: 0.085 }], [0, 0, 0], 0.012, 48, 32, (x, y, z, nx, ny, nz, crease) => new T.Color('#c9b3f2').lerp(new T.Color('#f2eaff'), smooth(-0.05, 0.15, y) * 0.65).lerp(new T.Color('#a58ad8'), crease * 0.4), 'duvidaSmall');
       const smallM = cloudMaterial('#ffffff', 0.45);
       smallM.userData.U.uAmp.value = 0.006;
       mats.push(smallM);
@@ -821,19 +843,27 @@
           // raios no ataque
           bolts.forEach((b, i) => {
             const on = anim === 'attack' && at < 0.95 && Math.sin(t * 38 + i * 2) > -0.3;
-            b.line.visible = on; b.gl.visible = on;
+            b.line.visible = b.halo.visible = b.fork.visible = b.gl.visible = on;
             if (!on) return;
-            const pos = b.line.geometry.attributes.position;
+            const pos = b.line.geometry.attributes.position, hp = b.halo.geometry.attributes.position, fp = b.fork.geometry.attributes.position;
             let x = (i - 1) * 0.7, y = 1.5, z = 1.0 + lunge;
+            const seed = Math.floor(t * 14) + i * 7; // muda o desenho do raio ~14×/s (cintila)
+            let fx = 0, fy = 0, fz = 0;
             for (let k = 0; k < b.N; k++) {
-              const w = 0.05 * (1 - k / b.N) + 0.012;
+              const w = 0.026 * (1 - k / b.N) + 0.008;
               pos.setXYZ(k * 2, x - w, y, z); pos.setXYZ(k * 2 + 1, x + w, y, z);
-              x += Math.sin(t * 53 + k * 3.1 + i * 7) * 0.22;
-              y -= 0.2; z += 0.32;
+              hp.setXYZ(k * 2, x - w * 5, y, z); hp.setXYZ(k * 2 + 1, x + w * 5, y, z);
+              if (k === 4) { fx = x; fy = y; fz = z; }
+              x += Math.sin(seed * 1.7 + k * 3.1 + i * 7) * 0.2;
+              y -= 0.16; z += 0.26;
             }
-            pos.needsUpdate = true;
-            b.gl.position.set(x, y + 0.2, z - 0.3);
+            // galhinho que sai do meio do raio
+            for (let k = 0; k < 5; k++) { const w = 0.012 * (1 - k / 5) + 0.004; fp.setXYZ(k * 2, fx - w, fy, fz); fp.setXYZ(k * 2 + 1, fx + w, fy, fz); fx += (i - 1 || 1) * 0.11 + Math.sin(seed + k * 2.3) * 0.06; fy -= 0.1; fz += 0.12; }
+            pos.needsUpdate = hp.needsUpdate = fp.needsUpdate = true;
+            b.gl.position.set(x, y + 0.16, z - 0.26);
           });
+          // clarão na nuvem durante o ataque (sincronizado com os raios)
+          if (anim === 'attack' && at < 0.95) U.uFlash.value = Math.max(U.uFlash.value, Math.sin(t * 38) > 0.6 ? 0.18 : 0.04);
         },
         dispose() { M.dispose(root); },
       };

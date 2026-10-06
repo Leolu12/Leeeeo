@@ -804,11 +804,10 @@
         fa(G, 'ashamed', 2.0);
         if (r.multa) {
           G.achieve('olho_aguia');
-          await G.say('faisca', 'Vinte, não dez. Pegou de primeira. Eu misturei com o limite de 10% da multa por atraso, da página 19.');
+          await G.say('faisca', 'Vinte, não dez. Pegou de primeira. Confundi com os 10% da multa por atraso, da página 19. Dois números parecidos, perto um do outro: é aí que eu escorrego.');
         } else {
-          await G.say('faisca', 'Vinte, não dez. Esse passou, e era o mais caro. Eu misturei com o limite de 10% da multa por atraso, da página 19.');
+          await G.say('faisca', 'Vinte, não dez. Esse passou, e era o mais caro. Confundi com os 10% da multa por atraso, da página 19. Dois números parecidos, perto um do outro: é aí que eu escorrego.');
         }
-        await G.say('faisca', 'Número parecido, perto de outro número: é aí que eu escorrego.');
         const cet = G.flag('ceticismo') || prologoVars().ceticismo;
         if (cet === 'inventou') {
           await G.say('pai', 'Hoje cedo eu falei: ela inventa número. Taí.', { expr: 'desconfiado' });
@@ -850,8 +849,7 @@
           { from: 'ia', text: '*Cláusulas 5 a 11, uma por uma.* O ponto que importa:\n*Cl. 6 — Vigência e renovação (p. 38):* 5 anos, e *renova sozinho por mais 5* se ninguém avisar com 180 dias de antecedência.\nTrecho: “…será renovado automaticamente por iguais períodos, salvo manifestação contrária de qualquer das partes com antecedência mínima de 180 (cento e oitenta) dias do término.”\n⚠️ Essa não estava na minha primeira lista. Estava no meio e passou.', thinking: 2.0 },
         ], { title: 'Faísca', subtitle: 'ferramenta aprovada da empresa · por partes' });
         G.sceneParams({ chat: TELA.partes, typing: false });
-        await G.say('pai', 'Mais cinco anos no automático, se ninguém lembrar de avisar com seis meses de antecedência.', { expr: 'bravo' });
-        await G.say('pai', 'Isso é uma algema com laço de presente.', { expr: 'desconfiado' });
+        await G.say('pai', 'Mais cinco anos no automático, se ninguém lembrar de avisar com seis meses de antecedência. Uma algema com laço de presente.', { expr: 'bravo' });
         await G.say('faisca', 'E foi lendo por partes que ela apareceu. Textão? Fatie.', { cam: false });
         await G.say('pai', 'Agora me explica aquele “recomendo a assinatura” do começo.', { expr: 'desconfiado' });
         G.player.lookAt(G.faisca);

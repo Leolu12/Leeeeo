@@ -679,7 +679,7 @@
               },
             },
             {
-              id: 'janela', label: 'Olhar a cidade', icon: '🌆', at: 'janela', y: 1.05, optional: true,
+              id: 'janela', label: 'Olhar a cidade', icon: '🌆', at: 'janela', y: 2.0, optional: true, // alto: o rótulo não encavala com o da cabeceira
               onInteract: async (G) => {
                 G.player.lookAt({ x: 0.2, y: 1.2, z: -6 });
                 await G.say('pai', 'Lá embaixo, a marginal parada. Aqui em cima, a pauta parada. Pelo menos a marginal anda de madrugada.', { expr: 'desconfiado' });

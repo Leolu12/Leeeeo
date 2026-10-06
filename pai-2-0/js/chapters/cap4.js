@@ -170,6 +170,7 @@
 .c4-rule ul{margin:0;padding-left:1.15em;line-height:1.5}
 .c4-rule.pode{border-top:4px solid var(--mint)}
 .c4-rule.confira{border-top:4px solid #ff7a45}
+@media (max-width:520px){.c4-ask{flex-wrap:wrap;row-gap:2px}.c4-tag{order:-1;flex:1 0 100%;margin-left:0;padding-top:0}}
 @media (max-width:420px){.mg-card.c4-btn{min-height:62px;font-size:1em}.c4-tx{font-size:1em}.c4-stat b{font-size:1.5em}}
 `;
 
@@ -317,7 +318,8 @@
           if (it.jorge && ok) G.jorge.emote(it.jorge, 1.6);
           else if (!ok) G.jorge.emote('?', 1.2);
         }
-        try { fb.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) { /* navegador antigo */ }
+        // rola até o botão "Próxima" (no celular em pé a explicação fica logo acima dele)
+        try { acts.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) { /* navegador antigo */ }
         prox.focus({ preventScroll: true });
       }
       function avanca() {
@@ -362,7 +364,7 @@
     id: 'cap4',
     num: 'Capítulo 4',
     title: 'Detector de Lorota',
-    subtitle: 'Lei de grupo, número redondo e uma IA que concorda com o chefe',
+    subtitle: 'Lei de grupo, número sem conferir e uma IA que concorda com o chefe',
     music: 'misterio',
     minutes: 8,
     parts: [
@@ -396,7 +398,7 @@
         G.player.setLook(-0.06, -0.18);
         await G.fadeIn(0.5);
         await G.explore({
-          objetivo: 'Pausa para o café: vá até o aparador',
+          objetivo: 'Pausa para o café: vá até o bar',
           hotspots: [
             {
               id: 'tv', label: 'Olhar a pauta do dia', icon: '📺', pos: TV, reach: 2.1, optional: true,
