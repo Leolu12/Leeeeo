@@ -548,7 +548,7 @@ body.touch .hs-key { display: none !important; }
 /* ------------------------------------------------------------------ */
 /* Telas (preparação, capítulos, guia, créditos)                      */
 /* ------------------------------------------------------------------ */
-#screen, #overlay { position: fixed; inset: 0; z-index: 40; overflow-y: auto; background: radial-gradient(1000px 500px at 10% -10%, #26346a 0%, transparent 60%), rgba(8, 11, 24, 0.97); color: #eef1f8; opacity: 0; transition: opacity 0.3s; }
+#screen, #overlay { position: fixed; inset: 0; z-index: 40; overflow-y: auto; background: radial-gradient(1000px 500px at 10% -10%, #26346a 0%, transparent 60%), #080b18; color: #eef1f8; opacity: 0; transition: opacity 0.3s; }
 #overlay { z-index: 45; }
 #screen.show, #overlay.show { opacity: 1; }
 .screen-inner, .overlay-inner { width: min(980px, 100%); margin: 0 auto; padding: 26px 18px 48px; }
@@ -602,6 +602,12 @@ body.touch .hs-key { display: none !important; }
 .noscript { padding: 20px; color: #fff; }
 /* Guia do CEO */
 .guide-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 16px; }
+/* celular: as seções do guia viram uma faixa que rola para o lado, e o conteúdo aparece logo */
+@media (max-width: 640px) {
+  .guide-tabs { position: relative; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 4px; margin-right: -16px; padding-right: 16px; }
+  .guide-tabs::-webkit-scrollbar { display: none; }
+  .guide-tabs > * { flex: 0 0 auto; white-space: nowrap; }
+}
 .guide-sec { display: flex; flex-direction: column; gap: 12px; }
 .guide-item { background: #fff; color: var(--text); border-radius: 18px; box-shadow: var(--shadow); padding: 16px 18px; }
 .guide-item h3 { font-family: var(--head); font-weight: 800; margin: 0 0 6px; font-size: 1.05em; }

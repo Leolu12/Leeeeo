@@ -1,42 +1,20 @@
 # Como retomar o Pai 2.0
 
-Pausa em 06/10/2026, ~01h20 UTC, por fim dos créditos. Resumo do que está pronto: `dev/RELATORIO.md`. Tudo está na branch
+Resumo do que está pronto: `dev/RELATORIO.md`. Tudo está na branch
 `claude/pai-2-0-jogo` (PR #2, draft). Link de teste (privado):
 https://claude.ai/artifact/EZKn686ZBrUi8ZttjUZaQQ
 
-## Estado na pausa
+## Estado atual (06/10/2026, fim da tarde UTC)
 
 | Parte | Estado |
 |---|---|
 | Motor 3D, UI, salvamento, layout (desktop / celular em pé / deitado) | Pronto |
 | Fontes (154 fatos com selo) e Guia do CEO | Prontos |
-| Prólogo | Pronto, testado e revisado |
-| Capítulos 1–11 e Epílogo | Escritos por agentes; os agentes foram parados no meio do teste/revisão. Ver "Resultado dos testes" abaixo |
-| Personagens (rig.js, chars.js), cenários (env-*.js), som (audio.js) | Funcionam; o polimento final de direção de arte e a revisão do som foram interrompidos |
+| Prólogo e capítulos 1–11 e Epílogo | Revisados (completa: Prólogo e 1–5; focada: 6–11 e Epílogo) e testados de ponta a ponta no computador (filho) e no celular (filha) — ver `dev/RESULTADOS-TESTE.txt` |
+| Personagens, cenários | Polidos (direção de arte final) |
+| Som | Funciona; nomes conferidos; sem revisão de ouvido |
 
-## Resultado dos testes na pausa
-
-(autoplay de ponta a ponta, `q=low`, opção 1 em todas as escolhas)
-
-- **Todos os capítulos** (Prólogo, 1 a 11 e Epílogo) passaram de ponta a ponta, sem erro, e estão no
-  link de teste (versão 7).
-- Revisão rápida feita (só o crítico: honestidade, segurança, gênero do filho/filha, português, tom,
-  coerência) em todos os capítulos; ~20 correções; todos re-testados com sucesso (link versão 8).
-- Falta a revisão completa de cada capítulo (encenação, enquadramento, ritmo) e do jogo inteiro.
-
-### Pontos anotados na revisão rápida (para a próxima rodada)
-- cap2→cap3: se ele escreve o relatório na mão no cap2 (sai ~11h), o cap3 ainda abre com "Dez e meia".
-- cap2: Dona Marta avisa que o conselho vai perguntar de IA, mas ele já disse isso no cap1 (repetição).
-- Frases com fato real sem cartão de fonte ao lado: cap1 l.119 (Wharton), cap3 l.114 (fabricantes),
-  cap4 (multa por citação inventada; usar tjsc_chatgpt_multa), cap7 (executivos mais otimistas: o
-  cartão só aparece no fim), cap10 l.1150 (juiz mandou guardar conversas apagadas: retencao_judicial),
-  cap11 l.114 (Klarna: klarna_recuo_atendimento).
-- cap5: briefing da IA diz que Jorge tem "medo de perder o cliente" (IA lendo emoção de pessoa).
-- cap6: números da DRE são da empresa fictícia; talvez marcar como exemplo.
-- cap8: missão do exame manda valores reais (sem nome) para conta pessoal em chat temporário; revisar.
-- epílogo: número fictício da pesquisa da Luana ("metade do time") logo antes do cartão
-  microsoft_wti_byoai pode ser lido como o mesmo dado.
-- Testar todos os capítulos também com --filha e --mobile (a revisão rápida rodou só filho/desktop).
+O que ainda pode melhorar está no fim de `dev/RELATORIO.md`.
 
 ## Como retomar
 

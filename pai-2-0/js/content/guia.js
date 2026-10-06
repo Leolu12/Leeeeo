@@ -98,6 +98,9 @@
         b.addEventListener('click', () => { current = s.id; render(); if (P2.audio) P2.audio.sfx('select'); });
         tabs.appendChild(b);
       });
+      // no celular a faixa de seções rola para o lado: centraliza a seção aberta
+      const on = tabs.querySelector('.on');
+      if (on && tabs.scrollWidth > tabs.clientWidth) tabs.scrollLeft = Math.max(0, on.offsetLeft - (tabs.clientWidth - on.offsetWidth) / 2);
       body.innerHTML = '';
       const s = secs.find((x) => x.id === current);
       if (!s) return;
