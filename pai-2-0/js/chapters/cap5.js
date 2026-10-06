@@ -109,8 +109,10 @@
   const TOTAL = TRECHOS.length + ATA.length; // 15
 
   // De pé ao lado da cabeceira, virado para quem ficou na sala (Tadeu e Jorge)
-  const PAI_DE_PE = { x: 3.1, z: 0.7, rot: -0.92 };
-  const TADEU_DE_PE = { x: 2.15, z: 1.8, rot: Math.PI };
+  const PAI_DE_PE = { x: 3.1, z: 0.7, rot: -0.93 };
+  // Tadeu na quina da mesa, Jorge no centro: da cabeceira os dois cabem no quadro; da porta, ficam
+  // ~40° um do outro (no lugar antigo, o Jorge se despedia escondido atrás do Tadeu)
+  const TADEU_DE_PE = { x: 2.3, z: 1.55, rot: Math.PI };
   const CHAT_CARRO = [['eu', '🎙️ Reajuste aprovado, Rafael com o fornecedor, Tadeu com a carta, Bia com o caixa.'], ['ia', 'Anotado. Puxando os trechos da transcrição…']];
   const SLIDE_VELHA = { title: 'Pauta da reunião passada', lines: ['11 itens discutidos', 'Itens decididos: nenhum', 'Próxima reunião: terça, 14h'] };
   function slidePauta(sel) {
@@ -975,6 +977,8 @@
             { id: 'porta', label: 'Descer para o carro', icon: '🚗', at: 'porta', y: 1.3 },
           ],
         });
+        // a exploração termina ainda longe da porta (raio do ponto): ele chega até ela antes da despedida
+        await G.player.walkTo('porta');
         G.jorge.face(G.pai);
         await G.say('jorge', 'Até amanhã, chefe! Amanhã eu chego na hora. Quase.', { expr: 'rindo', anim: 'wave' });
       },
@@ -1002,7 +1006,7 @@
         G.pai.setAnim('sit');
         // Em 1ª pessoa, o 'centro' fica colado no rosto do pai: ela pousa entre os bancos da frente
         pousa(G, FAISCA_CARRO.x, FAISCA_CARRO.z, FAISCA_CARRO.y);
-        G.faisca.set({ scale: 0.85 });
+        G.faisca.set({ scale: 0.75 }); // a 0,8 m do rosto: menor, para não dominar o quadro no computador
         G.player.lookAt({ x: -1.2, y: 1.05, z: 0.1 }); // a rua pelo vão entre os bancos: o celular e a Faísca cabem no quadro
         await G.say('pai', 'Antigamente, eu passava esse trajeto tentando lembrar quem prometeu o quê.', { expr: 'cansado' });
         await G.say('faisca', 'Hoje a ata sai no caminho. Você fala, eu organizo. Falar é bem mais rápido que digitar no celular.', { anim: 'listen' });
