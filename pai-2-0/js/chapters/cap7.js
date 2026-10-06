@@ -1219,7 +1219,7 @@
         fa(G, 'teach', 1.8);
         await G.say('faisca', 'Dois estudos para o caminho. Num simulador de CEO, a IA foi ótima em tempo bom... e a primeira a ser demitida na crise.');
         await G.say('faisca', 'Em mais de cem experimentos, a dupla gente + IA tendeu a ganhar ao criar e a perder ao escolher. Quando a pessoa sabia mais que a IA, a dupla venceu.');
-        await G.say('pai', 'Trinta anos de assunto. Gostei dessa parte.', { expr: 'rindo' });
+        await G.say('pai', 'Décadas de assunto. Gostei dessa parte.', { expr: 'rindo' });
         G.talkCam(true);
         await G.fact(['ia_ceo_simulador', 'vaccaro_humano_ia'], { titulo: 'Conselheira, não oráculo' });
         await G.lesson('A IA amplia o seu raciocínio. *Peça o contra, não o a favor. A decisão é sua.*\n- Não conte antes o que você prefere.\n- Pré-mortem: imagine que deu errado e pergunte por quê.\n- Os pesos são seus; as notas da IA são opinião.\n- Ouça mais de uma opinião, e pelo menos uma de gente.\n- Decisão sobre pessoas fica com pessoas.', { titulo: 'O conselheiro de bolso' });

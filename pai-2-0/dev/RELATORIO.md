@@ -1,8 +1,8 @@
 # Pai 2.0 — relatório do que está pronto
 
-Situação em 06/10/2026, 01h20 (UTC). Branch `claude/pai-2-0-jogo`, PR #2 (rascunho).
+Situação em 06/10/2026, fim da tarde (UTC). Branch `claude/pai-2-0-jogo`, PR #2 (rascunho).
 
-**Para jogar agora:** https://claude.ai/artifact/EZKn686ZBrUi8ZttjUZaQQ (versão 8). O link é privado;
+**Para jogar agora:** https://claude.ai/artifact/EZKn686ZBrUi8ZttjUZaQQ (versão 9). O link é privado;
 para o seu pai abrir, compartilhe pelo menu Compartilhar da página. No computador também dá para
 abrir `pai-2-0/index.html` direto no navegador.
 
@@ -50,26 +50,26 @@ abrir `pai-2-0/index.html` direto no navegador.
 - Nunca senhas, documentos ou códigos de SMS na IA. Decisões sobre pessoas são dele.
 
 ### Testes e revisões feitos
-- Cada capítulo foi jogado de ponta a ponta pelo teste automático, sem erro (versão 8 do link).
-- Checagem automática: todas as chaves de fatos e de conquistas existem; nenhuma frase promete que a
-  IA não erra.
-- **Prólogo:** revisado com calma, frase por frase.
-- **Revisão rápida de todos os capítulos** (honestidade, segurança, gênero do filho ou filha,
-  português, tom, coerência): umas 20 correções, todas testadas e publicadas na versão 8.
-- **Revisão final (interrompida no meio para a pausa):** os agentes corrigiram as pendências de
-  texto e ajustaram a encenação a partir das capturas de tela, como filha no celular. Essas mudanças
-  estão salvas no git (commit da pausa), mas **ainda não estão no link**: o teste de confirmação no
-  computador não terminou. No celular, como filha, todos os capítulos chegaram ao fim; em 6 deles o
-  robô de teste não achou o botão "Ir até lá" por um instante (ver pendências).
+- **Revisão completa** (diretor de narrativa + QA, com testes no computador e no celular): Prólogo e
+  capítulos 1 a 5 (os revisores do 2 ao 5 foram parados já nos testes finais, para acelerar; o teste
+  final confirmou cada um). **Revisão focada** (texto, encenação, fontes, segurança): capítulos 6 a 11 e Epílogo.
+  Antes disso, todos já tinham passado pela revisão crítica de honestidade, segurança, gênero e português.
+- **Continuidade do jogo inteiro** conferida: horários (6h47 → 7h10 → 9h → 10h30 → 11h30 → 13h50 →
+  16h30 → 18h → noite em casa → 22h30 → 0h12 → quarta, 7h), lugares, quem está presente e os fios da
+  história (a aposta da louça, o relatório das 10h, o contrato do Tadeu, a reunião das 14h, a conta de
+  luz, o Jorge, a falsa Bia, a palavra-código, o veredito no café).
+- Repetição de "trinta anos" (aparecia ~35 vezes e supunha a carreira do pai) trocada por variações.
+- **Arte polida:** personagens (cabelos, golas, barbas, expressões, golpista, Dúvida), casa, escritório,
+  sala de reunião, carro, arena, sala de aula e tela inicial. **Som:** todos os efeitos e músicas usados
+  existem.
+- **Motor:** no celular em pé, a cena fica maior e ocupa a tela toda sem texto; botões e rótulos não
+  saem da tela; o campo de visão se adapta à tela estreita; a resolução baixa sozinha em aparelho fraco;
+  a cena é redesenhada na hora ao mudar de tamanho (sem piscar preto).
+- **Teste final** de ponta a ponta, sem erro, de todos os capítulos: no computador (filho) e no
+  celular (filha, escolhas aleatórias). Ver `dev/RESULTADOS-TESTE.txt`.
 
-## Falta (próxima sessão)
-
-1. Terminar a revisão final: rodar o teste de cada capítulo no computador e no celular com as
-   mudanças novas e publicar no link.
-2. Conferir por que, no celular, o botão "Ir até lá ▶" às vezes demora a aparecer quando a
-   exploração começa (capítulos 2, 5, 7, 8, 9 e 10).
-3. Revisão completa de encenação e ritmo de cada capítulo, e do jogo inteiro em sequência
-   (continuidade entre capítulos, números, português, visual).
-4. Polimento final da arte (personagens e cenários) e revisão da trilha sonora.
-
-O passo a passo para retomar está em `pai-2-0/dev/RETOMAR.md`.
+## O que ainda pode melhorar (opcional)
+- Conferir no celular de verdade os momentos que, no teste automático com a máquina sobrecarregada,
+  saíram escuros nas fotos (provavelmente só o tempo de transição).
+- Uma revisão completa (de uma hora) também nos capítulos 6 a 11, como a feita do 1 ao 5.
+- Trilha sonora: só foi conferida por nome; uma revisão de ouvido seria bem-vinda.
