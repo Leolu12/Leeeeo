@@ -806,13 +806,21 @@
     }, { repeat: [1, 1] });
     const dayTex = facade(false, '#ffffff', '#6f8aa6', null);
     const nightTex = facade(true, '#1a2040', '#141a34', 'rgba(255,220,160,0.9)');
-    const dayCols = o.dayCols || ['#f2e6d4', '#e8b896', '#c2ccd8', '#ddd4c6'];
+    // fachadas em tons de São Paulo: creme, tijolinho rosado, cinza-azulado, areia, sálvia
+    const dayCols = o.dayCols || ['#f2e6d4', '#e8b896', '#c2ccd8', '#ddd4c6', '#d9a58e', '#c9d3be', '#eed9a8'];
     const dayMats = dayCols.map((c) => k.tmat(dayTex, { color: c, rough: 0.85 }));
     const nightMat = k.bmat(nightTex, {});
     const roofMat = k.umat('#8a8a90', { rough: 0.9 });
+    const tankMat = k.umat('#c9c2b6', { rough: 0.85 }); // casa de máquinas / caixa d'água no topo
     const blocks = grp({ parent: g });
     const n = o.n || 34;
     const skip = o.skip || null; // função (ang) → true para não pôr prédio nessa direção
+    const part = (w, h, d, mat, x, y, z, ry) => {
+      const m = M.mesh(meterBox(w, h, d, 12), mat, { parent: blocks, pos: [x, y, z], rot: [0, ry, 0], cast: false });
+      m.receiveShadow = false;
+      m.geometry.userData.baked = true; // geometria própria (tamanhos aleatórios): não vai para o cache do M
+      return m;
+    };
     for (let i = 0; i < n; i++) {
       const ang = r() * PI * 2;
       if (skip && skip(ang)) continue;
@@ -820,10 +828,21 @@
       const near = Math.max(0, Math.min(1, (rad - 14) / 24));
       const bw = 5 + r() * 7, bd = 5 + r() * 7, bh = 8 + r() * (14 + near * (o.maxH || 22));
       const ci = i % dayMats.length;
-      const m = M.mesh(meterBox(bw, bh, bd, 12), dayMats[ci], { parent: blocks, pos: [Math.cos(ang) * rad, GY + bh / 2, Math.sin(ang) * rad], rot: [0, r() * PI, 0], cast: false });
-      m.receiveShadow = false;
-      m.geometry.userData.baked = true;
-      bx(bw * 0.4, 1.2, bd * 0.4, roofMat, { parent: blocks, pos: [Math.cos(ang) * rad, GY + bh + 0.6, Math.sin(ang) * rad], cast: false }).receiveShadow = false;
+      const cx = Math.cos(ang) * rad, cz = Math.sin(ang) * rad, ry = r() * PI;
+      const v1 = r(), v2 = r(), v3 = r();
+      part(bw, bh, bd, dayMats[ci], cx, GY + bh / 2, cz, ry);
+      let top = GY + bh;
+      // recuo no topo (prédios altos ganham um "bolo" mais estreito, silhueta menos de caixa)
+      if (bh > 18 && v1 > 0.45) {
+        const th = 3 + v2 * 6;
+        part(bw * 0.72, th, bd * 0.72, dayMats[ci], cx, top + th / 2, cz, ry);
+        top += th;
+      }
+      // platibanda + casa de máquinas / caixa d'água + antena
+      part(bw * (bh > 18 && v1 > 0.45 ? 0.74 : 1.02), 0.7, bd * (bh > 18 && v1 > 0.45 ? 0.74 : 1.02), roofMat, cx, top + 0.35, cz, ry);
+      const ox = (v3 - 0.5) * bw * 0.3;
+      part(2.6 + v2 * 1.6, 2.2 + v3 * 1.2, 2.4 + v1 * 1.4, tankMat, cx + Math.cos(ry) * ox, top + 0.7 + 1.2, cz - Math.sin(ry) * ox, ry);
+      if (v2 > 0.6) part(0.18, 4 + v3 * 5, 0.18, roofMat, cx - Math.cos(ry) * ox, top + 0.7 + 2.5, cz + Math.sin(ry) * ox, 0);
     }
     bake(blocks);
     // chão de quarteirões lá embaixo
@@ -847,8 +866,9 @@
       group: g,
       set(mood) {
         const night = mood === 'noite' || mood === 'amanhecer';
+        tankMat.color.set(night ? '#22263a' : mood === 'dourado' ? '#e2d2bc' : '#c9c2b6');
         blocks.children.forEach((m) => {
-          if (!m.isMesh || m.material === roofMat) return;
+          if (!m.isMesh || m.material === roofMat || m.material === tankMat) return;
           if (!m.userData.dayMat) m.userData.dayMat = m.material;
           m.material = night ? nightMat : m.userData.dayMat;
         });
@@ -2789,8 +2809,54 @@
       rb(1.26, 0.05, 0.66, 0.01, '#3a3638', { parent: ch, pos: [0, 0.925, 0.33] }, 1);
       brickBox(0.16, 0.75, 0.62, -0.52, 1.32, 0.31);
       brickBox(0.16, 0.75, 0.62, 0.52, 1.32, 0.31);
-      bx(0.88, 0.75, 0.02, '#1f1b1a', { parent: ch, pos: [0, 1.32, 0.02], cast: false });
-      for (let i = 0; i < 7; i++) bx(0.86, 0.008, 0.008, '#5a5a60', { parent: ch, pos: [0, 1.12, 0.08 + i * 0.07], cast: false });
+      // fornalha: tijolo refratário claro encardido de fuligem (escuro em cima, cinza de cinza embaixo) em vez de
+      // um vão preto chapado — de perto (ponto 'churrasqueira') lê como churrasqueira de verdade
+      const fireTex = k.tex(512, 448, (ctx, w, h) => {
+        const r = M.rng(17);
+        ctx.fillStyle = '#b9a688'; ctx.fillRect(0, 0, w, h);
+        const bh = 56, bw = 116;
+        for (let row = 0; row * bh < h; row++) for (let c = -1; c * bw < w; c++) {
+          const x = c * bw + (row % 2 ? bw / 2 : 0);
+          ctx.fillStyle = mix('#dcbc8e', r() > 0.5 ? '#c49a68' : '#e8cfa4', r() * 0.5);
+          ctx.fillRect(x + 4, row * bh + 4, bw - 8, bh - 8);
+        }
+        const g = ctx.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, 'rgba(24,17,13,0.95)'); g.addColorStop(0.45, 'rgba(30,22,17,0.72)'); g.addColorStop(0.8, 'rgba(40,32,26,0.4)'); g.addColorStop(1, 'rgba(70,62,56,0.3)');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+        ctx.filter = 'blur(10px)';
+        for (let i = 0; i < 14; i++) { ctx.fillStyle = 'rgba(15,10,8,' + (0.25 + r() * 0.3) + ')'; ctx.beginPath(); ctx.ellipse(r() * w, h * (0.15 + r() * 0.5), 30 + r() * 50, 50 + r() * 70, 0, 0, PI * 2); ctx.fill(); }
+        ctx.filter = 'none';
+      });
+      const fireMat = k.tmat(fireTex, { rough: 0.95 });
+      pl(0.88, 0.75, fireMat, { parent: ch, pos: [0, 1.32, 0.006], cast: false });
+      pl(0.6, 0.75, fireMat, { parent: ch, pos: [-0.437, 1.32, 0.31], rot: [0, PI / 2, 0], cast: false });
+      pl(0.6, 0.75, fireMat, { parent: ch, pos: [0.437, 1.32, 0.31], rot: [0, -PI / 2, 0], cast: false });
+      // teto da fornalha (boca da coifa) encardido + verga de granito na frente
+      pl(0.88, 0.62, '#2a211c', { parent: ch, pos: [0, 1.684, 0.31], rot: [PI / 2, 0, 0], cast: false });
+      rb(1.24, 0.07, 0.09, 0.01, '#3a3638', { parent: ch, pos: [0, 1.73, 0.6] }, 1);
+      // bandeja de carvão (morna de ontem: carvão preto + cinza)
+      bx(0.8, 0.035, 0.5, '#2a2a2e', { parent: ch, pos: [0, 0.968, 0.3], cast: false });
+      {
+        const rr = M.rng(29);
+        const coal = M.mat('#1d1b1b', { rough: 0.9 }), ash = M.mat('#77706a', { rough: 1 });
+        for (let i = 0; i < 30; i++) {
+          const isAsh = i % 4 === 0;
+          sp(0.022 + rr() * 0.018, isAsh ? ash : coal, { parent: ch, pos: [(rr() - 0.5) * 0.7, 0.99 + rr() * 0.012, 0.1 + rr() * 0.4], scale: [1.2, 0.6, 1], rot: [0, rr() * 3, 0], cast: false }, 7, 5);
+        }
+      }
+      // grelha de aço com moldura e alça
+      const steelG = M.mat('#8c8f94', { rough: 0.35, metal: 0.8 });
+      for (let i = 0; i < 9; i++) bx(0.84, 0.007, 0.007, steelG, { parent: ch, pos: [0, 1.12, 0.08 + i * 0.055], cast: false });
+      [0.07, 0.53].forEach((z) => bx(0.86, 0.012, 0.012, steelG, { parent: ch, pos: [0, 1.12, z], cast: false }));
+      [-0.425, 0.425].forEach((x) => bx(0.012, 0.012, 0.47, steelG, { parent: ch, pos: [x, 1.12, 0.3], cast: false }));
+      tor(0.04, 0.006, steelG, { parent: ch, pos: [0, 1.12, 0.55], rot: [PI / 2, 0, 0], cast: false }, PI);
+      // garfo e pegador pendurados na coluna esquerda
+      [[-0.56, 0.0], [-0.48, 0.12]].forEach(([x, a]) => {
+        cy(0.004, 0.004, 0.012, steelG, { parent: ch, pos: [x, 1.62, 0.628], rot: [PI / 2, 0, 0], cast: false }, 5);
+        tor(0.012, 0.003, steelG, { parent: ch, pos: [x, 1.6, 0.636], cast: false });
+        cy(0.011, 0.011, 0.11, '#6a4028', { parent: ch, pos: [x, 1.53, 0.636], cast: false }, 8);
+        cy(0.004, 0.004, 0.24, steelG, { parent: ch, pos: [x, 1.36, 0.636], rot: [0, 0, a * 0.1], cast: false }, 5);
+      });
       M.mesh(M.cylGeo(0.3, 0.52, 0.42, 4, false), hoodMat, { parent: ch, pos: [0, 1.9, 0.28], rot: [0, PI / 4, 0], scale: [1.15, 1, 0.82] });
       brickBox(0.46, 0.6, 0.36, 0, 2.4, 0.18);
       // utensílios

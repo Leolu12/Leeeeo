@@ -164,7 +164,7 @@
 .mg-card.c4-btn small{font-family:var(--body,inherit);font-weight:600;margin:0}
 .mg-card.c4-btn.right{box-shadow:0 0 0 3px rgba(45,191,143,.45)}
 .c4-btns.done .mg-card.c4-btn{min-height:46px;padding-top:8px;padding-bottom:8px}
-.c4-btns.done .mg-card.c4-btn small{display:none}
+.c4-btns.done .mg-card.c4-btn small,.c4-btns.done .c4-kbd{display:none}
 .c4-kbd{position:absolute;top:6px;left:8px;font-size:.66em;font-weight:800;background:rgba(20,30,60,.08);border-radius:6px;padding:.05em .45em;color:#5b6178}
 .c4-fb{display:flex;flex-direction:column;gap:6px}
 .c4-fb .c4-head{font-family:var(--head);font-weight:800}
