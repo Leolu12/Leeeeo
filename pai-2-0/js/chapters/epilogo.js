@@ -836,7 +836,7 @@
         '{apelido},',
         'Eu sei que você topou este dia meio a contragosto. Obrigad{oa} por topar mesmo assim.',
         'Eu nunca quis que você confiasse numa máquina. Eu queria que você tivesse mais tempo, e menos noite em claro com papel em cima da mesa.',
-        'Você passou trinta anos aprendendo a desconfiar do jeito certo: de relatório bonito demais, de número redondo demais, de pressa demais. É exatamente isso que a IA pede de quem usa.',
+        'Você passou a vida aprendendo a desconfiar do jeito certo: de relatório bonito demais, de número redondo demais, de pressa demais. É exatamente isso que a IA pede de quem usa.',
         'Se um dia ela te fizer perder tempo, me liga que eu ajudo. Se ela te poupar uma hora, gasta essa hora com a gente.',
         'Com orgulho (e um pouco de sono),',
       ].forEach((l) => box.appendChild(el('p', null, G.t(l))));
@@ -1138,7 +1138,7 @@
         G.sfx('phone_vibrate');
         G.toast('Dona Marta: "Uma página? Finalmente alguém com resposta curta para o conselho."', { icon: '💬', kind: 'notif', dur: 6 });
         await G.wait(1.0);
-        await G.say('pai', 'Vinte anos de conselho, e é a primeira vez que a Dona Marta elogia um documento meu pelo tamanho.', { expr: 'rindo' });
+        await G.say('pai', 'Anos de conselho, e é a primeira vez que a Dona Marta elogia um documento meu pelo tamanho.', { expr: 'rindo' });
         await G.fadeOut(0.5);
       },
 
@@ -1180,7 +1180,7 @@
         await G.say('faisca', 'Agora o mais importante. E o mais difícil: amanhã.', { anim: 'teach' });
         G.faisca.setAnim('idle');
         await G.say('faisca', 'Ontem foi um dia comigo do lado o tempo todo. O que muda a sua semana é um hábito pequeno, de manhã, escolhido por você.');
-        await G.say('pai', 'Hábito eu entendo. Café antes de qualquer coisa, há trinta anos.', { expr: 'neutro' });
+        await G.say('pai', 'Hábito eu entendo. Café antes de qualquer coisa, desde sempre.', { expr: 'neutro' });
         await G.say('faisca', 'Então a gente pendura no café. São planos "se… então…": se acontecer tal coisa, então eu faço tal coisa.');
         const plano = await miniDesafio(G);
         G.v.plano7 = plano;

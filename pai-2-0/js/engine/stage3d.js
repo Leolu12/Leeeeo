@@ -1261,6 +1261,8 @@
       renderer.domElement.style.height = '100%';
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      // setSize limpa o quadro: desenha de novo na hora para não piscar preto (ex.: ao fechar um minijogo no celular)
+      try { if (scene && camera) renderer.render(scene, camera); } catch (e) { /* o próximo quadro desenha */ }
     };
     resize();
     if (window.ResizeObserver) new ResizeObserver(resize).observe(wrap);
