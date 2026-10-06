@@ -1241,6 +1241,10 @@
       const velvet = M.mat('#365a6e', { rough: 0.85 });
       rb(1.95, 0.72, 0.08, 0.03, '#2d4a5a', { parent: deco, pos: [0, 0.86, -2.09] }, 2);
       for (let i = 0; i < 7; i++) rb(0.27, 0.66, 0.1, 0.05, velvet, { parent: deco, pos: [-0.83 + i * 0.277, 0.87, -2.04] }, 3);
+      // costas acabadas da cabeceira (chapa de madeira + 2 pés): nas órbitas por trás, com a parede do fundo
+      // escondida, ela aparecia como uma laje preta flutuando atrás da cama
+      rb(1.9, 0.68, 0.012, 0.004, '#a07a56', { parent: deco, pos: [0, 0.86, -2.136], cast: false }, 1);
+      [-0.9, 0.9].forEach((x) => bx(0.05, 0.52, 0.04, '#6e4a32', { parent: deco, pos: [x, 0.26, -2.11], cast: false }));
 
       // --- Cama box com saia + colchão + roupa de cama
       const bed = grp({ parent: deco, pos: [0, 0, -1.02] });
@@ -1557,7 +1561,12 @@
       // cômoda fica no chão (primeiro plano do plano geral; a TV continua na parede) e some quando a câmera
       // de cinema entra nela (plano 'dramatico', rente à parede da frente) ou chega perto por trás
       keepOnFloor(root, deco, dresser);
-      const fgCheck = fgHider([{ obj: dresser, x: -0.2, z: D / 2 - 0.24, w: 1.52, d: 0.5, top: 0.95, wallZ: D / 2 }]);
+      // o puff do canto também some nos planos baixos de fora da parede da frente (no plano 'porta' ele ficava
+      // na frente das pernas de quem está na porta, como se a pessoa estivesse em cima dele)
+      const fgCheck = fgHider([
+        { obj: dresser, x: -0.2, z: D / 2 - 0.24, w: 1.52, d: 0.5, top: 0.95, wallZ: D / 2 },
+        { obj: pouf, x: 1.28, z: 1.78, w: 0.52, d: 0.52, top: 0.45, wallZ: D / 2, near: 3.2 },
+      ]);
       // assar decoração estática (menos draw calls)
       bake(deco);
       S.walls.forEach((w) => bake(w.obj));
@@ -2050,15 +2059,29 @@
       [[-0.66, -0.36], [0.66, -0.36], [-0.66, 0.36], [0.66, 0.36]].forEach(([a, b]) => cy(0.03, 0.022, 0.68, '#7a4b2f', { parent: table, pos: [a, 0.34, b] }, 8));
       // trilho de mesa (linho)
       rb(1.56, 0.006, 0.34, 0.002, '#e8dcc6', { parent: table, pos: [0, 0.763, 0], cast: false }, 1);
-      fruitBowl(table, { pos: [0.05, 0.765, 0.02], seed: 7 });
+      // fruteira fora do centro: o ponto 'faisca' (sobre a mesa) fica no meio, e a Faísca sentava dentro das frutas
+      fruitBowl(table, { pos: [0.34, 0.765, 0.12], seed: 7 });
       // vasinho de flores fora da linha de visão entre as cabeceiras (mesa4 ↔ mesa2: o rosto de quem está em frente)
       plant(table, 'flor', { pos: [-0.24, 0.765, 0.3], potR: 0.045, potH: 0.12, pot: '#2f6f8a', seed: 5, n: 5 });
       mug(table, { pos: [-0.38, 0.765, -0.28], color: '#24324f' });
       cup(table, { pos: [0.42, 0.765, -0.26], band: '#2f6f8a' });
       // celular do pai na mesa
       rb(0.075, 0.009, 0.155, 0.008, '#1d1d24', { parent: table, pos: [-0.2, 0.77, -0.3], rot: [0, 0.3, 0] }, 1);
-      // jornal dobrado
-      rb(0.3, 0.012, 0.22, 0.003, '#e9e4d8', { parent: table, pos: [0.55, 0.77, 0.18], rot: [0, -0.3, 0], cast: false }, 1);
+      // jornal dobrado ao lado do lugar do pai (cabeceira mesa4)
+      const jornal = grp({ parent: table, pos: [-0.5, 0.77, 0.2], rot: [0, -1.27, 0] }); // manchete virada para quem senta na mesa4
+      rb(0.3, 0.012, 0.22, 0.003, '#e9e4d8', { parent: jornal, cast: false }, 1);
+      const jornalTex = k.tex(384, 288, (ctx, w, h) => {
+        ctx.fillStyle = '#efebe1'; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = '#1e1e24'; ctx.textAlign = 'center'; ctx.font = '700 40px Georgia, "Times New Roman", serif'; ctx.fillText('O DIÁRIO', w / 2, 44);
+        ctx.fillRect(14, 54, w - 28, 3); ctx.fillRect(14, 60, w - 28, 1);
+        ctx.font = '700 25px Georgia, serif'; ctx.textAlign = 'left'; ctx.fillText('IA chega ao escritório:', 16, 92); ctx.fillText('o que muda no trabalho', 16, 120);
+        ctx.fillStyle = '#9a9890'; ctx.fillRect(16, 134, 150, 104);
+        ctx.fillStyle = '#c4c2b8'; ctx.beginPath(); ctx.arc(90, 186, 26, 0, PI * 2); ctx.fill();
+        ctx.fillStyle = '#8a887f';
+        for (let i = 0; i < 11; i++) { ctx.fillRect(180, 138 + i * 13, (i % 4 === 3 ? 120 : 186), 5); }
+        for (let i = 0; i < 4; i++) ctx.fillRect(16, 248 + i * 11, w - 32 - (i === 3 ? 140 : 0), 4);
+      });
+      pl(0.29, 0.21, k.tmat(jornalTex, { rough: 0.9 }), { parent: jornal, pos: [0, 0.0066, 0], rot: [-PI / 2, 0, 0], cast: false });
       const chairs = { mesa1: [TX - 0.4, TZ - 0.95, 0], mesa3: [TX + 0.4, TZ - 0.95, 0], mesa2: [TX + 1.25, TZ, -PI / 2], mesa4: [TX - 1.25, TZ, PI / 2] };
       Object.keys(chairs).forEach((n) => { const c = chairs[n]; chair(deco, { x: c[0], z: c[1], rot: c[2], wood: '#7a4b2f', seat: '#e0a33a', back: 'palha' }); });
       // pendentes
@@ -2346,7 +2369,51 @@
       plant(F, 'palmeira', { pos: [-2.3, 0, 0.32], potR: 0.2, potH: 0.42, pot: '#2b2522', size: 0.95, seed: 8 });
       const slat = M.mat('#7a4e33', { rough: 0.7 });
       bx(2.6, 2.5, 0.02, '#3e2a1e', { parent: F, pos: [0, 1.25, 0.01], cast: false });
-      for (let i = 0; i < 26; i++) bx(0.055, 2.48, 0.03, slat, { parent: F, pos: [-1.27 + i * 0.1016, 1.25, 0.035], cast: false });
+      // ripas: atrás da TV (x ±0,73, y 0,9–1,74) ficam só os trechos de cima e de baixo — ripa escondida atrás da
+      // TV "vazava" em riscos escuros finos sobre a tela vista de longe
+      for (let i = 0; i < 26; i++) {
+        const x = -1.27 + i * 0.1016;
+        if (Math.abs(x) < 0.76) {
+          bx(0.055, 0.93, 0.03, slat, { parent: F, pos: [x, 0.01 + 0.465, 0.035], cast: false });
+          bx(0.055, 0.77, 0.03, slat, { parent: F, pos: [x, 1.71 + 0.385, 0.035], cast: false });
+        } else bx(0.055, 2.48, 0.03, slat, { parent: F, pos: [x, 1.25, 0.035], cast: false });
+      }
+      // luz de fundo âmbar atrás da TV (LED "bias light"): halo quente nas ripas em volta da tela — é o que dá
+      // aconchego à parede da TV vista do sofá (sem custo de luz: plano aditivo)
+      const haloTex = k.tex(256, 160, (ctx, w, h) => {
+        ctx.filter = 'blur(14px)';
+        ctx.fillStyle = 'rgba(255,255,255,1)';
+        ctx.fillRect(w * 0.2, h * 0.24, w * 0.6, h * 0.52);
+        ctx.filter = 'none';
+      });
+      const haloMat = k.bmat(haloTex, { add: true, color: '#ffb066', opacity: 0.5, fog: false, toneMapped: false });
+      const halo = pl(2.3, 1.45, haloMat, { parent: F, pos: [0, 1.32, 0.06], cast: false });
+      halo.userData.live = true; halo.renderOrder = 3;
+      // arandelas de latão dos dois lados do ripado: dois pontos quentes na parede fria da noite
+      const brassS = M.mat('#c9a25a', { rough: 0.35, metal: 0.7 });
+      const sconceIn = k.umat('#fff1d6', { side: 'double', emissive: '#ffbf6e', emissiveIntensity: 1.2 });
+      const washTexS = k.tex(128, 256, (ctx, w, h) => {
+        const up = ctx.createLinearGradient(0, h * 0.5, 0, 0); up.addColorStop(0, 'rgba(255,255,255,0.95)'); up.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = up; ctx.beginPath(); ctx.moveTo(w * 0.4, h * 0.5); ctx.lineTo(w * 0.6, h * 0.5); ctx.lineTo(w * 0.98, 0); ctx.lineTo(w * 0.02, 0); ctx.closePath(); ctx.fill();
+        const dn = ctx.createLinearGradient(0, h * 0.5, 0, h * 0.8); dn.addColorStop(0, 'rgba(255,255,255,0.6)'); dn.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = dn; ctx.beginPath(); ctx.moveTo(w * 0.42, h * 0.5); ctx.lineTo(w * 0.58, h * 0.5); ctx.lineTo(w * 0.72, h * 0.8); ctx.lineTo(w * 0.28, h * 0.8); ctx.closePath(); ctx.fill();
+        const c = ctx.createRadialGradient(w / 2, h * 0.5, 0, w / 2, h * 0.5, w * 0.5); c.addColorStop(0, 'rgba(255,255,255,0.7)'); c.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = c; ctx.fillRect(0, 0, w, h);
+      });
+      const sconceWash = k.bmat(washTexS, { add: true, color: '#ffae5a', opacity: 0.42, fog: false, toneMapped: false });
+      [-1.55, 1.55].forEach((sx) => {
+        cy(0.045, 0.045, 0.02, brassS, { parent: F, pos: [sx, 1.78, 0.01], rot: [PI / 2, 0, 0], cast: false }, 16);
+        cy(0.008, 0.008, 0.11, brassS, { parent: F, pos: [sx, 1.78, 0.07], rot: [PI / 2, 0, 0], cast: false }, 6);
+        M.mesh(M.cylGeo(0.085, 0.045, 0.13, 20, true), sconceIn, { parent: F, pos: [sx, 1.8, 0.13], cast: false });
+        cy(0.047, 0.047, 0.01, brassS, { parent: F, pos: [sx, 1.735, 0.13], cast: false }, 16);
+        const wsh = pl(0.95, 1.9, sconceWash, { parent: F, pos: [sx, 1.8, 0.012], cast: false });
+        wsh.userData.live = true; wsh.renderOrder = 3;
+      });
+      // brilho do LED sob o rack suspenso, no piso
+      const rackGlowTex = k.tex(256, 96, (ctx, w, h) => { ctx.filter = 'blur(12px)'; ctx.fillStyle = '#fff'; ctx.fillRect(w * 0.1, h * 0.12, w * 0.8, h * 0.45); ctx.filter = 'none'; });
+      const rackGlowMat = k.bmat(rackGlowTex, { add: true, color: '#ffa04a', opacity: 0.3, fog: false, toneMapped: false });
+      const rackGlow = pl(2.3, 0.8, rackGlowMat, { parent: live, pos: [0, 0.013, D / 2 - 0.42], rot: [-PI / 2, 0, 0], cast: false });
+      rackGlow.renderOrder = 3;
       const rack = grp({ parent: F, pos: [0, 0, 0] });
       rb(2.1, 0.42, 0.44, 0.015, '#efe6d6', { parent: rack, pos: [0, 0.33, 0.27] }, 1);
       [-0.7, 0, 0.7].forEach((x) => rb(0.68, 0.36, 0.015, 0.006, '#e2d6c2', { parent: rack, pos: [x, 0.33, 0.495] }, 1));
@@ -2543,6 +2610,15 @@
           lamp.userData.light.intensity = st8.lamp ? (alert ? 0.9 : 2.6) : 0;
           lampGlow.visible = st8.lamp;
           lampShadeMat.emissiveIntensity = st8.lamp ? (alert ? 0.45 : 1.0) : 0;
+          // LED atrás da TV + arandelas: âmbar aconchegante; no alerta viram brasas vermelhas fracas
+          haloMat.color.set(alert ? '#ff3a30' : '#ffb066');
+          haloMat.opacity = alert ? 0.22 : tv !== 'off' ? 0.5 : 0.34;
+          sconceWash.color.set(alert ? '#ff4a30' : '#ffae5a');
+          sconceWash.opacity = alert ? 0.12 : 0.42;
+          sconceIn.emissive.set(alert ? '#ff4a30' : '#ffbf6e');
+          sconceIn.emissiveIntensity = alert ? 0.4 : 1.2;
+          rackGlowMat.color.set(alert ? '#ff3020' : '#ffa04a');
+          rackGlowMat.opacity = alert ? 0.12 : 0.3;
           if (S.ceiling) { S.ceiling.userData.led.emissiveIntensity = alert ? 0 : 1.1; S.ceiling.userData.setGlow(alert ? 0 : 0.06, '#ffd9a8'); }
         },
         update(t) {
@@ -2559,6 +2635,7 @@
             tvGlow.material.opacity = 0;
             phoneGlow.material.opacity = 0.2 + pulse * 0.45;
             phoneGlow.scale.setScalar(0.9 + pulse * 0.9);
+            haloMat.opacity = 0.08 + pulse * 0.3;
             tvLight.position.set(0.12, 0.9, -0.42);
             tvLight.distance = 3.6;
             setBg(M.mix('#0a0206', '#2a050c', pulse));

@@ -30,9 +30,6 @@
   // direção da visão; olhar para ela assim faz a visão girar sem parar.
   const FA_MESA = { x: 0.4, z: -1.2 };
   const PLANO_TIJOLO = { target: [-1.31, 1.15, -1.79], yaw: 1.88, pitch: 0.17, dist: 3.15, fov: 38 };
-  // A revelação na tela: o plano 'tela' do cenário (sobre o ombro, centrado no monitor) desviado ~9° para a
-  // direita, para a Faísca (que fala nele) caber inteira também no celular em pé.
-  const PLANO_TELA = { target: [0.7, 1.02, -1.26], yaw: -3.016, pitch: 0.36, dist: 1.44, fov: 40 };
   const TV = ['Hoje · terça-feira', '✓ Relatório do conselho', '✓ Cliente e pauta das 14h', '→ Contrato do fornecedor', '14h · Reunião de diretoria'];
   const ARQUIVO = 'Contrato_Fornecedor_v3.pdf';
   const MIN_POUPADOS = 140; // estimativa do jogo: ~3h de leitura atenta → ~40 min com a IA, conferindo
@@ -219,6 +216,7 @@
   .k3-ln .k3-n { flex: 0 0 auto; width: 1.7em; text-align: right; font-family: var(--head); font-size: 0.78em; font-weight: 800; color: #b0a794; padding-top: 0.2em; }
   .k3-ln .k3-lt { flex: 1 1 auto; }
   .k3-ln.oculto .k3-lt { color: #fdfdfb; font-size: 0.82em; }
+  @media (min-width: 860px) { .k3-annex .k3-ln { min-height: 36px; padding-top: 5px !important; padding-bottom: 5px !important; } }
   .k3-ln.dim:not(.oculto) { opacity: 0.45; }
   .k3-annex.sel .k3-lt { background: #cfe2ff; }
   .k3-annex.sel .k3-ln.oculto .k3-lt { background: #2f6fe0; color: #fff; }
@@ -879,17 +877,19 @@
         // a revelação (sobre o ombro, a tela)
         G.sceneParams({ chat: r.achou ? TELA.achada : TELA.injecao, typing: false });
         G.player.cine();
-        await G.cam.shot(PLANO_TELA, 0);
+        // Sobre o ombro, a prova na tela; a confissão vem em off. Depois, de volta aos olhos dele, a Faísca explica
+        // olhando para ele (no plano 'tela' ela fica atrás do ombro do pai, e no celular sai do quadro).
+        await G.cam.shot('tela', 0);
         await G.letterbox(true, 0.35);
         G.music('tensao');
         G.sfx('glitch');
         fa(G, 'ashamed', 2.4);
         await G.say('faisca', 'Era isso. Eu li essa frase como se fosse um pedido seu. E, no primeiro resumo, obedeci.', { cam: false });
-        await G.say('faisca', 'Isso tem nome: *injeção de instruções*. Documento que vem de fora pode trazer ordens escondidas para a IA.', { cam: false });
         await G.letterbox(false, 0.3);
         G.player.fp();
         G.player.lookAt(G.faisca);
         G.music('misterio');
+        await G.say('faisca', 'Isso tem nome: *injeção de instruções*. Documento que vem de fora pode trazer ordens escondidas para a IA.', { cam: false });
         if (r.achou) await G.say('pai', 'Já vi muita letra miúda nesta vida. Letra invisível, é a primeira vez.', { expr: 'bravo' });
         else await G.say('pai', 'Já vi muita letra miúda nesta vida. Letra invisível, é a primeira vez. No papel, eu nunca teria achado.', { expr: 'bravo' });
         await G.say('faisca', 'Ainda bem que o meu chefe desconfia até de bom-dia.');

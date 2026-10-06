@@ -875,9 +875,11 @@
           await G.say('rafael', 'O fornecedor de embalagens atrasou de novo. Terceira vez no trimestre.', { expr: 'cansado', emote: 'sweat' });
           await G.say('tadeu', 'E aquele contrato de oitenta páginas tem multa por atraso. Que a gente nunca cobrou.', { expr: 'desconfiado' });
           await G.say('pai', 'Rafael, a conversa com o fornecedor é sua. Tadeu, a carta de cobrança.');
-          // close no Tadeu: o “13” que a transcrição vai ouvir como “30” (câmera sobre o meio da mesa)
-          await G.cam.focus(tadeu, 'close', { yaw: tadeu.rot + 0.3, pitch: 0.08, dur: 0.5 });
+          // Close no Tadeu, de frente (fala para a mesa): o “13” que a transcrição vai ouvir como “30”
+          tadeu.lookAt(null);
+          await G.cam.focus(tadeu, 'close', { yaw: tadeu.rot + 0.25, pitch: 0.06, zoom: 1.45, dur: 0.5 });
           await G.say('tadeu', 'A carta sai até o dia *13*. Sem falta.', { expr: 'determinado' });
+          tadeu.lookAt(G.pai);
           if (tem('slides')) {
             await G.say('jorge', 'Agora, rapidinho: slide 23 de 40. As tendências para 2030!', { expr: 'empolgado' });
             await G.narrate('Às 15h, ninguém lembra de tendência nenhuma. Só do slide 23.');
@@ -903,7 +905,8 @@
           await G.say('luana', 'E as contratações do turno novo? Doze ou oito?', { expr: 'pensativo' });
           await G.say('bia', 'Depende de o reajuste pegar. Sem esse número, não fecho.', { expr: 'desconfiado' });
           await G.say('pai', 'Então fica para a próxima. Reunião encerrada.', { expr: 'cansado' });
-          await G.cam.focus(jorge, 'close', { yaw: jorge.rot + 0.3, pitch: 0.08, dur: 0.5 });
+          jorge.lookAt(null);
+          await G.cam.focus(jorge, 'close', { yaw: jorge.rot + 0.25, pitch: 0.06, zoom: 1.45, dur: 0.5 });
           G.fx.confetti(jorge);
           await G.say('jorge', 'Uma hora e quarenta! Nunca terminou tão cedo!', { expr: 'empolgado', emote: 'star' });
           ditos.fim = true;
