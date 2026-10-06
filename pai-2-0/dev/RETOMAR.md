@@ -18,8 +18,8 @@ https://claude.ai/artifact/EZKn686ZBrUi8ZttjUZaQQ
 
 (autoplay de ponta a ponta, `q=low`, opção 1 em todas as escolhas)
 
-- Passaram de ponta a ponta, sem erro, e estão no link de teste (versão 5): **Prólogo, 1, 2, 3, 4, 6, 8, 9 e 10**.
-- Ainda testando quando a sessão pausou: 5, 7, 11 e Epílogo (os arquivos estão completos;
+- Passaram de ponta a ponta, sem erro, e estão no link de teste (versão 5): **Prólogo, 1, 2, 3, 4, 6, 8, 9, 10 e Epílogo**.
+- Ainda testando quando a sessão pausou: 5, 7 e 11 (os arquivos estão completos;
   falta confirmar no teste). Resultado em `dev/RESULTADOS-TESTE.txt` se chegou a sair.
 - Nenhum capítulo além do Prólogo teve a revisão final completa (os agentes pararam no meio).
 
