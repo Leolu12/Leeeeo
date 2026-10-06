@@ -752,7 +752,7 @@
         const cet = G.flag('ceticismo') || prologoVars().ceticismo;
         if (cet === 'inventou') {
           await G.say('pai', 'Hoje cedo eu falei: ela inventa número. Taí.', { expr: 'desconfiado' });
-          await G.say('faisca', r.multa ? 'Taí. E você achou em segundos, com a página aberta. Isso é método, não sorte.' : 'Taí. E a página aberta mostrou na hora. É para isso que ela vem junto.');
+          await G.say('faisca', r.multa ? 'Tem razão. E você achou em segundos, com a página aberta. Isso é método, não sorte.' : 'Tem razão. E a página aberta mostrou na hora. É para isso que ela vem junto.');
         } else if (cet === 'modinha') {
           await G.say('pai', 'Modinha que lê oitenta páginas em quarenta segundos e erra a multa. Hum.', { expr: 'desconfiado' });
           await G.say('faisca', 'Lê rápido e erra às vezes. Por isso o seu olho vale tanto.');

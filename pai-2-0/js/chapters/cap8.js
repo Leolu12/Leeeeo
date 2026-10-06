@@ -92,7 +92,7 @@
     },
     {
       id: 'viagem', icon: '🧳', titulo: 'Fim de semana fora', post: 'Fim de semana fora (sem estourar)', cor: '#a8e6cf', rot: -1.5,
-      sit: 'Feriado chegando. A ideia: duas noites fora, de carro, você e {filho}. Orçamento: R$ 2.500 no total. {Filhoa} quer trilha; você quer comer bem e dormir cedo. Saída na sexta à noite.',
+      sit: 'Feriado chegando. A ideia: duas noites fora, de carro, você e {filho}. Orçamento: R$ 2.500 no total. {Eleela} quer trilha; você quer comer bem e dormir cedo. Saída na sexta à noite.',
       intro: 'Planejar viagem é comigo. Fechar a reserva é com você. Como pede?',
       opcoes: [
         {
@@ -172,7 +172,7 @@
     },
     {
       id: 'presente', icon: '🎁', titulo: 'Um presente', post: 'Presente (segredo!)', cor: '#d9c2ff', rot: 2.5,
-      sit: 'Você quer dar um presente para {filho}. Sem data, sem motivo: só porque sim. Até R$ 500. {Filhoa} gosta de cozinhar, de trilha e de música dos anos 80 (culpa sua: anos de rádio no carro).',
+      sit: 'Você quer dar um presente para {filho}. Sem data, sem motivo: só porque sim. Até R$ 500. {Eleela} gosta de cozinhar, de trilha e de música dos anos 80 (culpa sua: anos de rádio no carro).',
       intro: 'Opção eu gero aos montes. Quem conhece {filho} é você. Como pede?',
       opcoes: [
         {

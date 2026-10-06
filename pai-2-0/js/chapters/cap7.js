@@ -902,7 +902,7 @@
         G.player.lookAt(MONITOR);
         await G.say('faisca', 'Você está com cara de quem já decidiu e só procura alguém para assinar embaixo.');
         await G.say('pai', 'Quero a sua opinião sobre a Vale Verde. Você leu a proposta e a planilha do Osvaldo.', { expr: 'neutro' });
-        await G.say('faisca', 'Li. Aqui, na ferramenta aprovada da empresa: compra que ainda não foi anunciada é assunto de conselho. Daqui não sai.');
+        await G.say('faisca', 'Li, aqui na ferramenta aprovada da empresa. Compra que ainda não foi anunciada é assunto de conselho: num chat pessoal, nem pensar.');
         await G.say('pai', 'Diga isso ao grupo do Jorge.', { expr: 'rindo' });
         fa(G, 'jump', 1);
         await G.say('faisca', 'Então pergunte. Do jeito que você quiser.');
@@ -1172,7 +1172,7 @@
         G.toast('{filho}: "Chega que horas, {apelido}? A geladeira está com cara de desafio 😅"', { icon: '💬', kind: 'notif', dur: 7 });
         await G.wait(0.8);
         const cet = varDe('prologo', 'ceticismo');
-        if (cet === 'inventou') await G.think('pai', 'Hoje cedo eu disse que ela inventava números. À tarde ela inventou uma importação... e eu peguei.', { expr: 'orgulhoso' });
+        if (cet === 'inventou') await G.think('pai', 'Hoje cedo eu disse que ela inventava números. Agora há pouco ela inventou uma importação... e eu peguei.', { expr: 'orgulhoso' });
         else if (cet === 'modinha') await G.think('pai', 'Modinha, eu disse hoje cedo. Modinha que faz pré-mortem.', { expr: 'pensativo' });
         else if (cet === 'caneta') await G.think('pai', 'Papel e caneta, eu disse hoje cedo. A caneta continua minha. Só que agora risca mais rápido.', { expr: 'orgulhoso' });
         if (G.flag('aposta')) await G.think('pai', 'E aquela aposta da louça está ficando difícil de ganhar.', { expr: 'sem_graca' });

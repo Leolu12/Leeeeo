@@ -1213,8 +1213,8 @@
         G.toast('Jorge: "{pai}!! Me ensina esse negócio de IA? No grupo estão dizendo que ela declara o imposto de renda sozinha. É verdade???"', { icon: '💬', kind: 'notif', dur: 7 });
         await G.wait(1.4);
         await G.say('pai', 'O Jorge.', { expr: 'rindo' });
-        await G.say('filho', 'O Jorge do "tá no grupo dos empresários"?', { expr: 'rindo' });
-        await G.say('pai', 'Ele mesmo. Quer aula.', { expr: 'orgulhoso' });
+        await G.say('filho', 'O Jorge do grupo Empresários do Bairro?', { expr: 'rindo' });
+        await G.say('pai', 'Ele mesmo. Quer aula. E já chegou com lorota: imposto de renda ela não declara sozinha.', { expr: 'orgulhoso' });
         const rj = await G.choose([
           { text: '"Ensino. Amanhã, 8h, no café. Traz uma tarefa chata de verdade."', value: 'tarefa' },
           { text: '"Ensino. Primeira lição: não acredita em tudo que chega no grupo."', value: 'grupo' },

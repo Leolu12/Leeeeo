@@ -83,7 +83,7 @@
       chat: [['eu', 'Rascunhe uma resposta ao Vicente, do Grupo Horizonte, sobre o atraso. Tom humano, sem enrolar.'], ['ia', 'Rascunho pronto. Revise o tom e as promessas antes de enviar.']],
       fatos: [
         { quem: 'Você', txt: 'O Vicente é cliente há *12 anos*, o maior que temos no Sul. Gosta de ser chamado pelo primeiro nome.' },
-        { quem: 'Rafael', txt: 'Causa: o *fornecedor de embalagens* atrasou, e *nós não avisamos* o cliente a tempo.' },
+        { quem: 'Rafael', txt: 'Causa: não foi a transportadora. O *fornecedor de embalagens* atrasou, e *nós não avisamos* o cliente a tempo.' },
         { quem: 'Rafael', txt: 'Nova entrega garantida: *sexta-feira, até as 12h*.' },
         { quem: 'Você', txt: 'Compensação aprovada: *só o frete desta entrega* por nossa conta.' },
       ],
@@ -728,7 +728,7 @@
         await G.narrate('A Sônia está de folga hoje, mas ontem deixou a manhã programada na TV, como sempre. E o relógio, como sempre, já está andando.');
         G.player.lookAt(null);
         await G.say('faisca', 'Antes de tudo: de manhã, no seu celular, eu estava numa conta pessoal. Aqui eu rodo na conta da empresa, a que a TI aprovou e que não treina com os seus dados.', { expr: 'neutro' });
-        await G.say('faisca', 'Relatório do conselho numa conta gratuita qualquer? Nem pensar. Isso eu mesma não deixaria.');
+        await G.say('faisca', 'Relatório do conselho numa conta gratuita qualquer? Nem pensar. E eu não te impeço de colar: quem segura é você.');
         await G.say('pai', 'E quem garante que essa tal conta da empresa não espalha nada?', { expr: 'desconfiado' });
         await G.say('faisca', 'O contrato da empresa com o fornecedor, e a TI, que conferiu as configurações. Ainda assim: senha e código do banco, nem aqui.', { expr: 'neutro' });
         await G.say('faisca', 'E a regra da manhã: em cada tarefa, três jeitos. Você faz sozinho; eu rascunho e você revisa; ou eu faço e você manda sem ler.');

@@ -679,7 +679,8 @@
         G.player.lookAt(null);
         await G.say('pai', 'Toda terça é igual. Duas horas de reunião. Na quarta, ninguém lembra quem ficou com o quê.', { expr: 'cansado' });
         await G.say('faisca', 'Posso ajudar antes, durante e depois. Antes: uma pauta enxuta e o que cada diretor deve trazer.', { anim: 'teach' });
-        await G.say('faisca', 'Lembrando: aqui eu rodo na ferramenta aprovada pela empresa, com o acesso ao seu e-mail e à agenda que a TI liberou. E ela não treina com os seus dados.');
+        await G.say('faisca', 'Lembrando: aqui eu rodo na ferramenta aprovada pela empresa, com o acesso ao e-mail e à agenda que a TI liberou.');
+        await G.say('faisca', 'E essa ferramenta não treina com os dados da empresa.');
         await G.say('pai', 'Então junta os pedidos de pauta que chegaram. Mas quem fecha a pauta sou eu.', { expr: 'determinado' });
 
         const pauta = await miniPauta(G);
@@ -700,7 +701,7 @@
         }
 
         // Briefing no estilo Nadella (com a ressalva honesta)
-        await G.say('faisca', 'Agora, um pedido de CEO. O da Microsoft contou em público que faz este ao assistente dele.', { anim: 'teach' });
+        await G.say('faisca', 'Agora, um pedido que o CEO da Microsoft contou, em público, que faz ao assistente dele.', { anim: 'teach' });
         await G.fact('nadella_cinco_prompts');
         await G.aiChat([
           { from: 'voce', text: 'Com base nas minhas conversas recentes com cada diretor: o que deve estar na cabeça de cada um para hoje? E o que cada um precisa trazer?' },

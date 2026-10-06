@@ -547,7 +547,7 @@
           botao: 'Anotado',
         });
         await G.say('pai', 'Revisor-chefe.', { expr: 'orgulhoso' });
-        await fsay(G, 'O cargo é seu. Ninguém revisa diretor novo melhor que você.');
+        await fsay(G, 'O cargo é seu. E ninguém confere estagiário novo melhor que você.');
         await G.fadeOut(0.5);
       },
 
@@ -597,7 +597,8 @@
         G.faisca.face(G.pai, true);
         await G.cam.focus(G.faisca, 'close', { yaw: Math.PI + 0.55, pitch: 0.1, dur: 0.8 });
         fa(G, 'ashamed', 2.2);
-        await fsay(G, 'Pois é. Fiz de propósito, para você ver. Mas acontece de verdade, sem querer: a IA tende a dar razão a quem pergunta. Os próprios fabricantes admitem. Você duvidou, eu virei.');
+        await fsay(G, 'Pois é. Fiz de propósito, para você ver. Mas acontece de verdade, sem querer: a IA tende a dar razão a quem pergunta.');
+        await fsay(G, 'Os próprios fabricantes admitem. Você duvidou, eu virei.');
         await fsay(G, 'Para um CEO, isso é perigoso. Você já vive cercado de gente que hesita em discordar do chefe. Não precisa de mais um sim-senhor.');
         G.player.fp();
         G.faisca.follow(G.pai);

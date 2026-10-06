@@ -468,7 +468,7 @@
     { ic: '🪪', t: 'Foto do seu RG, frente e verso', c: 'r', why: 'Documento com foto é matéria-prima de conta falsa e de golpe. Não vai para IA, nem “só para preencher um cadastro”.' },
     { ic: '📄', t: 'Um contrato com cliente, com nomes e valores', c: 'y', why: 'Pode usar IA, sim, mas só na ferramenta aprovada pela empresa (plano que não treina com os seus dados). Na conta pessoal grátis, nunca: nem com os nomes trocados.' },
     { ic: '🏛️', t: 'A ata da última reunião do conselho', c: 'y', why: 'Material do conselho fica no ambiente da empresa. Na conta pessoal, nem com os nomes trocados.' },
-    { ic: '👥', t: 'A planilha de salários, com o nome de cada funcionário', c: 'y', why: 'Dado pessoal de funcionário: só na ferramenta da empresa, se a regra interna permitir, e de preferência sem nomes. Pela LGPD, quem cola pode responder por eles.' },
+    { ic: '👥', t: 'A planilha de salários, com o nome de cada funcionário', c: 'y', why: 'Dado pessoal de funcionário: só na ferramenta da empresa, se a regra interna permitir, e de preferência sem nomes. Pela LGPD, a empresa responde por esses dados.' },
     { ic: '📈', t: 'Os números do trimestre, antes da divulgação', c: 'y', why: 'Resultado não divulgado é sigiloso. Na ferramenta aprovada, a IA ajuda a analisar. Fora dela, vira vazamento.' },
     { ic: '🍰', t: 'A receita do bolo de fubá que {filho} adora', c: 'g', why: 'Pode à vontade. Nada sensível: é o tipo de pedido em que a IA ajuda muito e não tem risco nenhum.' },
     { ic: '✉️', t: 'Um e-mail genérico de boas-festas para os clientes', c: 'g', why: 'Texto genérico, sem nomes nem valores: pode. Só revise o tom antes de mandar com a sua assinatura.' },
@@ -1191,7 +1191,7 @@
               id: 'celular', label: 'Bloquear os números', icon: '📵', pos: { x: PHONE_POS.x, y: 0.55, z: PHONE_POS.z }, reach: 1.6, optional: true,
               onInteract: async (G) => {
                 await G.narrate('Você bloqueia os dois números e denuncia no aplicativo.');
-                await G.say('faisca', 'Isso ajuda a derrubar a conta deles. E amanhã a Bia avisa o banco.');
+                await G.say('faisca', 'Isso pode ajudar a derrubar a conta deles. E amanhã a Bia avisa o banco.');
               },
             },
           ],

@@ -46,7 +46,7 @@
       rows: ['rec', 'cpv', 'lb'],
       main: 'Vocês venderam *12% a mais*: de R$ 125 para R$ 140 milhões. Só que o custo das vendas subiu *14,7%*. O custo correu mais rápido que a receita.',
       alts: [
-        'Olhe o lucro bruto: vendemos *R$ 15 milhões a mais* e ele ficou parado, 22,5 → 22,4. O crescimento inteiro foi comido pelo custo.',
+        'Olhe o lucro bruto: vocês venderam *R$ 15 milhões a mais* e ele ficou parado, 22,5 → 22,4. O crescimento inteiro foi comido pelo custo.',
         'Em uma frase para o conselho: *crescemos em vendas, mas cada venda ficou mais cara de entregar.*',
       ],
       conta: 'Receita: 140,0 ÷ 125,0 = 1,120 → *+12,0%*\nCusto: 117,6 ÷ 102,5 = 1,147 → *+14,7%*\nLucro bruto: 22,4 − 22,5 = *−0,1*',
@@ -792,7 +792,7 @@
         await G.say('pai', 'Achei que computador fosse bom de conta.', { expr: 'desconfiado' });
         G.faisca.setAnim('teach');
         await G.cam.focus(G.faisca, 'close', { side: -1, dur: 0.6 });
-        await G.say('faisca', 'Calculadora é. Eu sou outra coisa: escrevo números do jeito que escrevo palavras. Para ler, explicar e organizar, sou ótima. Para fazer a conta, chame a planilha.');
+        await G.say('faisca', 'Calculadora é. Eu sou outra coisa: escrevo números do jeito que escrevo palavras. Para ler, explicar e organizar, eu ajudo bem. Para fazer a conta, chame a planilha.');
         G.faisca.setAnim('idle');
         G.player.fp();
         G.talkCam(true);

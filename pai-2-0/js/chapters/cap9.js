@@ -810,7 +810,7 @@
         await G.say('pai', 'Turma pequena.', { expr: 'desconfiado' });
         await G.say('faisca', 'Só você. Aqui ninguém ri de pergunta. Nem eu. Principalmente eu.', { anim: 'teach' });
         await G.say('pai', 'Na empresa, quem pergunta demais parece que não sabe.', { expr: 'pensativo' });
-        await G.say('faisca', 'Aqui, quem pergunta demais aprende mais rápido. E fica entre nós.');
+        await G.say('faisca', 'Aqui, quem pergunta demais aprende mais rápido. E ninguém revira os olhos.');
         await G.say('faisca', 'Primeiro, o plano. Você pede do jeito certo: a matéria, o tempo por dia, o prazo e uma meta pequena por semana. Eu rascunho. A caneta é sua.');
         G.player.lookAt(QUADRO_OLHAR);
         const r = await miniPlano(G, c);
@@ -939,8 +939,8 @@
         await G.say('pai', 'Depois disso, eu digo o que a empresa vai fazer. Mas isso eu decido amanhã, com café.', { expr: 'determinado' });
 
         // honestidade: hoje foi o primeiro dia
-        await G.say('faisca', 'Uma coisa honesta antes de você dormir: hoje foi só o primeiro dia. Quem estuda o assunto calcula de cinco a dez horas de uso de verdade, em tarefa real, para pegar o jeito.');
-        await G.say('pai', 'Dez horas, no máximo. Menos que um voo para a Europa.', { expr: 'pensativo' });
+        await G.say('faisca', 'Uma coisa honesta antes de você dormir: hoje foi só o primeiro dia. Quem estuda o assunto fala em umas dez horas de uso de verdade, em tarefa real, para pegar o jeito.');
+        await G.say('pai', 'Dez horas. Menos que um voo para a Europa.', { expr: 'pensativo' });
         await G.say('faisca', 'E tem uma vantagem sua: eu ajudo mais quem sabe julgar a resposta. Trinta anos de estrada contam a favor, não contra.', { anim: 'teach' });
         await G.say('faisca', 'Até o CEO da Nvidia recomenda: “arrume um tutor de IA”. Claro, ele vende chip para IA. Desconto aplicado.');
         await G.say('pai', 'Gostei do desconto. É o primeiro vendedor de tecnologia que me oferece um.', { expr: 'rindo' });
