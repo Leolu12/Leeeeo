@@ -1886,7 +1886,7 @@
       // pequenos objetos (caneca, porta-canetas, celular, porta-retrato, placa)
       const sm2 = new Merger();
       sm2.cyl(0.042, 0.04, 0.1, '#f4f1ea', [DX + 0.1, 0.8, DZ - 0.32], null, 18);
-      sm2.cyl(0.036, 0.036, 0.004, '#3a2014', [DX + 0.1, 0.848, DZ - 0.32], null, 18);
+      sm2.cyl(0.036, 0.036, 0.004, '#3a2014', [DX + 0.1, 0.8505, DZ - 0.32], null, 18);   // café 2,5 mm acima da borda (sem z-fighting com a tampa do cilindro)
       sm2.tor(0.03, 0.008, '#f4f1ea', [DX + 0.15, 0.8, DZ - 0.32], [0, 0, 0]);
       sm2.cyl(0.035, 0.035, 0.1, '#1d1d20', [DX - 0.62, 0.8, DZ - 0.32], null, 14);
       for (let i = 0; i < 4; i++) sm2.cyl(0.004, 0.004, 0.14, ['#1b2233', '#c9a25e', '#7a2f35', '#1b2233'][i], [DX - 0.62 + (i - 1.5) * 0.012, 0.88, DZ - 0.32 + (i % 2) * 0.01], [0.1 * (i - 1.5), 0, 0.12 * (i - 1.5)]);
@@ -2555,7 +2555,7 @@
       const cr = M.rng(71);
       const cupM = new Merger();
       cupM.cyl(0.04, 0.034, 0.085, '#f6f3ee', [0, 0.0425, 0], null, 14);
-      cupM.cyl(0.035, 0.035, 0.004, '#3b2214', [0, 0.08, 0], null, 14);
+      cupM.cyl(0.035, 0.035, 0.004, '#3b2214', [0, 0.0865, 0], null, 14);
       cupM.tor(0.026, 0.007, '#f6f3ee', [0.045, 0.045, 0], null);
       cupM.cyl(0.07, 0.06, 0.008, '#f6f3ee', [0, 0.004, 0], null, 18);
       const cupGeo = cupM.geometry(own);
@@ -2583,17 +2583,17 @@
         if (k === 0) { p = [(cr() - 0.5) * (TL - 0.5), 0.754 + i * 0.0004, (cr() - 0.5) * (TW - 0.3)]; rot = [0, cr() * 6, 0]; }
         else if (k === 1) { const zz = (cr() > 0.5 ? 1 : -1) * (1.22 + cr() * 0.1); p = [X0 + 0.1, 0.95 + cr() * 1.25, zz]; rot = [0, (cr() - 0.5) * 0.5, HP, 'ZYX']; }
         else { p = [(cr() - 0.5) * 6, 1.1 + cr() * 0.9, Z1 - 0.07]; rot = [HP, (cr() - 0.5) * 0.5, 0, 'XYZ']; }
-        items.note.push({ th: 0.12 + (i / 26) * 0.86, p, rot, c: ['#ffe066', '#ff9ec4', '#9be8c4', '#9fd0ff', '#ffb36b'][i % 5] });
+        items.note.push({ th: 0.12 + (i / 26) * 0.86, p, rot, k, c: ['#ffe066', '#ff9ec4', '#9be8c4', '#9fd0ff', '#ffb36b'][i % 5] });
       }
       for (let i = 0; i < 9; i++) items.ball.push({ th: 0.45 + i * 0.06, p: i < 5 ? [(cr() - 0.5) * 4, 0.785, (cr() - 0.5) * 0.9] : [(cr() - 0.5) * 6, 0.035, (cr() > 0.5 ? 1 : -1) * (1.6 + cr())], r: cr() * 6 });
       Object.keys(items).forEach((k) => items[k].sort((a, b) => a.th - b.th));
       const _ob = new T.Object3D();
-      const inst = (geo, mat, list, setup) => {
+      const inst = (geo, mat, list, setup, parent) => {
         const im = new T.InstancedMesh(geo, mat, list.length);
         list.forEach((it, i) => { _ob.position.set(it.p[0], it.p[1], it.p[2]); _ob.rotation.set(0, 0, 0, 'XYZ'); _ob.scale.set(1, 1, 1); setup(it, _ob); _ob.updateMatrix(); im.setMatrixAt(i, _ob.matrix); if (it.c) im.setColorAt(i, col(it.c)); });
         im.castShadow = true; im.receiveShadow = true;
         own.add(im);
-        root.add(im);
+        (parent || root).add(im);
         return im;
       };
       const imCup = inst(cupGeo, SATIN(), items.cup, (it, o) => { o.rotation.y = it.r; });
@@ -2602,8 +2602,18 @@
       const imPaper = inst(M.boxGeo(0.21, 0.0015, 0.297), sheetMat, items.paper, (it, o) => { o.rotation.y = it.r; });
       imPaper.castShadow = false;
       const noteMat = stdMat('note', { color: '#ffffff', rough: 0.9 });
-      const imNote = inst(M.boxGeo(0.076, 0.002, 0.076), noteMat, items.note, (it, o) => { o.rotation.set(it.rot[0], it.rot[1], it.rot[2], it.rot[3] || 'XYZ'); });
-      imNote.castShadow = false;
+      // post-its: os da mesa ficam no root; os do vidro do corredor e os da borda do telão vão em grupos
+      // próprios que entram em `walls` (somem junto com a parede quando a câmera passa para trás dela)
+      const noteGeo = M.boxGeo(0.076, 0.002, 0.076);
+      const noteSets = [[], [], []];
+      items.note.forEach((it) => noteSets[it.k].push(it));
+      const imNotes = noteSets.map((list, k) => {
+        const par = k ? M.group({ parent: root, name: k === 1 ? 'postits-tela' : 'postits-vidro' }) : root;
+        const im = inst(noteGeo, noteMat, list, (it, o) => { o.rotation.set(it.rot[0], it.rot[1], it.rot[2], it.rot[3] || 'XYZ'); }, par);
+        im.castShadow = false;
+        if (k) walls.push(k === 1 ? { obj: par, px: X0, pz: 0, normal: [1, 0, 0] } : { obj: par, px: 0, pz: Z1, normal: [0, 0, -1] });
+        return im;
+      });
       const ballGeo = new T.IcosahedronGeometry(0.034, 0); own.add(ballGeo);
       const imBall = inst(ballGeo, stdMat('ball', { color: '#f2efe8', rough: 0.95 }), items.ball, (it, o) => { o.rotation.set(it.r, it.r * 2, 0); });
       // caixa de pizza (aberta) e garrafas extras
@@ -2623,7 +2633,7 @@
         v = clamp(+v || 0, 0, 1);
         const cnt = (list) => list.filter((it) => it.th <= v + 1e-6).length;
         imCup.count = cnt(items.cup); imToGo.count = cnt(items.togo); imPaper.count = cnt(items.paper);
-        imNote.count = cnt(items.note); imBall.count = cnt(items.ball);
+        imNotes.forEach((im, k) => (im.count = cnt(noteSets[k]))); imBall.count = cnt(items.ball);
         pizza.visible = v >= 0.82;
         thermos.visible = v >= 0.4;
       };
