@@ -527,7 +527,7 @@
         const fine = sin(u * 1.6 + 1.3) * 0.6 + sin(u * 0.73 + 0.7) * 0.4;
         const lump = def.lump ? snoise(d.x * 3.2, d.y * 3.2, d.z * 3.2) * def.lump + (def.curl ? (snoise(d.x * 9, d.y * 9, d.z * 9) * 0.6 + snoise(d.x * 17 + 3, d.y * 17, d.z * 17) * 0.4) * def.curl : 0) : 0;
         const t = Math.max(0, def.thick(e, ph, d) * (0.45 + 0.55 * m) * (1 + gA * (clump - 0.85) * 1.4 + lump));
-        const off = Math.min(q * ramp, t + 0.0018);
+        const off = Math.min(q * (def.rampFn ? def.rampFn(ph, d) : ramp), t + 0.0018);
         verts.push(S.x + Nn.x * off, S.y + Nn.y * off, S.z + Nn.z * off);
         hn.push(Nn.x, Nn.y, Nn.z);
         qs.push(q);
@@ -539,7 +539,7 @@
         c.lerp(cDark, 0.32 * occ * smooth(0.35, -0.55, d.y));
         if (def.curl) c.multiplyScalar(1 + lump * 0.9);
         if (def.tint) def.tint(c, d, e, ph, m);
-        c.lerp(cSkin, 1 - smooth(0.0, def.edgeSkin == null ? 0.6 : def.edgeSkin, q));
+        c.lerp(cSkin, 1 - smooth(0.0, def.edgeFn ? def.edgeFn(ph, d) : def.edgeSkin == null ? 0.6 : def.edgeSkin, q));
         colors.push(c);
       }
     }
@@ -754,11 +754,11 @@
       { ph: 0.66, e: 0.86, dir: [0.75, -0.7, 0.5], len: 0.06, w: 0.022, droop: 0.2, arc: 0.45 },
       { ph: -0.72, e: 0.86, dir: [-0.75, -0.7, 0.5], len: 0.06, w: 0.022, droop: 0.2, arc: 0.45 },
     ];
-    L.forEach((o) => addLock(hb, hs, Object.assign({ lift: 0.012, shade: { lightTo: '#b07a50', light: 0.2, dark: 0.4 } }, o), M.hex(M.mix(c, '#5a3a2a', 0.12))));
+    L.forEach((o) => addLock(hb, hs, Object.assign({ lift: 0.012, shade: { lightTo: '#b07a50', light: 0.22, dark: 0.24 } }, o), M.hex(M.mix(c, '#5a3a2a', 0.12)))); // contorno escuro suave: mecha, não "pétala"
     // textura do topo: mechas curtas que nascem no redemoinho e deitam para a frente/lados
     const tl = M.hex(M.mix(c, '#6a4430', 0.1));
     [[-0.35, 1.32, [-0.35, 0.1, 1]], [0.25, 1.36, [0.3, 0.1, 1]], [0.9, 1.18, [0.85, -0.1, 0.6]], [-0.95, 1.16, [-0.85, -0.1, 0.55]], [1.6, 1.05, [0.9, -0.35, -0.1]], [-1.6, 1.05, [-0.9, -0.35, -0.1]], [2.5, 1.12, [0.45, -0.45, -0.75]], [-2.5, 1.12, [-0.45, -0.45, -0.75]], [PI, 1.2, [0, -0.5, -1]]].forEach(([ph, e, dir], i) =>
-      addLock(hb, hs, { follow: true, ph, e, dir, len: 0.1 + (i % 3) * 0.014, w: 0.03, th: 0.011, lift: 0.031, tipOut: 0.12, profile: (t) => Math.pow(sin(Math.min(1, t * 0.8 + 0.2) * PI), 0.8) * (1 - t * 0.6), shade: { dark: 0.45, light: 0.12, lightTo: '#a07050' } }, tl));
+      addLock(hb, hs, { follow: true, ph, e, dir, len: 0.1 + (i % 3) * 0.014, w: 0.03, th: 0.011, lift: 0.031, tipOut: 0.12, profile: (t) => Math.pow(sin(Math.min(1, t * 0.8 + 0.2) * PI), 0.8) * (1 - t * 0.6), shade: { dark: 0.3, light: 0.14, lightTo: '#a07050' } }, tl));
   };
   HAIR.cacheado = (hs, hb, c, sk) => {
     // volume crespo/cacheado: casca grossa e "fofa" (ruído de cachos) + cachinhos soltos na silhueta
@@ -848,12 +848,15 @@
   };
   HAIR.longo = (hs, hb, c, sk) => {
     // risca lateral, volume no topo, cortina de mechas até os ombros e duas mechas emoldurando o rosto
-    const lo = keys([[-PI, -0.62], [-2.2, -0.55], [-1.6, -0.42], [-1.25, -0.3], [-1.05, 0.12], [-0.8, 0.42], [-0.4, 0.66], [0, 0.78], [0.3, 0.8], [0.6, 0.66], [0.9, 0.36], [1.1, 0.06], [1.25, -0.3], [1.6, -0.42], [2.2, -0.55], [PI, -0.62]]);
+    // franja lateral: a linha do cabelo desce na diagonal (da risca, à esquerda, até a têmpora direita)
+    const lo = keys([[-PI, -0.62], [-2.2, -0.55], [-1.6, -0.42], [-1.25, -0.3], [-1.05, 0.1], [-0.82, 0.3], [-0.55, 0.36], [-0.25, 0.44], [0, 0.53], [0.25, 0.66], [0.5, 0.68], [0.75, 0.56], [0.95, 0.32], [1.1, 0.06], [1.25, -0.3], [1.6, -0.42], [2.2, -0.55], [PI, -0.62]]);
     const part = new V3(0.32, 0.95, 0.12).normalize();
+    const fringe = (ph, d) => smooth(-1.15, -0.85, ph) * smooth(0.75, 0.45, ph) * smooth(0.2, 0.6, d.z);
     const thkL = (d) => 0.019 + 0.009 * smooth(0.0, 0.85, d.y) + 0.004 * smooth(0.5, -0.4, d.y);
     hairShell(hs, {
       lo: (ph) => lo(ph), feather: 0.13, thetaMax: 2.3, nt: 66, np: 140,
-      thick: (e, ph, d) => thkL(d),
+      rampFn: (ph, d) => lerp(0.016, 0.07, fringe(ph, d)), edgeFn: (ph, d) => lerp(0.6, 0.18, fringe(ph, d)),
+      thick: (e, ph, d) => thkL(d) + 0.004 * fringe(ph, d),
       comb: (d) => { const a = new V3().crossVectors(part, d); return Math.atan2(a.y, a.x); }, freq: 22, groove: 0.05, lump: 0.01, warp: 0.25,
       base: c, dark: M.mix(c, '#000', 0.35), light: M.mix(c, '#c08a5a', 0.3), skin: sk,
     }, hb);
