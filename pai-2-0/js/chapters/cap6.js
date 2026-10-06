@@ -637,7 +637,7 @@
         const { bia, chegou } = biaEntra(G);
         await G.say('bia', '{pai}, licença. Tem um minuto? É o trimestre.', { expr: 'preocupado' });
         await chegou;
-        await G.say('bia', 'Fechei o DRE completo. Bateu com a prévia do seu relatório: vendemos 12% a mais… e a margem bruta caiu de 18% para 16%.', { expr: 'preocupado' });
+        await G.say('bia', 'Fechei o DRE completo da {empresaNome}. Bateu com a prévia do seu relatório: vendemos 12% a mais… e a margem bruta caiu de 18% para 16%.', { expr: 'preocupado' });
         await G.say('pai', 'Vendemos mais e ganhamos menos. Clássico.', { expr: 'desconfiado' });
         await G.say('bia', 'A Dona Marta leu o relatório e quer duas respostas amanhã às 9h: *por que*, exatamente, e *quanto* isso custou em reais.', { expr: 'determinado' });
         await G.say('bia', 'Agora vou fechar o fluxo de caixa com o time. Às cinco e meia eu passo aqui e a gente confere junto.', { expr: 'cansado' });

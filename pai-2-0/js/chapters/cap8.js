@@ -126,7 +126,7 @@
           txt: 'Recebi um exame com estes valores: LDL 162 e glicemia de jejum 104 (os dois marcados acima da referência), HDL 48 e triglicerídeos 140. Sem dar diagnóstico, explique em linguagem simples o que cada um significa e sugira 5 perguntas para eu levar ao médico.',
           crit: [1, 1, 1],
           ans: '*LDL:* o chamado "colesterol ruim". A meta ideal muda de pessoa para pessoa, conforme o histórico; isso o médico avalia.\n*HDL:* o "colesterol bom".\n*Triglicerídeos:* outro tipo de gordura no sangue; comida e bebida pesam.\n*Glicemia de jejum:* o açúcar no sangue depois de horas sem comer.\n*Para levar ao médico:*\n- Esses valores pedem tratamento ou só mudança de hábito?\n- Qual deve ser a minha meta de LDL?\n- Preciso repetir algum exame?\n- O que da minha rotina mais pesa nisso?\n- Quando volto para reavaliar?\n*Isto não é diagnóstico:* quem interpreta o seu caso é o médico.',
-          why: 'Só termos e valores: sem nome, CPF ou número do pedido, um "LDL 162" não diz de quem é. Mais um "sem diagnóstico" e o pedido certo: preparar a conversa com o médico.',
+          why: 'Só termos e valores: sem nome, CPF ou número do pedido, um "LDL 162" não diz de quem é. E no chat temporário (ou na ferramenta aprovada pela empresa). A IA explica os termos e sugere perguntas; quem interpreta e decide é o médico.',
         },
         {
           txt: 'O que significam LDL, HDL, triglicerídeos e glicemia de jejum?',
@@ -141,7 +141,7 @@
           why: 'Dado de saúde com nome e CPF é dado sensível, e não precisava ir. Diagnóstico e remédio são com o médico: ela mesma avisou.',
         },
       ],
-      sua: 'Leve as perguntas ao médico: quem responde é ele. Nunca mude remédio ou dose por causa de uma resposta da IA. E, para assunto de saúde, use o chat temporário.',
+      sua: 'Saúde: chat temporário ou ferramenta aprovada pela empresa, e nunca nome, CPF ou número do pedido. A IA explica os termos e sugere perguntas; quem interpreta e decide é o médico. Nunca mude remédio ou dose por causa de uma resposta da IA.',
     },
     {
       id: 'beto', icon: '💬', titulo: 'Falar com o Beto', post: 'Falar com o Beto', cor: '#ffd3a8', rot: -2.5,
@@ -775,8 +775,8 @@
         G.faisca.at('faisca');
         G.faisca.follow(G.pai);
         G.player.fp();
-        await G.fadeIn(0.5);
         G.player.lookAt('filho');
+        await G.fadeIn(0.5);
         await G.say('filho', 'Ficou bom! A receita é dela ou sua?', { expr: 'feliz' });
         await G.say('pai', 'A ideia foi dela. O sal, a pimenta e o "tira esse queijo daí" foram meus.', { expr: 'orgulhoso' });
         await G.say('faisca', 'Pode riscar à vontade. Eu não fico ofendida.', { anim: 'celebrate' });
@@ -859,8 +859,8 @@
         await G.fadeOut(0.4);
         G.filho.at('mesa1').setAnim('sit');
         G.filho.lookAt(G.pai);
-        await G.fadeIn(0.4);
         G.player.lookAt('filho');
+        await G.fadeIn(0.4);
         await G.say('filho', 'Louça limpa. E aí, deu conta de tudo?', { expr: 'feliz' });
         await G.say('pai', 'Conta entendida, exame preparado, viagem desenhada e churrasco marcado com o Beto.', { expr: 'orgulhoso' });
         await G.say('pai', 'Ela fez os rascunhos. O resto foi comigo.');
@@ -969,7 +969,7 @@
         }
 
         await G.fact(['ia_saude', 'chefe_ia_menos_sincero'], { titulo: 'Onde a palavra final é sua' });
-        await G.lesson('Na vida de casa, a IA é uma ajudante paciente. *As decisões, e os sentimentos, continuam sendo seus.*\n- Contexto, pedido claro e cuidado: as três estrelas valem em casa também.\n- Conta pessoal: treino desligado, chat temporário para assunto delicado. Senha, cartão e documento, nunca.\n- Exame: a IA ajuda a perguntar; quem responde é o médico.\n- Mensagem de afeto: ela organiza, as palavras são suas.', { titulo: 'Coisas da casa' });
+        await G.lesson('Na vida de casa, a IA é uma ajudante paciente. *As decisões, e os sentimentos, continuam sendo seus.*\n- Contexto, pedido claro e cuidado: as três estrelas valem em casa também.\n- Conta pessoal: treino desligado, chat temporário para assunto delicado. Senha, cartão e documento, nunca.\n- Exame: chat temporário, sem nome nem CPF. A IA explica os termos e sugere perguntas; o médico interpreta e decide.\n- Mensagem de afeto: ela organiza, as palavras são suas.', { titulo: 'Coisas da casa' });
         await G.fadeOut(0.8);
       },
     ],

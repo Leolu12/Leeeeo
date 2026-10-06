@@ -111,7 +111,7 @@
       id: 'emprego',
       ataque: 'E quando ela roubar o seu emprego? E o da Bia, do Rafael, da Sônia? Hein?',
       curta: 'Vai roubar empregos. Inclusive o meu.',
-      h: { txt: 'Algumas tarefas vão mudar, sim. Minha obrigação é preparar o time, não fingir que não. Julgamento, relação e assinatura continuam com gente.', why: 'Honestidade com a equipe vale mais que promessa. Teve empresa que trocou atendentes por IA e depois voltou atrás: ficou mais barato, mas pior.' },
+      h: { txt: 'Algumas tarefas vão mudar, sim. Minha obrigação é preparar o time, não fingir que não. Julgamento, relação e assinatura continuam com gente.', why: 'Honestidade com a equipe vale mais que promessa. A Klarna trocou atendentes por IA e depois voltou a contratar gente: ficou mais barato, mas pior.' },
       v: { txt: 'Isso é coisa pra daqui a muitos anos. Até lá, eu já me aposentei.', why: 'Já mexe com tarefas hoje. E a sua equipe não se aposenta junto com você: fingir que não é deixar o time ser pego de surpresa.' },
       x: { txt: 'Ninguém vai perder nada. A IA só tira o trabalho chato, e vai sobrar tempo livre pra todo mundo.', why: 'Promessa bonita, mas não é honesta. A equipe percebe, e passa a confiar menos em quem promete o que não pode garantir.' },
       fa: { h: 'Duro, mas justo. É assim que se fala com gente adulta.', v: 'Muitos anos? Ela já mexe com tarefa hoje, {pai}.', x: 'Ui. Essa promessa nem eu assinaria.' },
@@ -783,6 +783,9 @@
           titulo: 'A Dúvida tinha um pouco de razão',
           texto: 'O retorno ainda não chegou para a maioria. Mas quem tem regras claras e um chefe que dá o exemplo sai na frente.',
         });
+        await G.say('faisca', 'E sobre empregos: cortar gente achando que a IA faz tudo sozinha também tem preço. Olha este caso.', { anim: 'teach' });
+        G.faisca.setAnim('idle');
+        await G.fact('klarna_recuo_atendimento');
         await G.say('pai', 'Regra clara e chefe dando o exemplo. Disso eu entendo.', { expr: 'orgulhoso' });
         await G.say('faisca', 'Então o café de hoje promete.', { anim: 'jump' });
         G.faisca.setAnim('idle');

@@ -1057,15 +1057,15 @@
         G.toast('Dona Marta: "Bom dia! Na sexta, o conselho vai perguntar o que a empresa está fazendo com IA. Tem algo para me mostrar?"', { icon: '💬', kind: 'notif', dur: 7 });
         await G.wait(1.2);
         G.sfx('email');
-        G.toast('Luana (RH): "Fiz uma pesquisa anônima: metade do time já usa IA por conta própria, no celular. Precisamos de uma regra."', { icon: '📧', kind: 'email', dur: 7 });
+        G.toast('Luana (RH): "Perguntei no café, aqui no escritório: das 12 pessoas, 7 já usam IA por conta própria, no celular. Precisamos de uma regra."', { icon: '📧', kind: 'email', dur: 7 });
         await G.wait(0.8);
-        await G.say('pai', 'Metade do time já usa IA. Por conta própria. No celular.', { expr: 'surpreso' });
+        await G.say('pai', 'Sete de doze. Aqui dentro. Por conta própria, no celular.', { expr: 'surpreso' });
         await G.say('pai', 'E o conselho quer saber o que a empresa está fazendo. Pelo jeito, já está fazendo. Só não sabe.', { expr: 'pensativo' });
         await G.say('filho', 'Você vai proibir?', { expr: 'preocupado' });
         await G.say('pai', 'Se eu proibir, eles param de contar. Não de usar.', { expr: 'desconfiado' });
         G.player.lookAt(G.faisca);
         G.faisca.setAnim('teach');
-        await G.say('faisca', 'Exato. E não é só na sua empresa. Olha este dado.');
+        await G.say('faisca', 'Exato. E a conversa de café da Luana bate com as pesquisas grandes. Olha este dado nacional.');
         G.faisca.setAnim('idle');
         await G.fact('microsoft_wti_byoai');
         await G.say('faisca', 'O caminho que costuma funcionar é outro: uma ferramenta segura da empresa, uma regra curta e o exemplo de quem lidera.', { anim: 'teach' });

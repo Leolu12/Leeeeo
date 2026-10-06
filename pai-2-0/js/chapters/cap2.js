@@ -714,8 +714,8 @@
         await G.say('pai', 'Eu sei. Ele recebe uma resposta minha ainda hoje de manhã.', { expr: 'serio' });
         await G.say('chefe', 'Ah, e o conselho vai perguntar o que a empresa está fazendo com IA. Quero uma resposta melhor que "estamos estudando".', { expr: 'desconfiado' });
         anim(G.faisca, 'wave', 1.4);
-        await G.say('pai', 'Coincidência: estou estudando hoje mesmo.', { expr: 'sem_graca' });
-        await G.say('chefe', 'Ótimo. No fim do dia, me conte o que aprendeu.', { expr: 'amigavel' });
+        await G.say('pai', 'Eu sei. Já estou cuidando disso. Hoje mesmo, aliás.', { expr: 'serio' });
+        await G.say('chefe', 'Ótimo. No fim do dia, me conte como ficou.', { expr: 'amigavel' });
         marta.walk('porta').then(() => marta.fadeOut(0.4)).catch(() => {});
         await passar(G, 5, { quiet: true });
 
@@ -1116,6 +1116,7 @@
         await G.fadeIn();
 
         const st = salvarStats(G);
+        G.flag('cap2_fim', 9 * 60 + Math.round(v.min)); // o cap. 3 começa depois disto
         const modos = v.modo;
         const algumSem = ['t1', 't2', 't3'].some((k) => modos[k] === 'sem');
         const algumaMao = ['t1', 't2', 't3'].some((k) => modos[k] === 'mao');

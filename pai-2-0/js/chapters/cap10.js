@@ -1148,6 +1148,7 @@
         await G.say('faisca', acertos === total ? 'Cofre fechado. Dez de dez.' : acertos + ' de ' + total + '. Cofre bem trancado, e o resto fica de lição.', { anim: acertos === total ? 'celebrate' : 'idle' });
         await G.say('pai', 'Me dá uma regra de bolso.');
         await G.say('faisca', 'Não cole na IA o que você não gostaria de ver lido num tribunal. Nos EUA, um juiz já mandou guardar até as conversas apagadas.');
+        await G.fact('retencao_judicial');
         await G.say('pai', 'Então, na dúvida…');
         await G.say('faisca', 'Vermelho.');
 

@@ -672,7 +672,7 @@
         await sai;
         await G.think('pai', 'Hoje à noite eu conto para {oa} {filho}: a máquina comeu uma vírgula, e o Jorge corrigiu o grupo.', { expr: 'rindo' });
         fa(G, 'celebrate', 1.6);
-        await G.fact(['ebu_45_por_cento', 'bajulacao_ia'], { titulo: 'Por que conferir, e como perguntar' });
+        await G.fact(['ebu_45_por_cento', 'avianca', 'tjsc_chatgpt_multa', 'bajulacao_ia'], { titulo: 'Por que conferir, e como perguntar' });
         await G.lesson('Leis, números, datas, preços e citações: confira na fonte. É igual notícia de grupo de WhatsApp. E, para uma opinião honesta, não conte a sua antes: peça o argumento contra.', { titulo: 'Detector de lorota' });
         await G.fadeOut(0.8);
       },

@@ -116,7 +116,7 @@
         ],
         fmt: [
           { q: 'bom', t: 'No máximo 8 linhas, tom humano e direto. O que eu ainda não confirmei, deixe [entre colchetes].', why: 'Curto, no tom certo e sem prometer o que você não confirmou. Os colchetes mostram onde conferir.' },
-          { q: 'vago', rot: '≈ Palavra mágica', t: 'Capricha, que eu te dou uma gorjeta.', why: 'Não existe palavra mágica: testes da Wharton mostraram que prometer gorjeta, ou ameaçar, não melhora a resposta. Dizer o formato, sim.' },
+          { q: 'vago', rot: '≈ Palavra mágica', t: 'Capricha, que eu te dou uma gorjeta.', why: 'Não existe palavra mágica: testes da Wharton (a fonte aparece no fim do capítulo) mostraram que prometer gorjeta, ou ameaçar, não melhora a resposta. Dizer o formato, sim.' },
           { q: 'ruim', rot: '✗ Tom errado', t: 'Bem formal: "Vimos por meio desta..."', why: 'Cliente de 12 anos não quer ofício de cartório. Num pedido de desculpas, formalidade demais soa como descaso.' },
         ],
       },

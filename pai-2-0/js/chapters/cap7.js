@@ -984,6 +984,7 @@
           await G.say('faisca', 'E o dólar, de novo: eu inventei. Quando me falta informação, eu completo com chute, com cara de certeza. Por isso a lista é rascunho.');
         }
         await G.say('faisca', 'Uma dica: faça isso também com a diretoria. Cada um escreve sozinho, *antes* de ver a minha lista. Senão todo mundo concorda comigo. Ou com você.');
+        G.player.lookAt(G.faisca);
         await G.say('pai', 'Principalmente comigo.', { expr: 'rindo' });
 
         // Osvaldo liga
@@ -1034,6 +1035,7 @@
         }
         fa(G, 'teach', 1.8);
         await G.say('faisca', 'E não é só comigo. Num exercício com executivos, quem consultou uma IA ficou mais otimista e errou mais. Quem conversou com colegas acertou mais.');
+        await G.fact('executivos_previsao_otimista');
         await G.say('pai', 'Então antes de decidir, uma segunda opinião.', { expr: 'pensativo' });
         const op = await G.choose([
           { text: 'Rodar o mesmo pedido de novo, do zero', value: 'denovo' },
@@ -1211,7 +1213,7 @@
           await G.narrate('Mas sabe por que decidiu, o que vai vigiar e quem confere o quê. Numa página, com a assinatura dele.');
         });
         G.talkCam(true);
-        await G.fact(['executivos_previsao_otimista', 'ia_ceo_simulador', 'cybernetic_teammate_pg'], { titulo: 'Conselheira, não oráculo' });
+        await G.fact(['ia_ceo_simulador', 'cybernetic_teammate_pg'], { titulo: 'Conselheira, não oráculo' });
         await G.lesson('A IA amplia o seu raciocínio. *Peça o contra, não o a favor. A decisão é sua.*\n- Não conte antes o que você prefere.\n- Pré-mortem: imagine que deu errado e pergunte por quê.\n- Os pesos são seus; as notas da IA são opinião.\n- Ouça mais de uma opinião, e pelo menos uma de gente.\n- Decisão sobre pessoas fica com pessoas.', { titulo: 'O conselheiro de bolso' });
         await G.fadeOut(0.8);
       },

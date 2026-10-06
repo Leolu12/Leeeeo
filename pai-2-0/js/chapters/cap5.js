@@ -705,7 +705,7 @@
         await G.fact('nadella_cinco_prompts');
         await G.aiChat([
           { from: 'voce', text: 'Com base nas minhas conversas recentes com cada diretor: o que deve estar na cabeça de cada um para hoje? E o que cada um precisa trazer?' },
-          { from: 'ia', text: '- *Bia:* margem do semestre e a renovação da linha de crédito com o banco. Trazer: o fluxo de caixa.\n- *Rafael:* o terceiro atraso do fornecedor. Trazer: as datas.\n- *Tadeu:* a multa do contrato, nunca cobrada. Trazer: a cláusula.\n- *Luana:* gente para o turno novo. Trazer: o custo por contratação.\n- *Jorge:* medo de perder o cliente do Sul. Trazer: o volume desse cliente.' },
+          { from: 'ia', text: '- *Bia:* margem do semestre e a renovação da linha de crédito com o banco. Trazer: o fluxo de caixa.\n- *Rafael:* o terceiro atraso do fornecedor. Trazer: as datas.\n- *Tadeu:* a multa do contrato, nunca cobrada. Trazer: a cláusula.\n- *Luana:* gente para o turno novo. Trazer: o custo por contratação.\n- *Jorge:* pediu por e-mail prioridade para o cliente do Sul. Trazer: o volume desse cliente.' },
         ], { title: 'Faísca · ferramenta da empresa' });
         const risca = await G.choose([
           { text: 'Risca a linha de crédito: a Bia resolveu isso ontem com o banco, no corredor.', value: 'risca', sub: 'Você corrige com o que só você sabe' },

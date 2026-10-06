@@ -111,7 +111,7 @@
   const ING = [
     { id: 'base', ic: '📌', t: 'Use só o que está neste contrato', bom: true,
       linha: 'Com base apenas no contrato acima,',
-      why: 'Prende a resposta ao documento. E repare: o arquivo vem antes do pedido. Os próprios fabricantes recomendam documento no topo, pergunta no fim.' },
+      why: 'Prende a resposta ao documento. E repare: o arquivo vem antes do pedido. É o que recomenda quem faz essas ferramentas: documento no topo, pergunta no fim. A fonte vem logo depois.' },
     { id: 'resumo', ic: '🧭', t: 'Resumo executivo de 1 página, para quem decide', bom: true,
       linha: 'faça um resumo executivo de 1 página para o CEO;',
       why: 'Você quer saber o que muda para a empresa, não um resumo de cada vírgula.' },
@@ -222,6 +222,18 @@
     G.pai.setAnim('sit');
     G.faisca.follow(G.pai);
     G.faisca.setAnim('idle');
+  }
+  /** Minutos de atraso em relação às 10h30: a manhã do cap. 2 pode ter terminado mais tarde. */
+  function atraso(G) {
+    const fim = Number(G.flag('cap2_fim')) || 0;
+    return Math.min(90, Math.max(0, Math.ceil((fim + 5 - 630) / 5) * 5)); // teto: a diretoria é às 14h
+  }
+  /** Relógio do HUD, deslocado se a manhã do cap. 2 foi mais longa. */
+  function relogio(G, hm) {
+    const off = atraso(G);
+    const [h, m] = hm.split(':').map(Number);
+    const t = h * 60 + m + off;
+    G.hud.set({ clock: String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0') });
   }
   const olhaMonitor = (G) => G.player.lookAt(MONITOR);
   function prologoVars() {
@@ -574,7 +586,6 @@
       async (G) => {
         await G.titleCard();
         cena(G, { papers: 0.5, screen: 'on', laptop: 'email' });
-        G.hud.set({ clock: '10:30' });
         G.pai.at('janela');
         G.pai.setAnim('idle');
         G.faisca.follow(G.pai);
@@ -582,7 +593,10 @@
         G.player.fp();
         G.music('misterio');
         await G.fadeIn(1.0);
-        await G.narrate('Dez e meia. A manhã rendeu mais do que o normal. E {pai} desconfia de manhã que rende.');
+        // Continuidade com o cap. 2: se a manhã foi longa (tarefas na mão), o relógio anda junto.
+        const tarde = atraso(G) >= 20;
+        relogio(G, '10:30');
+        await G.narrate(tarde ? 'A manhã foi puxada, e a pilha da mesa não diminuiu. E ainda tem mais uma.' : 'Dez e meia. A manhã rendeu mais do que o normal. E {pai} desconfia de manhã que rende.');
         G.sfx('door');
         const tadeu = G.actor('tadeu');
         tadeu.set({ props: { papers: true }, expr: 'cansado' });
@@ -591,6 +605,7 @@
         await tadeu.walk({ x: 2.4, z: 0.2 });
         await tadeu.walk(TADEU_PE);
         tadeu.face(G.pai, true);
+        G.player.lookAt(tadeu);
         await G.say('tadeu', 'Chefe, com licença. O contrato do fornecedor de embalagens.', { expr: 'cansado' });
         await G.say('pai', 'O de oitenta páginas. Ele me dá bom-dia desde as seis e quarenta e sete.', { expr: 'desconfiado' });
         await G.say('tadeu', 'Versão três. Eles querem assinar amanhã cedo. Eu preciso do seu OK de negócio hoje: prazo, multa, preço.');
@@ -683,7 +698,7 @@
       async (G) => {
         cena(G);
         sentar(G);
-        G.hud.set({ clock: '10:38' });
+        relogio(G, '10:38');
         G.music('misterio');
         olhaMonitor(G);
         await G.fadeIn(0.6);
@@ -703,6 +718,7 @@
         await G.say('faisca', 'Mas a lição já vale: pergunta de uma frase vira resposta de uma frase, e confiante demais. Com documento, peça as *provas*, não o veredito.');
         const r = await miniPedido(G);
         G.v.traps = r ? r.traps : 0;
+        await G.fact('anthropic_documento_no_topo');
         if (G.v.traps) {
           fa(G, 'jump', 1.0);
           await G.say('faisca', 'As armadilhas são clássicas: pedir o veredito e dar a opinião antes. Riscadas, viraram lição.', { cam: false });
@@ -727,7 +743,7 @@
       async (G) => {
         cena(G, { chat: TELA.tabela });
         sentar(G);
-        G.hud.set({ clock: '10:45' });
+        relogio(G, '10:45');
         G.music('misterio');
         olhaMonitor(G);
         await G.fadeIn(0.6);
@@ -771,7 +787,7 @@
       async (G) => {
         cena(G, { chat: TELA.tabela });
         sentar(G);
-        G.hud.set({ clock: '10:58' });
+        relogio(G, '10:58');
         G.music('misterio');
         olhaMonitor(G);
         await G.fadeIn(0.6);
@@ -826,7 +842,7 @@
       async (G) => {
         cena(G, { chat: TELA.lacunas.slice(0, 1) });
         sentar(G);
-        G.hud.set({ clock: '11:12' });
+        relogio(G, '11:12');
         G.music('trabalho');
         olhaMonitor(G);
         await G.fadeIn(0.6);
@@ -845,7 +861,7 @@
         tadeu.set({ expr: 'neutro', props: { tablet: true } });
         tadeu.at('porta');
         G.player.lookAt(tadeu);
-        G.hud.set({ clock: '11:15' });
+        relogio(G, '11:15');
         await tadeu.walk({ x: 2.4, z: 0.2 });
         await tadeu.walk({ x: 0.3, z: 0.4 });
         await tadeu.walk('visita1');

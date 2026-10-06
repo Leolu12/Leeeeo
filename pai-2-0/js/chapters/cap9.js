@@ -76,7 +76,7 @@
         {
           quadro: 'Treinada para chutar',
           ensina: [
-            'Fui avaliada como aluno em prova de múltipla escolha: chute pode valer ponto, “não sei” vale zero. Então, quando não sei, às vezes chuto, com a mesma confiança de quando sei.',
+            'Fui avaliada como um aluno em prova de múltipla escolha: chute pode valer ponto, “não sei” vale zero. Então, quando não sei, às vezes chuto, com a mesma confiança de quando sei.',
             'Lembra do colega de cursinho que nunca deixava questão em branco? Às vezes acertava. Mas nunca avisava quando estava chutando.',
             'É o vendedor que, perguntado do prazo, responde “dez dias” para não perder a venda, sem ter ligado para a fábrica.',
           ],
@@ -942,7 +942,8 @@
         await G.say('faisca', 'Uma coisa honesta antes de você dormir: hoje foi só o primeiro dia. Quem estuda o assunto fala em umas dez horas de uso de verdade, em tarefa real, para pegar o jeito.');
         await G.say('pai', 'Dez horas. Menos que um voo para a Europa.', { expr: 'pensativo' });
         await G.say('faisca', 'E tem uma vantagem sua: eu ajudo mais quem sabe julgar a resposta. Trinta anos de estrada contam a favor, não contra.', { anim: 'teach' });
-        await G.say('faisca', 'Até o CEO da Nvidia recomenda: “arrume um tutor de IA”. Claro, ele vende chip para IA. Desconto aplicado.');
+        await G.say('faisca', 'Até o CEO da Nvidia recomenda: “arrume um tutor de IA agora mesmo”. E ele faz a mesma pergunta a mais de uma IA. Claro, ele vende chip para IA. Desconto aplicado.');
+        await G.fact('huang_tutor_varias_ias');
         await G.say('pai', 'Gostei do desconto. É o primeiro vendedor de tecnologia que me oferece um.', { expr: 'rindo' });
         await G.say('faisca', 'Os pedidos de hoje, o do plano e o da aula com analogias, estão no seu Guia do CEO, no botão 📘. É só trocar o tema.');
         if (G.flag('aposta')) {
