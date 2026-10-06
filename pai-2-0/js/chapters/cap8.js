@@ -723,7 +723,7 @@
         G.sfx('pop');
         await G.think('pai', 'Meio frango assado, três ovos, uma abobrinha, dois tomates, um pedaço de queijo minas, arroz de ontem… e uma cebola com cara de veterana.');
         await G.say('pai', 'Isso aqui não é jantar. É inventário.', { expr: 'desconfiado' });
-        await G.say('faisca', 'É o meu tipo favorito de problema: risco zero. Se der errado, vira omelete.', { anim: 'jump' });
+        await G.say('faisca', 'É o meu tipo favorito de problema: se der errado, vira omelete.', { anim: 'jump' });
         await G.say('faisca', 'Em casa vale a mesma receita do escritório. Cada pedido pode ganhar três estrelas: *contexto* (o que eu preciso saber), *pedido claro* (o que você quer e em que formato)…', { anim: 'teach' });
         await G.say('faisca', '… e *cuidado*: nada de dado sensível à toa, e o que é decisão sua continua sendo sua.', { anim: 'teach' });
         G.v.estrelas = {};
