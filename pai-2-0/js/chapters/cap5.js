@@ -660,7 +660,7 @@
         G.pai.at('porta');
         await G.say('pai', 'Toda terça é igual. Duas horas de reunião, e na quarta ninguém lembra quem ficou com o quê.', { expr: 'cansado' });
         await G.say('pai', 'E a Sônia está de folga. Ou seja: hoje, nem ata vai ter.', { expr: 'desconfiado' });
-        await G.say('faisca', 'Vai ter, sim. Eu anoto, você confere. E chegamos dez minutos antes: isso é uma arma.', { anim: 'wave' });
+        await G.say('faisca', 'Vai ter, sim. Eu anoto, você confere. E chegamos dez minutos antes: dá tempo de arrumar a pauta.', { anim: 'wave' });
 
         const env = G.core.world.env || {};
         const rel = env.shots && env.shots.relogio;
@@ -728,7 +728,7 @@
         await G.say('faisca', 'Justo. Então julgue pelo resultado, não pelo vendedor. Vamos testar com a sua diretoria?', { anim: 'point' });
         await G.aiChat([
           { from: 'voce', text: 'Com base nas minhas conversas recentes com cada diretor: o que deve estar na cabeça de cada um para hoje? E o que cada um precisa trazer?' },
-          { from: 'ia', text: '- *Bia:* margem do semestre e a renovação da linha de crédito com o banco. Trazer: o fluxo de caixa.\n- *Rafael:* o terceiro atraso do fornecedor. Trazer: as datas.\n- *Tadeu:* a multa do contrato, nunca cobrada. Trazer: a cláusula.\n- *Luana:* gente para o turno novo. Trazer: o custo por contratação.\n- *Jorge:* pediu por e-mail prioridade para o cliente do Sul. Trazer: o volume desse cliente.' },
+          { from: 'ia', text: '- *Bia:* a margem, que vem apertando, e a renovação da linha de crédito com o banco. Trazer: o fluxo de caixa.\n- *Rafael:* o terceiro atraso do fornecedor. Trazer: as datas.\n- *Tadeu:* a multa do contrato, nunca cobrada. Trazer: a cláusula.\n- *Luana:* gente para o turno novo. Trazer: o custo por contratação.\n- *Jorge:* pediu por e-mail prioridade para o cliente do Sul. Trazer: o volume desse cliente.' },
         ], { title: 'Faísca · ferramenta da empresa' });
         const risca = await G.choose([
           { text: 'Risca a linha de crédito: a Bia resolveu isso ontem com o banco, no corredor.', value: 'risca', sub: 'Você corrige com o que só você sabe' },
@@ -754,8 +754,9 @@
         await G.say('pai', 'As duas primeiras eu já tinha na cabeça. A terceira, não: subir preço com a entrega atrasando. Boa.', { expr: 'pensativo' });
         await G.say('faisca', 'Você tem trinta anos de mesa. Eu tenho três segundos de leitura. Juntos, a gente chega preparado.', { anim: 'celebrate' });
         await G.say('faisca', 'Mando a pauta para a diretoria, com o que cada um deve trazer? Está na tela, para você ler antes.');
-        await G.say('pai', 'Li. Pode mandar.', { expr: 'determinado' });
-        G.toast('Pauta enviada · cada diretor sabe o que trazer', { icon: '📨', kind: 'email' });
+        await G.say('pai', 'Li. Pode mandar. E da próxima vez, na véspera: dez minutos antes ninguém traz nada.', { expr: 'determinado' });
+        await G.say('faisca', 'Anotado. Na segunda à tarde, eu te lembro.', { anim: 'jump' });
+        G.toast('Pauta enviada à diretoria · com o que cada um deve trazer', { icon: '📨', kind: 'email' });
         await G.wait(0.6);
       },
 
@@ -802,6 +803,7 @@
           G.faisca.emote('heart');
           anim(G.faisca, 'celebrate', 1.2);
           G.sfx('chime');
+          await G.say('pai', 'Pessoal, vou ligar a transcrição para fazer a ata. Todos de acordo?', { expr: 'determinado' });
         } else if (modo === 'escondido') {
           await G.say('faisca', 'Gravar cinco diretores escondido? Se alguém descobre, a ata vira o menor dos seus problemas.', { anim: 'scared' });
           await G.say('faisca', 'E na ferramenta da empresa todo mundo vê o aviso de qualquer jeito. Perguntar custa dez segundos.', { anim: 'teach' });
@@ -836,7 +838,7 @@
           };
           await tick('14:20', 0.12, 'mesa');
           bia.setAnim('sittalk');
-          await G.say('bia', 'Sem reajuste no mês que vem, a margem do semestre não fecha. Simples assim.', { expr: 'determinado' });
+          await G.say('bia', 'Sem reajuste no mês que vem, a margem não volta. Simples assim.', { expr: 'determinado' });
           bia.setAnim('sit');
           await G.say('jorge', 'Seis eu seguro. Doze, o cliente do Sul vai embora. Ainda mais com entrega atrasando.', { expr: 'preocupado' });
           await G.say('pai', 'Então está decidido: reajuste de 6% a partir do mês que vem.', { expr: 'determinado' });
@@ -972,7 +974,7 @@
         G.faisca.setAnim('listen');
         await G.say('pai', 'Então anota: reajuste aprovado, Rafael com o fornecedor, Tadeu com a carta, Bia com o caixa. O resto você puxa da transcrição.', { expr: 'determinado' });
         G.faisca.setAnim('idle');
-        await G.say('faisca', 'Anotado! Puxei oito trechos da transcrição. Agora a parte que faz uma ata servir para alguma coisa.', { anim: 'teach' });
+        await G.say('faisca', 'Anotado. Meu rascunho da ata já está pronto, mas antes separe oito trechos da transcrição. Assim você sabe o que cobrar de mim.', { anim: 'teach' });
 
         G.player.lookAt(CELULAR); // durante o minijogo, a cena mostra o celular no suporte (a transcrição)
         const cl = await miniClassifica(G);
@@ -983,19 +985,19 @@
         } else {
           await G.say('faisca', cl.acertos + ' de ' + cl.total + ' de primeira. O que importa: o que ninguém assumiu fica “a definir”. Não se inventa dono.', { anim: 'teach' });
         }
-        await G.say('faisca', 'Montei a ata em quatro partes: decisões, tarefas, pendências e o que conferir. Antes de assinar: nomes, números e prazos. Essa parte é sua.', { anim: 'point' });
+        await G.say('faisca', 'Agora, o meu rascunho, em quatro partes: decisões, tarefas, pendências e o que conferir. Nomes, números e prazos: essa parte é sua.', { anim: 'point' });
 
         G.player.lookAt(CELULAR);
         const cf = await miniConfere(G);
         G.v.confAcertos = cf.acertos;
         G.v.confFalsos = cf.falsos;
         G.v.confPegos = cf.pegos;
-        if (cf.pegos === 2) {
-          await G.say('faisca', 'Dois erros meus, e você pegou os dois. O “trinta” veio da transcrição: ela ouviu errado, e eu copiei sem piscar.', { anim: 'ashamed' });
-        } else {
-          await G.say('faisca', 'Dois erros meus, e passaram pela primeira olhada. Erro de ata parece certo. O “trinta” veio da transcrição: ela ouviu errado, e eu copiei.', { anim: 'ashamed' });
-        }
-        await G.say('faisca', 'E o Jorge na campanha… ninguém disse isso: eu completei a lacuna. E ainda escrevi “nenhum trecho ambíguo”. Com toda a confiança.', { anim: 'sad' });
+        const abertura = cf.pegos === 2 ? 'Dois erros meus, e você pegou os dois.'
+          : cf.pegos === 1 ? 'Dois erros meus. Um você pegou de primeira; o outro passou. Erro de ata parece certo.'
+          : 'Dois erros meus, e os dois passaram pela primeira olhada. Erro de ata parece certo.';
+        await G.say('faisca', abertura + ' O “trinta” veio da transcrição: ela ouviu errado, e eu copiei sem piscar.', { anim: 'ashamed' });
+        const campanhaCerta = !!(cl.res && cl.res[4]); // o trecho da campanha (“a gente vê depois”)
+        await G.say('faisca', (campanhaCerta ? 'E o Jorge na campanha… você tinha separado como “a definir”, e eu completei a lacuna.' : 'E o Jorge na campanha… ninguém assumiu, e eu completei a lacuna.') + ' Ainda escrevi “nenhum trecho ambíguo”. Com toda a confiança.', { anim: 'sad' });
         await G.say('pai', 'Por isso eu confiro.', { expr: 'determinado' });
         await G.say('faisca', 'Por isso. O antídoto cabe no pedido: “se ninguém assumiu, escreva *a definir*; não invente”. E nome, número e prazo, sempre no áudio.', { anim: 'teach' });
         await G.fact('transcricao_inventa');
@@ -1050,7 +1052,7 @@
         G.hud.set({ clock: '16:08' });
         await G.narrate('16h08. O carro para na frente do escritório.');
         await G.say('pai', 'Cem minutos de reunião, e a ata pronta antes do elevador. Conferida por mim.', { expr: 'orgulhoso' });
-        await G.say('faisca', 'E assinada por você. Ditar e resumir com IA é bem mais rápido, mas os dois deixam escapar coisa. Conferir é o que faz valer.', { anim: 'celebrate' });
+        await G.say('faisca', 'E assinada por você. Ditar e resumir com IA ganham tempo de verdade, mas os dois deixam escapar coisa. Os estudos mostram as duas coisas.', { anim: 'celebrate' });
 
         // Estatísticas e conquista
         const acertos = (G.v.classAcertos || 0) + (G.v.confAcertos || 0);
@@ -1059,8 +1061,8 @@
         G.stats({ acertos, total: TOTAL, minutosEconomizados: minutos, consentimento: consentiu });
         if (acertos === TOTAL) G.achieve('ata_perfeita');
 
-        await G.fact(['stanford_voz', 'microsoft_reuniao_perdida'], { titulo: 'Falar acelera. Resumir acelera. Conferir continua sendo seu.' });
-        await G.say('faisca', 'Os pedidos de hoje (pauta, ata em quatro partes, e-mail ditado) estão no seu Guia do CEO, no botão 📘, em “Reuniões”.', { anim: 'point' });
+        await G.fact(['stanford_voz', 'microsoft_reuniao_perdida'], { titulo: 'Mais rápido, sim. Sem conferir, não.' });
+        await G.say('faisca', 'Os pedidos de hoje estão no seu Guia do CEO, botão 📘: pauta e ata em “Reuniões”; ditado e mensagem de afeto em “Comunicação”.', { anim: 'point' });
         await G.lesson('Falar é mais rápido que digitar. A IA organiza a bagunça; você confirma quem faz o quê e até quando.', { titulo: 'A ata é da IA. A assinatura é sua.' });
       },
     ],

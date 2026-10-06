@@ -593,8 +593,8 @@
     const el = G.ui.el;
     const row = (cls, titulo, texto, tag) => el('div', 'k3-sem-row ' + cls, [el('span', 'k3-luz'), el('div', null, [el('b', null, titulo), el('small', null, texto), tag ? el('span', 'k3-tag', tag) : null])]);
     return el('div', 'k3-sem', [
-      row('r', 'Nunca, em lugar nenhum', 'Senha, código do SMS, dados do banco, foto de documento.'),
-      row('y', 'Só na ferramenta aprovada pela empresa', 'Contratos, atas, relatórios internos, estratégia, dados de clientes e de funcionários. Na conta pessoal, nunca. Nem com os nomes trocados.', '📄 o contrato de hoje'),
+      row('r', 'Nunca, em lugar nenhum', 'Senha, código do SMS, dados do banco e do cartão, foto de documento.'),
+      row('y', 'Só na ferramenta aprovada pela empresa', 'Contratos, atas, relatórios internos, rascunhos de estratégia. Na conta pessoal, nunca. Nem com os nomes trocados.', '📄 o contrato de hoje'),
       row('g', 'Pode à vontade', 'Informação pública, textos genéricos, ideias, aprender coisas novas.'),
     ]);
   }
@@ -856,7 +856,7 @@
         await G.say('pai', 'Agora me explica aquele “recomendo a assinatura” do começo.', { expr: 'desconfiado' });
         G.player.lookAt(G.faisca);
         fa(G, 'think', 1.8);
-        await G.say('faisca', 'Não sei explicar. Quando uma resposta muda tanto de um pedido para outro, às vezes é o próprio documento puxando.');
+        await G.say('faisca', 'Ainda não sei. Mas, quando a resposta muda tanto de um pedido para o outro, às vezes é o próprio documento puxando.');
         await G.say('faisca', 'Vamos olhar o que ninguém lê: os anexos.');
         const r = (await miniAnexo(G)) || { achou: false, lanterna: false };
         G.v.achou = !!r.achou;
@@ -924,7 +924,7 @@
           botao: 'Entregar ao Tadeu',
         });
         tadeu.setAnim('sitthink');
-        await G.say('tadeu', 'Multa de vinte por cento na página 47? Essa eu só ia ver hoje à noite.', { anim: 'sittalk', expr: 'surpreso' });
+        await G.say('tadeu', 'Multa de vinte por cento na página 47? E a tabela de preços nem veio? Isso eu só ia ver hoje à noite.', { anim: 'sittalk', expr: 'surpreso' });
         await G.say('tadeu', 'E a renovação automática... na versão dois ela nem existia. Enfiaram no meio.', { expr: 'desconfiado' });
         await G.say('faisca', 'Para achar tudo o que mudou entre a versão dois e a três, o Word é melhor do que eu: Revisão, Comparar. Ele acha cada vírgula; eu explico o que cada mudança significa.');
         await G.say('tadeu', 'E essa ordem escondida no anexo... isso é má-fé. Vou ligar hoje para o jurídico deles.', { expr: 'bravo' });
