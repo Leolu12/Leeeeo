@@ -7,13 +7,19 @@
  * Spots abaixo no formato {x, z, rot[, y]}. Assentos: o ponto é o centro do assento (~0,45 m);
  * a mesa fica ~0,5 m à frente (+Z local do ator). Pontos de sentar/deitar podem ficar dentro de um
  * collider (o jogador chega perto — raio do hotspot 1,6 m — e a cena o coloca no lugar com .at()).
- * walls: 'wall:back' | 'wall:left' | 'wall:right' | 'wall:front' | 'ceiling' (normal [0,-1,0]).
+ * walls: 'wall:back' | 'wall:left' | 'wall:right' | 'wall:front' | 'ceiling' (normal [0,-1,0], py = forro).
+ * bounds = piso interno inteiro de cada cômodo (quarto ±2,6 × ±2,2 · cozinha ±2,8 × ±2,3 · sala ±3,0 × ±2,4 ·
+ * mesa_cafe x −2,94…2,96, z −2,3…2,26). A vista lá fora (céu + cidade 3D) só aparece com a câmera dentro.
+ * Primeiro plano: a cômoda (quarto), o aparador (cozinha) e o rack (sala) ficam no chão junto à parede da
+ * frente (primeiro plano do plano geral) e SOMEM sozinhos quando a câmera de cinema entra neles ou fica logo
+ * atrás deles (planos médios/baixos como quarto 'dramatico', cozinha 'mesa', sala 'porta'); em 1ª pessoa nunca.
  *
  * ── quarto (5,2 × 4,4 m, pé-direito 2,7) ─────────────────────────────
- *  params: clock ('06:47' padrão) · alarm (bool: dígitos piscam em vermelho + luz vermelha no canto)
- *          phoneLit (bool: celular acende) · lamp (bool, padrão true: abajur esquerdo)
- *          time ('amanhecer' padrão | 'noite') · coberta (true/false força o edredom "com corpo";
- *          padrão automático: cobre quando há um ator com anim 'sleep'/'lie' no ponto cama).
+ *  params: clock ('06:47' padrão) · alarm (bool: dígitos piscam em vermelho, luz vermelha no criado-mudo e
+ *          reflexo vermelho pulsando no forro) · phoneLit (bool: celular acende, reflexo azulado no forro)
+ *          lamp (bool, padrão true: abajur esquerdo) · time ('amanhecer' padrão | 'noite')
+ *          coberta (true/false força o edredom "com corpo"; padrão automático: cobre quando há um ator com anim
+ *          'sleep'/'lie' no ponto cama — edredom moldado medido na pose 'sleep', nada atravessa).
  *  spots:  cama        {x:-0.38, z:-0.12, rot:0}   deitado (anim 'sleep'): os PÉS ficam no ponto e a
  *                                                  cabeça vai para o travesseiro em z≈-1.62; em 1ª pessoa
  *                                                  deitado a visão olha para o ventilador de teto (pitch ~1)
@@ -23,22 +29,26 @@
  *          janela      {x:-1.85, z:-0.35, rot:-π/2} · porta {x:2.0, z:1.35, rot:-π/2} · centro {x:0.4, z:1.2, rot:0}
  *          faisca      {x:-0.9,  z:-1.2,  rot:0.4, y:1.0} (flutuando perto do criado-mudo)
  *          inicio      {x:1.75,  z:1.25,  rot:-2.2} (entrada do jogador, olhando a cama)
- *          interação:  despertador {x:-1.2, z:-1.2, rot:π} · foto {x:1.2, z:-1.25, rot:π}
- *                      guarda_roupa {x:1.55, z:-0.9, rot:π/2} · tv {x:-0.2, z:1.15, rot:0} · paleto {x:-1.45, z:0.62, rot:-0.8}
- *  shots:  geral, cama, despertador, celular, janela, porta, dramatico
- *  colliders: cama, 2 criados-mudos, guarda-roupa, cômoda, poltrona, planta, pasta, calçadeira, puff.
+ *          interação:  despertador {x:-1.2, z:-1.2, rot:π} · foto {x:1.2, z:-1.25, rot:π} (porta-retrato do
+ *                      criado-mudo direito) · guarda_roupa {x:1.55, z:-0.9, rot:π/2} (porta-espelho)
+ *                      tv {x:-0.2, z:1.15, rot:0} · paleto {x:-1.45, z:0.62, rot:-0.8} (paletó na poltrona)
+ *          (a "foto da formatura" fica no porta-retrato sobre a cômoda, em x≈-0.3, y≈1.1, z≈1.95)
+ *  shots:  geral, cama, despertador, celular, janela, porta, dramatico (baixo, rente à parede da frente)
+ *  colliders: cama + pé da cama, 2 criados-mudos, guarda-roupa, cômoda, poltrona, planta, pasta, calçadeira, puff.
  *
  * ── cozinha (5,6 × 4,6 m) ──────────────────────────────────────────
- *  params: time ('manha' padrão | 'noite': pendentes + LED sob a prateleira acesos) · steam (bool, padrão true)
+ *  params: time ('manha' padrão | 'noite': pendentes acesos (cúpulas brilham), LED sob a prateleira)
+ *          steam (bool, padrão true: vapor da cafeteira; à noite também da panela)
  *  spots:  mesa1 {x:0.15, z:-0.45, rot:0} · mesa3 {x:0.95, z:-0.45, rot:0} (sentados no lado do fundo,
  *          de frente p/ câmera) · mesa2 {x:1.8, z:0.5, rot:-π/2} (cabeceira direita) · mesa4 {x:-0.7, z:0.5, rot:π/2}
- *          (cabeceira esquerda; mesa2 e mesa4 ficam frente a frente)
+ *          (cabeceira esquerda; mesa2 e mesa4 ficam frente a frente, com a linha de visão livre)
  *          cafe {x:-0.9, z:-1.3, rot:2.9} (em pé na cafeteira) · geladeira {x:1.6, z:-1.1, rot:π}
  *          pia {x:-1.84, z:-0.85, rot:-π/2} · janela {x:-1.84, z:-0.85, rot:-π/2} · porta {x:2.25, z:1.35, rot:-π/2}
  *          centro {x:-0.55, z:1.45, rot:0} · faisca {x:0.55, z:0.5, rot:0, y:1.08} (sobre a mesa)
  *          inicio {x:2.2, z:1.55, rot:-1.75}
  *          interação: fogao {x:0.2, z:-1.3, rot:π} · filtro {x:2.42, z:-1.4, rot:π} · mural {x:2.2, z:-1.3, rot:π/2}
- *                     relogio {x:2.1, z:-0.55, rot:π/2} · aparador {x:1.0, z:1.55, rot:0}
+ *                     (cortiça com recados legíveis, foto e ingresso de show) · relogio {x:2.1, z:-0.55, rot:π/2}
+ *                     aparador {x:1.0, z:1.55, rot:0}
  *  shots:  geral, mesa, dupla, cafe, geladeira, janela, porta
  *  colliders: bancada do fundo, bancada da pia, geladeira, filtro, mesa, aparador, planta.
  *
@@ -50,14 +60,15 @@
  *          abajur {x:-1.75, z:-1.05, rot:0.5} · janela {x:2.3, z:0.4, rot:π/2} · porta {x:-2.4, z:1.55, rot:π/2}
  *          centro {x:0.0, z:0.55, rot:0} · faisca {x:0.0, z:-0.6, rot:0, y:0.98} (sobre a mesa de centro)
  *          inicio {x:-2.3, z:1.55, rot:2.0}
- *          interação: foto {x:-0.2, z:-1.15, rot:π} · quadro {x:0.4, z:-1.15, rot:π} · estante {x:-2.2, z:-0.45, rot:-π/2}
- *                     vitrola {x:-2.25, z:-0.25, rot:-π/2} · celular {x:0.35, z:0.06, rot:π}
+ *          interação: foto {x:-0.2, z:-1.15, rot:π} · quadro {x:0.4, z:-1.15, rot:π} (galeria sobre o sofá)
+ *                     estante {x:-2.2, z:-0.45, rot:-π/2} · vitrola {x:-2.25, z:-0.25, rot:-π/2} (a vitrola fica na
+ *                     prateleira alta da estante, x≈-2.8, y≈1.85) · celular {x:0.35, z:0.06, rot:π} (na mesa de centro)
  *  shots:  geral, sofa, tv, abajur, janela, porta, alerta
  *  colliders: sofá (encosto + braços; assento livre), mesa de centro, abajur, mesinha, planta, estante,
  *             rack, aparador, palmeira, poltrona.
  *
  * ── mesa_cafe (varanda 6,0 × 4,6 m; manhã dourada, cobogó, cidade) ─────
- *  params: steam (bool, padrão true)
+ *  params: steam (bool, padrão true: vapor da xícara do pai e da caneca do filho)
  *  spots:  pai {x:0.0, z:-0.9, rot:0} (sentado, de frente p/ câmera) · filho {x:1.15, z:0.0, rot:-π/2}
  *          (sentado na cabeceira) · faisca {x:-1.15, z:0.0, rot:π/2, y:1.0} (flutua sobre a 3ª cadeira)
  *          duvida {x:-0.45, z:0.15, rot:0.3, y:0.8} (pequena, sobre a mesa) · grade {x:2.15, z:0.4, rot:π/2}
@@ -142,6 +153,56 @@
     deco.attach(obj);
     return obj;
   }
+  /**
+   * Esses móveis de primeiro plano somem quando a câmera de cinema entra neles (plano baixo rente à parede)
+   * ou chega perto por trás deles, do lado de fora da parede da frente (planos médios): assim nenhum plano
+   * começa com um tampo gigante tapando a cena, e o plano geral (câmera longe) continua com o primeiro plano.
+   * Em primeira pessoa a câmera fica sempre dentro do cômodo e longe deles (colliders): nada some.
+   * items: [{obj, x, z, w, d, top, wallZ, near}] — wallZ = z da face interna da parede da frente.
+   */
+  function fgHider(items) {
+    items.forEach((it) => { if (it.obj.parent) { bake(it.obj); it.obj.userData.live = true; } });
+    return function () {
+      const cam = P2.core && P2.core.camera;
+      if (!cam) return;
+      const p = cam.position;
+      items.forEach((it) => {
+        const gx = Math.max(0, Math.abs(p.x - it.x) - it.w / 2), gz = Math.max(0, Math.abs(p.z - it.z) - it.d / 2);
+        const gap = Math.hypot(gx, gz);
+        const inside = gap < 0.03 && p.y < it.top + 0.45;
+        const behind = p.z > it.wallZ && gap < (it.near || 1.5) && p.y < 2.4;
+        const vis = !(inside || behind);
+        if (it.obj.visible !== vis) it.obj.visible = vis;
+      });
+    };
+  }
+  /**
+   * Lençol/edredom moldado: plano subdividido cujos vértices seguem h(x, z) (coordenadas locais do grupo).
+   * Usado no edredom "com corpo" do quarto para cobrir quem dorme com um volume macio e contínuo.
+   */
+  function sheetGeo(x0, x1, z0, z1, nx, nz, h) {
+    const g = new T.PlaneGeometry(x1 - x0, z1 - z0, nx, nz);
+    g.rotateX(-PI / 2);
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i) + (x0 + x1) / 2, z = p.getZ(i) + (z0 + z1) / 2;
+      p.setXYZ(i, x, h(x, z), z);
+    }
+    g.computeVertexNormals();
+    g.userData.baked = true; // geometria própria: liberada no dispose
+    return g;
+  }
+  /** Interpolação suave por chaves [[t, v], ...] (smoothstep entre chaves vizinhas). */
+  function keyed(keys, t) {
+    if (t <= keys[0][0]) return keys[0][1];
+    for (let i = 1; i < keys.length; i++) {
+      if (t <= keys[i][0]) {
+        const a = keys[i - 1], b = keys[i], u = (t - a[0]) / (b[0] - a[0]);
+        return a[1] + (b[1] - a[1]) * u * u * (3 - 2 * u);
+      }
+    }
+    return keys[keys.length - 1][1];
+  }
 
   /**
    * "Assa" a decoração estática de um grupo: junta todas as malhas com o mesmo material numa só
@@ -195,7 +256,8 @@
       const mesh = new T.Mesh(geo, b.mat);
       mesh.castShadow = b.cast; mesh.receiveShadow = b.rec; mesh.renderOrder = b.ro;
       mesh.matrixAutoUpdate = false;
-      b.list.forEach((m) => m.parent.remove(m));
+      // geometrias próprias (não vêm do cache do M) dos objetos fundidos: liberar já, ninguém mais as usa
+      b.list.forEach((m) => { m.parent.remove(m); if (m.geometry.userData && m.geometry.userData.baked) m.geometry.dispose(); });
       group.add(mesh);
     });
     return group;
@@ -1080,13 +1142,14 @@
   /** Abajur de mesa (base cerâmica + cúpula). Devolve {g, shade, bulbPos}. */
   function tableLamp(k, parent, o) {
     const g = grp({ parent, pos: o.pos });
-    lathe('lampbase', [[0.001, 0], [0.07, 0], [0.085, 0.05], [0.09, 0.12], [0.06, 0.2], [0.02, 0.24], [0.001, 0.24]], o.base || '#cf8a5a', { parent: g }, 18);
-    cy(0.006, 0.006, 0.12, '#c9a25a', { parent: g, pos: [0, 0.29, 0], cast: false }, 6);
+    // base de cerâmica em gota (perfil denso: com a lâmpada logo acima, um perfil grosso mostrava facetas escuras)
+    lathe('lampbase2', [[0.001, 0], [0.058, 0], [0.072, 0.008], [0.083, 0.03], [0.09, 0.06], [0.092, 0.09], [0.088, 0.118], [0.077, 0.145], [0.06, 0.172], [0.042, 0.196], [0.028, 0.216], [0.022, 0.232], [0.024, 0.244], [0.001, 0.246]], o.base || '#cf8a5a', { parent: g }, 30);
+    cy(0.006, 0.006, 0.14, '#c9a25a', { parent: g, pos: [0, 0.31, 0], cast: false }, 6);
     const shadeMat = k.umat(o.shade || '#f3e6cc', { rough: 0.9, side: 'double', emissive: o.glow || '#ffb45e', emissiveIntensity: 0 });
     const shade = M.mesh(M.cylGeo(0.11, 0.16, 0.19, 22, true), shadeMat, { parent: g, pos: [0, 0.4, 0] });
     shade.castShadow = false;
     shade.userData.live = true;
-    return { g, shade, mat: shadeMat, bulb: new T.Vector3(o.pos[0], o.pos[1] + 0.38, o.pos[2]) };
+    return { g, shade, mat: shadeMat, bulb: new T.Vector3(o.pos[0], o.pos[1] + 0.43, o.pos[2]) };
   }
 
   /** Ventilador de teto (corpo claro + pás de madeira + cúpula leitosa). As pás ficam num grupo vivo que gira no update. */
@@ -1199,18 +1262,45 @@
       const duvetBody = grp({ parent: bed, name: 'duvetBody' });
       duvetBody.userData.live = true;
       rb(1.74, 0.34, 1.42, 0.07, duvetMat, { parent: duvetBody, pos: [0, 0.42, 0.33] }, 3);
-      // volume do corpo sob o edredom (tronco + pernas)
-      M.mesh(M.capsuleGeo(0.2, 1.02, 8, 28), duvetMat, { parent: duvetBody, pos: [-0.38, 0.6, 0.36], rot: [PI / 2, 0, 0], scale: [1.95, 1, 1.12] });
-      M.mesh(M.capsuleGeo(0.2, 0.3, 8, 28), duvetMat, { parent: duvetBody, pos: [-0.38, 0.6, -0.1], rot: [PI / 2, 0, 0], scale: [2.15, 1, 1.08] });
-      // pés "levantando" o edredom (cobre a ponta dos pés da pose 'sleep')
-      M.mesh(M.sphereGeo(0.2, 24, 14), duvetMat, { parent: duvetBody, pos: [-0.38, 0.6, 0.82], scale: [1.55, 1.32, 1.6] });
-      // dobra do lençol na altura dos ombros (baixa o bastante para o rosto aparecer)
-      rb(0.98, 0.07, 0.2, 0.034, foldMat, { parent: duvetBody, pos: [-0.38, 0.705, -0.3], rot: [0.3, 0, 0] }, 2);
-      rb(0.9, 0.09, 0.3, 0.04, foldMat, { parent: duvetBody, pos: [0.42, 0.6, -0.36] }, 2);
+      // volume do corpo sob o edredom: UM lençol moldado e contínuo (peito → pés), em vez de bolhas.
+      // Medido na pose 'sleep' (malha com skinning; pés no ponto 'cama', corpo no eixo x = -0.38, z local da cama):
+      // peito 0,79 m · barriga 0,76 · mãos ao lado do quadril 0,73 · pernas 0,69 · sapatos 0,81 (z 0,90–0,97).
+      // O edredom passa ~3,5 cm acima, abre em "tenda" larga e cai na ponta dos pés; na cabeceira abraça os ombros.
+      const BX = -0.38;
+      const lift = (z) => keyed([[-0.42, 0.19], [-0.3, 0.205], [-0.2, 0.226], [-0.1, 0.212], [0.1, 0.206], [0.25, 0.196], [0.4, 0.138], [0.55, 0.13], [0.7, 0.126], [0.8, 0.14], [0.85, 0.172], [0.9, 0.238], [0.95, 0.252], [0.99, 0.205], [1.045, 0.05]], z);
+      const wAt = (z) => keyed([[-0.42, 0.3], [-0.25, 0.44]], z); // largura da "tenda": estreita no peito (abraça os ombros)
+      const across = (x, z) => 1 / (1 + Math.pow(Math.abs(x - BX) / wAt(z), 6));
+      // topo do edredom liso (com as quinas arredondadas do bloco de baixo) + o volume do corpo por cima;
+      // na cabeceira o bloco arredonda só nas laterais — sobre o peito o edredom continua alto
+      const slabTop = (x, z, head) => {
+        const ex = Math.max(0, Math.abs(x) - 0.8), ez = z < 0.33 ? (head ? Math.max(0, -0.31 - z) : 0) : Math.max(0, z - 0.97);
+        const e = Math.min(0.07, Math.hypot(ex, ez));
+        return 0.52 + Math.sqrt(Math.max(0, 0.0049 - e * e)) + 0.004;
+      };
+      const edgeFade = (x) => 1 - keyed([[0.74, 0], [0.86, 1]], Math.abs(x));
+      const duvetH = (x, z) => {
+        const a = across(x, z), s0 = slabTop(x, z, true);
+        return s0 + (slabTop(x, z, false) - s0) * a + lift(z) * a * edgeFade(x);
+      };
+      M.mesh(sheetGeo(-0.87, 0.87, -0.4, 1.04, 36, 40, duvetH), duvetMat, { parent: duvetBody });
+      // barra do lençol dobrada sobre o peito (faixa macia que acompanha o volume e se encaixa nas bordas)
+      const foldH = (x, z) => duvetH(x, z) + Math.sin(Math.max(0, Math.min(1, (z + 0.42) / 0.26)) * PI) * 0.03 * edgeFade(x) - 0.002;
+      M.mesh(sheetGeo(-0.87, 0.87, -0.42, -0.16, 36, 8, foldH), foldMat, { parent: duvetBody });
+      // espessura da dobra na borda do peito: fecha a "tenda" para não se ver por baixo do edredom
+      {
+        const n = 36, pos = [], idx = [];
+        for (let i = 0; i <= n; i++) { const x = -0.87 + (1.74 * i) / n; pos.push(x, foldH(x, -0.42), -0.42, x, 0.522, -0.42); }
+        for (let i = 0; i < n; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 2, a + 1, a + 3); }
+        const g = new T.BufferGeometry();
+        g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+        g.userData.baked = true;
+        M.mesh(g, M.mat('#f7f4ee', { rough: 0.9, side: 'double' }), { parent: duvetBody, cast: false });
+      }
       // travesseiro afundado sob a cabeça
       rb(0.66, 0.08, 0.42, 0.04, '#f7f4ee', { parent: duvetBody, pos: [-0.38, 0.535, -0.78] }, 3);
-      // manta mostarda nos pés
-      rb(1.8, 0.035, 0.5, 0.015, '#d9952f', { parent: bed, pos: [0, 0.6, 0.68] }, 1);
+      // manta mostarda nos pés: lisa (cama vazia) ou moldada sobre a tenda dos pés
+      rb(1.8, 0.035, 0.5, 0.015, '#d9952f', { parent: duvetFlat, pos: [0, 0.6, 0.68] }, 1);
+      M.mesh(sheetGeo(-0.9, 0.9, 0.43, 0.93, 36, 14, (x, z) => Math.max(duvetH(x, z), 0.6) + 0.017), M.mat('#d9952f', { rough: 0.9, side: 'double' }), { parent: duvetBody });
       rb(0.035, 0.3, 0.5, 0.015, '#d9952f', { parent: bed, pos: [-0.9, 0.46, 0.68] }, 1);
       rb(0.035, 0.3, 0.5, 0.015, '#d9952f', { parent: bed, pos: [0.9, 0.46, 0.68] }, 1);
 
@@ -1316,13 +1406,31 @@
         ctx.fillStyle = '#cfae84'; ctx.fillRect(0, 0, w, h);
         for (let i = 0; i < 46; i++) { ctx.strokeStyle = 'rgba(' + (120 + r() * 40 | 0) + ',80,40,' + (0.08 + r() * 0.12) + ')'; ctx.lineWidth = 1 + r() * 2; const x = r() * w; ctx.beginPath(); ctx.moveTo(x, 0); ctx.bezierCurveTo(x + (r() - 0.5) * 20, h * 0.3, x + (r() - 0.5) * 20, h * 0.7, x + (r() - 0.5) * 12, h); ctx.stroke(); }
       }), { rough: 0.55 });
-      const mirrorMat = k.tmat(k.tex(128, 512, (ctx, w, h) => {
-        const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#6c7a92'); g.addColorStop(0.55, '#3a4458'); g.addColorStop(1, '#4a4250');
+      // espelho: reflexo pintado do quarto em frente (forro, a janela da madrugada entre as cortinas, a cama e o piso),
+      // levemente desfocado — de perto lê como espelho, não como um vão escuro
+      const mirrorMat = k.tmat(k.tex(256, 1024, (ctx, w, h) => {
+        ctx.filter = 'blur(3px)';
+        const g = ctx.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, '#b7b9d6'); g.addColorStop(0.08, '#9ea2c4'); g.addColorStop(0.1, '#8c90b4'); g.addColorStop(0.62, '#7a7896'); g.addColorStop(0.64, '#8a6650'); g.addColorStop(1, '#6e4e3a');
         ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-        ctx.fillStyle = 'rgba(255,255,255,0.16)';
-        [[0.1, 0.22], [0.42, 0.08]].forEach(([x0, bw]) => { ctx.beginPath(); ctx.moveTo(w * x0, 0); ctx.lineTo(w * (x0 + bw), 0); ctx.lineTo(w * (x0 + bw - 0.5), h); ctx.lineTo(w * (x0 - 0.5), h); ctx.closePath(); ctx.fill(); });
-        ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 3; ctx.strokeRect(2, 2, w - 4, h - 4);
-      }), { rough: 0.12, metal: 0.35 });
+        // janela da madrugada (rosa → lilás) com montante central e cortinas azul-marinho dos lados
+        const wx = w * 0.12, ww = w * 0.62, wy = h * 0.27, wh = h * 0.27;
+        const sg = ctx.createLinearGradient(0, wy, 0, wy + wh); sg.addColorStop(0, '#5d5a9a'); sg.addColorStop(0.6, '#c07a92'); sg.addColorStop(1, '#f2b089');
+        ctx.fillStyle = sg; ctx.fillRect(wx, wy, ww, wh);
+        ctx.fillStyle = 'rgba(60,50,90,0.75)'; for (let i = 0; i < 7; i++) ctx.fillRect(wx + i * ww / 7, wy + wh * (0.55 - (i % 3) * 0.08), ww / 7 - 4, wh);
+        ctx.fillStyle = '#efe9df'; ctx.fillRect(wx + ww / 2 - 4, wy, 8, wh); ctx.fillRect(wx - 6, wy + wh, ww + 12, 10);
+        ctx.fillStyle = '#2e3a52'; ctx.fillRect(wx - 34, wy - 40, 30, h * 0.36); ctx.fillRect(wx + ww + 4, wy - 40, 30, h * 0.36);
+        // cama e manta mostarda (embaixo), abajur aceso ao fundo
+        ctx.fillStyle = '#e6e3ec'; ctx.fillRect(0, h * 0.66, w * 0.85, h * 0.07);
+        ctx.fillStyle = '#c98a3a'; ctx.fillRect(0, h * 0.7, w * 0.55, h * 0.03);
+        const lg = ctx.createRadialGradient(w * 0.88, h * 0.6, 2, w * 0.88, h * 0.6, 70); lg.addColorStop(0, 'rgba(255,200,130,0.95)'); lg.addColorStop(1, 'rgba(255,200,130,0)');
+        ctx.fillStyle = lg; ctx.fillRect(0, 0, w, h);
+        ctx.filter = 'none';
+        // brilho do vidro (faixas diagonais suaves) + bisotê
+        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+        [[0.05, 0.2], [0.4, 0.07]].forEach(([x0, bw]) => { ctx.beginPath(); ctx.moveTo(w * x0, 0); ctx.lineTo(w * (x0 + bw), 0); ctx.lineTo(w * (x0 + bw - 0.6), h); ctx.lineTo(w * (x0 - 0.6), h); ctx.closePath(); ctx.fill(); });
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 5; ctx.strokeRect(3, 3, w - 6, h - 6);
+      }), { rough: 0.22, metal: 0.1 });
       const wr = grp({ parent: WB.right, pos: [-0.9, 0, 0] }); // local x: -2.2..0.4 (mundo z)
       const wW = 2.6;
       rb(wW, 2.44, 0.6, 0.015, '#e7ded1', { parent: wr, pos: [0, 1.22 + 0.04, 0.3], cast: false }, 1);
@@ -1347,9 +1455,25 @@
         rb(0.14, 0.014, 0.016, 0.006, '#c9a25a', { parent: dresser, pos: [-0.36 + c2 * 0.72, 0.31 + r2 * 0.245, 0.495], cast: false }, 1);
       }
       [[-0.68, 0.06], [0.68, 0.06], [-0.68, 0.42], [0.68, 0.42]].forEach(([a, b]) => cy(0.016, 0.012, 0.1, '#5a3a26', { parent: dresser, pos: [a, 0.05, b] }, 6));
+      // costas acabadas (aparecem no plano geral, com a parede da frente escondida): quadro + 2 almofadas de madeira
+      rb(1.42, 0.68, 0.012, 0.004, '#8a5a3a', { parent: dresser, pos: [0, 0.47, -0.004], cast: false }, 1);
+      [-0.355, 0.355].forEach((x) => rb(0.64, 0.58, 0.012, 0.004, '#a06c48', { parent: dresser, pos: [x, 0.47, -0.009], cast: false }, 1));
+      bx(1.5, 0.025, 0.014, '#6e4630', { parent: dresser, pos: [0, 0.845, -0.006], cast: false });
       const tvB = rb(1.1, 0.64, 0.04, 0.01, '#16161b', { parent: F, pos: [0.2, 1.62, 0.03], cast: false }, 1);
       void tvB;
-      pl(1.06, 0.6, M.mat('#1d2230', { rough: 0.2, metal: 0.3 }), { parent: F, pos: [0.2, 1.62, 0.051], cast: false });
+      // tela desligada: vidro escuro com o reflexo fraco da janela e um brilho diagonal (é o que se vê da cama)
+      const tvOff = k.tex(512, 288, (ctx, w, h) => {
+        const g = ctx.createLinearGradient(0, 0, w, h); g.addColorStop(0, '#2a3046'); g.addColorStop(0.5, '#141826'); g.addColorStop(1, '#1b1e2c');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+        ctx.filter = 'blur(6px)';
+        ctx.fillStyle = 'rgba(150,130,190,0.16)'; ctx.fillRect(w * 0.62, h * 0.18, w * 0.22, h * 0.5);
+        ctx.fillStyle = 'rgba(230,226,236,0.07)'; ctx.fillRect(w * 0.05, h * 0.72, w * 0.5, h * 0.2);
+        ctx.filter = 'none';
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        ctx.beginPath(); ctx.moveTo(w * 0.1, 0); ctx.lineTo(w * 0.36, 0); ctx.lineTo(w * 0.12, h); ctx.lineTo(-w * 0.14, h); ctx.closePath(); ctx.fill();
+      });
+      pl(1.06, 0.6, k.tmat(tvOff, { rough: 0.25, metal: 0.2 }), { parent: F, pos: [0.2, 1.62, 0.051], cast: false });
+      sp(0.006, M.basic('#ff4a3a'), { parent: F, pos: [0.2 + 0.5, 1.315, 0.05], cast: false }, 6, 4); // led de standby
       // perfumes + porta-joias + foto
       cy(0.03, 0.03, 0.12, M.mat('#e8c68a', { rough: 0.1, opacity: 0.8, transparent: true }), { parent: dresser, pos: [-0.5, 0.92, 0.2], cast: false }, 12);
       cy(0.035, 0.035, 0.1, M.mat('#9ec0d8', { rough: 0.1, opacity: 0.8, transparent: true }), { parent: dresser, pos: [-0.42, 0.91, 0.28], cast: false }, 12);
@@ -1388,6 +1512,30 @@
       const wash = pl(1.9, 2.8, washMat, { parent: live, pos: [-2.6 + 0.42 + 0.95, H - 0.004, -0.35], rot: [PI / 2, 0, 0], cast: false });
       wash.receiveShadow = false;
       wash.renderOrder = 4;
+      // reflexo do despertador (vermelho, pisca com o alarme) e do celular (azulado) no forro sobre o criado-mudo:
+      // é o que o pai vê deitado olhando para cima às 6h47
+      const devWashTex = k.tex(128, 128, (ctx, w, h) => {
+        const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+        g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.45, 'rgba(255,255,255,0.35)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+      });
+      const devWashMat = k.bmat(devWashTex, { transparent: true, color: '#ff3030', opacity: 0, fog: false, toneMapped: false });
+      devWashMat.depthWrite = false;
+      // duas partes: a sanca rebaixada junto à parede do fundo (onde fica o criado-mudo) e o forro central;
+      // UV calculado pela posição → um só brilho redondo centrado no despertador
+      const washPart = (x0, x1, z0, z1, y) => {
+        const g = new T.PlaneGeometry(x1 - x0, z1 - z0);
+        g.rotateX(PI / 2); // virado para baixo
+        g.translate((x0 + x1) / 2, y, (z0 + z1) / 2);
+        const pa = g.attributes.position, uv = g.attributes.uv, cx = -1.12, cz = -1.84, R = 1.15;
+        for (let i = 0; i < pa.count; i++) uv.setXY(i, 0.5 + (pa.getX(i) - cx) / (2 * R), 0.5 + (pa.getZ(i) - cz) / (2 * R));
+        g.userData.baked = true;
+        const m = M.mesh(g, devWashMat, { parent: live, cast: false });
+        m.receiveShadow = false; m.renderOrder = 4;
+        return m;
+      };
+      washPart(-2.18, -0.02, -D / 2, -D / 2 + 0.42, H - 0.125);
+      washPart(-2.18, -0.02, -D / 2 + 0.42, -0.7, H - 0.003);
 
       // --- Luzes
       const L = lights(root, 'noite', 4.2);
@@ -1406,8 +1554,10 @@
       const out = outside(k, root, { sky: ['#1a2050', '#c27a8a', '#2a2448'], sunPos: [-60, 3, -8], sunColor: '#ffb48a', sunSize: 24, seed: 3 });
       const nearViews = [win.userData.view];
 
-      // cômoda fica no chão (primeiro plano do plano geral; a TV continua na parede)
+      // cômoda fica no chão (primeiro plano do plano geral; a TV continua na parede) e some quando a câmera
+      // de cinema entra nela (plano 'dramatico', rente à parede da frente) ou chega perto por trás
       keepOnFloor(root, deco, dresser);
+      const fgCheck = fgHider([{ obj: dresser, x: -0.2, z: D / 2 - 0.24, w: 1.52, d: 0.5, top: 0.95, wallZ: D / 2 }]);
       // assar decoração estática (menos draw calls)
       bake(deco);
       S.walls.forEach((w) => bake(w.obj));
@@ -1464,7 +1614,8 @@
         },
         bounds: S.bounds,
         colliders: [
-          { x: 0, z: -1.15, w: 1.62, d: 1.9 },                 // cama (pés livres p/ o ponto 'cama')
+          { x: 0, z: -1.15, w: 1.62, d: 1.9 },                 // cama
+          { x: 0, z: -0.1, w: 1.66, d: 0.24 },                 // pé da cama (o ponto 'cama' fica dentro: deitar é por cena)
           { x: -1.26, z: -1.86, w: 0.56, d: 0.44 },            // criado-mudo esq.
           { x: 1.26, z: -1.86, w: 0.56, d: 0.44 },             // criado-mudo dir.
           { x: 2.3, z: -0.9, w: 0.62, d: 2.62 },               // guarda-roupa
@@ -1528,10 +1679,14 @@
             clockG.position.x = -1.12 + (on ? Math.sin(t * 90) * 0.003 : 0);
             devLight.color.set('#ff2a2a');
             devLight.intensity = on ? 1.4 : 0.1;
+            devWashMat.color.set('#ff2a2a');
+            devWashMat.opacity = on ? 0.45 : 0.07;
           } else if (state.phoneLit) {
             devLight.color.set('#9fc0ff');
             devLight.intensity = 0.9 + Math.sin(t * 3) * 0.08;
-          } else devLight.intensity = 0;
+            devWashMat.color.set('#8fb0ff');
+            devWashMat.opacity = 0.14;
+          } else { devLight.intensity = 0; devWashMat.opacity = 0; }
           // edredom automático
           let cover = state.coberta;
           if (cover == null) {
@@ -1543,6 +1698,7 @@
           duvetFlat.visible = !cover;
           const inside = out.check(W, D, H, nearViews);
           shaftMat.opacity = (0.2 + Math.sin(t * 0.4) * 0.03) * (inside ? 0.45 : 1);
+          fgCheck();
           void p;
         },
         dispose() { k.dispose(root); },
@@ -1797,11 +1953,48 @@
       const hourHand = bx(0.012, 0.09, 0.004, '#2b2522', { parent: clk, pos: [0, 0, 0.026], cast: false });
       const minHand = bx(0.008, 0.14, 0.004, '#2b2522', { parent: clk, pos: [0, 0, 0.03], cast: false });
       clk.userData.live = true;
+      // mural de cortiça (ponto 'mural'): uma textura só, com recados escritos à mão, alfinetes, foto e o
+      // ingresso do show — de perto (1ª pessoa) os recados se leem, em vez de quadradinhos coloridos vazios
       const cork = grp({ parent: WB.right, pos: [-1.45, 1.45, 0.01] });
       rb(0.7, 0.5, 0.025, 0.01, '#b5835a', { parent: cork, pos: [0, 0, 0.012] }, 1);
-      pl(0.64, 0.44, '#c9a074', { parent: cork, pos: [0, 0, 0.026], cast: false });
-      [['#ffe680', -0.18, 0.08, 0.1], ['#ff9fb0', 0.05, 0.1, -0.08], ['#9fe0c8', 0.2, -0.05, 0.12], ['#9fc0ff', -0.12, -0.12, -0.05]].forEach(([c, x, y, r]) => pl(0.14, 0.13, c, { parent: cork, pos: [x, y, 0.028], rot: [0, 0, r], cast: false }));
-      pl(0.13, 0.16, k.tmat(photoTex(k, 4), { rough: 0.5 }), { parent: cork, pos: [0.06, -0.08, 0.029], rot: [0, 0, 0.06], cast: false });
+      const corkPhoto = photoTex(k, 4);
+      const corkTex = k.tex(640, 440, (ctx, w, h) => {
+        const r = M.rng(23);
+        ctx.fillStyle = '#c9a074'; ctx.fillRect(0, 0, w, h);
+        for (let i = 0; i < 2600; i++) { ctx.fillStyle = r() > 0.5 ? 'rgba(120,80,40,0.22)' : 'rgba(240,210,160,0.25)'; ctx.fillRect(r() * w, r() * h, 1 + r() * 2.5, 1 + r() * 2.5); }
+        const hand = '"Segoe Print", "Comic Sans MS", "Bradley Hand", cursive';
+        const note = (x, y, nw, nh, rot, col, lines, pin) => {
+          ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+          ctx.fillStyle = 'rgba(60,35,15,0.22)'; ctx.fillRect(-nw / 2 + 4, -nh / 2 + 5, nw, nh);
+          ctx.fillStyle = col; ctx.fillRect(-nw / 2, -nh / 2, nw, nh);
+          ctx.fillStyle = 'rgba(0,0,0,0.06)'; ctx.fillRect(-nw / 2, -nh / 2, nw, nh * 0.16);
+          ctx.fillStyle = '#2b2a3a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          lines.forEach((ln, i) => { ctx.font = (i === 0 ? '700 ' : '400 ') + (i === 0 ? 25 : 21) + 'px ' + hand; ctx.fillText(ln, 0, -nh / 2 + 36 + i * 28); });
+          ctx.fillStyle = pin; ctx.beginPath(); ctx.arc(0, -nh / 2 + 9, 8, 0, PI * 2); ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.arc(-2.5, -nh / 2 + 6.5, 2.6, 0, PI * 2); ctx.fill();
+          ctx.restore();
+        };
+        note(118, 120, 150, 140, 0.08, '#ffe680', ['Pagar a luz', 'até quinta!'], '#e94b5a');
+        note(300, 112, 150, 140, -0.07, '#ff9fb0', ['Dentista', 'sáb · 10h'], '#4166a8');
+        note(522, 150, 150, 140, 0.1, '#9fe0c8', ['Niver da vó', '12/10 · bolo!'], '#f2a53a');
+        note(170, 318, 160, 140, -0.05, '#9fc0ff', ['Ligar p/ o', 'encanador', '(pia pinga)'], '#2f9f78');
+        // foto da família presa com alfinete
+        ctx.save(); ctx.translate(372, 316); ctx.rotate(0.06);
+        ctx.fillStyle = 'rgba(60,35,15,0.25)'; ctx.fillRect(-72, -58, 150, 124);
+        ctx.fillStyle = '#fbf8f0'; ctx.fillRect(-76, -62, 150, 124);
+        ctx.drawImage(corkPhoto.userData.canvas, -68, -54, 134, 96);
+        ctx.fillStyle = '#7a5ac8'; ctx.beginPath(); ctx.arc(0, -54, 7, 0, PI * 2); ctx.fill();
+        ctx.restore();
+        // ingresso de show (anos 80) — gancho do capítulo do presente
+        ctx.save(); ctx.translate(540, 334); ctx.rotate(-0.12);
+        ctx.fillStyle = '#f6efe2'; ctx.fillRect(-62, -34, 124, 68);
+        ctx.fillStyle = '#c8453a'; ctx.fillRect(-62, -34, 124, 18);
+        ctx.fillStyle = '#ffffff'; ctx.font = '800 13px Arial'; ctx.textAlign = 'center'; ctx.fillText('INGRESSO', 0, -21);
+        ctx.fillStyle = '#2b2a3a'; ctx.font = '700 15px Arial'; ctx.fillText('Rock dos anos 80', 0, 6); ctx.font = '400 12px Arial'; ctx.fillText('setor B · fila 12', 0, 24);
+        ctx.setLineDash([4, 3]); ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.moveTo(34, -34); ctx.lineTo(34, 34); ctx.stroke(); ctx.setLineDash([]);
+        ctx.restore();
+      });
+      pl(0.64, 0.44, k.tmat(corkTex, { rough: 0.85 }), { parent: cork, pos: [0, 0, 0.026], cast: false });
       rb(0.08, 0.12, 0.012, 0.005, '#f7f4ee', { parent: WB.right, pos: [0.8, 1.15, 0.006], cast: false }, 1);
 
       // --- Parede da frente: passagem para a sala + aparador
@@ -1838,6 +2031,10 @@
       rb(1.4, 0.7, 0.42, 0.015, '#a8744c', { parent: ap, pos: [0, 0.45, 0.21] }, 1);
       [[-0.64, 0.05], [0.64, 0.05], [-0.64, 0.37], [0.64, 0.37]].forEach(([a, b]) => cy(0.016, 0.012, 0.12, '#5a3a26', { parent: ap, pos: [a, 0.06, b] }, 6));
       [-0.35, 0.35].forEach((x) => { rb(0.66, 0.6, 0.015, 0.006, '#93633f', { parent: ap, pos: [x, 0.45, 0.425] }, 1); });
+      // costas acabadas (vistas no plano geral com a parede da frente escondida)
+      rb(1.32, 0.6, 0.012, 0.004, '#8a5a3a', { parent: ap, pos: [0, 0.45, -0.004], cast: false }, 1);
+      [-0.33, 0.33].forEach((x) => rb(0.6, 0.5, 0.012, 0.004, '#a06c48', { parent: ap, pos: [x, 0.45, -0.009], cast: false }, 1));
+      bx(1.4, 0.025, 0.014, '#6e4630', { parent: ap, pos: [0, 0.785, -0.006], cast: false });
       const radio = grp({ parent: ap, pos: [-0.4, 0.8, 0.2] });
       rb(0.32, 0.18, 0.13, 0.04, '#2f6f8a', { parent: radio, pos: [0, 0.09, 0] }, 2);
       cy(0.05, 0.05, 0.01, '#e9dcc0', { parent: radio, pos: [-0.07, 0.09, 0.066], rot: [PI / 2, 0, 0], cast: false }, 14);
@@ -1854,7 +2051,8 @@
       // trilho de mesa (linho)
       rb(1.56, 0.006, 0.34, 0.002, '#e8dcc6', { parent: table, pos: [0, 0.763, 0], cast: false }, 1);
       fruitBowl(table, { pos: [0.05, 0.765, 0.02], seed: 7 });
-      plant(table, 'flor', { pos: [-0.38, 0.765, 0.05], potR: 0.045, potH: 0.12, pot: '#2f6f8a', seed: 5, n: 5 });
+      // vasinho de flores fora da linha de visão entre as cabeceiras (mesa4 ↔ mesa2: o rosto de quem está em frente)
+      plant(table, 'flor', { pos: [-0.24, 0.765, 0.3], potR: 0.045, potH: 0.12, pot: '#2f6f8a', seed: 5, n: 5 });
       mug(table, { pos: [-0.38, 0.765, -0.28], color: '#24324f' });
       cup(table, { pos: [0.42, 0.765, -0.26], band: '#2f6f8a' });
       // celular do pai na mesa
@@ -1865,8 +2063,9 @@
       Object.keys(chairs).forEach((n) => { const c = chairs[n]; chair(deco, { x: c[0], z: c[1], rot: c[2], wood: '#7a4b2f', seat: '#e0a33a', back: 'palha' }); });
       // pendentes
       // pendentes de alumínio esmaltado terracota (altos o bastante para não tapar a visão de quem está em pé)
-      const pendMat = M.mat('#c8653f', { rough: 0.45, side: 'double' });
-      const pendIn = M.mat('#f6efe2', { rough: 0.6, side: 'back' });
+      // (materiais próprios: à noite o esmalte ganha um brilho quente e o interior da cúpula acende)
+      const pendMat = k.umat('#c8653f', { rough: 0.45, side: 'double', emissive: '#ff8a4a', emissiveIntensity: 0 });
+      const pendIn = k.umat('#f6efe2', { rough: 0.6, side: 'back', emissive: '#ffd9a0', emissiveIntensity: 0 });
       const bulbMat = k.umat('#fff4dc', { emissive: '#ffcf8a', emissiveIntensity: 0.4 });
       const PY = 1.66;
       [TX - 0.38, TX + 0.38].forEach((x) => {
@@ -1901,6 +2100,8 @@
       const nearViews = [WB.left.children.find((c) => c.userData.view).userData.view];
 
       keepOnFloor(root, deco, ap); // aparador com rádio e fruteira fica no chão (primeiro plano)
+      // ...e some nos planos médios com a câmera logo atrás dele (ex.: 'mesa'), onde o rádio tapava a cena
+      const fgCheck = fgHider([{ obj: ap, x: 1.0, z: D / 2 - 0.21, w: 1.42, d: 0.44, top: 1.0, wallZ: D / 2 }]);
       bake(deco);
       S.walls.forEach((w) => bake(w.obj));
 
@@ -1972,6 +2173,8 @@
             hallMat.color.set(night ? '#a89484' : '#ffffff');
             pendGlows.forEach((g) => (g.material.opacity = night ? 0.6 : 0));
             bulbMat.emissiveIntensity = night ? 2.2 : 0.3;
+            pendMat.emissiveIntensity = night ? 0.16 : 0;
+            pendIn.emissiveIntensity = night ? 0.9 : 0;
             ledMat.emissiveIntensity = night ? 2.0 : 0;
             hourHand.rotation.z = -(night ? 20.25 : 7.25) / 12 * PI * 2;
             minHand.rotation.z = -(night ? 0.25 : 0.25) * PI * 2;
@@ -1984,6 +2187,7 @@
           updatePuffs(steamB, t + 0.5, state.steam && state.time === 'noite');
           const inside = out.check(W, D, H, nearViews);
           if (state.time === 'manha') shaftMat.opacity = (0.2 + Math.sin(t * 0.5) * 0.025) * (inside ? 0.5 : 1);
+          fgCheck();
         },
         dispose() { k.dispose(root); },
       };
@@ -2147,6 +2351,9 @@
       rb(2.1, 0.42, 0.44, 0.015, '#efe6d6', { parent: rack, pos: [0, 0.33, 0.27] }, 1);
       [-0.7, 0, 0.7].forEach((x) => rb(0.68, 0.36, 0.015, 0.006, '#e2d6c2', { parent: rack, pos: [x, 0.33, 0.495] }, 1));
       [[-0.98, 0.1], [0.98, 0.1], [-0.98, 0.44], [0.98, 0.44]].forEach(([a, b]) => cy(0.016, 0.012, 0.12, '#3a2a20', { parent: rack, pos: [a, 0.06, b] }, 6));
+      // costas acabadas (o rack fica no chão e aparece de costas no plano geral)
+      [-0.7, 0, 0.7].forEach((x) => rb(0.64, 0.32, 0.012, 0.004, '#e2d6c2', { parent: rack, pos: [x, 0.33, 0.044], cast: false }, 1));
+      bx(2.1, 0.02, 0.014, '#cbbca4', { parent: rack, pos: [0, 0.53, 0.044], cast: false });
       rb(0.9, 0.07, 0.09, 0.03, '#1d1d22', { parent: rack, pos: [0, 0.58, 0.32] }, 2);
       bookStack(rack, { pos: [-0.75, 0.54, 0.27], n: 3, seed: 21, w: 0.26, d: 0.2 });
       lathe('vaseC', [[0.001, 0], [0.07, 0], [0.1, 0.1], [0.05, 0.28], [0.06, 0.3], [0.001, 0.3]], '#2f6f8a', { parent: rack, pos: [0.78, 0.54, 0.27] });
@@ -2186,6 +2393,8 @@
       const nearViews = [WB.right.children.find((c) => c.userData.view).userData.view];
 
       keepOnFloor(root, deco, rack); // rack baixo fica no chão (primeiro plano); TV e ripado ficam na parede
+      // ...e some com a câmera logo atrás dele (ex.: plano 'porta', onde o vaso azul virava um borrão na frente)
+      const fgCheck = fgHider([{ obj: rack, x: 0, z: D / 2 - 0.27, w: 2.12, d: 0.46, top: 0.9, wallZ: D / 2 }]);
       bake(deco);
       S.walls.forEach((w) => bake(w.obj));
 
@@ -2365,6 +2574,7 @@
           candleFlame.scale.setScalar(0.11 + Math.sin(t * 13) * 0.01 + Math.sin(t * 7.7) * 0.008);
           if (st8.lamp && !st8.alert) lamp.userData.light.intensity = 2.6 + Math.sin(t * 1.3) * 0.04;
           out.check(W, D, H, nearViews);
+          fgCheck();
         },
         dispose() { k.dispose(root); },
       };
@@ -2441,14 +2651,41 @@
       [[-1.02, 1.15, 0.06, 2.3], [1.02, 1.15, 0.06, 2.3], [0, 1.15, 0.05, 2.3]].forEach(([x, y, w, hh]) => bx(w, hh, 0.12, alu, { parent: door, pos: [x, y, -0.07], cast: false }));
       bx(2.1, 0.06, 0.12, alu, { parent: door, pos: [0, 2.27, -0.07], cast: false });
       bx(2.1, 0.04, 0.16, alu, { parent: door, pos: [0, 0.02, -0.05], cast: false });
-      const inside = k.bmat(k.tex(256, 256, (ctx, w, h) => {
-        const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#5a4a40'); g.addColorStop(1, '#2e2420');
+      // interior visto pela porta de vidro: a sala de estar tranquila e quente da manhã (parede creme, quadro,
+      // sofá verde, luminária, planta, piso de madeira) com voil na folha da direita e o reflexo do céu no vidro.
+      // Tons calmos e sem pontos claros no meio da altura: fica logo atrás da cabeça do pai no plano 'pai'.
+      const inside = k.bmat(k.tex(512, 576, (ctx, w, h) => {
+        const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#b89e84'); g.addColorStop(0.55, '#c9b092'); g.addColorStop(1, '#a88a6c');
         ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-        ctx.fillStyle = '#e9dcc4'; ctx.globalAlpha = 0.85; ctx.fillRect(w * 0.62, 0, w * 0.38, h); ctx.globalAlpha = 1;
-        ctx.strokeStyle = 'rgba(160,140,110,0.6)'; ctx.lineWidth = 3; for (let x = w * 0.64; x < w; x += 12) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 4, h); ctx.stroke(); }
-        ctx.fillStyle = '#3e6250'; ctx.fillRect(w * 0.08, h * 0.62, w * 0.46, h * 0.2);
-        ctx.fillStyle = '#ffcf8a'; ctx.beginPath(); ctx.arc(w * 0.16, h * 0.4, 14, 0, PI * 2); ctx.fill();
-        ctx.fillStyle = '#4a3a30'; ctx.fillRect(0, h * 0.86, w, h * 0.14);
+        // luz da manhã entrando de lado na sala
+        const lg = ctx.createLinearGradient(0, 0, w, 0); lg.addColorStop(0, 'rgba(255,214,160,0.35)'); lg.addColorStop(0.5, 'rgba(255,214,160,0)');
+        ctx.fillStyle = lg; ctx.fillRect(0, 0, w, h);
+        // piso de madeira em perspectiva + tapete
+        ctx.fillStyle = '#8a6448'; ctx.fillRect(0, h * 0.8, w, h * 0.2);
+        ctx.strokeStyle = 'rgba(60,35,20,0.25)'; ctx.lineWidth = 2; for (let i = 1; i < 6; i++) { const y = h * 0.8 + h * 0.2 * (i / 6) * (i / 6) * 1.6; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+        ctx.fillStyle = '#e6d6bc'; ctx.fillRect(w * 0.06, h * 0.86, w * 0.52, h * 0.07);
+        // quadro (alto, acima da cabeça de quem senta lá fora) e sofá verde baixo com almofadas
+        ctx.fillStyle = '#3a2c24'; ctx.fillRect(w * 0.14, h * 0.12, w * 0.3, h * 0.2);
+        ctx.fillStyle = '#efe2c8'; ctx.fillRect(w * 0.15 + 2, h * 0.12 + 4, w * 0.3 - 8, h * 0.2 - 8);
+        ctx.fillStyle = '#7d9a78'; ctx.fillRect(w * 0.15 + 2, h * 0.24, w * 0.3 - 8, h * 0.08 - 4);
+        ctx.fillStyle = '#e0a33a'; ctx.beginPath(); ctx.arc(w * 0.29, h * 0.2, 13, 0, PI * 2); ctx.fill();
+        ctx.fillStyle = '#4e7262'; ctx.fillRect(w * 0.05, h * 0.66, w * 0.5, h * 0.14);
+        ctx.fillStyle = '#5c8070'; ctx.fillRect(w * 0.05, h * 0.6, w * 0.5, h * 0.08);
+        ctx.fillStyle = '#e0a33a'; ctx.fillRect(w * 0.09, h * 0.585, w * 0.08, h * 0.07);
+        ctx.fillStyle = '#c8653f'; ctx.fillRect(w * 0.42, h * 0.59, w * 0.08, h * 0.065);
+        // luminária de piso apagada (dia) e planta no canto
+        ctx.fillStyle = '#3a2c24'; ctx.fillRect(w * 0.585, h * 0.36, 4, h * 0.44);
+        ctx.fillStyle = '#efe4d0'; ctx.beginPath(); ctx.moveTo(w * 0.555, h * 0.36); ctx.lineTo(w * 0.625, h * 0.36); ctx.lineTo(w * 0.64, h * 0.3); ctx.lineTo(w * 0.54, h * 0.3); ctx.fill();
+        ctx.fillStyle = '#c06a46'; ctx.fillRect(w * 0.67, h * 0.72, w * 0.08, h * 0.08);
+        ctx.fillStyle = '#4f7f52'; for (let i = 0; i < 7; i++) { ctx.beginPath(); ctx.ellipse(w * 0.71 + Math.sin(i * 1.7) * 26, h * 0.62 - i * 9, 22, 10, i * 0.7, 0, PI * 2); ctx.fill(); }
+        // voil na folha da direita
+        ctx.fillStyle = 'rgba(246,240,228,0.82)'; ctx.fillRect(w * 0.6, 0, w * 0.4, h);
+        ctx.strokeStyle = 'rgba(200,184,160,0.55)'; ctx.lineWidth = 3; for (let x = w * 0.62; x < w; x += 16) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 5, h); ctx.stroke(); }
+        // reflexo do céu dourado no vidro (faixas diagonais)
+        const rg = ctx.createLinearGradient(0, 0, 0, h); rg.addColorStop(0, 'rgba(160,200,240,0.22)'); rg.addColorStop(0.5, 'rgba(255,226,190,0.12)'); rg.addColorStop(1, 'rgba(255,226,190,0)');
+        ctx.fillStyle = rg; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+        [[0.18, 0.1], [0.34, 0.04], [0.7, 0.08]].forEach(([x0, bw]) => { ctx.beginPath(); ctx.moveTo(w * x0, 0); ctx.lineTo(w * (x0 + bw), 0); ctx.lineTo(w * (x0 + bw - 0.25), h); ctx.lineTo(w * (x0 - 0.25), h); ctx.closePath(); ctx.fill(); });
       }), { fog: false });
       pl(2.0, 2.26, inside, { parent: door, pos: [0, 1.13, -0.3], cast: false });
       pl(2.0, 2.26, M.glass('#d8ecff', 0.18), { parent: door, pos: [0, 1.13, -0.06], cast: false }).renderOrder = 2;
@@ -2464,16 +2701,20 @@
           ctx.fillRect(x + 3, row * bh + 3, bw - 6, bh - 6);
         }
       }, { repeat: [1, 1] });
+      // tijolinho na escala certa em toda face (UV em metros: 1 ladrilho da textura = 0,8 m → tijolo 20 × 10 cm)
+      brickTex.wrapS = brickTex.wrapT = T.RepeatWrapping;
       const brickMat = k.tmat(brickTex, { rough: 0.9 });
+      const hoodTex = brickTex.clone(); hoodTex.repeat.set(4.2, 0.6); hoodTex.needsUpdate = true; k.own.tex.push(hoodTex);
+      const hoodMat = k.tmat(hoodTex, { rough: 0.9 });
       const ch = grp({ parent: B, pos: [1.75, 0, 0] });
-      const brickBox = (w, hh, d, x, y, z) => { const m = bx(w, hh, d, brickMat, { parent: ch, pos: [x, y, z] }); m.castShadow = true; return m; };
+      const brickBox = (w, hh, d, x, y, z) => { const g = meterBox(w, hh, d, 0.8); g.userData.baked = true; const m = M.mesh(g, brickMat, { parent: ch, pos: [x, y, z] }); m.castShadow = true; return m; };
       brickBox(1.2, 0.9, 0.62, 0, 0.45, 0.31);
       rb(1.26, 0.05, 0.66, 0.01, '#3a3638', { parent: ch, pos: [0, 0.925, 0.33] }, 1);
       brickBox(0.16, 0.75, 0.62, -0.52, 1.32, 0.31);
       brickBox(0.16, 0.75, 0.62, 0.52, 1.32, 0.31);
       bx(0.88, 0.75, 0.02, '#1f1b1a', { parent: ch, pos: [0, 1.32, 0.02], cast: false });
       for (let i = 0; i < 7; i++) bx(0.86, 0.008, 0.008, '#5a5a60', { parent: ch, pos: [0, 1.12, 0.08 + i * 0.07], cast: false });
-      M.mesh(M.cylGeo(0.3, 0.52, 0.42, 4, false), brickMat, { parent: ch, pos: [0, 1.9, 0.28], rot: [0, PI / 4, 0], scale: [1.15, 1, 0.82] });
+      M.mesh(M.cylGeo(0.3, 0.52, 0.42, 4, false), hoodMat, { parent: ch, pos: [0, 1.9, 0.28], rot: [0, PI / 4, 0], scale: [1.15, 1, 0.82] });
       brickBox(0.46, 0.6, 0.36, 0, 2.4, 0.18);
       // utensílios
       const tabua = grp({ parent: ch, pos: [-0.25, 0.95, 0.35], rot: [0, 0.3, 0] });
@@ -2486,9 +2727,19 @@
       });
       // varal de luzes (desligado de dia)
       const bulbMat = k.umat('#fff4dc', { emissive: '#ffcf8a', emissiveIntensity: 0.15 });
+      const wireMat = M.mat('#2b2522', { rough: 0.6 });
+      let prev = null;
       for (let i = 0; i <= 14; i++) {
-        const x = -2.9 + i * 0.3, sag = Math.sin((i % 7) / 7 * PI) * 0.12;
-        sp(0.022, bulbMat, { parent: B, pos: [x, 2.45 - sag, 0.12], cast: false }, 8, 6);
+        const x = -2.9 + i * 0.3, sag = Math.sin((i % 7) / 7 * PI) * 0.12, y = 2.45 - sag;
+        sp(0.022, bulbMat, { parent: B, pos: [x, y, 0.12], cast: false }, 8, 6);
+        cy(0.012, 0.012, 0.025, wireMat, { parent: B, pos: [x, y + 0.028, 0.12], cast: false }, 6); // soquete
+        // fio passando pelos soquetes (sem ele as lâmpadas pareciam flutuar na fachada)
+        if (prev) {
+          const dx = x - prev[0], dy = y - prev[1], len = Math.hypot(dx, dy);
+          cy(0.004, 0.004, len, wireMat, { parent: B, pos: [(x + prev[0]) / 2, (y + prev[1]) / 2 + 0.04, 0.12], rot: [0, 0, Math.atan2(dy, dx) - PI / 2], cast: false }, 4);
+        }
+        if (i % 7 === 0) cy(0.006, 0.006, 0.12, wireMat, { parent: B, pos: [x, y + 0.04, 0.06], rot: [PI / 2, 0, 0], cast: false }, 4); // gancho na parede
+        prev = [x, y];
       }
 
       // --- Parede esquerda: cobogó (com sombra rendada que nunca some)
@@ -2541,11 +2792,12 @@
       // --- Forro de madeira ripado (visto em primeira pessoa) + viga de borda
       const CG = grp({ parent: root, name: 'ceiling' });
       const slatTex = k.tex(512, 512, (ctx, w, h) => {
-        ctx.fillStyle = '#3a2618'; ctx.fillRect(0, 0, w, h);
+        // ripado de cumaru claro (mel): de manhã o forro rebate a luz dourada — escuro demais pesava em 1ª pessoa
+        ctx.fillStyle = '#8a6040'; ctx.fillRect(0, 0, w, h);
         const r = M.rng(77);
-        for (let i = 0; i < 16; i++) { ctx.fillStyle = mix('#b07a4f', r() > 0.5 ? '#7a4b2f' : '#d6a476', r() * 0.3); ctx.fillRect(i * 32 + 3, 0, 26, h); ctx.fillStyle = 'rgba(60,30,10,0.12)'; for (let g = 0; g < 5; g++) ctx.fillRect(i * 32 + 6 + r() * 20, 0, 1.5, h); }
+        for (let i = 0; i < 16; i++) { ctx.fillStyle = mix('#d6a878', r() > 0.5 ? '#b88458' : '#ecc79a', r() * 0.45); ctx.fillRect(i * 32 + 3, 0, 26, h); ctx.fillStyle = 'rgba(110,60,25,0.1)'; for (let g = 0; g < 5; g++) ctx.fillRect(i * 32 + 6 + r() * 20, 0, 1.5, h); }
       }, { repeat: [W / 1.4, D / 1.4] });
-      const slatMat = k.tmat(slatTex, { rough: 0.7 });
+      const slatMat = k.tmat(slatTex, { rough: 0.7, emissive: '#ffe2bc', emissiveIntensity: 0.06 });
       const ceil = pl(W, D, slatMat, { parent: CG, pos: [0, H, 0], rot: [PI / 2, 0, 0], cast: false });
       ceil.receiveShadow = false;
       [[0, D / 2 - 0.08, W, 0.16], [W / 2 - 0.08, 0, 0.16, D]].forEach(([x, z, w, d]) => bx(w, 0.22, d, '#efe3d1', { parent: CG, pos: [x, H - 0.11, z], cast: false }));

@@ -1,7 +1,39 @@
 /* PAI 2.0 — chars.js
  * Elenco 3D: Pai (CEO), Filho/Filha, Conselheira (chefe), Jorge,
  * Golpista, figurantes (npc), Faísca (a assistente) e A Dúvida (chefão).
- * Humanos usam P2.rig.human; Faísca e Dúvida têm montagem própria.
+ * Humanos usam P2.rig.human (js/engine/rig.js); Faísca e Dúvida têm montagem própria.
+ *
+ * IDS (P2.chars.<id> = { name, build(opts) → controlador }):
+ *   pai       — CEO ~1,80 m: blazer marinho, camisa azul-clara, grisalho com entradas ("grisalho"
+ *               degradê na nuca), bigode, óculos, barriguinha, relógio. opts: {skin, jacket, tie,
+ *               roupa: 'pijama' (p/ cenas na cama: G.pai.rebuild({roupa:'pijama'})) | 'casa' (polo + calça cáqui)}
+ *   filho     — opts.genero === 'filha' (ou opts.variant === 'filha') → filha (cabelo "longo",
+ *               brincos); senão filho (cabelo "baguncado"). Moletom verde, jeans, tênis. opts: {skin}
+ *   chefe     — Conselheira "Dona Marta": blazer vinho, coque grisalho, óculos gatinho, colar. opts: {skin}
+ *   jorge     — diretor comercial: calvo ("careca" em ferradura), camisa estampada amarela, barriga. opts: {skin}
+ *   golpista  — sombra encapuzada: rosto vazio fosco, olhos vermelhos, mangas em sino, fumaça.
+ *               anims extras: 'appear' / 'vanish' (dissolve na fumaça, use animT), 'phone' (celular vermelho),
+ *               'lurk'; demais poses humanas funcionam.
+ *   npc       — figurante por semente: opts {seed (1..∞), female, hair, hairColor, kind, color, skin}.
+ *               A semente define gênero, cabelo, cor, roupa (blazer/camisa/polo/suéter/blusa), óculos,
+ *               barba, gravata, joias e (desde a v3) proporções do rosto (olhos, nariz, boca, cabeça).
+ *   faisca    — mascote flutuante (kind 'floater', height 0.42, headY 0.18). anims: idle, walk, jump,
+ *               spin, type (teclado holográfico), doubt (?), scared (!), sad, ashamed (bracinhos juntos,
+ *               boca ondulada), sleep (Zz), celebrate (confete), enter (giro + brilho; use animT 0..1.1),
+ *               teach (óculos + varinha), listen (ondas), wave, point, think (balões).
+ *               exprs: felizes (feliz/rindo/empolgado/orgulhoso/amigavel/aliviado/emocionado → olhos ^ ^),
+ *               triste/preocupado, bravo/determinado, surpreso/assustado, sem_graca, pensativo,
+ *               desconfiado, cansado, confuso (?). talking → boquinha.
+ *   duvida    — chefão (kind 'boss', height 3, headY 2.1): nuvem roxa com palavras de preocupação
+ *               orbitando. anims: idle, attack (avança + raios), hurt (recua + clarão), heal (incha e
+ *               brilha), defeated (murcha, palavras caem), small (forma pequena e fofa, "dúvida saudável").
+ *               exprs: bravo (padrão), rindo, amigavel, surpreso. talking → boca mexe.
+ *   textSprite(text, o) — utilitário (sprite de texto) usado pela Dúvida/Faísca.
+ *
+ * CONTROLADOR (contrato com stage3d): {root, height, headY, kind:'human'|'floater'|'boss',
+ *   update(dt, actor), dispose()} — actor: {anim, animT, t, expr, talking, blink, walkT, props,
+ *   alpha, look, lookYaw}. Humanos também expõem joints, face, props, mats.
+ *   Poses humanas: P2.rig.POSES · expressões: P2.rig.EXPRS (lista completa no topo de rig.js).
  */
 (function () {
   'use strict';
@@ -21,14 +53,17 @@
         skin: o.skin || 'medio',
         belly: 0.55, age: 1, stubble: 0.12,
         face: { jaw: 0.1, chin: 0.6 },
-        hair: { style: 'grisalho', color: '#9e9da6' },
-        browColor: '#7a7680', browH: 0.0125,
-        mustache: '#8f8b95',
+        hair: { style: 'grisalho', color: '#9a98a2' },
+        browColor: '#5c5862', browH: 0.0142,
+        mustache: '#86828d',
         glasses: { color: '#2a2a32', w: 0.031, h: 0.0215, n: 3.6 },
         eyes: '#4a2e1c',
-        top: { kind: 'blazer', color: o.jacket || '#24324f', shirt: '#c3d7ef', tie: o.tie ? '#7a2434' : null },
-        pants: '#3a3f4c',
-        shoes: '#3a2418', watch: '#d9c38a',
+        // opts.roupa: 'pijama' (cama/noite) | 'casa' (camisa polo, fim de semana) | padrão: terno
+        top: o.roupa === 'pijama' ? { kind: 'shirt', color: '#7f98bf', untucked: true, pocketSquare: false }
+          : o.roupa === 'casa' ? { kind: 'polo', color: '#4f7a6a' }
+          : { kind: 'blazer', color: o.jacket || '#24324f', shirt: '#c3d7ef', tie: o.tie ? '#7a2434' : null },
+        pants: o.roupa === 'pijama' ? '#6d86ad' : o.roupa === 'casa' ? '#c9b89a' : '#3a3f4c',
+        shoes: o.roupa === 'pijama' ? '#4a3a36' : '#3a2418', watch: o.roupa === 'pijama' ? null : '#d9c38a',
       });
     },
   };
@@ -145,7 +180,7 @@
       const glasses = r() > 0.62 ? { color: ['#2a2a32', '#5a3a2a', '#8a8a92', '#3a2a4a'][Math.floor(r() * 4)], w: 0.029 + r() * 0.004, h: 0.019 + r() * 0.005, n: 2.4 + r() * 1.6, metal: r() > 0.6 } : null;
       const beard = !fem && r() > 0.72 ? hairColor : null;
       const skin = o.skin || NPC_SKIN[Math.floor(r() * NPC_SKIN.length)];
-      return R.human({
+      const spec = {
         skin,
         female: fem,
         height: fem ? 0.95 + r() * 0.05 : 0.98 + r() * 0.06,
@@ -161,7 +196,13 @@
         shoes: ['#221a16', '#3a2418', '#1a1a1e'][Math.floor(r() * 3)],
         earrings: fem && r() > 0.4 ? true : null,
         watch: !fem && r() > 0.6 ? '#c8c8cc' : null,
-      });
+      };
+      // variedade de rosto (sorteios NO FIM → as sementes antigas mantêm roupa/cabelo)
+      spec.eyeSize = 0.92 + r() * 0.16;
+      spec.nose = (fem ? 0.74 : 0.9) + r() * (fem ? 0.2 : 0.3);
+      spec.mouthSize = 0.9 + r() * 0.22;
+      spec.headScale = 0.97 + r() * 0.06;
+      return R.human(spec);
     },
   };
 
@@ -283,6 +324,9 @@
       const tongue = new T.Mesh(M.sphereGeo(1, 12, 8), tongueM); tongue.scale.set(0.014, 0.007, 0.006); tongue.position.set(0, -0.007, 0.003); mouthG.add(tongue);
       const smile = new T.Mesh(M.torusGeo(0.02, 0.0055, 8, 18, Math.PI), dark); smile.rotation.z = Math.PI; smile.position.set(0, -0.052, D / 2 + 0.003); body.add(smile);
       const frown = new T.Mesh(M.torusGeo(0.016, 0.0045, 8, 18, Math.PI), dark); frown.position.set(0, -0.07, D / 2 + 0.003); body.add(frown);
+      // boquinha ondulada (vergonha / sem graça)
+      const wpts = []; for (let i = 0; i <= 14; i++) { const u = i / 14; wpts.push(new T.Vector3((u - 0.5) * 0.05, Math.sin(u * Math.PI * 3) * 0.0045, 0)); }
+      const wavy = new T.Mesh(R.lockGeo(wpts, 0.0042, 0.0035, { profile: () => 1, segs: 6, up: new T.Vector3(0, 0, 1) }), dark); wavy.position.set(0, -0.062, D / 2 + 0.003); body.add(wavy); wavy.visible = false;
       // bracinhos e perninhas
       const arms = [-1, 1].map((sx) => {
         const g = M.group({ parent: body, pos: [sx * S * 0.5, -0.01, 0.0] });
@@ -302,8 +346,10 @@
       const br = new T.Mesh(M.boxGeo(0.04, 0.006, 0.006), frameM); br.position.y = 0.012; prof.add(br);
       prof.visible = false;
       const pointerM = new T.MeshStandardMaterial({ color: '#8a5a3a', roughness: 0.6 }); mats.push(pointerM);
-      const pointer = new T.Mesh(M.cylGeo(0.005, 0.006, 0.28, 8), pointerM); pointer.position.set(0, 0.11, 0.05); pointer.rotation.set(0.5, 0, 0.25);
-      const ptip = new T.Mesh(M.sphereGeo(0.009, 8, 6), spark); ptip.position.y = 0.14; pointer.add(ptip);
+      // varinha: sai da mãozinha (ponta do braço) e continua na direção do braço, um pouco para cima
+      const pointer = new T.Mesh(M.cylGeo(0.0045, 0.006, 0.24, 8), pointerM); pointer.position.set(-0.11, -0.12, 0.03); pointer.rotation.set(0.15, 0, -1.01);
+      const ptip = new T.Mesh(M.sphereGeo(0.011, 10, 8), spark); ptip.position.y = -0.125; pointer.add(ptip);
+      const pglow = M.glow('#ffd27a', 0.07, 0.8); pglow.position.y = -0.125; pointer.add(pglow); mats.push(pglow.material);
       arms[0].g.add(pointer); pointer.visible = false;
       // teclado holográfico + faíscas de "pensamento"
       const kb = M.group({ parent: root, pos: [0, -0.2, 0.2] });
@@ -355,12 +401,12 @@
           if (anim !== lastAnim) lastAnim = anim;
           let y = Math.sin(t * 2.4) * 0.025, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, earDrop = 0, earUp = 0, lookX = 0, lookY = 0, eyeOpen = 1, eyeScale = 1;
           let lidTilt = 0, lidDown = -1, happyEyes = !!HAPPY[a.expr], mouthMode = 'none', blushK = 0.35;
-          let armL = 0, armR = 0, armFwdR = 0;
+          let armL = 0, armR = 0, armFwdR = 0, armIn = 0, earBack = 0;
           const expr = a.expr;
           if (expr === 'triste' || expr === 'preocupado') { lidTilt = 0.45; lidDown = 0.25; mouthMode = 'frown'; earDrop = 0.6; }
           if (expr === 'bravo' || expr === 'determinado') { lidTilt = -0.5; lidDown = 0.3; }
           if (expr === 'surpreso' || expr === 'assustado') { eyeScale = 1.15; mouthMode = 'o'; earUp = 0.4; }
-          if (expr === 'sem_graca') { blushK = 0.85; lookX = -0.8; }
+          if (expr === 'sem_graca') { blushK = 0.85; lookX = -0.8; mouthMode = 'wavy'; }
           if (expr === 'pensativo') { lookX = 0.6; lookY = 0.7; }
           if (expr === 'desconfiado') { lidTilt = -0.2; lidDown = 0.45; lookX = -0.5; }
           if (expr === 'cansado') { lidDown = 0.5; earDrop = 0.4; }
@@ -373,7 +419,7 @@
             case 'doubt': rz = 0.28; lookX = 0.5; lookY = 0.45; earDrop = 0.25; armR = 1.3; break;
             case 'scared': y += 0.05 + Math.max(0, 1 - at * 3) * 0.08; rx = -0.2; sx = sy = 1 + Math.sin(t * 40) * 0.03; eyeScale = 1.2; earUp = 0.6; armL = armR = 1.8; mouthMode = 'o'; happyEyes = false; break;
             case 'sad': y -= 0.06; rx = 0.25; earDrop = 1.1; lookY = -0.8; lidTilt = 0.45; lidDown = 0.3; mouthMode = 'frown'; happyEyes = false; break;
-            case 'ashamed': rz = -0.15; ry = 0.35; lookX = -0.9; lookY = -0.35; earDrop = 0.55; blushK = 1; lidDown = 0.2; armL = armR = 0.5; happyEyes = false; break;
+            case 'ashamed': y -= 0.02; rx = 0.12; rz = -0.1; ry = 0.3 + Math.sin(t * 1.6) * 0.05; lookX = -0.7; lookY = -0.6; earBack = 0.9; blushK = 1; lidDown = 0.18; armL = armR = 0.35; armIn = 0.9 + Math.sin(t * 5) * 0.12; happyEyes = false; mouthMode = 'wavy'; break;
             case 'sleep': y = -0.04 + Math.sin(t * 1.2) * 0.015; eyeOpen = 0.06; earDrop = 0.6; rx = 0.14; happyEyes = false; break;
             case 'celebrate': y += Math.abs(Math.sin(at * 8)) * 0.14; ry = Math.sin(at * 4) * 0.5; armL = armR = 2.6 + Math.sin(t * 16) * 0.3; earUp = 0.6; happyEyes = true; mouthMode = 'smile'; blushK = 0.7; break;
             case 'enter': { const k = Math.min(1, at / 1.1); sx = sy = M.ease.back(k); ry = (1 - k) * 6; armL = armR = 1.5 * k; happyEyes = k > 0.7; break; }
@@ -389,9 +435,10 @@
           body.position.y = y + (a._jy || 0);
           body.rotation.set(rx, ry, rz);
           body.scale.set(sx, sy, sx);
-          ears.forEach((e) => { e.g.rotation.z = e.sx * (earDrop * 0.9 - earUp * 0.35) + Math.sin(t * 3 + e.sx) * 0.05; e.g.rotation.x = earDrop * 0.35 - earUp * 0.2; });
-          arms[0].g.rotation.set(-armFwdR, 0, -armR * 0.85);
-          arms[1].g.rotation.set(0, 0, armL * 0.85);
+          ears.forEach((e) => { e.g.rotation.z = e.sx * (earDrop * 0.9 + earBack * 0.5 - earUp * 0.35) + Math.sin(t * 3 + e.sx) * 0.05; e.g.rotation.x = earDrop * 0.35 - earBack * 0.75 - earUp * 0.2; });
+          // armIn: bracinhos juntos na frente (mexendo os "dedinhos" de vergonha)
+          arms[0].g.rotation.set(-armFwdR - armIn * 0.9, -armIn * 0.5, -armR * 0.85 + armIn * 0.35);
+          arms[1].g.rotation.set(-armIn * 0.9, armIn * 0.5, armL * 0.85 - armIn * 0.35);
           legs.forEach((l, i) => { l.rotation.x = anim === 'walk' ? Math.sin(a.walkT * 9 + i * Math.PI) * 0.5 : Math.sin(t * 2.4 + i) * 0.08; });
           // olhos
           const want = a.blink ? 0.08 : eyeOpen;
@@ -404,7 +451,7 @@
             e.ball.position.set(lx, ly, 0);
             e.h1.position.x = -0.014 - lx * 0.3; e.h2.position.x = 0.016 - lx * 0.3;
             e.lidG.visible = !happyEyes && lidDown > 0;
-            if (e.lidG.visible) { e.lidG.position.y = 0.06 - lidDown * 0.07; e.lidG.rotation.z = lidTilt * e.sx * -1 * -1 * (e.sx > 0 ? -1 : 1); }
+            if (e.lidG.visible) { e.lidG.position.y = 0.06 - lidDown * 0.07; e.lidG.rotation.z = -e.sx * lidTilt; } // espelhado: triste = cantos de fora caem; bravo = cantos de dentro
           });
           // boca
           mouthG.visible = mouthMode === 'talk' || mouthMode === 'o';
@@ -412,6 +459,7 @@
           else if (mouthMode === 'o') { mouth.scale.set(0.014, 0.017, 0.008); tongue.visible = false; }
           smile.visible = mouthMode === 'smile';
           frown.visible = mouthMode === 'frown';
+          wavy.visible = mouthMode === 'wavy';
           blush.forEach((b) => (b.material.opacity = blushK * (pinkM.userData.op == null ? 1 : pinkM.userData.op)));
           // acessórios
           prof.visible = anim === 'teach';
@@ -465,7 +513,8 @@
             const bo = m.userData.baseOpacity == null ? 1 : m.userData.baseOpacity;
             if (m === pinkM) { pinkM.userData.op = op; return; }
             if (m.isSpriteMaterial || waveM.indexOf(m) >= 0 || m === kbMat || m === keyMat) { if (op < 1) m.opacity = Math.min(m.opacity, op); return; }
-            m.transparent = op < 1 || m.userData.baseTransparent;
+            const tr = op < 1 || !!m.userData.baseTransparent;
+            if (m.transparent !== tr) { m.transparent = tr; m.needsUpdate = true; }
             m.opacity = bo * op;
             m.depthWrite = op >= 1 && !m.userData.baseTransparent;
           });
@@ -585,11 +634,12 @@
       [[-0.98, 2.42, -0.12, 0.62], [-0.42, 2.86, -0.16, 0.6], [0.26, 2.98, -0.2, 0.66], [0.9, 2.62, -0.1, 0.6], [1.32, 2.12, -0.16, 0.52], [-1.38, 2.0, -0.12, 0.5],
         [-1.16, 1.58, 0.02, 0.44], [1.18, 1.6, 0.0, 0.46], [-0.62, 1.24, 0.12, 0.44], [0.58, 1.22, 0.1, 0.46], [0.0, 1.12, 0.14, 0.42],
         [-0.5, 2.3, -0.58, 0.62], [0.52, 2.2, -0.62, 0.64], [0.0, 2.72, -0.52, 0.52], [-0.82, 1.82, 0.52, 0.38], [0.82, 1.84, 0.5, 0.38]].forEach(([x, y, z, r]) => puffs.push({ x, y, z, r }));
-      for (let i = 0; i < 16; i++) {
-        const a = (i / 16) * Math.PI * 2 + 0.2 + (rr() - 0.5) * 0.2;
-        const rad = 1.42 + rr() * 0.16;
-        const yk = Math.sin(a) > 0 ? 0.95 : 0.72;
-        puffs.push({ x: Math.cos(a) * rad * 1.08, y: 2.04 + Math.sin(a) * rad * yk, z: (rr() - 0.5) * 0.45 - 0.05, r: 0.17 + rr() * 0.14 });
+      // contorno: menos bolhas e maiores (cúmulo de tempestade, não "couve-flor")
+      for (let i = 0; i < 11; i++) {
+        const a = (i / 11) * Math.PI * 2 + 0.2 + (rr() - 0.5) * 0.25;
+        const rad = 1.36 + rr() * 0.14;
+        const yk = Math.sin(a) > 0 ? 0.95 : 0.7;
+        puffs.push({ x: Math.cos(a) * rad * 1.08, y: 2.04 + Math.sin(a) * rad * yk, z: (rr() - 0.5) * 0.45 - 0.05, r: 0.24 + rr() * 0.12 });
       }
       for (let i = 0; i < 7; i++) { const k = i / 6; puffs.push({ x: Math.sin(k * 3.4 + 0.3) * 0.34 * (1 - k * 0.45), y: 1.02 - k * 0.78, z: -0.04 + Math.cos(k * 3.4) * 0.14, r: 0.34 * (1 - k * 0.72) }); }
       const geo = blobCloud(puffs, [0, 2.05, 0], 0.07, 104, 72, (x, y, z, nx, ny, nz, crease) => {
@@ -603,6 +653,9 @@
       const cloudM = cloudMaterial('#c890ff', 0.85);
       mats.push(cloudM);
       const cloud = new T.Mesh(geo, cloudM); cloud.castShadow = true; cloud.receiveShadow = true; big.add(cloud);
+      // nuvenzinhas satélites orbitando devagar (escala e ameaça; viram "pedaços" ao ser derrotada)
+      const satGeo = blobCloud([{ x: 0, y: 0, z: 0, r: 0.2 }, { x: -0.19, y: -0.05, z: 0.02, r: 0.14 }, { x: 0.2, y: -0.04, z: -0.02, r: 0.15 }, { x: 0.05, y: 0.13, z: -0.03, r: 0.13 }], [0, 0, 0], 0.03, 40, 28, (x, y, z, nx, ny, nz, crease) => cMid.clone().lerp(cTop, 0.35 * Math.max(0, ny)).lerp(cBot, 0.35 * Math.max(0, -ny) + crease * 0.4));
+      const sats = [0, 1, 2, 3].map((i) => { const m = new T.Mesh(satGeo, cloudM); m.castShadow = true; big.add(m); return { m, ph: i * 1.7 + 0.4, r: 2.35 + (i % 2) * 0.4, h: [1.05, 3.0, 0.8, 3.35][i], s: [1.25, 0.85, 1.0, 0.7][i] }; });
       // brilho interno e relâmpagos dentro da nuvem
       const inner = M.glow('#8a4aff', 3.2, 0.35); inner.position.set(0, 2.0, 0.2); big.add(inner); mats.push(inner.material);
       const zap = M.glow('#fff3c0', 1.6, 0); zap.position.set(0.6, 2.4, 0.4); big.add(zap); mats.push(zap.material);
@@ -693,7 +746,7 @@
           big.visible = !isSmall;
           small.visible = isSmall;
           const op = a.alpha == null ? 1 : a.alpha;
-          mats.forEach((m) => { const bo = m.userData.baseOpacity == null ? 1 : m.userData.baseOpacity; m.transparent = op < 1 || m.userData.baseTransparent; m.opacity = bo * op; if (!m.userData.baseTransparent) m.depthWrite = op >= 1; });
+          mats.forEach((m) => { const bo = m.userData.baseOpacity == null ? 1 : m.userData.baseOpacity; const tr = op < 1 || !!m.userData.baseTransparent; if (m.transparent !== tr) { m.transparent = tr; m.needsUpdate = true; } m.opacity = bo * op; if (!m.userData.baseTransparent) m.depthWrite = op >= 1; });
           if (isSmall) {
             small.position.y = 1.35 + Math.sin(t * 2) * 0.04;
             small.rotation.z = Math.sin(t * 1.3) * 0.08;
@@ -748,6 +801,12 @@
           mouthG.rotation.z = 0;
           mouthG.position.y = friendly ? -0.3 : -0.34;
           teeth.forEach((th) => (th.visible = !friendly));
+          sats.forEach((sv, i) => {
+            const ang = sv.ph - t * (0.16 + i * 0.03);
+            sv.m.position.set(Math.cos(ang) * sv.r * 1.15, sv.h + Math.sin(t * 0.9 + i) * 0.12 - droop * (0.8 + i * 0.25), Math.sin(ang) * sv.r * 0.55 - 0.35);
+            sv.m.scale.setScalar(sv.s * (1 - droop * 0.5) * (anim === 'heal' ? 1.15 : 1));
+            sv.m.rotation.y = -ang;
+          });
           // palavras orbitando
           words.forEach((w, i) => {
             // órbita inclinada: dos lados na altura do rosto, pela frente passa ACIMA da cabeça (nunca cobre o rosto)

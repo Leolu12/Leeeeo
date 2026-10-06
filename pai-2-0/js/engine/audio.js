@@ -45,7 +45,9 @@
  *   keys (acordes rítmicos), arp (arpejo), bass (sub-grave) e drums. Outros
  *   nomes valem se `ch.<nome>.like` apontar para um desses (ex.: ost → arp).
  *   Uma faixa = partes (A, B, …) + `form` (ordem em loop). `swing` (0..0.67)
- *   atrasa as colcheias do contratempo. Instrumento por canal: `inst`
+ *   atrasa as colcheias do contratempo. `trim` (dB) normaliza a loudness da faixa
+ *   (BS.1770 no loop inteiro, medida pela cadeia do jogo: todas ≈ −19 LUFS no volume
+ *   padrão). Instrumento por canal: `inst`
  *   (ep, pad, strings, pluck, upright, kalimba, marimba, vibes, bell, glass,
  *   sub, brass, flute). Mixagem por canal (na faixa): vol, pan, rev (envio p/
  *   reverb), dly (envio p/ delay), lp/lpq/hp (filtros), lfo (no filtro), trem,
@@ -172,7 +174,7 @@
     'E5:3 G5:1 C6:4 B5:2 G5:2 E5:4', //        C
     'D5:3 G5:1 B5:4 D6:2 C6:2 B5:4', //        G   (variação: sobe)
     'A5:2 C6:2 A5:2 F5:2 G5:2 B5:2 D6:2 B5:2', // F G
-    'C6:8 .:2 G5:2 E5:2 D5:2' //               C   (anacruse volta ao E5)
+    'C6:8 .:4 E5:2 G5:2' //                    C   (anacruse sobe G→A: entra a ponte em Lá menor)
   );
   // A2 (fim do loop, volta para a intro): última nota resolve sem anacruse
   const TEMA_FIM = TEMA.split(' | ').slice(0, 7).concat(['C6:12 .:4']).join(' | ');
@@ -194,10 +196,13 @@
     'C5:12 .:4' //                       C7sus4 C7
   );
   const MANHA_H = bars('Fmaj7', 'Am7', 'Bbmaj7', 'C7sus4', 'Fmaj7', 'Dm7', 'Gm7', 'C7sus4:8 C7:8');
+  // A → B (Bbmaj7): o último compasso fica suspenso (C7sus4 = Bb/C) e o baixo sobe Lá→Si bemol
+  const MANHA_H_A = MANHA_H.replace('C7sus4:8 C7:8', 'C7sus4');
   const MANHA_B = bars(
     'F2:6 C3:2 A2:4 G2:4', 'A2:6 E3:2 A2:4 C3:4', 'Bb2:6 F2:2 Bb2:4 A2:4', 'C3:6 G2:2 C3:4 E2:4',
     'F2:6 C3:2 A2:4 C3:4', 'D3:6 A2:2 F2:4 A2:4', 'G2:6 D3:2 G2:4 Bb2:4', 'C3:6 G2:2 C3:4 E2:4'
   );
+  const MANHA_B_A = MANHA_B.replace(/C3:4 E2:4$/, 'C3:4 A2:4');
   // marimba respondendo nos respiros da melodia
   const MANHA_C = bars('.:16', '.:8 G6:2 E6:2 .:4', '.:16', '.:8 F6:2 C6:2 .:4', '.:16', '.:8 A6:2 F6:2 .:4', '.:16',
     '.:4 F6:2 G6:2 Bb6:2 G6:2 E6:4');
@@ -210,7 +215,7 @@
     'D5:2 G5:2 .:1 G5:1 A5:2 B5:3 A5:1 G5:2 E5:2', //  G
     'F#5:3 A5:3 B5:2 .:2 A5:2 B5:2 D6:2', //           Bm7
     'C6:3 B5:3 A5:2 G5:2 E5:2 G5:2 A5:2', //           Am7
-    'G5:4 F#5:2 E5:2 F#5:2 A5:2 .:4' //                D7sus4 D7
+    'G5:6 E5:2 F#5:2 A5:2 .:4' //                      D7sus4 D7 (o Sol suspenso resolve no Fá# junto com o acorde)
   );
   const TRAB_P = bars('G', 'Bm7', 'Cmaj7', 'D', 'G', 'Bm7', 'Am7', 'D7sus4:8 D7:8');
   const TRAB_K = bars(skank('G'), skank('Bm7'), skank('Cmaj7'), skank('D'), skank('G'), skank('Bm7'), skank('Am7'),
@@ -253,6 +258,8 @@
     'Ab2:6 Eb2:2 .:2 Ab2:2 G2:4', 'G2:6 D2:2 .:2 G2:2 F2:4', 'F2:6 C2:2 .:2 F2:2 Ab2:4', 'Bb1:6 F2:2 .:2 Bb1:2 D2:4',
     'Eb2:6 Bb1:2 .:2 Eb2:2 D2:4', 'C2:6 G2:2 .:2 C2:2 G2:4', 'F2:6 C2:2 .:2 F2:2 Ab2:4', 'Bb1:6 F2:2 .:2 Bb1:2 A1:4'
   );
+  // A → B (Cm7): o baixo desce pela terça do Bb7 (Ré → Dó) em vez da aproximação cromática do Láb
+  const CASA_B_A = CASA_B.replace(/A1:4$/, 'D2:4');
   const LOFI = 'k:2 h?:2 s:2 h?:2 .:1 k?:1 k:2 s:2 h?:2';
 
   const AULA_L = bars(
@@ -340,7 +347,7 @@
     // → A2 com a celesta dobrando o tema uma oitava acima ("magia da IA").
     // ---------------------------------------------------------------
     titulo: {
-      bpm: 92, key: 'C', mode: 'major',
+      bpm: 92, key: 'C', mode: 'major', trim: -1.0,
       delay: { l: 3, fb: 0.32, mix: 0.5 },
       ch: {
         lead: { inst: 'ep', vol: 0.19, rev: 0.25, dly: 0.12 },
@@ -397,7 +404,7 @@
     // kalimba em colcheias, shaker e aro; marimba responde na volta (A2).
     // ---------------------------------------------------------------
     manha: {
-      bpm: 84, key: 'F', mode: 'major',
+      bpm: 84, key: 'F', mode: 'major', trim: -0.7,
       ch: {
         lead: { inst: 'ep', vol: 0.17, index: 0.9 },
         arp: { inst: 'kalimba', vol: 0.12, rate: 2, pattern: 'up8', oct: 4 },
@@ -407,7 +414,7 @@
         drums: { kit: 'soft', vol: 0.8 },
       },
       parts: {
-        A: { lead: MANHA_L, pad: MANHA_H, arp: MANHA_H, bass: MANHA_B, drums: rep('k:2 z?:2 r?:2 z?:2 k?:2 z?:2 r?:2 z?:2', 8) },
+        A: { lead: MANHA_L, pad: MANHA_H_A, arp: MANHA_H_A, bass: MANHA_B_A, drums: rep('k:2 z?:2 r?:2 z?:2 k?:2 z?:2 r?:2 z?:2', 8) },
         B: {
           lead: bars(
             'D6:4 C6:2 A5:2 F5:4 A5:4', //   Bbmaj7
@@ -441,7 +448,7 @@
     // arpejo, sub-grave sincopado, chimbal em semicolcheias e palma suave.
     // ---------------------------------------------------------------
     trabalho: {
-      bpm: 112, key: 'G', mode: 'major',
+      bpm: 112, key: 'G', mode: 'major', trim: 0.3,
       delay: { l: 3, fb: 0.3, mix: 0.45 },
       ch: {
         lead: { inst: 'pluck', vol: 0.12, wave: 'sawtooth', fenv: 5, fend: 1.5, d: 0.45, s: 0.25, r: 0.1, gate: 0.85, rev: 0.2, dly: 0.14 },
@@ -485,7 +492,7 @@
             '.:4 B5:1 B5:1 .:2 A5:2 G5:2 E5:4', //     Cmaj7
             'C6:2 .:2 C6:2 B5:2 A5:2 .:2 E5:4', //     Am7
             'G5:2 .:2 G5:2 A5:2 C6:2 .:2 E6:4', //     Am7
-            'D6:4 C6:2 A5:2 F#5:4 A5:4', //            D
+            'D6:4 B5:2 A5:2 F#5:4 A5:4', //            D
             'A5:2 G5:2 F#5:2 E5:2 D5:2 C5:2 B4:2 C5:2' // D7
           ),
           pad: bars('Em7', 'Em7', 'Cmaj7', 'Cmaj7', 'Am7', 'Am7', 'D', 'D7'),
@@ -506,7 +513,7 @@
     // vibrafone nos tempos 2 e 4, escovinha e estalos de dedo.
     // ---------------------------------------------------------------
     misterio: {
-      bpm: 96, key: 'A', mode: 'minor', swing: 0.45,
+      bpm: 96, key: 'A', mode: 'minor', swing: 0.45, trim: 1.6,
       ch: {
         lead: { inst: 'pluck', wave: 'triangle', vol: 0.3, fenv: 7, fend: 1.6, fdec: 0.05, d: 0.3, s: 0, r: 0.07, gate: 1, rev: 0.25, dly: 0.08 },
         keys: { inst: 'vibes', vol: 0.1, oct: 4, trem: { rate: 5.2, depth: 0.3 }, rev: 0.35 },
@@ -548,7 +555,7 @@
     // bateria boom-bap macia e um chiado de vinil bem discreto.
     // ---------------------------------------------------------------
     casa: {
-      bpm: 76, key: 'Eb', mode: 'major', swing: 0.55,
+      bpm: 76, key: 'Eb', mode: 'major', swing: 0.55, trim: -0.2,
       delay: { l: 3, fb: 0.28, mix: 0.5 },
       crackle: 0.15,
       ch: {
@@ -560,7 +567,7 @@
         drums: { kit: 'lofi', vol: 0.9 },
       },
       parts: {
-        A: { lead: CASA_L, arp: CASA_H, pad: CASA_H, bass: CASA_B, drums: rep(LOFI, 8) },
+        A: { lead: CASA_L, arp: CASA_H, pad: CASA_H, bass: CASA_B_A, drums: rep(LOFI, 8) },
         B: {
           lead: bars(
             'G5:2 Bb5:2 G5:2 Eb5:2 .:4 C5:2 D5:2', //   Cm7
@@ -593,7 +600,7 @@
     // e celesta no "tcharam".
     // ---------------------------------------------------------------
     aula: {
-      bpm: 104, key: 'D', mode: 'major',
+      bpm: 104, key: 'D', mode: 'major', trim: 0.6,
       ch: {
         lead: { inst: 'marimba', vol: 0.25, rev: 0.22, dly: 0.08 },
         arp: { inst: 'pluck', wave: 'triangle', vol: 0.13, rate: 2, pattern: 'alberti', oct: 4, fenv: 6, d: 0.22, s: 0 },
@@ -641,7 +648,7 @@
     // nunca terror. B sobe cromaticamente (D→…→A) até o A7.
     // ---------------------------------------------------------------
     tensao: {
-      bpm: 72, key: 'D', mode: 'minor',
+      bpm: 72, key: 'D', mode: 'minor', trim: 2.0,
       delay: { l: 3, fb: 0.4, mix: 0.55 },
       ch: {
         lead: { inst: 'flute', vol: 0.1, vib: 16, vibRate: 4.4, rev: 0.4, dly: 0.3 },
@@ -681,7 +688,7 @@
     // alternância Fmaj7#11 ↔ G/F (cor lídia).
     // ---------------------------------------------------------------
     sonho: {
-      bpm: 66, key: 'F', mode: 'lydian',
+      bpm: 66, key: 'F', mode: 'lydian', trim: 1.6,
       delay: { l: 3, fb: 0.42, mix: 0.6 },
       ch: {
         lead: { inst: 'ep', vol: 0.15, index: 0.6, rev: 0.5, dly: 0.25 },
@@ -724,7 +731,7 @@
     // ponte C com acordes em síncope e F#m7b5 → B7.
     // ---------------------------------------------------------------
     chefao: {
-      bpm: 140, key: 'E', mode: 'minor',
+      bpm: 140, key: 'E', mode: 'minor', trim: -2.4,
       delay: { l: 3, fb: 0.25, mix: 0.4 },
       ch: {
         lead: { inst: 'brass', vol: 0.16, rev: 0.25, dly: 0.06 },
@@ -739,8 +746,8 @@
         A: { lead: CHEF_L, ost: CHEF_H, pad: CHEF_H, bass: CHEF_BS, drums: bars(EPIC_C, rep(EPIC, 6), EPIC_FILL) },
         B: {
           lead: CHEF_B_L, counter: CHEF_B_L,
-          pad: bars('C', 'D', 'G', 'Em', 'C', 'D', 'G', 'B7'),
-          ost: bars('C', 'D', 'G', 'Em', 'C', 'D', 'G', 'B7'),
+          pad: bars('C', 'D7', 'G', 'Em', 'C', 'D', 'G', 'B7'), // D7: o Dó da melodia vira 7ª da dominante (→ G)
+          ost: bars('C', 'D7', 'G', 'Em', 'C', 'D', 'G', 'B7'),
           bass: bars(oct8('C2', 'C3'), oct8('D2', 'D3'), oct8('G1', 'G2'), oct8('E2', 'E3'), oct8('C2', 'C3'), oct8('D2', 'D3'), oct8('G1', 'G2'),
             'B1:2 B1:2 B2:2 B1:2 A1:2 G1:2 F#1:2 D#2:2'),
           drums: bars('g+c:4 h:2 h:2 s:4 h:2 g?:2', rep(HALF, 3), 'g+c:4 h:2 h:2 s:4 h:2 g?:2', rep(HALF, 2),
@@ -780,10 +787,11 @@
     // FINAL — créditos, 92 bpm. Intro com o motivo lento → Tema da Faísca
     // em Dó (piano elétrico + cordas) → desenvolvimento (motivo em menor,
     // subindo) → modulação para Ré maior via A7 (reprise triunfal com metais
-    // e celesta) → coda que volta para Dó pelo Dm7 (nota comum Ré).
+    // e celesta) → coda que volta para Dó pelo Dm7 (nota comum Ré) e termina
+    // com o motivo pousando na tônica (a celesta responde).
     // ---------------------------------------------------------------
     final: {
-      bpm: 92, key: 'C', mode: 'major',
+      bpm: 92, key: 'C', mode: 'major', trim: -0.3,
       delay: { l: 3, fb: 0.32, mix: 0.5 },
       ch: {
         lead: { inst: 'ep', vol: 0.18, rev: 0.3, dly: 0.1 },
@@ -854,14 +862,14 @@
           arp: bars('D', 'A/C#', 'Bm7', 'Gmaj7', 'D/F#', 'A', 'Gmaj7:8 A:8', 'D'),
           bass: bars(bp('D2', 'A1'), bp('C#2', 'A1'), bp('B1', 'F#2'), bp('G1', 'D2'), bp('F#2', 'D2'), bp('A1', 'E2'), 'G1:6 G1:2 A1:6 A1:2', 'D2:4 A1:4 D2:4 D2:4'),
           drums: bars('g+c:2 z?:2 r:2 z?:2 k:2 k?:2 r:2 z?:2', rep('k:2 h:1 h?:1 r:2 h:1 h?:1 g:2 k?:1 h?:1 r:2 h:1 h?:1', 6), 'g+c:4 .:12'),
-          cfg: { lead: { inst: 'brass', vol: 0.11, bright: 3.2 }, counter: { vol: 0.028 }, arp: { pattern: 'up8' } },
+          cfg: { lead: { inst: 'brass', vol: 0.17, bright: 3.2 }, counter: { vol: 0.034 }, pad: { vol: 0.09 }, arp: { pattern: 'up8' } }, // clímax: a reprise vem cheia
         },
-        C: {
-          lead: bars('D6:4 C6:4 A5:4 F5:4', 'C6:6 B5:2 G5:8', 'E5:4 G5:4 C6:8', 'D6:4 A5:4 B5:4 F5:4'),
-          pad: bars('Dm7', 'Gsus4:6 G:10', 'Em7:8 Am7:8', 'Dm7:8 G7:8'),
-          counter: bars('.:16', '.:8 D7:4 B6:4', '.:8 G6:4 C7:4', '.:16'),
-          bass: bars('D2:8 A1:8', 'G1:8 D2:8', 'E2:8 A1:8', 'D2:8 G1:8'),
-          drums: bars(rep('k:4 h?:4 h:4 h?:4', 3), 'k:4 h?:4 s?:2 s?:2 s?:2 s:2'),
+        C: { // coda: ii–V–iii–vi–ii–V e o motivo da Faísca pousa em Dó; a celesta ecoa e o loop recomeça no Fmaj7
+          lead: bars('D6:4 C6:4 A5:4 F5:4', 'C6:6 B5:2 G5:8', 'E5:4 G5:4 C6:8', 'D6:4 A5:4 B5:4 F5:4', 'E5:3 G5:1 C6:12', '.:16'),
+          pad: bars('Dm7', 'Gsus4:6 G:10', 'Em7:8 Am7:8', 'Dm7:8 G7:8', 'Cadd9', '_:16'),
+          counter: bars('.:16', '.:8 D7:4 B6:4', '.:8 G6:4 C7:4', '.:16', '.:16', 'E6:3 G6:1 C7:4 .:8'),
+          bass: bars('D2:8 A1:8', 'G1:8 D2:8', 'E2:8 A1:8', 'D2:8 G1:8', 'C2:12 G1:4', 'C2:16'),
+          drums: bars(rep('k:4 h?:4 h:4 h?:4', 3), 'k:4 h?:4 s?:2 s?:2 s?:2 s:2', 'k+c:4 .:12', '.:16'),
         },
       },
       form: ['I', 'A', 'B', 'D', 'C'],
@@ -2047,11 +2055,13 @@
       noise(c, o, t, { d: 0.72, v: 0.06, a: 0.6, type: 'bandpass', f: 1200, f1: 4000, q: 1, lp2: 6000, exp: false, r: 0.06 });
       return 0.8;
     },
-    thunder: (c, o, t, p) => {
-      noise(c, o, t, { d: 0.18, v: 0.16, type: 'bandpass', f: 1400, q: 0.5 });
-      noise(c, o, t + 0.02, { d: 2.2, v: 0.42, a: 0.02, type: 'lowpass', f: 900 * p, f1: 110 * p, ft: 1.5 });
-      noise(c, o, t + 0.1, { d: 2.3, v: 0.3, a: 0.4, type: 'lowpass', f: 180 * p, q: 0.8 });
-      return 2.5;
+    thunder: (c, o, t, p) => { // estalo seco + trovão rolando com corpo na região média (aparece em alto-falante pequeno)
+      noise(c, o, t, { d: 0.3, v: 0.2, type: 'highpass', f: 1700 * p, lp2: 7000 });
+      noise(c, o, t, { d: 0.22, v: 0.2, type: 'bandpass', f: 1100 * p, q: 0.5 });
+      noise(c, o, t + 0.03, { d: 2.4, v: 0.5, a: 0.03, type: 'lowpass', f: 1500 * p, f1: 170 * p, ft: 1.7 });
+      noise(c, o, t + 0.3, { d: 2.1, v: 0.32, a: 0.35, type: 'bandpass', f: 300 * p, f1: 160 * p, q: 0.6, exp: false, r: 1.2 });
+      tone(c, o, t, { w: 'sine', f: 64 * p, f1: 38 * p, ft: 0.5, d: 0.9, v: 0.3, a: 0.01, exp: true });
+      return 2.6;
     },
     step: (c, o, t, p) => {
       noise(c, o, t, { d: 0.06, v: 0.22, type: 'lowpass', f: 450 * p });
@@ -2176,12 +2186,13 @@
       tone(c, o, t, { w: 'sine', f: 110 * p, f1: 220 * p, ft: 0.8, d: 0.9, v: 0.08, a: 0.1, r: 0.2 });
       return 1.4;
     },
-    boss_roar: (c, o, t, p) => {
+    boss_roar: (c, o, t, p) => { // rugido: serras graves saturadas + filtro ressonante fechando (rosnado na região média)
       const ws = c.createWaveShaper(), bq = c.createBiquadFilter(), g = c.createGain(), am = c.createGain(), l = c.createOscillator(), lg = c.createGain();
       ws.curve = getDist();
       bq.type = 'lowpass';
-      bq.frequency.setValueAtTime(650, t);
-      bq.frequency.exponentialRampToValueAtTime(200, t + 1.25);
+      bq.Q.value = 4;
+      bq.frequency.setValueAtTime(1100, t);
+      bq.frequency.exponentialRampToValueAtTime(260, t + 1.25);
       am.gain.value = 0.6;
       l.frequency.value = 23;
       lg.gain.value = 0.4;
@@ -2209,6 +2220,7 @@
       l.stop(t + 1.28);
       l.onended = () => { after(g); after(ws); after(bq); after(am); after(lg); };
       noise(c, o, t, { d: 1.2, v: 0.16, a: 0.1, type: 'lowpass', f: 500, f1: 150, exp: false, r: 0.4 });
+      noise(c, o, t, { d: 1.1, v: 0.1, a: 0.08, type: 'bandpass', f: 900 * p, f1: 350 * p, q: 1.2, exp: false, r: 0.45 }); // fôlego
       return 1.35;
     },
     shrink: (c, o, t, p) => {
@@ -2274,6 +2286,7 @@
   const SFX_TRIM = {
     click: 5, tick: 3, typing: 4, card: 3, camera: 2, glitch: 4, whoosh: 3, page: 2,
     success: -3, fail: -2.5, heart_lose: -2.5, boss_heal: -2.5, buzz: -2, pickup: -1.5,
+    boss_roar: 3.5, // o ataque da Dúvida precisa atravessar o 'chefao'
   };
 
   // =====================================================================
@@ -2289,7 +2302,7 @@
     chefe: { f: 165, h2: 0.5, h3: 0.2, h4: 0.06, v: 0.0433, d: 0.045, off: [0, 0, 2, -2, 0, 3, -1, 0] },
     jorge: { f: 247, h2: 0.3, h3: 0.06, bounce: 1.12, v: 0.0366, d: 0.05, off: [0, 5, 2, 7, 4, 9, 0, 5] },
     golpista: { f: 131, h2: 0.6, h3: 0.3, h4: 0.1, det: 22, detA: 0.35, wob: 25, v: 0.032, d: 0.055, off: [0, -1, 1, -2, 0, 1, -3, 0] },
-    duvida: { f: 147, h2: 0.5, h3: 0.22, h4: 0.07, wob: 70, v: 0.0389, d: 0.06, off: [0, -3, 2, -5, 0, 3, -2, 1] },
+    duvida: { f: 147, h2: 0.5, h3: 0.22, h4: 0.07, wob: 40, wobR: 9, v: 0.0389, d: 0.06, off: [0, -3, 2, -5, 0, 3, -2, 1] },
     narrador: { f: 523, h2: 0.12, v: 0.0377, d: 0.035, off: [0, 2, 4, 2, -1, 0, 5, 3] },
   };
   function voiceAt(c, out, t, who, k) {
@@ -2341,7 +2354,7 @@
     }
     if (V.wob) {
       const l = c.createOscillator(), lg = gainNode(c, V.wob);
-      l.frequency.value = 13;
+      l.frequency.value = V.wobR || 13;
       l.connect(lg);
       lg.connect(o1.detune);
       l.start(t);
@@ -2429,12 +2442,21 @@
   const A = (P2.audio = P2.audio || {});
   let ctx = null, chain = null, supported = true, enabled = true, ducked = false, hiddenPause = false;
   const vols = { music: 0.7, sfx: 0.8 };
-  let player = null, timer = null, offTimer = null, voiceN = 0, lastVoice = -1;
+  let player = null, timer = null, offTimer = null, voiceN = 0, lastVoice = -1, resumeAt = -1e9;
   const fading = [], lastSfx = {}, loops = [], live = [];
   const MAX_LIVE_SFX = 32;
   A.current = null;
 
   const ready = () => !!(ctx && chain && enabled);
+  // Pede ao navegador para retomar o contexto (assíncrono). Efeitos disparados logo depois
+  // (o clique que destravou o áudio) ainda são agendados; fora dessa janela, contexto parado = silêncio
+  // (evita uma rajada de efeitos acumulados quando o sistema devolve o áudio).
+  function resumeCtx() {
+    if (!ctx || ctx.state === 'running' || ctx.state === 'closed') return;
+    resumeAt = Date.now();
+    const r = ctx.resume();
+    if (r && r.catch) r.catch(() => {});
+  }
   function applyVolumes(ramp) {
     if (!ctx || !chain) return;
     const m = vols.music * MUSIC_SCALE * (ducked ? DUCK : 1), s = vols.sfx * SFX_SCALE;
@@ -2495,10 +2517,7 @@
           b.start(0);
         } catch (e) { /* ok */ }
       }
-      if (enabled && ctx.state !== 'running' && !document.hidden) {
-        const r = ctx.resume();
-        if (r && r.catch) r.catch(() => {});
-      }
+      if (enabled && !document.hidden) resumeCtx();
       if (enabled && A.current && !player) startPlayer(A.current, 0.6);
       return true;
     } catch (e) {
@@ -2526,7 +2545,7 @@
         }, 200);
       } else {
         killAll();
-        if (!document.hidden) { const r = ctx.resume(); if (r && r.catch) r.catch(() => {}); }
+        if (!document.hidden) resumeCtx();
         setParam(chain.master.gain, MASTER, ctx, 0.1);
         if (A.current) startPlayer(A.current, 0.5);
       }
@@ -2570,7 +2589,7 @@
   A.sfx = function (name, opts) {
     try {
       if (!ready() || !SFX[name]) return null;
-      if (ctx.state !== 'running' && hiddenPause) return null;
+      if (ctx.state !== 'running' && (hiddenPause || Date.now() - resumeAt > 1500)) return null;
       opts = opts || {};
       const now = ctx.currentTime;
       if (!opts.loop && lastSfx[name] != null && now - lastSfx[name] < 0.03 && now >= lastSfx[name]) return null;
@@ -2645,7 +2664,7 @@
           // volta à aba: retoma se fomos nós que pausamos (ou se o som foi ligado com a aba oculta)
           const was = hiddenPause;
           hiddenPause = false;
-          if (enabled && (was || ctx.state === 'suspended')) { const r = ctx.resume(); if (r && r.catch) r.catch(() => {}); }
+          if (enabled && (was || ctx.state !== 'running')) resumeCtx();
         }
       } catch (e) { /* ok */ }
     });

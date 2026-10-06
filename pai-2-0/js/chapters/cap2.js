@@ -63,7 +63,7 @@
               { t: 'O novo centro de distribuição começa a operar em breve.', why: '"Em breve" foge da pergunta. O conselho quer a data, e ela existe: março.' },
               { t: 'O novo centro de distribuição já está operando.', why: 'Ainda não está: o Rafael anotou março.' },
             ],
-            faisca: 'Janeiro saiu de onde? De lugar nenhum. Esse é o meu jeito de errar: com convicção.',
+            faisca: 'Janeiro saiu de lugar nenhum. Quando me falta uma data, às vezes eu preencho uma. Por isso data se confere.',
             passou: 'O centro de distribuição abre em *março*. O rascunho dizia janeiro.',
           },
         },
@@ -80,7 +80,7 @@
       titulo: '🖊️ Caneta vermelha · E-mail para o Grupo Horizonte',
       doc: 'Re: De novo?',
       intro: 'Rascunho do e-mail pronto. Cliente bravo é onde uma palavra errada custa caro. Caneta na mão.',
-      chat: [['eu', 'Rascunhe uma resposta ao Vicente, do Grupo Horizonte, sobre o atraso. Tom humano, sem enrolar.'], ['ia', 'Rascunho pronto. Revise o tom e as promessas antes de enviar.']],
+      chat: [['eu', 'Retome o rascunho do café para o Vicente, agora com os dados do Rafael. Tom humano, sem enrolar.'], ['ia', 'Rascunho pronto. Revise o tom e as promessas antes de enviar.']],
       fatos: [
         { quem: 'Você', txt: 'O Vicente é cliente há *12 anos*, o maior que temos no Sul. Gosta de ser chamado pelo primeiro nome.' },
         { quem: 'Rafael', txt: 'Causa: não foi a transportadora. O *fornecedor de embalagens* atrasou, e *nós não avisamos* o cliente a tempo.' },
@@ -623,7 +623,7 @@
     title: 'O Expediente',
     subtitle: 'Quatro tarefas, um relógio e uma caneta vermelha',
     music: 'trabalho',
-    minutes: 10,
+    minutes: 12,
     parts: [
       // ================================================================
       // PARTE 1 — Chegada, a pilha e a lista da Dona Marta (9h)
@@ -634,7 +634,7 @@
         const v = S(G);
         v.min = 0;
         cena(G, { screen: 'off', tv: false });
-        G.pai.at('porta');
+        G.pai.at('inicio'); // logo após a porta, já de frente para a mesa e a janela
         G.faisca.follow(G.pai);
         // plano de abertura em terceira pessoa: ele entra, a sala, a pilha
         G.player.cine();
@@ -683,7 +683,8 @@
                 G.faisca.emote('heart');
               },
             },
-            { id: 'mesa', label: 'Sentar à mesa', icon: '💼', pos: { x: 0.3, y: 1.8, z: -2.3 }, reach: 1.4 },
+            // no corredor à direita da mesa (o caminho até a cadeira): dá para chegar andando reto da porta
+            { id: 'mesa', label: 'Sentar à mesa', icon: '💼', pos: { x: 1.75, y: 1.6, z: -1.95 }, reach: 1.6 },
           ],
         });
         await G.fadeOut(0.3);
@@ -709,13 +710,13 @@
         await marta.walk({ x: 0.3, z: 0.3 });
         marta.face(G.pai);
         await G.say('chefe', 'Bom dia, {pai}. Passei só para lembrar: relatório do trimestre às 10h. Não às 10h05.', { expr: 'determinado' });
-        await G.say('pai', 'Bom dia para você também, Marta.', { expr: 'neutro' });
+        await G.say('pai', 'Bom dia para você também, {chefe}.', { expr: 'neutro' });
         await G.say('chefe', 'E o Vicente, do Grupo Horizonte, me ligou ontem à noite. Atrasaram a entrega dele de novo? Doze anos de cliente, {pai}.', { expr: 'preocupado' });
         await G.say('pai', 'Eu sei. Ele recebe uma resposta minha ainda hoje de manhã.', { expr: 'serio' });
         await G.say('chefe', 'Ah, e o conselho vai perguntar o que a empresa está fazendo com IA. Quero uma resposta melhor que "estamos estudando".', { expr: 'desconfiado' });
         anim(G.faisca, 'wave', 1.4);
-        await G.say('pai', 'Eu sei. Já estou cuidando disso. Hoje mesmo, aliás.', { expr: 'serio' });
-        await G.say('chefe', 'Ótimo. No fim do dia, me conte como ficou.', { expr: 'amigavel' });
+        await G.say('pai', 'Por acaso, estou testando uma hoje. Em período de experiência.', { expr: 'serio' });
+        await G.say('chefe', 'Ótimo. No fim do dia, quero saber se foi efetivada.', { expr: 'amigavel' });
         marta.walk('porta').then(() => marta.fadeOut(0.4)).catch(() => {});
         await passar(G, 5, { quiet: true });
 
@@ -725,13 +726,12 @@
           botao: 'Mãos à obra',
         });
         G.player.lookAt(TV);
-        await G.narrate('A Sônia está de folga hoje, mas ontem deixou a manhã programada na TV, como sempre. E o relógio, como sempre, já está andando.');
+        await G.narrate('A Sônia, de folga hoje, deixou a pauta programada na TV. E o relógio já está andando.');
         G.player.lookAt(null);
-        await G.say('faisca', 'Antes de tudo: de manhã, no seu celular, eu estava numa conta pessoal. Aqui eu rodo na conta da empresa, a que a TI aprovou e que não treina com os seus dados.', { expr: 'neutro' });
-        await G.say('faisca', 'Relatório do conselho numa conta gratuita qualquer? Nem pensar. E eu não te impeço de colar: quem segura é você.');
+        await G.say('faisca', 'Antes de tudo: em casa eu estava no seu celular, numa conta pessoal. Aqui eu rodo na conta da empresa, a que a TI aprovou e que não usa os seus dados para treinar a IA.', { expr: 'neutro' });
         await G.say('pai', 'E quem garante que essa tal conta da empresa não espalha nada?', { expr: 'desconfiado' });
-        await G.say('faisca', 'O contrato da empresa com o fornecedor, e a TI, que conferiu as configurações. Ainda assim: senha e código do banco, nem aqui.', { expr: 'neutro' });
-        await G.say('faisca', 'E a regra da manhã: em cada tarefa, três jeitos. Você faz sozinho; eu rascunho e você revisa; ou eu faço e você manda sem ler.');
+        await G.say('faisca', 'O contrato com o fornecedor e a TI, que conferiu as configurações. Material do conselho, só aqui. E senha ou código do banco, nem aqui.', { expr: 'neutro' });
+        await G.say('faisca', 'Agora, a regra da manhã: em cada tarefa, três jeitos. Você faz sozinho; eu rascunho e você revisa; ou eu faço e você manda sem ler.');
         await G.say('pai', 'E essa terceira opção existe por quê?', { expr: 'desconfiado' });
         await G.say('faisca', 'Porque muita gente faz. Quero que você veja o que acontece.', { expr: 'serio' });
         await G.say('pai', 'Justo. Vamos ver quanto vale uma manhã com você.', { expr: 'determinado' });
@@ -772,7 +772,7 @@
           G.pai.setAnim('sit');
           await G.narrate('*' + hora(v.min) + '.* O relatório sai impecável. Atrasado, mas impecável.');
           G.toast('*{chefe}:* Recebido. Conteúdo ótimo. Pontualidade, nem tanto.', { icon: '💬', dur: 4.5 });
-          await G.say('pai', 'Trinta anos de carreira e ainda levo bronca por atraso.', { expr: 'sem_graca' });
+          await G.say('pai', 'Cabelo grisalho, crachá de CEO, e ainda levo bronca por atraso.', { expr: 'sem_graca' });
           await G.say('faisca', 'Ficou com a sua cara. Só custou duas horas. E o prazo.', { expr: 'amigavel' });
           registrar(G, T, T.mao, 0, 0);
           await reputacao(G, -3);
@@ -787,7 +787,7 @@
             await G.letterbox(true, 0.35);
             await G.cam.shot('poder', 0);
             G.cam.shot(Object.assign({}, { target: [0.3, 1.2, -2.1], yaw: 0.32, pitch: -0.04, dist: 2.5, fov: 34 }), 3).catch(() => {});
-            await G.say('pai', 'A Faísca rascunha. Quem assina sou eu.', { expr: 'orgulhoso' });
+            await G.say('pai', 'Você rascunha. Quem assina sou eu.', { expr: 'orgulhoso' });
             G.sfx('page');
             await G.letterbox(false, 0.3);
             G.pai.set({ props: { pen: false } });
@@ -855,13 +855,14 @@
           bom = true;
         } else if (modo === 'rev') {
           const { r, ganho } = await caminhoRevisar(G, T);
-          await reputacao(G, ganho);
           if (!r.missed.length) {
+            await reputacao(G, ganho);
             await G.say('pai', 'Um desconto que eu não dei e a culpa no cliente. Você ia me arrumar uma bela confusão.', { expr: 'desconfiado' });
             await G.say('faisca', 'Ia. E é exatamente por isso que você lê antes de enviar.', { expr: 'sem_graca' });
             bom = true;
           } else {
             await consequenciaT2(G, r.missed, false);
+            await reputacao(G, ganho);
           }
         } else {
           G.faisca.setAnim('type');
@@ -929,12 +930,13 @@
           G.achieve('raiz');
         } else if (modo === 'rev') {
           const { r, ganho } = await caminhoRevisar(G, T);
-          await reputacao(G, ganho);
           if (!r.missed.length) {
+            await reputacao(G, ganho);
             await G.say('pai', 'Oito por cento e um cliente que "já concordou". O Jorge nem ligou para o Vicente.', { expr: 'desconfiado' });
-            await G.say('faisca', 'Eu não sei o que o Vicente pensa. Completei a frase do jeito que parecia provável. Por isso: números e conclusões, confira sempre.', { expr: 'sem_graca' });
+            await G.say('faisca', 'E você pegou os dois antes da diretoria. A caneta vale mais onde tem número e conclusão.', { expr: 'sem_graca' });
           } else {
             await consequenciaT3(G, r.missed, false);
+            await reputacao(G, ganho);
           }
         } else {
           G.faisca.setAnim('type');
@@ -1029,7 +1031,7 @@
           G.faisca.setAnim('idle');
           await passar(G, 2);
           gasto += 2;
-          await G.narrate('Seu bigode se mexe sozinho. Trinta anos de desconfiança, todos de uma vez.');
+          await G.narrate('Seu bigode se mexe sozinho. Promoção decidida por adjetivo?');
           await G.say('luana', 'Engraçado. As duas avaliações foram escritas pelo mesmo diretor, aquele que saiu ano passado. "Assertivo" para ele, "prestativa" para ela.', { expr: 'desconfiado' });
           await G.say('luana', 'E a resposta não diz que a equipe do Ricardo trocou um terço das pessoas no ano. Nem que a Patrícia segurou a regional na crise do Recife.', { expr: 'serio' });
           anim(G.faisca, 'ashamed', 2.2);
@@ -1053,6 +1055,7 @@
           G.faisca.setAnim('idle');
           await passar(G, 20);
           gasto += 20;
+          await G.say('luana', 'Agora, os nomes de volta: A é a Patrícia; B, o Ricardo.', { expr: 'neutro' });
           await G.say('luana', 'Assim eu consigo explicar a escolha para qualquer um. Inclusive para quem não for escolhido.', { expr: 'feliz' });
           if (modo === 'criterios') {
             await G.say('faisca', 'Isso está fora da minha fronteira: eu organizo, vocês decidem.', { expr: 'amigavel' });
@@ -1073,14 +1076,14 @@
         ], { prompt: 'Sua decisão (é sua, de verdade):', who: 'luana' });
         v.decisao = dec;
         if (dec === 'patricia') {
-          await G.say('luana', 'Vou preparar a conversa com os dois. Com o Ricardo também: ele merece um plano.', { expr: 'amigavel' });
+          await G.say('luana', 'Vou preparar a conversa com os dois. O Ricardo merece um plano também.', { expr: 'amigavel' });
           await G.say('pai', 'Merece. Bater a meta quatro vezes não é pouca coisa.', { expr: 'serio' });
         } else if (dec === 'ricardo') {
           await G.say('luana', 'Então ele assume com uma condição clara: cuidar da rotatividade da equipe.', { expr: 'serio' });
           await G.say('pai', 'Condição número um. E a Patrícia entra no plano de sucessão.', { expr: 'determinado' });
         } else {
           await G.say('luana', 'Marco com os dois amanhã. Gosto de quem pergunta antes de decidir.', { expr: 'feliz' });
-          await G.say('pai', 'Trinta anos me ensinaram isso. Do jeito mais caro.', { expr: 'neutro' });
+          await G.say('pai', 'A vida me ensinou isso. Do jeito mais caro.', { expr: 'neutro' });
         }
         if (modo === 'sozinho') {
           await G.say('luana', 'Combinado. Só me mande por escrito o porquê. O conselho vai perguntar.', { expr: 'neutro' });
@@ -1130,12 +1133,16 @@
         await G.say('faisca', hora(v.min) + '. Quatro tarefas resolvidas. Olha só o relógio.', { expr: 'empolgado' });
         await G.card({ kind: 'ok', kicker: 'Balanço da manhã', icon: '🧾', titulo: resolvido(v), node: balanco(G) });
 
-        if (algumSem) await G.say('faisca', 'Quando você mandou sem ler, eu errei com toda a confiança do mundo. Não é raro: é o meu jeito de errar.', { expr: 'sem_graca' });
+        if (algumSem) await G.say('faisca', 'Quando você mandou sem ler, os meus erros saíram com o seu nome. E eu erro sem mudar o tom de voz: rascunho meu precisa de leitor.', { expr: 'sem_graca' });
         if (revTudo) await G.say('faisca', 'Quando eu rascunhei e você revisou, foi rápido e saiu certo. Essa é a dupla.', { expr: 'feliz' });
+        else if (revs.length) await G.say('faisca', 'Quando eu rascunhei e você revisou, foi rápido. O que escapou da caneta é que saiu caro.', { expr: 'sem_graca' });
         if (algumaMao) await G.say('faisca', 'Quando você fez sozinho, ficou ótimo. E levou o tempo que leva.', { expr: 'amigavel' });
         await G.say('faisca', 'Escrever, resumir, organizar: isso fica *dentro* da minha fronteira, e lá eu acelero. Julgar gente e o que eu não vejo fica *fora*, e lá eu atrapalho.', { expr: 'neutro' });
         await G.say('pai', 'Uma fronteira meio torta, essa sua.', { expr: 'desconfiado' });
-        await G.say('faisca', 'Tortíssima. E ela se mexe: o que eu erro hoje posso acertar daqui a seis meses. Por isso: teste pequeno e confira.', { expr: 'feliz' });
+        await G.say('faisca', 'Tortíssima. E não é impressão minha: tem estudo, inclusive um pedaço que me deixa mal na foto.', { expr: 'neutro' });
+        await G.fact(['harvard_bcg', 'harvard_bcg_fora'], { titulo: 'A fronteira, medida' });
+        await G.say('pai', 'Quem errou foi quem copiou sem questionar. Então o problema não era só a máquina.', { expr: 'pensativo' });
+        await G.say('faisca', 'Era a dupla sem revisor. E a fronteira se mexe: o que eu erro hoje posso acertar daqui a seis meses. Por isso: teste pequeno e confira.', { expr: 'feliz' });
 
         await G.explore({
           objetivo: 'Vá até a janela',
@@ -1165,21 +1172,26 @@
         await G.letterbox(true, 0.4);
         await G.cam.shot('janela', 0);
         G.cam.shot({ target: [-2.2, 1.45, -3.0], yaw: 0.2, pitch: 0.04, dist: 3.4, fov: 40 }, 6).catch(() => {});
-        await G.say('pai', 'Trinta anos fazendo tudo na mão. E agora uma caixinha laranja escreve o meu rascunho.', { expr: 'pensativo' });
-        await G.say('faisca', 'E você continua sendo quem sabe o que está certo. Eu acelero. Você julga.', { expr: 'amigavel' });
+        const usouIA = ['t1', 't2', 't3'].some((k) => modos[k] && modos[k] !== 'mao');
+        if (usouIA) {
+          await G.say('pai', 'Trinta anos fazendo tudo na mão. E agora uma caixinha laranja escreve o meu rascunho.', { expr: 'pensativo' });
+          await G.say('faisca', 'E você continua sendo quem sabe o que está certo. Eu acelero. Você julga.', { expr: 'amigavel' });
+        } else {
+          await G.say('pai', 'Trinta anos fazendo tudo na mão. E hoje, de novo, tudo na mão.', { expr: 'pensativo' });
+          await G.say('faisca', 'Do seu jeito, e bem feito. Quando quiser testar, eu rascunho e você julga.', { expr: 'amigavel' });
+        }
         await G.say('pai', 'E quem assina sou eu.', { expr: 'orgulhoso' });
         await G.say('faisca', 'Sempre.', { expr: 'feliz' });
-        if (v.viuFoto) await G.say('pai', 'Se o dia seguir assim, hoje eu janto com {oa} {filho}. Faz tempo.', { expr: 'emocionado' });
-        else await G.say('pai', 'Se o dia seguir assim, hoje eu chego em casa para o jantar. Faz tempo.', { expr: 'emocionado' });
+        if (usouIA) await G.say('pai', v.viuFoto ? 'Se o dia seguir assim, hoje eu janto com {oa} {filho}. Faz tempo.' : 'Se o dia seguir assim, hoje eu chego em casa para o jantar. Faz tempo.', { expr: 'emocionado' });
+        else await G.say('pai', v.viuFoto ? 'Da próxima, eu deixo você rascunhar. Quem sabe assim eu janto com {oa} {filho}.' : 'Da próxima, eu deixo você rascunhar. Quem sabe assim eu chego para o jantar.', { expr: 'emocionado' });
         G.faisca.emote('heart');
         G.fx.hearts(G.faisca);
         await G.letterbox(false, 0.4);
         G.pai.at({ x: -2.15, z: -2.35, rot: 0.55 }); // de costas para o vidro, olhando a sala
         G.player.fp();
 
-        await G.say('faisca', 'E não é só impressão minha. Tem estudo, inclusive um que me deixa mal na foto.', { expr: 'neutro' });
-        await G.fact(['harvard_bcg_fora', 'copilot_campo_email', 'dinamarques'], { titulo: 'A fronteira, em números' });
-        await G.say('faisca', 'Repare no da Dinamarca: na média, uns 3% de tempo. O meu placar de hoje é estimativa de jogo. O seu ganho real, só medindo.', { expr: 'neutro' });
+        await G.say('faisca', 'Uma última coisa, honesta: o placar de tempo de hoje é estimativa do jogo. Quem mediu na vida real achou ganho menor e desigual. O seu, só medindo.', { expr: 'neutro' });
+        await G.fact(['copilot_campo_email', 'dinamarques'], { titulo: 'E na vida real, quanto tempo poupa?' });
         await G.say('pai', 'Uma máquina que mostra o número contra ela mesma. Isso eu respeito.', { expr: 'pensativo' });
         await G.say('faisca', 'Deixei tudo no seu *Guia do CEO*, no botão 📘 lá em cima, em "Rotina e triagem": a fronteira, a caneta vermelha e como medir o ganho em 30 dias.', { expr: 'feliz' });
 
@@ -1195,7 +1207,7 @@
       const tot = errosTotal(v), fix = errosFix(v);
       const lines = [];
       lines.push(resolvido(v) + ' · Reputação ' + v.rep + '/100');
-      lines.push('Tempo poupado (vs. tudo na mão): ' + durTxt(economizado(v)) + (v.semLer ? ', mas a reputação pagou a conta' : ''));
+      lines.push('Tempo poupado vs. tudo na mão (estimativa do jogo): ' + durTxt(economizado(v)) + (v.semLer ? ', mas a reputação pagou a conta' : ''));
       if (tot) lines.push('Erros da IA corrigidos: ' + fix + ' de ' + tot);
       else lines.push('Rascunhos da IA: nenhum. Tudo do seu jeito.');
       lines.push(v.fora ? 'Promoção: decisão sua, fora da fronteira da IA' : 'Promoção: a IA tentou decidir; você retomou a decisão');
@@ -1219,12 +1231,12 @@
     await G.say(TEL_MARTA, 'Qual das versões eu levo ao conselho?');
     await G.say('pai', 'A certa. Me dá uns minutos.', { expr: 'sem_graca' });
     anim(G.faisca, 'ashamed', 2.2);
-    await G.say('faisca', 'Fui eu. Errei com toda a confiança do mundo, que é o meu jeito de errar. E o relatório saiu com o seu nome.', { expr: 'triste' });
+    await G.say('faisca', 'Fui eu. Errei sem mudar o tom de voz, e o relatório saiu com o seu nome.', { expr: 'triste' });
     const dano = sem ? DANO_SEM : DANO_POR_ERRO * missed.length;
     if (!sem) v.gasto.t1 = (v.gasto.t1 || 0) + dano;
     await G.narrate(sem ? 'Meia hora de correções, telefonemas e um "desculpe" para a presidente do conselho.' : 'Mais uns minutos de correção e um "desculpe" para a presidente do conselho.');
     await passar(G, dano);
-    await G.say('pai', 'Lição anotada: o que sai com o meu nome, eu leio.', { expr: 'determinado' });
+    await G.say('pai', sem ? 'Lição anotada: o que sai com o meu nome, eu leio.' : 'Lição anotada: li por cima. Número se confere um por um.', { expr: 'determinado' });
   }
   async function consequenciaT2(G, missed, sem) {
     const v = S(G);
@@ -1240,12 +1252,12 @@
     if (missed.indexOf('promessa') >= 0) partes.push('Ele agradeceu os *15% de desconto nos próximos três pedidos*. Que desconto é esse?!');
     if (missed.indexOf('tom') >= 0) partes.push((partes.length ? 'E perguntou' : 'Ele perguntou') + ', bem seco, por que a gente acha que *ele* se confundiu com os prazos.');
     await G.say('jorge', 'Chefe! O Vicente ligou. ' + partes.join(' '), { expr: 'assustado' });
-    await G.say('pai', 'Eu não li antes de mandar.', { expr: 'sem_graca' });
+    await G.say('pai', sem ? 'Eu não li antes de mandar.' : 'Eu li. Mas não com a caneta na mão.', { expr: 'sem_graca' });
     anim(G.faisca, 'ashamed', 2.2);
     if (missed.length > 1) await G.say('faisca', 'Eu inventei a promessa e culpei o cliente. Num e-mail de desculpas. Desculpa.', { expr: 'triste' });
     else if (missed[0] === 'promessa') await G.say('faisca', 'Eu inventei o desconto. Ninguém tinha aprovado nada disso.', { expr: 'triste' });
     else await G.say('faisca', 'Eu culpei o cliente. Num e-mail de desculpas.', { expr: 'triste' });
-    await G.say('jorge', 'Deixa comigo, eu ligo de novo. Mas da próxima vez, lê, chefe!', { expr: 'preocupado' });
+    await G.say('jorge', sem ? 'Deixa comigo, eu ligo de novo. Mas da próxima vez, lê, chefe!' : 'Deixa comigo, eu ligo de novo. Mas da próxima vez, lê com calma, chefe!', { expr: 'preocupado' });
     jorge.walk('porta', 1.6).then(() => jorge.fadeOut(0.4)).catch(() => {});
     const dano = sem ? DANO_SEM : DANO_POR_ERRO * missed.length;
     if (!sem) v.gasto.t2 = (v.gasto.t2 || 0) + dano;
@@ -1262,7 +1274,7 @@
     if (num) partes.push('Eu propus *6%*, não 8%. Já tem diretor fazendo conta com oito.');
     if (cons) partes.push((num ? 'E que' : 'Que') + ' história é essa de o Grupo Horizonte *já ter concordado*? O Jorge nem falou com eles!');
     await G.say(TEL_BIA, partes.join(' '));
-    await G.say('pai', 'Ninguém concordou com nada. Eu não li antes de mandar.', { expr: 'sem_graca' });
+    await G.say('pai', sem ? 'Ninguém concordou com nada. Eu não li antes de mandar.' : 'Ninguém concordou com nada. E passou pela minha revisão.', { expr: 'sem_graca' });
     anim(G.faisca, 'ashamed', 2.2);
     if (num && cons) await G.say('faisca', 'Inventei um número e a resposta de um cliente. Duas besteiras, com o seu nome embaixo.', { expr: 'triste' });
     else if (num) await G.say('faisca', 'Troquei o 6 pelo 8. Parece pouco. Para o Jorge, é a diferença entre segurar e perder um cliente.', { expr: 'triste' });
@@ -1293,14 +1305,15 @@
       const m = v.modo[T.id];
       if (!m) return;
       const lab = MODO[m] || [m, ''];
-      let extra = '';
+      let extra = '', cls = lab[1];
       if (v.tot[T.id]) extra = ' · erros corrigidos: ' + (v.fix[T.id] || 0) + '/' + v.tot[T.id];
+      if (m === 'rev' && (v.fix[T.id] || 0) < (v.tot[T.id] || 0)) cls = ''; // revisou, mas passou erro
       const row = el('div', 'c2-bal-row', [
         el('span', null, T.icon),
         el('b', null, t(T.nome)),
         el('span', 'c2-min', v.gasto[T.id] != null ? durTxt(v.gasto[T.id]) : '—'),
         el('span', null, ''),
-        el('span', 'mg-badge ' + lab[1], lab[0] + extra),
+        el('span', 'mg-badge ' + cls, lab[0] + extra),
       ]);
       box.appendChild(row);
     });

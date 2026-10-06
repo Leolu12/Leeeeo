@@ -15,12 +15,15 @@
   const PI = Math.PI;
 
   // ------------------------------------------------------------------
-  // Encenação (cozinha: mesa4 = pai na cabeceira esquerda, mesa2 = {filho} na direita)
+  // Encenação (cozinha: mesa4 = pai na cabeceira esquerda; {filho} em mesa3, no lado do fundo, virad{oa} para ele).
+  // Não usar mesa2 aqui: de mesa4, o vaso de flores do centro da mesa fica bem na frente de quem senta em mesa2.
   // ------------------------------------------------------------------
-  const FAISCA_MESA = { x: 0.72, z: 0.98 }; // flutua à direita da mesa: {filho} e Faísca no mesmo quadro
-  const FAISCA_Y = 1.0;
+  const FILHO_MESA = 'mesa3';
+  const FAISCA_MESA = { x: 0.9, z: 0.25 }; // sobre a mesa, um pouco acima do vaso: {filho} e Faísca no mesmo quadro
+  const FAISCA_Y = 1.28;
+  const FAISCA_ESPERA = { x: -0.2, z: 0.3 }; // na abertura, perto da cadeira dele, esperando
   const PAI_PORTA = { x: 1.42, z: 1.3, rot: PI / 2 }; // de frente para a porta, ao lado de {filho}
-  const FAISCA_PORTA = { x: 0.78, z: 1.12 };
+  const FAISCA_PORTA = { x: 0.35, z: 1.05 }; // a pouco mais de um metro dele: nem colada na câmera, nem no meio da despedida
 
   // ------------------------------------------------------------------
   // Minigame "Monte o pedido": dados
@@ -41,7 +44,7 @@
     {
       id: 'resumo', icon: '📊', nome: 'O resumo para o conselho',
       missao: 'Relatório do conselho até as *10h*. Peça o *esqueleto* do resumo executivo: a página que abre o documento.',
-      intro: 'Pedido 1: o resumo para o conselho. Escolha uma peça de cada cor. A quarta, "me pergunte", é bônus.',
+      intro: 'Escolha uma peça de cada cor. A quarta, "me pergunte", é bônus.',
       certeira: 'Briefing de quem sabe o que quer. Repare nos [colchetes]: é ali que entram os seus números de verdade.',
       slots: {
         ctx: [
@@ -100,23 +103,23 @@
     // ---------------------------------------------------------------- 2
     {
       id: 'email', icon: '✉️', nome: 'O e-mail para o cliente',
-      missao: 'O Vicente, do *Grupo Horizonte* (cliente há 12 anos), reclamou de mais um atraso. Peça um *rascunho de resposta*.',
-      intro: 'Pedido 2: o e-mail para o cliente do atraso. Aqui, uma palavra errada custa caro.',
-      certeira: 'Repare: onde eu não sabia, deixei [entre colchetes] em vez de inventar uma data. Foi você que pediu isso.',
+      missao: 'O Vicente, do *Grupo Horizonte* (cliente há 12 anos), reclamou de mais um atraso. Ontem falaram em transportadora, mas ninguém confirmou a causa. Peça um *rascunho de resposta*.',
+      intro: 'Cliente antigo e chateado: aqui, uma palavra errada custa caro.',
+      certeira: 'Repare: onde eu não sabia, deixei [entre colchetes] em vez de inventar causa ou data. Foi você que pediu isso.',
       slots: {
         ctx: [
-          { q: 'bom', t: 'Um cliente de 12 anos, dos mais importantes, teve a entrega atrasada pela segunda vez em três meses. A transportadora parceira falhou, mas quem a escolheu fomos nós.', why: 'A situação inteira, sem nome nem dado pessoal. O nome do cliente você põe na hora de enviar.' },
+          { q: 'bom', t: 'Um cliente de 12 anos, dos mais importantes, teve a segunda entrega atrasada em três meses. A causa eu ainda vou confirmar com as operações.', why: 'A situação inteira, sem nome nem dado pessoal. E você avisou o que ainda não sabe: assim ela não inventa.' },
           { q: 'vago', t: 'É um cliente importante.', why: 'Importante por quê? Há quanto tempo? O que aconteceu? Sem isso, sai desculpa de formulário.' },
           { q: 'ruim', sig: true, rot: '🔴 Dado pessoal', t: 'Vou colar o cadastro do cliente: CPF do dono, celular e endereço.', why: 'Dado pessoal de cliente não vai para conta pessoal de IA: é risco de LGPD. E, para escrever um e-mail, ela nem precisa disso.' },
         ],
         task: [
           { q: 'bom', t: 'Rascunhe a resposta: assuma o erro sem rodeio, explique a causa em uma linha e diga o que muda daqui para frente.', why: 'Diz o que o e-mail precisa fazer, na ordem certa. É o que você explicaria a um diretor.' },
           { q: 'vago', t: 'Escreve um e-mail pro cliente.', why: 'Sobre o quê? Pedindo o quê? Ela escreve um e-mail educado sobre... nada.' },
-          { q: 'ruim', rot: '✗ Tiro no pé', t: 'Diga que a culpa foi da transportadora, não nossa.', why: 'Ela escreve, e com toda a educação. Mas empurrar a culpa irrita cliente antigo. A IA faz o que você manda; o julgamento é seu.' },
+          { q: 'ruim', rot: '✗ Tiro no pé', t: 'Diga que a culpa foi da transportadora, não nossa.', why: 'Ela escreve, e com toda a educação. Mas empurrar a culpa irrita cliente antigo, e a causa nem foi confirmada. A IA faz o que você manda; o julgamento é seu.' },
         ],
         fmt: [
           { q: 'bom', t: 'No máximo 8 linhas, tom humano e direto. O que eu ainda não confirmei, deixe [entre colchetes].', why: 'Curto, no tom certo e sem prometer o que você não confirmou. Os colchetes mostram onde conferir.' },
-          { q: 'vago', rot: '≈ Palavra mágica', t: 'Capricha, que eu te dou uma gorjeta.', why: 'Não existe palavra mágica: testes da Wharton (a fonte aparece no fim do capítulo) mostraram que prometer gorjeta, ou ameaçar, não melhora a resposta. Dizer o formato, sim.' },
+          { q: 'vago', rot: '≈ Palavra mágica', t: 'Capricha, que eu te dou uma gorjeta.', why: 'Não existe palavra mágica: testes da Wharton mostraram que prometer gorjeta, ou ameaçar, não melhora a resposta (a fonte vem logo depois dos três pedidos). Dizer o formato, sim.' },
           { q: 'ruim', rot: '✗ Tom errado', t: 'Bem formal: "Vimos por meio desta..."', why: 'Cliente de 12 anos não quer ofício de cartório. Num pedido de desculpas, formalidade demais soa como descaso.' },
         ],
       },
@@ -133,7 +136,7 @@
         if (sabe && p.task !== 'ruim') L.push(['ctx', 'Doze anos de parceria merecem uma explicação direta.']);
         if (p.task === 'bom') {
           L.push(['task', sabe ? 'Você tem razão: dois atrasos em três meses estão longe do padrão que você merece de nós.' : 'Você tem razão: esse atraso está longe do padrão que você merece de nós.']);
-          if (sabe) L.push(['task', 'A falha foi de uma transportadora parceira, e quem a escolheu fomos nós.']);
+          if (sabe) L.push(['task', 'O que houve: [a causa, em uma linha — confirmar com operações]. Seja qual for, a responsabilidade é nossa.']);
           else if (colch) L.push(['task', 'O que houve: [a causa, em uma linha].']);
           else {
             L.push(['task', 'O atraso foi causado por uma instabilidade pontual no nosso sistema.', 'inv']);
@@ -149,7 +152,7 @@
           L.push(['task', 'Seguimos à disposição para quaisquer esclarecimentos.']);
         } else {
           L.push(['task', 'Informamos que o atraso ocorreu por responsabilidade exclusiva da transportadora, alheia à nossa vontade. Não houve, portanto, falha de nossa parte.', 'bad']);
-          L.push(nota(sabe ? '⚠️ Cliente de 12 anos, no segundo atraso, lendo "não houve falha de nossa parte". Ela escreveu exatamente o que você pediu.' : '⚠️ Ela escreveu exatamente o que você pediu. Empurrar a culpa para fora raramente acalma um cliente.'));
+          L.push(nota(sabe ? '⚠️ Cliente de 12 anos, no segundo atraso, lendo "não houve falha de nossa parte". E a causa nem foi confirmada. Ela escreveu exatamente o que você pediu.' : '⚠️ Ela escreveu exatamente o que você pediu. Empurrar a culpa para fora raramente acalma um cliente.'));
         }
         if (p.fmt === 'bom') L.push(['fmt', 'Um abraço,\n{pai}']);
         else if (p.fmt === 'vago') {
@@ -164,7 +167,7 @@
     {
       id: 'perguntas', icon: '🎯', nome: 'As perguntas duras do conselho',
       missao: 'Depois de ler o relatório, o conselho vai perguntar. Peça as *5 perguntas mais difíceis*, para chegar preparado.',
-      intro: 'Pedido 3: as perguntas mais duras. Melhor ouvir de mim agora do que do conselho depois.',
+      intro: 'Melhor ouvir as perguntas duras de mim agora do que do conselho depois.',
       certeira: 'E a quinta pergunta... essa a Dona Marta já avisou que vem. 😉',
       slots: {
         ctx: [
@@ -240,25 +243,25 @@
     {
       k: 'curto', icon: '✂️', chip: 'Mais curto', pedido: 'Mais curto, por favor.',
       fala: 'Mesmo conteúdo, metade do tamanho. E os colchetes continuam lá: o que falta confirmar não some.',
-      txt: 'Prezado [nome do cliente],\nVocê tem razão: foram dois atrasos em três meses, e a falha foi nossa, na escolha da transportadora.\nNova entrega: [data — confirmar].\nUm abraço,\n{pai}',
+      txt: 'Prezado [nome do cliente],\nVocê tem razão: foram dois atrasos em três meses. A causa foi [confirmar], e a responsabilidade é nossa.\nNova entrega: [data — confirmar].\nUm abraço,\n{pai}',
     },
     {
       k: 'tom', icon: '🎯', chip: 'No meu tom: direto, sem floreio', pedido: 'No meu tom: direto, sem floreio.',
-      fala: 'Frase curta, sem adjetivo. Para eu acertar o seu tom de verdade, me mostre três e-mails seus: eu aprendo o estilo.',
-      txt: '[Nome do cliente],\nFalhamos com você. Duas vezes em três meses.\nA transportadora errou, mas quem a escolheu fomos nós.\nSua entrega chega [data — confirmar]. O que muda daqui para frente: [confirmar].\n{pai}',
+      fala: 'Frase curta, sem adjetivo. Para acertar o seu tom de verdade, me mostre três e-mails seus, sem nada sigiloso, e eu aprendo o estilo.',
+      txt: '[Nome do cliente],\nFalhamos com você. Duas vezes em três meses.\nO que houve: [causa — confirmar]. Sem desculpa: a responsabilidade é nossa.\nSua entrega chega [data — confirmar]. O que muda daqui para frente: [confirmar].\n{pai}',
     },
     {
       k: 'topicos', icon: '📋', chip: 'Em tópicos', pedido: 'Em tópicos.',
       fala: 'Tópico é ótimo para relatório. Para cliente chateado, texto corrido costuma soar mais humano. Você decide.',
-      txt: 'Prezado [nome do cliente],\n- O que houve: segundo atraso em três meses.\n- Por quê: falha da transportadora parceira, escolhida por nós.\n- Nova entrega: [data — confirmar].\n- O que muda: [confirmar].\nUm abraço,\n{pai}',
+      txt: 'Prezado [nome do cliente],\n- O que houve: segundo atraso em três meses.\n- Por quê: [causa — confirmar com operações].\n- De quem é a responsabilidade: nossa.\n- Nova entrega: [data — confirmar].\n- O que muda: [confirmar].\nUm abraço,\n{pai}',
     },
     {
       k: 'dez', icon: '🧒', chip: 'Explica como se eu tivesse 10 anos', pedido: 'Explica como se eu tivesse 10 anos.',
       fala: 'Esse não vai para o cliente, né? 😄 Mas guarde o truque: serve para traduzir juridiquês e economês.',
-      txt: 'Oi, [nome do cliente]!\nSabe quando você espera um presente e ele não chega? Pois é: aconteceu duas vezes.\nO caminhão que a gente escolheu se atrapalhou. A culpa é nossa!\nMas o seu pacote vai chegar [no dia que alguém confirmar]. 🎈\nBeijos,\n{pai}',
+      txt: 'Oi, [nome do cliente]!\nSabe quando você espera um presente e ele não chega? Pois é: aconteceu duas vezes.\nAlguma coisa no caminho deu errado [descobrir o quê]. Mas a culpa é nossa!\nO seu pacote vai chegar [no dia que alguém confirmar]. 🎈\nBeijos,\n{pai}',
     },
   ];
-  const EMAIL_BASE = 'Prezado [nome do cliente],\nDoze anos de parceria merecem uma explicação direta.\nVocê tem razão: dois atrasos em três meses estão longe do padrão que você merece de nós.\nA falha foi de uma transportadora parceira, e quem a escolheu fomos nós.\nA nova entrega chega [data — confirmar]. Daqui para frente, [o que muda — confirmar].\nUm abraço,\n{pai}';
+  const EMAIL_BASE = 'Prezado [nome do cliente],\nDoze anos de parceria merecem uma explicação direta.\nVocê tem razão: dois atrasos em três meses estão longe do padrão que você merece de nós.\nO que houve: [a causa, em uma linha — confirmar com operações]. Seja qual for, a responsabilidade é nossa.\nA nova entrega chega [data — confirmar]. Daqui para frente, [o que muda — confirmar].\nUm abraço,\n{pai}';
 
   // ------------------------------------------------------------------
   // CSS do capítulo
@@ -272,14 +275,19 @@
   .c1-dot.meh { background: var(--amber-l); color: #7a4d00; }
   .c1-head .mg-title { margin: 0; }
   .c1-missao { font-size: 0.84em; padding: 6px 12px; line-height: 1.4; }
-  .c1-build { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); grid-template-areas: "prev" "pick" "act"; }
+  .c1-build { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); grid-template-areas: "pick" "bonus" "prev"; }
+  .c1-bon { grid-area: bonus; min-width: 0; display: flex; flex-direction: column; }
   .c1-prev { grid-area: prev; min-width: 0; }
   .c1-pick { grid-area: pick; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-  .c1-act { grid-area: act; margin-top: 0; display: flex; flex-direction: column; gap: 10px; }
-  .c1-act .mg-actions { margin-top: 0; }
   @media (min-width: 860px) {
-    .c1-build { grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); grid-template-areas: "pick prev" "pick act"; align-items: start; }
+    .c1-build { grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); grid-template-areas: "pick bonus" "pick prev"; grid-template-rows: auto 1fr; align-items: start; }
   }
+  .c1-bar { position: sticky; bottom: -20px; z-index: 3; margin: 12px -22px -20px; padding: 10px 22px 14px; background: rgba(255, 255, 255, 0.97); border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+  .c1-bar .mg-actions { margin-top: 0; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
+  .c1-bar .btn { min-height: 50px; }
+  .c1-bar-tx { flex: 1 1 auto; font-size: 0.84em; color: var(--muted); }
+  @media (max-width: 760px) and (orientation: portrait) { .c1-bar { bottom: -18px; margin: 12px -16px -18px; padding: 10px 16px 14px; border-radius: 0; } }
+  @media (max-width: 520px) { .c1-bar .mg-actions { flex-wrap: nowrap; } .c1-bar .btn { flex: 1 1 0; min-width: 0; padding-left: 10px; padding-right: 10px; } .c1-bar .kbd, .c1-bar-tx { display: none; } }
   .c1-tabs { display: flex; flex-wrap: wrap; gap: 6px; order: -2; }
   .c1-tab { font: inherit; font-family: var(--head); font-weight: 800; font-size: 0.78em; border-radius: 99px; padding: 6px 13px; border: 2px solid transparent; cursor: pointer; min-height: 38px; display: inline-flex; align-items: center; gap: 6px; }
   .c1-tab.ctx { background: #e3ecff; color: #24468f; }
@@ -307,7 +315,7 @@
   .c1-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; font-size: 0.78em; color: var(--muted); margin-top: 6px; }
   .c1-send.ready { animation: c1pulse 1.3s ease-in-out infinite; }
   @keyframes c1pulse { 0%, 100% { box-shadow: 0 6px 18px rgba(255, 107, 61, 0.35); } 50% { box-shadow: 0 0 0 6px rgba(255, 107, 61, 0.22), 0 6px 18px rgba(255, 107, 61, 0.35); } }
-  .c1-act .btn, .c1-res .btn, .c1-fino .btn { min-height: 50px; }
+  .c1-res .btn, .c1-fino .btn { min-height: 50px; }
   .c1-res { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
   @media (min-width: 860px) { .c1-res { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; } }
   .c1-ans { padding: 12px 14px; font-size: 0.9em; min-width: 0; }
@@ -325,10 +333,6 @@
   .c1-ln.bad { color: #9a1d22; }
   .c1-ln.nota { border-color: #e0b45a; background: var(--amber-l); color: #6b4e12; font-size: 0.9em; border-radius: 0 10px 10px 0; padding: 6px 10px; }
   .c1-side { min-width: 0; }
-  .c1-side > .c1-score { order: 0; }
-  .c1-side > .c1-fb { order: 2; }
-  .c1-side > .c1-side-act { order: 3; margin-top: 0; }
-  @media (min-width: 860px) { .c1-side > .c1-side-act { order: 1; justify-content: flex-start; } }
   .c1-score { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
   .c1-score .meter { flex: 1 1 150px; }
   .c1-score .stars { font-size: 1.45em; }
@@ -343,8 +347,8 @@
   .c1-fim-ic { font-size: 1.5em; flex: 0 0 auto; }
   .c1-fim > div { flex: 1 1 auto; }
   .c1-total { font-family: var(--head); font-weight: 800; font-size: 1.05em; color: var(--ink); text-align: center; margin-top: 4px; }
-  .c1-fino { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); grid-template-areas: "chips" "doc" "act"; }
-  @media (min-width: 860px) { .c1-fino { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); grid-template-areas: "chips doc" "chips act"; align-items: start; } }
+  .c1-fino { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); grid-template-areas: "chips" "doc"; }
+  @media (min-width: 860px) { .c1-fino { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); grid-template-areas: "chips doc"; align-items: start; } }
   .c1-chips { grid-area: chips; display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   @media (min-width: 860px) { .c1-chips { grid-template-columns: minmax(0, 1fr); } }
   .c1-chip { display: flex !important; align-items: center; gap: 8px; font-size: 0.86em; padding: 9px 11px; min-height: 52px; }
@@ -357,8 +361,11 @@
   .c1-mail .line { min-height: 1.2em; }
   .c1-ped { font-size: 0.84em; color: var(--muted); margin: 0 0 6px; }
   .c1-ped b { color: var(--ink); }
-  .c1-fino .c1-act { grid-area: act; }
   .c1-typing { color: var(--muted); font-style: italic; }
+  /* contorno de bug do style.css: as regras base do #btn-skip e da .drag-hint (top: 14px) vêm depois das
+     regras do celular (top: auto; bottom: …) e ganham delas; com top e bottom ao mesmo tempo, o "Pular cena"
+     e a dica de exploração viravam pílulas escuras esticadas pela altura toda da cena */
+  @media (max-width: 760px) and (orientation: portrait) { body #btn-skip, body .drag-hint { top: auto; } }
   `;
 
   // ------------------------------------------------------------------
@@ -375,7 +382,7 @@
   }
   /** Só os atores: os dois sentados, a Faísca flutuando à direita da mesa, todos de frente para o pai. */
   function sentar(G) {
-    G.filho.at('mesa2').setAnim('sit').set({ props: { mug: true } });
+    G.filho.at(FILHO_MESA).setAnim('sit').set({ props: { mug: true } });
     G.filho.setExpr('feliz');
     G.pai.at('mesa4').setAnim('sit');
     G.faisca.at(FAISCA_MESA, FAISCA_Y);
@@ -411,7 +418,7 @@
         const R = RODADAS[i];
         const ordem = {};
         SLOTS.forEach((s) => { ordem[s.k] = api.shuffle([0, 1, 2]); });
-        st = { i, R, ordem, pick: { ctx: null, task: null, fmt: null }, bonus: false, cur: 'ctx', envios: 0, primeira: false, mostrada: false, errados: {} };
+        st = { i, R, ordem, pick: { ctx: null, task: null, fmt: null }, bonus: false, cur: 'ctx', envios: 0, primeira: false, mostrada: false, errados: {}, avisado: false };
         api.say(R.intro, 'faisca');
         builder();
         toTop();
@@ -505,15 +512,18 @@
         pick.appendChild(tabs);
         pick.appendChild(el('div', 'c1-q', [el('span', 'mg-badge c1-b-' + s.cls, s.nome), s.pergunta]));
         wrap.appendChild(pick);
-        // ações: a 4ª peça (bônus) fica junto do envio, embaixo do pedido
-        const act = el('div', 'c1-act');
-        act.appendChild(bo);
-        const send = api.btn('Enviar pedido ▶', enviar, { cls: 'primary c1-send', key: 5 });
-        if (!completo()) send.disabled = true;
-        else send.classList.add('ready');
-        act.appendChild(el('div', 'mg-actions', send));
-        wrap.appendChild(act);
+        // a 4ª peça (bônus): no celular logo abaixo das três da aba; no computador, no alto da coluna do pedido
+        wrap.appendChild(el('div', 'c1-bon', bo));
         root.appendChild(wrap);
+        // barra de envio fixa no rodapé do painel: o botão nunca some, nem em tela pequena
+        const falta = SLOTS.filter((x) => st.pick[x.k] == null).map((x) => x.nome);
+        const send = api.btn(falta.length ? 'Falta: ' + falta.join(', ') : 'Enviar pedido ▶', enviar, { cls: 'primary c1-send', key: 5 });
+        if (falta.length) send.disabled = true;
+        else send.classList.add('ready');
+        root.appendChild(barra([send]));
+      }
+      function barra(itens) {
+        return el('div', 'c1-bar', el('div', 'mg-actions', itens));
       }
 
       function escolher(k, j) {
@@ -526,7 +536,13 @@
           if (instant()) go();
           else api.timeout(go, 280);
         } else {
-          api.say('Pedido montado. Confira como ficou e, se quiser, ligue o bônus. Depois é só enviar.', 'faisca');
+          // celular: com as três peças escolhidas, mostra o pedido inteiro antes do envio
+          const prev = root.querySelector('.c1-prev');
+          if (window.innerWidth < 860 && prev && prev.scrollIntoView) prev.scrollIntoView({ block: 'center' });
+          if (!st.avisado) {
+            st.avisado = true;
+            if (st.i === 0) api.say('Pedido montado. Confira como ficou e, se quiser, ligue o bônus. Depois é só enviar.', 'faisca');
+          }
         }
       }
 
@@ -605,16 +621,13 @@
         });
         if (st.bonus) side.appendChild(el('div', 'mg-feedback c1-fb ok', [el('span', 'mg-badge c1-b-bonus', 'Bônus'), 'Em vez de supor, ela perguntou o que faltava.']));
         else if (n === 3) side.appendChild(el('div', 'mg-feedback c1-fb info', [el('span', 'mg-badge c1-b-bonus', 'Dica'), 'Com o bônus ligado, ela pergunta o que falta em vez de supor.']));
-        // ações
-        const act = el('div', 'mg-actions c1-side-act');
+        // ações: na barra fixa do rodapé, no mesmo lugar do "Enviar"
         if (n === 3) {
           const ultimo = st.i === RODADAS.length - 1;
-          act.appendChild(api.btn(ultimo ? 'Ver o resultado ▶' : 'Próximo pedido ▶', proximo, { cls: 'primary', key: 1 }));
+          root.appendChild(barra([api.btn(ultimo ? 'Ver o resultado ▶' : 'Próximo pedido ▶', proximo, { cls: 'primary', key: 1 })]));
         } else {
-          act.appendChild(api.btn('👀 Ver a versão certeira', mostrar, { key: 2 }));
-          act.appendChild(api.btn('✏️ Ajustar o pedido', ajustar, { cls: 'primary', key: 1 }));
+          root.appendChild(barra([api.btn('👀 Versão certeira', mostrar, { key: 2 }), api.btn('✏️ Ajustar pedido', ajustar, { cls: 'primary', key: 1 })]));
         }
-        side.appendChild(act);
         // reação da Faísca (no painel e no 3D)
         if (mostrada) {
           api.say('Esta é a versão certeira. Compare com a sua: a diferença toda está nas peças.', 'faisca');
@@ -671,18 +684,15 @@
         const list = el('div', 'mg-col');
         RODADAS.forEach((R, j) => {
           const x = reg[j];
-          const sub = x.primeira ? 'Certeiro de primeira' : x.mostrada ? 'Você viu a versão certeira' : 'Certeiro depois do ajuste';
+          const sub = x.primeira ? '✓ Certeiro de primeira' : x.mostrada ? '👀 Você viu a versão certeira' : '✏️ Certeiro depois do ajuste';
           list.appendChild(el('div', 'mg-feedback c1-fim ' + (x.primeira ? 'ok' : 'info'), [
             el('span', 'c1-fim-ic', R.icon),
             el('div', null, [el('b', null, R.nome), el('div', 'mg-small', sub)]),
-            el('span', 'mg-badge ' + (x.primeira ? 'mint' : 'blue'), x.primeira ? '✓ de primeira' : x.mostrada ? 'aprendido' : 'ajustado'),
           ]));
         });
         root.appendChild(list);
         root.appendChild(el('div', 'c1-total', api.rich('Certeiros de primeira: *' + bons + ' de 3*', true)));
-        const act = el('div', 'mg-actions');
-        act.appendChild(api.btn('Concluir ▶', () => done({ bons, reg }), { cls: 'primary', key: 1 }));
-        root.appendChild(act);
+        root.appendChild(barra([api.btn('Concluir ▶', () => done({ bons, reg }), { cls: 'primary', key: 1 })]));
         if (bons === 3) {
           api.say('Três de três, de primeira. Você não aprendeu a usar IA hoje: você já sabia dar briefing.', 'faisca');
           api.sfx('jingle_vitoria');
@@ -725,13 +735,14 @@
         botoes[r.k] = b;
         chips.appendChild(b);
       });
-      const act = el('div', 'c1-act mg-actions');
-      act.appendChild(api.btn('✅ Fico com esta versão', () => done(atual), { cls: 'primary', key: 6 }));
       wrap.appendChild(chips);
       wrap.appendChild(box);
-      wrap.appendChild(act);
       root.appendChild(el('div', 'mg-hint c1-missao', 'Toque num ajuste e veja o mesmo e-mail mudar. Teste quantos quiser; no fim, fique com a versão que você assinaria.'));
       root.appendChild(wrap);
+      root.appendChild(el('div', 'c1-bar', el('div', 'mg-actions', [
+        el('span', 'c1-bar-tx', 'Quem decide a versão final é você.'),
+        api.btn('✅ Fico com esta versão', () => done(atual), { cls: 'primary', key: 6 }),
+      ])));
 
       function desenha(r) {
         doc.innerHTML = '';
@@ -760,13 +771,13 @@
           api.say(r.fala, 'faisca');
           if (r.k === 'dez') G.faisca.play('spin', 1.2);
           // no celular, mostra o e-mail novo
-          if (window.innerWidth < 860 && box.scrollIntoView) box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          if (window.innerWidth < 860 && box.scrollIntoView) box.scrollIntoView({ block: 'start', behavior: 'smooth' });
         }, 650);
       }
       desenha(opcoes[opcoes.length - 1]);
     }, {
       title: '✏️ Ajuste fino: o e-mail do cliente', size: 'l',
-      intro: 'Em vez de recomeçar, peça ajustes, do jeito que você pediria à sua secretária para mexer numa carta.', introWho: 'faisca',
+      intro: 'Em vez de recomeçar, peça ajustes, do jeito que você pediria à Sônia, a sua secretária, para mexer numa carta.', introWho: 'faisca',
     });
   }
 
@@ -779,7 +790,7 @@
     title: 'A Arte de Pedir',
     subtitle: 'O relatório das dez, um pedido vago e um talento de trinta anos',
     music: 'manha',
-    minutes: 8,
+    minutes: 10,
     parts: [
       // ----------------------------------------------------------------
       // 1. O pedido vago
@@ -789,11 +800,11 @@
         await G.titleCard();
         G.scene('cozinha', { time: 'manha', steam: true });
         G.music('manha');
-        G.filho.at('mesa2').setAnim('sit').set({ props: { mug: true } });
+        G.filho.at(FILHO_MESA).setAnim('sit').set({ props: { mug: true } }); // de frente para a câmera do plano geral
         G.filho.setExpr('feliz');
         G.pai.at('cafe').setAnim('coffee').set({ props: { mug: true } });
         G.pai.setExpr('cansado');
-        G.faisca.at(FAISCA_MESA, FAISCA_Y);
+        G.faisca.at(FAISCA_ESPERA, 1.15); // na ponta da mesa, fora da linha entre a câmera 'mesa' e {filho}
         G.faisca.face(G.pai, true);
         G.player.cine();
         await G.cam.shot('geral', 0);
@@ -804,12 +815,17 @@
           G.cam.shot('cafe', 2.6).catch(() => {});
           await G.wait(1.4);
           G.sfx('phone_vibrate');
-          G.toast('*Dona Marta:* "Bom dia, {pai}! Relatório às 10h, combinado? E prepare-se: o conselho vai perguntar o que a empresa anda fazendo com IA."', { icon: '💬', kind: 'notif', dur: 7 });
+          G.toast('*Dona Marta:* "Lembrete: relatório às 10h. E prepare-se: o conselho vai perguntar o que a empresa anda fazendo com IA."', { icon: '💬', kind: 'notif', dur: 7 });
           await G.wait(1.6);
         });
+        // ele se vira da cafeteira para a mesa (o plano 'cafe' passa a pegar o rosto dele)
         G.pai.setAnim('idle');
-        await G.say('pai', 'Dona Marta. Relatório às dez... e o conselho quer saber o que a empresa anda fazendo com IA.', { expr: 'desconfiado' });
-        await G.say('filho', 'Olha só. E dessa vez nem fui eu que puxei o assunto.', { expr: 'rindo' });
+        G.pai.face(G.filho);
+        G.filho.lookAt(G.pai);
+        await G.say('pai', 'Dona Marta. Relatório às dez... e agora o conselho quer saber o que a empresa anda fazendo com IA.', { expr: 'desconfiado', cam: false });
+        G.cam.shot('mesa', 0.8).catch(() => {});
+        await G.say('filho', 'Olha só. E dessa vez nem fui eu que puxei o assunto.', { expr: 'rindo', cam: false });
+        G.filho.lookAt(null);
         await G.fadeOut(0.35);
         G.player.fp();
         G.player.setLook(-0.12, 0.62);
@@ -820,6 +836,7 @@
             {
               id: 'geladeira', label: 'A porta da geladeira', icon: '🧲', at: 'geladeira', optional: true,
               onInteract: async (G) => {
+                G.player.lookAt({ x: 1.6, y: 1.25, z: -1.55 }); // a porta da geladeira: ímãs, desenho, bilhete
                 await G.think('pai', 'O desenho d{oa} {filho}, de quando tinha seis anos. Está nesta geladeira há mais tempo que muito diretor ficou na empresa.');
                 await G.think('pai', 'E o bilhete: "Comprar café!". Esse, sim, é urgente de verdade.');
               },
@@ -827,11 +844,12 @@
             {
               id: 'pia', label: 'A pia', icon: '🍽️', at: 'pia', optional: true,
               onInteract: async (G) => {
+                G.player.lookAt({ x: -2.3, y: 0.9, z: -0.85 }); // a cuba da pia
                 if (G.flag('aposta')) await G.think('pai', 'A louça de ontem. Se essa tal de Faísca for inútil, isso aqui vira problema d{oa} {filho} por um mês.');
                 else await G.think('pai', 'A louça de ontem. Uma crise de cada vez.');
               },
             },
-            { id: 'mesa', label: 'Sentar com {filho}', icon: '🪑', actor: 'filho' },
+            { id: 'mesa', label: 'Sentar com {filho}', icon: '🪑', at: 'mesa4' },
           ],
         });
         await G.fadeOut(0.35);
@@ -857,13 +875,13 @@
         await G.say('filho', '{apelido}, se um diretor novo chegasse hoje e você só dissesse "faz um relatório"...', { expr: 'amigavel' });
         await G.say('pai', 'Eu ia receber exatamente isso. E a culpa ia ser minha, que expliquei mal.', { expr: 'pensativo' });
         G.faisca.play('teach', 1.6);
-        await G.say('faisca', 'É igual explicar serviço para um diretor novo: *quem você é, o que quer, o contexto e o formato.* E deixar que ele pergunte o que faltar.');
+        await G.say('faisca', 'Metade da culpa é minha, que não perguntei. Com diretor novo é igual: *quem você é, o que quer, o contexto e o formato.* E deixar que ele pergunte o que faltar.');
         await G.say('pai', 'Isso tem nome: briefing. Faço há trinta anos.', { expr: 'orgulhoso' });
         await G.say('filho', 'Então você já sabe usar IA. Só não sabia que sabia.', { expr: 'rindo' });
         await G.say('filho', 'O pessoal chama esse pedido de *prompt*. Mas é só isso: o pedido que você escreve.');
         await G.say('pai', 'Então vamos chamar de pedido. Esta cozinha ainda é minha.', { expr: 'rindo' });
         await G.say('faisca', 'Combinado: pedido. Um aviso: no celular eu sou uma conta pessoal. Número do trimestre, dado de cliente e papel do conselho ficam para a ferramenta da empresa.');
-        await G.say('faisca', 'Aqui a gente treina o *pedido*. E pedido bom não precisa de segredo: contexto, sim; segredo, não.');
+        await G.say('faisca', 'E pedido bom não precisa de segredo. A regra é esta: *contexto, sim; segredo, não.*');
         await G.say('pai', 'Um estagiário que pede para não ver segredo. Essa é nova.', { expr: 'desconfiado' });
         await G.fadeOut(0.5);
       },
@@ -888,26 +906,40 @@
           await G.say('filho', 'Três de três! Quem diria.', { expr: 'empolgado', emote: 'star' });
           await G.say('pai', 'Eu diria. Briefing é o que eu mais faço na vida.', { expr: 'orgulhoso' });
         } else {
-          await G.say('filho', 'Viu? Quando a peça era vaga, a resposta vinha vaga.', { expr: 'amigavel' });
+          await G.say('filho', 'Viu? A resposta sai do tamanho do pedido.', { expr: 'amigavel' });
           await G.say('pai', 'Igualzinho a diretor novo. Pedido mal feito, relatório mal feito.', { expr: 'pensativo' });
         }
+        // "de onde veio isso?": as fontes logo depois da prática (21 palavras, gorjeta, tempo poupado)
+        G.player.lookAt(G.faisca);
+        await G.say('pai', 'Agora me diga: de onde saiu essa receita de pedido bom?', { expr: 'desconfiado' });
+        await G.say('faisca', 'De quem mede. Um dos dados é do Google, que vende IA: por isso o selo diz "fornecedor". Os outros dois são estudos independentes.');
+        await G.fact(['google_21_palavras', 'sem_palavras_magicas', 'noy_zhang_escrita'], { titulo: 'Pedir bem compensa' });
+        await G.say('pai', 'Vinte e uma palavras. O meu primeiro pedido tinha cinco.', { expr: 'pensativo' });
+        G.faisca.play('teach', 1.4);
+        await G.say('faisca', 'Não é para contar palavras: é para não economizar contexto.');
         await G.say('pai', 'O e-mail do cliente ficou bom. Mas não está com a minha cara.', { expr: 'desconfiado' });
         await G.say('faisca', 'Então me diga como é a sua cara. Não precisa recomeçar: é só pedir ajuste.', { expr: 'feliz' });
         const kept = await ajusteFino(G);
         G.v.versaoEmail = kept;
         if (kept === 'dez') {
           await G.say('pai', 'Era só para ver você suar. No escritório eu vou de versão séria.', { expr: 'rindo' });
-          G.faisca.play('ashamed', 1);
+          G.faisca.play('spin', 1);
           await G.say('faisca', 'Eu não suo. Mas entendi o recado.');
         } else if (kept === 'topicos') {
           await G.say('pai', 'Fico com os tópicos. Mas, para o Vicente, talvez eu solte um pouco o texto.', { expr: 'pensativo' });
           await G.say('faisca', 'Quem conhece o Vicente é você. Eu só conheço os tópicos.');
+        } else if (kept === 'tom') {
+          await G.say('pai', 'Agora sim. Parece que fui eu que escrevi.', { expr: 'orgulhoso' });
+        } else if (kept === 'curto') {
+          await G.say('pai', 'Curto e sem promessa no ar. Esta serve.', { expr: 'neutro' });
         } else {
-          await G.say('pai', 'Esta serve.', { expr: 'neutro' });
+          await G.say('pai', 'O primeiro já estava bom. Fico com ele.', { expr: 'neutro' });
         }
-        await G.say('pai', 'Nome do cliente e data eu ponho no escritório, depois de falar com o Rafael, das operações. Quem assina sou eu.', { expr: 'determinado' });
+        await G.say('pai', 'Ontem me falaram em transportadora. Mas "me falaram" não entra em e-mail para cliente de doze anos.', { expr: 'desconfiado' });
+        await G.say('faisca', 'Por isso os colchetes: o que ninguém confirmou fica marcado, em vez de virar chute.');
+        await G.say('pai', 'Causa e data eu confirmo com o Rafael, das operações. Quem assina sou eu.', { expr: 'determinado' });
         G.faisca.play('celebrate', 1.2);
-        await G.say('faisca', 'Os colchetes estão lá exatamente para isso. E o pedido você reaproveita: lá, na ferramenta da empresa, com os dados de verdade.');
+        await G.say('faisca', 'E o pedido você reaproveita no escritório, na ferramenta da empresa, com os dados de verdade.');
         await G.fadeOut(0.5);
       },
 
@@ -915,13 +947,14 @@
       // 3. O limite honesto, a despedida e a lição
       // ----------------------------------------------------------------
       async (G) => {
+        P2.ui.css('cap1', CSS);
         mesaPosta(G, '07:52');
         await G.fadeIn(0.6);
         G.player.lookAt(G.faisca);
         await G.say('pai', 'Já que você está tão esperta, uma de bônus.', { expr: 'desconfiado' });
         await G.aiChat([
           { from: 'voce', text: 'Quanto de queda na margem a Dona Marta aceita sem pedir a minha cabeça?' },
-          { from: 'ia', text: '*Não sei.* Eu nunca vi a Dona Marta, não conheço o seu conselho nem o que vocês já combinaram.\nSe eu desse um número, seria um chute com cara de certeza.\n*O que me ajudaria:* as metas que o conselho aprovou, o que ela costuma cobrar (em termos gerais) e como vocês explicaram quedas antes.\nCom isso eu preparo os argumentos. Ler a Dona Marta é com você.', thinking: 1.3 },
+          { from: 'ia', text: '*Não sei.* Eu nunca vi a Dona Marta, não conheço o seu conselho nem o que vocês já combinaram.\nSe eu desse um número, seria um chute com cara de certeza.\n*O que me ajudaria:* em termos gerais, o que o conselho costuma cobrar e como vocês explicaram quedas antes. Metas e números, só na ferramenta da empresa.\nCom isso eu preparo os argumentos. Ler a Dona Marta é com você.', thinking: 1.3 },
         ], { title: 'Faísca' });
         const lim = await G.choose([
           { text: '"Chuta um número. Fica entre nós."', value: 'chute' },
@@ -932,14 +965,15 @@
           await G.say('pai', 'Chuta um número. Fica entre nós.', { expr: 'desconfiado' });
           G.faisca.play('doubt', 1.3);
           await G.say('faisca', 'Chutar eu consigo, e com voz de quem tem certeza. É justamente o que você não quer ouvir antes das dez.');
-          await G.say('faisca', 'Quando eu não souber, o certo é eu dizer "não sei". Dá até para pedir isso no fim de todo pedido.');
         } else {
           await G.say('pai', 'Justo. Essa parte é comigo.', { expr: 'neutro' });
           G.faisca.play('celebrate', 1.2);
           await G.say('faisca', 'Exato. Eu não vejo o que não está no papel: as pessoas, a história, o clima da sala.');
         }
         await G.say('pai', 'Trinta anos de conselho. Essa leitura ninguém faz por mim.', { expr: 'orgulhoso' });
-        await G.say('filho', 'Ela não sabia e disse que não sabia. Isso nem muito consultor faz, {apelido}.', { expr: 'rindo' });
+        G.faisca.play('teach', 1.2);
+        await G.say('faisca', 'E uma dica para qualquer pedido: termine com "se não souber, diga que não sabe". Um "não sei" honesto vale mais que um chute bonito.');
+        await G.say('filho', 'Ela não sabia e admitiu, {apelido}. Tem diretor que leva anos para aprender isso.', { expr: 'rindo' });
         await G.say('pai', 'Não me faça elogiar a máquina antes das oito.', { expr: 'rindo' });
         // {filho} vai trabalhar
         G.hud.set({ clock: '07:58' });
@@ -949,15 +983,20 @@
         G.filho.set({ props: { mug: false, phone: true } });
         G.pai.setAnim('idle');
         G.player.lookAt('filho');
-        await G.filho.walk({ x: 1.72, z: 1.18 }); // sai de lado, sem atravessar a cadeira
+        // contorna a mesa pelo lado da geladeira, sem atravessar cadeira nenhuma
+        await G.filho.walk({ x: 1.55, z: -0.3 });
+        await G.filho.walk({ x: 2.3, z: 0.25 });
         await G.filho.walk('porta');
         G.filho.face(G.pai);
+        G.faisca.follow(G.pai); // no caminho até a porta ela vai junto (canto da tela), sem ficar na frente d{oa} {filho}
+        G.player.lookAt('filho');
         await G.explore({
           objetivo: 'Acompanhe {filho} até a porta',
           hotspots: [
             {
               id: 'cafe', label: 'Mais um café?', icon: '☕', at: 'cafe', optional: true,
               onInteract: async (G) => {
+                G.player.lookAt({ x: -0.95, y: 1.0, z: -1.85 }); // a cafeteira
                 G.sfx('coffee');
                 await G.think('pai', 'Terceiro café? Melhor não. O conselho não precisa de um CEO tremendo.');
               },
@@ -970,7 +1009,8 @@
         G.pai.setExpr('amigavel');
         G.filho.at('porta').setAnim('idle');
         G.filho.face(G.pai, true);
-        G.faisca.at(FAISCA_PORTA, 1.3);
+        G.faisca.unfollow();
+        G.faisca.at(FAISCA_PORTA, 1.4);
         G.faisca.face(G.pai, true);
         G.player.cine();
         await G.cam.two(G.pai, G.filho, { dur: 0 });
@@ -995,13 +1035,9 @@
         await G.fadeIn(0.45);
         G.player.lookAt(G.faisca);
         await G.say('faisca', 'Pronto para o escritório?', { expr: 'feliz' });
-        await G.say('pai', 'Quase. Antes, me diga de onde você tirou essa história de pedido bom.', { expr: 'desconfiado' });
-        await G.say('faisca', 'De quem mede. Um dos dados é do Google, que vende IA: por isso o selo diz "fornecedor". Os outros dois são estudos independentes.');
-        await G.fact(['google_21_palavras', 'sem_palavras_magicas', 'noy_zhang_escrita'], { titulo: 'Pedir bem compensa' });
-        await G.say('pai', 'Vinte e uma palavras. O meu primeiro pedido tinha cinco.', { expr: 'pensativo' });
+        await G.say('pai', 'Pronto. O relatório das dez não vai se escrever sozinho.', { expr: 'determinado' });
         G.faisca.play('teach', 1.4);
-        await G.say('faisca', 'Não é para contar palavras: é para não economizar contexto.');
-        await G.say('faisca', 'A receita vai ficar no seu Guia do CEO, no botão 📘 Guia, lá em cima. É só copiar e trocar o que está entre colchetes.');
+        await G.say('faisca', 'Sozinho, não. Mas o pedido já está montado. E a receita fica no seu Guia do CEO, no botão 📘 Guia, lá em cima: é só copiar e trocar o que está entre colchetes.');
         await G.lesson('Você já sabe usar IA: é igual explicar serviço para um diretor novo. Diga quem você é, o que quer, o contexto e o formato. E deixe que ela pergunte o que faltar.\nContexto, sim. Segredo, não.', { titulo: 'A arte de pedir' });
         await G.fadeOut(0.8);
       },
@@ -1012,6 +1048,7 @@
       return [
         'Pedidos certeiros de primeira: ' + bons + ' de 3',
         'A receita: quem sou · o que quero · contexto · formato · "me pergunte o que faltar"',
+        'A regra: contexto, sim; segredo, não.',
         'Novo no Guia do CEO (📘): "Como pedir"',
       ].map((l) => G.t(l));
     },

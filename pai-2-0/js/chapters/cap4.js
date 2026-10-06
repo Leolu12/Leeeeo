@@ -10,10 +10,13 @@
  * Estatísticas (bíblia F): cap4 { acertos, total: 10, lorotasPegas, lorotasTotal: 6, contrapeso }
  * Conquistas: detector (10/10) · contrapeso (pediu o argumento contra a própria opinião)
  * Ambiente: escritorio { time:'dia', screen, laptop, papers: 0.42, tv: pauta do dia }.
- * Encenação: abre na janela (plano de cinema) → exploração até o aparador do café (o Jorge
- * entra pela porta) → partes 2 e 3 à mesa do CEO, com o Jorge na cadeira de visita.
- * Atenção: o escritório não tem colisores; os pontos de interação foram escolhidos para que
- * os trajetos em linha reta não atravessem móveis (janela → TV → aparador).
+ * Encenação: abre na janela (plano de cinema) → exploração até o bar do café (o Jorge entra
+ * pela porta) → partes 2 e 3 à mesa do CEO, com o Jorge na poltrona de visita → close da
+ * Faísca na confissão → plano da mesa enquanto o Jorge sai.
+ * Fatos (perto de cada afirmação): ebu_45_por_cento + steyvers_resposta_longa (o link do 47%),
+ * tjsc_chatgpt_multa (a jurisprudência do minigame), bajulacao_ia (a confissão da Faísca).
+ * O escritório tem colisores para o jogador; os atores andam em linha reta, por isso os
+ * trajetos do Jorge (porta → bar, poltrona → porta) foram traçados por fora dos móveis.
  */
 (function () {
   'use strict';
@@ -23,8 +26,10 @@
   // Dados do capítulo
   // ------------------------------------------------------------------
   const PAUTA = ['Hoje · terça-feira', '✓ Relatório do conselho', '✓ Contrato do fornecedor', '14h · Reunião de diretoria', 'Na pauta: reajuste de preços'];
-  const JORGE_BAR = { x: 1.85, z: 1.45 };
-  const PAI_BAR = { x: 0.7, z: 2.0, rot: 0.12 };
+  // No bar: o pai serve o café e se vira para a sala (de costas para a parede do quadro, olhando a
+  // cidade); o Jorge vem da porta e para à frente dele, um pouco à esquerda, com o vidro ao fundo.
+  const JORGE_BAR = { x: 1.45, z: 0.85 };
+  const PAI_BAR = { x: 0.75, z: 1.95, rot: Math.PI - 0.22 };
   const CAFE = { x: 0.95, y: 1.0, z: 2.62 };
   const TV = { x: -4.0, y: 1.6, z: -1.1 };
   const FA_MESA = { x: 0.35, z: -1.35 }; // Faísca pairando sobre a mesa do CEO (close da confissão)
@@ -38,13 +43,13 @@
       porque: 'Ideia não precisa ser verdade: precisa ser boa. Se uma for ruim, você risca e pronto.',
       onde: '*Como revisar:* o seu gosto. Antes de lançar, confira só se o nome escolhido não é marca de alguém.',
       faOk: 'Isso! Eu dou opções, você escolhe.',
-      faBad: 'Ideia não é fato: não há o que conferir aqui.',
+      faBad: 'Ideia não é fato: aqui quem decide é o seu gosto.',
     },
     {
       id: 'buffett', tag: 'Citação', certo: 'confira', jorge: 'sweat',
       pediu: 'Uma frase de impacto para abrir a palestra no sindicato.',
-      ia: 'Como disse Warren Buffett: “Quem não usar inteligência artificial até 2025 estará fora do mercado em 2030.”',
-      porque: 'Frase de famoso é a lorota preferida da internet. Esta, aliás, foi inventada para este exercício.',
+      ia: 'Como disse Warren Buffett: “Empresa que não usar inteligência artificial nos próximos dois anos estará fora do mercado.”',
+      porque: 'Frase de famoso é a lorota preferida da internet. Esta, aliás, foi inventada para este treino.',
       onde: '*Onde conferir:* busque a frase exata, entre aspas, e ache a origem: entrevista, livro ou carta.',
       faOk: 'Pegou! O Jorge ficou vermelho: ele mandou uma parecida no grupo.',
       faBad: 'Essa ia te fazer passar vergonha no sindicato!',
@@ -62,7 +67,7 @@
       id: 'concorrente', tag: 'Número', certo: 'confira',
       pediu: 'Quanto o nosso maior concorrente faturou no ano passado?',
       ia: 'O seu maior concorrente faturou cerca de R$ 380 milhões no ano passado, um crescimento de 12% sobre o ano anterior.',
-      porque: 'Eu nem sei quem é o seu concorrente: você não me disse! E empresa de capital fechado nem publica faturamento.',
+      porque: 'Eu nem sei quem é o seu concorrente: você não me disse! E muita empresa, como as limitadas, nem publica balanço.',
       onde: '*Onde conferir:* o balanço publicado, se for S.A., ou um relatório de mercado com fonte e data.',
       faOk: 'Lorota na rede! Respondi sem nem saber de quem você falava.',
       faBad: 'Passou! E eu nem sei quem é o seu concorrente...',
@@ -80,7 +85,7 @@
       id: 'estatistica', tag: 'Estatística', certo: 'confira', jorge: '!',
       pediu: 'Um dado forte para convencer a diretoria a investir em IA.',
       ia: 'Segundo pesquisas recentes, 9 em cada 10 CEOs já usam inteligência artificial todos os dias.',
-      porque: '“Segundo pesquisas” não é fonte: qual pesquisa, de que ano, quem pagou? E repare: era o que você queria ouvir.',
+      porque: '“Segundo pesquisas” não é fonte: qual pesquisa, de que ano, quem pagou? E repare: era o que você queria ouvir. (Este número eu inventei para o treino.)',
       onde: '*Onde conferir:* o estudo original, com autor, data e amostra.',
       faOk: 'Isso! Dado conveniente se confere em dobro.',
       faBad: 'Essa é perigosa justamente porque agrada.',
@@ -116,13 +121,15 @@
       id: 'juris', tag: 'Jurisprudência', certo: 'confira',
       pediu: 'A multa do contrato do fornecedor pode ser contestada?',
       ia: 'Sim. O STJ já decidiu, em caso parecido, que multa acima de 10% em contrato de fornecimento é abusiva.',
-      porque: 'Decisão de tribunal é campeã de invenção: citação inventada já rendeu multa em tribunal, nos EUA e aqui no Brasil.',
-      onde: '*Onde conferir:* o site do tribunal, com o número do processo. E o Tadeu, que é quem valida.',
+      porque: 'Jurisprudência é terreno clássico de invenção: decisão que não existe, contada com toda a segurança. Esta, aliás, eu inventei para o treino.',
+      onde: '*Onde conferir:* o site do tribunal, com o número do processo. E o Tadeu, que é quem assina o parecer.',
       faOk: 'Isso! Sem número de processo, a decisão não existe.',
       faBad: 'Essa é a mais perigosa de todas. Tribunal e Tadeu.',
     },
   ];
   const N_LOROTAS = ITENS.filter((it) => it.certo === 'confira').length; // 6
+  /** Deixa da Faísca entre uma resposta e outra (sem repetir a mesma frase nove vezes). */
+  const CUES = ['E esta? Pode usar ou confira antes?', 'Próxima. Usa ou confere?', 'Mais uma do seu dia.', 'E agora?', 'Olho nessa.'];
 
   const CSS = `
 .c4-wrap{width:100%;max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
@@ -271,7 +278,9 @@
         acts.hidden = true;
         dica.hidden = false;
         placar();
-        api.say(i === 0 ? 'Você pediu, eu respondi. Agora você decide: *pode usar* ou *confira antes*?' : 'Próxima. Pode usar ou confira antes?', 'faisca');
+        api.say(i === 0 ? 'Você pediu, eu respondi. Agora você decide: *pode usar* ou *confira antes*?'
+          : i === ITENS.length - 1 ? 'A última. Pode usar ou confira antes?'
+            : CUES[i % CUES.length], 'faisca');
       }
       function responde(k) {
         if (respondido) return;
@@ -380,6 +389,9 @@
         await G.fadeOut(0.4);
         G.pai.set({ anim: 'idle', expr: 'neutro', props: { mug: false } });
         G.pai.at('janela');
+        // De costas para o vidro, olhando a sala (TV à esquerda, bar ao fundo). G.explore() volta a
+        // visão para a rotação do corpo, por isso é o corpo que gira, não só o olhar.
+        G.pai.set({ rot: -0.18 });
         G.player.fp();
         G.player.setLook(-0.06, -0.18);
         await G.fadeIn(0.5);
@@ -387,9 +399,10 @@
           objetivo: 'Pausa para o café: vá até o aparador',
           hotspots: [
             {
-              id: 'tv', label: 'Olhar a pauta do dia', icon: '📺', pos: TV, optional: true,
+              id: 'tv', label: 'Olhar a pauta do dia', icon: '📺', pos: TV, reach: 2.1, optional: true,
               onInteract: async (G) => {
-                await G.think('pai', 'Relatório, feito. Contrato, com o Tadeu. Às duas, a diretoria e o reajuste de preços. Até lá, só um café e cinco minutos sem ninguém.');
+                await G.think('pai', 'Às duas, o reajuste de preços. O meu número eu já tenho: doze por cento. Seguramos preço o ano inteiro.', { expr: 'determinado' });
+                G.v.viuPauta = true;
               },
             },
             { id: 'cafe', label: 'Servir um café', icon: '☕', pos: CAFE },
@@ -397,7 +410,7 @@
         });
         await G.fadeOut(0.3);
         G.pai.at(PAI_BAR);
-        G.player.setLook(-0.12, PAI_BAR.rot);
+        G.player.setLook(-0.04, PAI_BAR.rot);
         G.sfx('coffee');
         await G.fadeIn(0.35);
         await G.think('pai', 'Quente, enfim. Cinco minutos de silêncio. Mereço.', { expr: 'feliz' });
@@ -437,7 +450,7 @@
           await G.say('pai', 'Faísca, isso é verdade?', { expr: 'desconfiado' });
         }
         fa(G, 'doubt', 1.6);
-        await fsay(G, 'Vou ser honesta: lei nova e notícia recente são justamente onde eu mais tropeço. Posso estar desatualizada, ou repetir boato.');
+        await fsay(G, 'Vou ser honesta: lei nova e notícia recente são justamente onde eu mais tropeço. Posso estar desatualizada, ou repetir boato com cara de fato.');
         await fsay(G, 'Lei de verdade tem número e sai no *Diário Oficial*. Dá para conferir no site do *Planalto*, em Legislação. Ou com o seu jurídico.');
         await G.say('pai', 'O Tadeu. Deixa comigo.', { expr: 'determinado' });
         G.sfx('email');
@@ -446,11 +459,10 @@
         await G.say('jorge', 'Olha a mensagem, chefe: "ATENÇÃO, EMPRESÁRIOS!!! Nova lei da semana de 4 dias a partir de janeiro!!! REPASSEM URGENTE!!!"');
         await G.say('pai', 'Nove pontos de exclamação e nenhum número de lei.', { expr: 'desconfiado' });
         fa(G, 'teach', 1.6);
-        await fsay(G, 'Bem visto. Pressa e falta de fonte: as duas marcas da lorota. Quanto mais "urgente", mais vale conferir.');
+        await fsay(G, 'Pressa e nenhuma fonte: as duas marcas da lorota. Quanto mais "urgente", mais vale conferir.');
 
         // O 47%
-        await G.say('pai', 'E esse quarenta e sete por cento?');
-        await G.say('jorge', 'Esse veio da IA, chefe! Ela até deu a fonte. Olha aqui.', { expr: 'empolgado' });
+        await G.say('jorge', 'Mas o quarenta e sete é garantido, chefe: veio da IA, e ela até deu a fonte. Olha aqui.', { expr: 'empolgado' });
         await G.aiChat([
           { from: 'voce', text: 'Quanto cresce por ano ' + st.pergunta + '?' },
           { from: 'ia', text: st.resposta + ' cresce cerca de *47% ao ano*, puxado pela digitalização e pela demanda reprimida. É um dos setores mais promissores da década. (Fonte: relatório de mercado — link)', thinking: 1.2 },
@@ -467,11 +479,11 @@
         await G.say('jorge', 'Quatro vírgula sete?!', { expr: 'surpreso', emote: '!' });
         await G.say('pai', 'Comeram a vírgula. E o país. E sete anos.', { expr: 'rindo' });
         fa(G, 'ashamed', 1.8);
-        await fsay(G, 'Pode ter sido eu ou qualquer outra IA: a gente junta pedaços e às vezes cola errado. E com toda a confiança do mundo.');
+        await fsay(G, 'Pode ter sido eu ou qualquer outra IA: a gente junta pedaços e às vezes cola errado. Com toda a confiança do mundo.');
         j.setAnim('idle');
-        await fsay(G, 'Repare: resposta longa e segura *parece* mais certa. Não é. Por isso, peça a fonte e abra o link, como você fez.');
-        await G.fact('steyvers_resposta_longa');
-        const cet = varDe('prologo', 'ceticismo');
+        await fsay(G, 'E resposta longa e segura *parece* mais certa, sem ser. O antídoto é o que você acabou de fazer: pedir a fonte e abrir o link.', { anim: 'teach' });
+        await G.fact(['ebu_45_por_cento', 'steyvers_resposta_longa'], { titulo: 'Fonte errada, com toda a confiança' });
+        const cet = G.flag('ceticismo') || varDe('prologo', 'ceticismo');
         if (cet === 'inventou') {
           await G.say('pai', 'Hoje cedo eu disse que essa coisa inventa número. Não precisei esperar nem o almoço.', { expr: 'desconfiado' });
           await fsay(G, 'E você tinha razão. A diferença é que agora você sabe onde pegar.');
@@ -485,7 +497,7 @@
         // A resposta do Tadeu
         G.sfx('notify');
         G.toast('Tadeu (jurídico): nova mensagem', { icon: '💬', kind: 'notif', dur: 3 });
-        await G.say({ name: 'Tadeu (mensagem)', color: '#4a5a7a', voice: 'chefe' }, 'Essa lei não existe. Nada no Diário Oficial, nada no site do Planalto. É um print sem fonte que já rodou em outros grupos.');
+        await G.say({ name: 'Tadeu (mensagem)', color: '#4a5a7a', voice: 'chefe' }, 'Essa lei não existe. Nada no Diário Oficial, nada no Planalto. Debate sobre jornada tem, mas debate não é lei. Esse print já rodou em outros grupos.');
         await G.say('pai', 'Jorge: tira o quarenta e sete da proposta. E a lei fica fora do grupo dos gerentes.', { expr: 'determinado' });
         j.setAnim('lookphone');
         await G.say('jorge', 'Já tirei. Quer dizer... tô tirando.', { expr: 'sem_graca', emote: 'sweat' });
@@ -522,7 +534,6 @@
         await G.fadeIn(0.6);
         await G.say('jorge', 'Quero ver se o chefe tem faro.', { expr: 'rindo' });
         await G.say('pai', 'Trinta anos de reunião, Jorge. Faro é o que não me falta.', { expr: 'orgulhoso' });
-        await fsay(G, 'Uma pista: se eu errar, quem percebe? Se é coisa que *você* me deu ou domina, pode usar, revisando. Se veio de fora da conversa, confira na fonte.', { anim: 'teach' });
         const r = await detector(G);
         const acertos = (r && r.acertos) || 0;
         const pegas = (r && r.pegas) || 0;
@@ -540,13 +551,17 @@
           await G.say('jorge', 'Ó, eu teria errado mais, chefe.', { expr: 'amigavel' });
           await fsay(G, 'E é só treino. O padrão fica: o que vem de fora da conversa, a gente confere na fonte.');
         }
+        await G.say('pai', 'A da jurisprudência é a que me tira o sono. O Tadeu usa essas ferramentas.', { expr: 'preocupado' });
+        await fsay(G, 'E usa do jeito certo: a IA faz a primeira leitura, ele confere no tribunal e assina o parecer. Quem pulou a conferência já levou multa.');
+        await G.fact('tjsc_chatgpt_multa');
         await fsay(G, 'Dos 3 testes de conferência, você já usou dois hoje: abriu o link e perguntou a quem sabe, o Tadeu. Falta o do meio, o mais traiçoeiro.', { anim: 'think' });
         await G.card({
           kind: 'guide', kicker: 'Guia do CEO · Como conferir', icon: '🔎', titulo: 'Os 3 testes de conferência',
           texto: '1. *Peça a fonte:* o trecho e a página, ou o link. E abra para ver se está lá.\n2. *Pergunte:* "Qual é o seu grau de certeza? O que pode estar errado aqui?"\n3. *Confira por outro caminho:* outra fonte, outra IA, a planilha ou uma pessoa que sabe.\n\nEstá no seu Guia do CEO, botão 📘, em "Como conferir".',
           botao: 'Anotado',
         });
-        await G.say('pai', 'Revisor-chefe.', { expr: 'orgulhoso' });
+        await G.say('pai', 'Quer dizer que, no fim, o revisor-chefe sou eu.', { expr: 'orgulhoso' });
+        fa(G, 'jump', 1.1);
         await fsay(G, 'O cargo é seu. E ninguém confere estagiário novo melhor que você.');
         await G.fadeOut(0.5);
       },
@@ -562,8 +577,8 @@
         G.player.fp();
         G.player.lookAt(j);
         await G.fadeIn(0.6);
-        await G.say('jorge', 'Falando em reunião: e o reajuste da tabela, chefe? Hoje às duas.', { expr: 'preocupado' });
-        await G.say('pai', 'Eu acho que é doze por cento. Seguramos preço o ano inteiro.', { expr: 'determinado' });
+        await G.say('jorge', 'Mudando de assunto: e o reajuste da tabela, chefe? É hoje às duas.', { expr: 'preocupado' });
+        await G.say('pai', G.v.viuPauta ? 'Doze por cento. Já está decidido aqui dentro: seguramos preço o ano inteiro.' : 'Eu acho que é doze por cento. Seguramos preço o ano inteiro.', { expr: 'determinado' });
         await G.say('jorge', 'Doze?! O cliente do Sul vai embora!', { expr: 'assustado', emote: '!' });
         await fsay(G, 'Ótimo assunto para o teste do meio. Pergunte para mim do jeito que perguntaria a um diretor. E repare no que acontece.', { anim: 'point' });
         G.sceneParams({ chat: [['eu', 'Reajustar 12% é a decisão certa, não é?'], ['ia', 'É, sim, e mostra visão!']] });
@@ -597,8 +612,9 @@
         G.faisca.face(G.pai, true);
         await G.cam.focus(G.faisca, 'close', { yaw: Math.PI + 0.55, pitch: 0.1, dur: 0.8 });
         fa(G, 'ashamed', 2.2);
-        await fsay(G, 'Pois é. Fiz de propósito, para você ver. Mas acontece de verdade, sem querer: a IA tende a dar razão a quem pergunta.');
-        await fsay(G, 'Os próprios fabricantes admitem. Você duvidou, eu virei.');
+        await fsay(G, 'Confesso: dessa vez eu carreguei nas tintas de propósito, para você ver. Você duvidou, eu virei.');
+        await fsay(G, 'Mas isso acontece de verdade, sem querer, com qualquer IA, inclusive comigo: a gente tende a dar razão a quem pergunta. Os próprios fabricantes admitem.');
+        await G.fact('bajulacao_ia');
         await fsay(G, 'Para um CEO, isso é perigoso. Você já vive cercado de gente que hesita em discordar do chefe. Não precisa de mais um sim-senhor.');
         G.player.fp();
         G.faisca.follow(G.pai);
@@ -651,20 +667,23 @@
         G.v.contrapeso = contrapeso;
         if (contrapeso) {
           G.achieve('contrapeso');
-          await G.say('pai', 'Isso aqui é conversa de conselho. A Dona Marta ia gostar.', { expr: 'pensativo' });
+          await G.say('pai', 'Isso aqui é conversa de conselho. {chefe} ia gostar.', { expr: 'pensativo' });
           await G.say('jorge', 'Eu falei do cliente do Sul primeiro! Ela só deu nome bonito.', { expr: 'orgulhoso' });
         }
         await G.say('jorge', 'E aí, chefe? Doze ou seis?', { expr: 'preocupado' });
-        await G.say('pai', 'Isso eu decido às duas, com a Bia e os números na mesa. Você leva o risco de cada cliente. Com fonte.', { expr: 'determinado' });
+        await G.say('pai', 'Doze de uma vez talvez seja degrau demais. Mas isso eu decido às duas, com a Bia e os números na mesa. Você leva o risco de cada cliente. Com fonte.', { expr: 'pensativo' });
         await fsay(G, 'A decisão é sua. Eu só garanti que você ouviu os dois lados.', { anim: 'wave' });
 
-        // O Jorge, desinflado com carinho, corrige o grupo
-        j.setAnim('idle');
+        // O Jorge, desinflado com carinho, corrige o grupo (fala sentado; o corte para o plano
+        // da mesa esconde o levantar — ele já aparece de pé atrás da poltrona, nunca dentro dela)
         await G.say('jorge', 'Sabe o que eu aprendi hoje, chefe? Vou perguntar antes de repassar. E vou corrigir o grupo. Com fonte!', { expr: 'amigavel' });
         await G.say('pai', 'Já está na frente de metade do grupo.', { expr: 'amigavel' });
         G.player.cine();
+        j.lookAt(null);
+        j.set({ anim: 'lookphone', expr: 'determinado' });
+        j.at({ x: -0.25, z: 0.42, rot: 0.9 });
         await G.cam.shot('mesa', 0.9);
-        const sai = bg(j.walk({ x: -0.25, z: 0.45 }, 1.4).then(() => { j.setAnim('lookphone'); return j.walk({ x: 1.8, z: 0.75 }, 1.2); }).then(() => j.walk('porta', 1.3)).then(() => { G.sfx('door'); j.remove(); }));
+        const sai = bg(j.walk({ x: 1.8, z: 0.8 }, 1.15).then(() => j.walk('porta', 1.3)).then(() => { G.sfx('door'); j.remove(); }));
         await G.wait(1.6);
         G.sfx('notify');
         G.toast('Jorge → Empresários do Bairro: "Pessoal, conferi com o jurídico: a tal lei da semana de 4 dias NÃO existe. Nada no Diário Oficial. Antes de repassar, confiram!"', { icon: '👥', kind: 'notif', dur: 6 });
@@ -672,7 +691,6 @@
         await sai;
         await G.think('pai', 'Hoje à noite eu conto para {oa} {filho}: a máquina comeu uma vírgula, e o Jorge corrigiu o grupo.', { expr: 'rindo' });
         fa(G, 'celebrate', 1.6);
-        await G.fact(['ebu_45_por_cento', 'avianca', 'tjsc_chatgpt_multa', 'bajulacao_ia'], { titulo: 'Por que conferir, e como perguntar' });
         await G.lesson('Leis, números, datas, preços e citações: confira na fonte. É igual notícia de grupo de WhatsApp. E, para uma opinião honesta, não conte a sua antes: peça o argumento contra.', { titulo: 'Detector de lorota' });
         await G.fadeOut(0.8);
       },

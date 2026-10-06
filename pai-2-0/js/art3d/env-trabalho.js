@@ -8,7 +8,8 @@
  * ── escritorio — sala da presidência num arranha-céu de São Paulo (sala 8,4 × 6,3 m, pé-direito 3,1 m)
  *   Vidro do piso ao teto ao fundo (−Z) com a cidade; parede esq. (−X) ripada com TV + aparador;
  *   parede dir. (+X) com estante embutida, prêmios, diplomas e a porta (z = 1,8); parede da frente (+Z)
- *   com quadro + bar. Mesa de nogueira no centro (DX 0,3 · DZ −1,25), teto com painel ripado sobre a mesa.
+ *   com quadro + bar. Mesa de nogueira no centro (DX 0,3 · DZ −1,25), teto com painel ripado sobre a mesa,
+ *   piso de carvalho em espinha, tapete marinho sob a mesa e tapete claro de lã no canto do sofá.
  *   params:
  *     time    'dia' | 'tarde' (pôr do sol) | 'noite'            (padrão 'dia')
  *     screen  monitor: 'off' | 'on' | 'chat' | 'doc' | 'planilha' (padrão 'on')
@@ -23,7 +24,8 @@
  *     mesa (0.3, −2.22, 0) cadeira do CEO, sentado · notebook (= mesa) · visita1 (−0.25, −0.3, π) ·
  *     visita2 (0.85, −0.3, π) poltronas de visita, sentado · sofa (−3.58, 1.3, π/2) · sofa2 (−3.58, 2.2, π/2)
  *     sentado · porta (3.6, 1.8, −π/2) · janela (−2.3, −2.7, π) olhando a cidade · tv (−3.35, 0.25, 1.75)
- *     apresentador ao lado da TV · pe1 (−1.2, 0.9) · pe2 (1.7, 0.9) · pe3 (0.35, 1.5) · centro (0.35, 0.9)
+ *     apresentador ao lado da TV · pe1 (−1.2, 0.9, 0.25) · pe2 (1.7, 0.9, −0.3) · pe3 (0.35, 1.5, 0) ·
+ *     centro (0.35, 0.9, 0) — pe1/pe2/pe3/centro: pessoas em pé no meio da sala
  *     primeira pessoa / interação (rot = olhando para o objeto):
  *     inicio (3.45, 1.65, −2.25) logo após a porta, vendo mesa + janela · foto (−0.25, −2.12, 0.2) porta-retrato
  *     (na mesa em (0.02, 0.84, −0.95), virado para o CEO: o filho/a filha de beca) · estante = premios
@@ -37,7 +39,9 @@
  *
  * ── sala_reuniao — sala do conselho (8,6 × 6,2 m + corredor de 1,35 m atrás do vidro da frente)
  *   Vidro ao fundo (−Z) com a cidade; telão na parede esq. (−X); parede dir. (+X) com painel acústico,
- *   aparador do café e relógio; vidro jateado para o corredor (+Z, porta em x≈3,35) com elevador ao fundo.
+ *   aparador do café e relógio; vidro para o corredor (+Z, 7 vãos, faixa jateada com o logotipo vazado,
+ *   porta em x≈3,35) com elevador e gravura no fundo do corredor. Piso de porcelanato cor de travertino +
+ *   tapete grafite.
  *   params:
  *     slide   {title, lines:[...]} | ['Título','linha',...] | 'Título'  (padrão: pauta do conselho)
  *     clock   'HH:MM' (padrão '14:00') — relógio de parede analógico (ponteiros giram até a hora nova)
@@ -57,9 +61,15 @@
  *          telão, aparador do café, 2 plantas (a cadeira da cabeceira fica livre para o pai sentar)
  *
  * ── carro — banco de trás de um sedã executivo preto rodando por São Paulo (frente do carro = −X)
- *   Rua animada (prédios, lojas, árvores, postes, trânsito) rolando em update(). Casco e interior sempre
- *   visíveis; vidros laterais/colunas/teto/vidro traseiro somem conforme a câmera ("corte conversível"
- *   visto de fora e de cima; por dentro, tudo fechado). Motorista de quepe (rig) no banco esquerdo.
+ *   Rua animada rolando em update() (3 cópias de 72 m por lado, nunca "acaba" na névoa): térreo com lojas
+ *   de vitrine de verdade (padaria, farmácia, café, banca, lanches, ótica, banco, flores — interior aceso,
+ *   prateleiras, balcão, caixas eletrônicos…), andares com janelas emolduradas, peitoris, ar-condicionado e
+ *   varandas, prédios de pele de vidro; calçada com ipês/tipuanas, postes, frades, lixeiras laranja, ponto
+ *   de ônibus e banca de jornal; trânsito (ônibus, carros, motoboy) e torres ao longe. À noite: vitrines
+ *   e janelas acesas, poças de luz dos postes e facho dos faróis no asfalto. Interior em couro capitonê
+ *   (losangos), vidros com insulfilm. Casco e interior sempre visíveis; vidros laterais/colunas/teto/vidro
+ *   traseiro somem conforme a câmera ("corte conversível" visto de fora e de cima; por dentro, tudo
+ *   fechado). Motorista de quepe (rig) no banco esquerdo.
  *   params:
  *     time    'dia' | 'tarde' | 'noite'                          (padrão 'dia')
  *     phone   tela do celular no suporte (encosto do passageiro): 'chat' | 'off' | 'mapa' | 'call' (padrão 'chat')
@@ -302,8 +312,8 @@
     return ctex('chevron', 512, 512, (ctx, w, h) => {
       const cw = w / 2, bh = 64;
       const r = M.rng(77);
-      ctx.fillStyle = '#9a7856'; ctx.fillRect(0, 0, w, h);
-      const tones = ['#b8946d', '#b08b64', '#a8845e', '#bd9a73', '#ae8862', '#a27d58', '#b48f68'];
+      ctx.fillStyle = '#8e6c4b'; ctx.fillRect(0, 0, w, h);
+      const tones = ['#ad885f', '#a58058', '#9d7953', '#b38f67', '#a37d57', '#97734f', '#a9845d'];
       for (let c = 0; c < 2; c++) {
         for (let k = -2; k < h / bh + 3; k++) {
           const x0 = c * cw, x1 = x0 + cw;
@@ -373,21 +383,32 @@
   function concreteTex() {
     return ctex('concrete', 256, 256, (ctx, w, h) => { ctx.fillStyle = '#c9c2b7'; ctx.fillRect(0, 0, w, h); noise(ctx, w, h, 0.25, 14); });
   }
-  /** Porcelanato grande (placas 1,2 x 0,6 m) cinza quente. */
+  /** Porcelanato grande (placas 1,2 x 0,6 m) em tom de travertino (bege-acinzentado quente, com veios). */
   function tileTex() {
-    return ctex('tile', 512, 512, (ctx, w, h) => {
+    return ctex('tile2', 512, 512, (ctx, w, h) => {
       const r = M.rng(55);
-      ctx.fillStyle = '#7d766d'; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#6a6258'; ctx.fillRect(0, 0, w, h);
       const tw = w / 2, th = h / 4;
       for (let y = 0; y < 4; y++) for (let x = 0; x < 2; x++) {
         const off = (y % 2) * tw / 2;
+        const base = 150 + Math.floor(r() * 14);
+        const fill = 'rgb(' + (base + 10) + ',' + base + ',' + (base - 16) + ')';
+        const seed = r();
         for (let k = -1; k < 1; k++) {
           const xx = x * tw + off + k * w;
-          const base = 168 + Math.floor(r() * 14);
-          ctx.fillStyle = 'rgb(' + base + ',' + (base - 6) + ',' + (base - 14) + ')';
-          ctx.fillRect(xx + 1.5, y * th + 1.5, tw - 3, th - 3);
-          ctx.fillStyle = 'rgba(255,255,255,0.05)';
-          ctx.fillRect(xx + 1.5, y * th + 1.5, tw - 3, th * 0.4);
+          ctx.save();
+          ctx.beginPath(); ctx.rect(xx + 1.5, y * th + 1.5, tw - 3, th - 3); ctx.clip();
+          ctx.fillStyle = fill; ctx.fillRect(xx, y * th, tw, th);
+          // veios horizontais suaves (travertino)
+          const rv = M.rng(Math.floor(seed * 1000) + 3);
+          for (let v = 0; v < 7; v++) {
+            const vy = y * th + rv() * th;
+            ctx.strokeStyle = rv() > 0.5 ? 'rgba(255,248,235,0.10)' : 'rgba(90,72,52,0.09)';
+            ctx.lineWidth = 1 + rv() * 3;
+            ctx.beginPath(); ctx.moveTo(xx, vy); ctx.bezierCurveTo(xx + tw * 0.3, vy + (rv() - 0.5) * 8, xx + tw * 0.7, vy + (rv() - 0.5) * 8, xx + tw, vy + (rv() - 0.5) * 6); ctx.stroke();
+          }
+          ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(xx, y * th, tw, th * 0.4);
+          ctx.restore();
         }
       }
       noise(ctx, w, h, 0.06, 8);
@@ -939,7 +960,7 @@
   // Cidade (céu + skyline em anel + torres 3D + detalhes) — compartilhada
   // ====================================================================
   const CITY_PAL = {
-    dia: { top: '#3f7fd3', mid: '#c9e0f2', bot: '#a9bccd', haze: '#c3d6e6', fog: '#c3d6e6', fogN: 20, fogF: 100, far: '#9cb3c9', near: '#86a0b9', lit: 0, facade: '#ffffff', clouds: 1, sun: null },
+    dia: { top: '#2a6bd2', mid: '#b2d2f0', bot: '#97aec4', haze: '#bdd3ea', fog: '#bcd2e8', fogN: 32, fogF: 170, far: '#8aa5c0', near: '#728fac', lit: 0, facade: '#ffffff', clouds: 1, sun: null },
     tarde: { top: '#2b2f6a', mid: '#ff9b5e', bot: '#3a2848', haze: '#e3896d', fog: '#d9826e', fogN: 20, fogF: 96, far: '#9a6282', near: '#6d4870', lit: 0.35, facade: '#e0a8a0', clouds: 0.9, sun: '#ffb070' },
     noite: { top: '#060b1f', mid: '#353670', bot: '#0b0e22', haze: '#2a2d60', fog: '#1d2250', fogN: 24, fogF: 115, far: '#1a1f46', near: '#12163a', lit: 1, facade: '#3b4466', clouds: 0, sun: null },
   };
@@ -1489,6 +1510,12 @@
       const rug = new T.Mesh(M.boxGeo(3.9, 0.012, 3.1), rugM);
       rug.position.set(0.3, 0.007, -1.05); rug.receiveShadow = true; rug.castShadow = false;
       root.add(rug);
+      // tapete claro de lã no canto de estar (ancora sofá + mesa de centro)
+      const rug2M = new T.MeshStandardMaterial({ map: rugTex('lounge', '#cdbd9f', '#b19a74', '#7a5a3a'), roughness: 0.97 });
+      own.add(rug2M);
+      const rug2 = new T.Mesh(M.boxGeo(2.1, 0.012, 2.1), rug2M);
+      rug2.position.set(X0 + 1.3, 0.007, 1.8); rug2.receiveShadow = true; rug2.castShadow = false;
+      root.add(rug2);
 
       const walls = [];
       // --- parede de vidro (fundo)
@@ -1568,6 +1595,8 @@
       const shelfYs = [1.2, 1.65, 2.1];
       shelfYs.forEach((y) => sm.box(0.36, 0.035, sz1 - sz0 - 0.04, '#ffffff', [shelfX, y, (sz0 + sz1) / 2]));
       sm.box(0.36, 0.035, sz1 - sz0 - 0.04, '#ffffff', [shelfX, 0.78, (sz0 + sz1) / 2]);
+      // enchimento até a parede (estante embutida: sem fresta entre o móvel e a alvenaria)
+      sm.box(0.072, 2.77, sz1 - sz0 + 0.04, '#5a3a24', [X1 - 0.036, 1.385, (sz0 + sz1) / 2]);
       sm.build(WOOD(), own, { parent: rg });
       const backPanel = new T.Mesh(M.planeGeo(sz1 - sz0, 2.75), stdMat('shelf-back', { color: '#3a2a20', rough: 0.8 }));
       backPanel.rotation.y = -HP; backPanel.position.set(X1 - 0.075, 1.375, (sz0 + sz1) / 2);
@@ -1656,10 +1685,11 @@
       // diplomas
       const dip = new Merger();
       [[0.15, 1.75], [0.68, 1.75], [0.415, 1.3]].forEach((p, i) => {
-        dip.box(0.02, 0.36, 0.46, '#1b1b1e', [X1 - 0.08, p[1], p[0]]);
-        dip.box(0.006, 0.3, 0.4, i === 2 ? '#e8e0cf' : '#f3eee2', [X1 - 0.09, p[1], p[0]]);
-        dip.box(0.004, 0.035, 0.035, '#c9a25e', [X1 - 0.094, p[1] - 0.08, p[0] + 0.12]);
-        dip.box(0.004, 0.012, 0.22, '#2b3a55', [X1 - 0.094, p[1] + 0.08, p[0]]);
+        // (encostados na parede: face interna em x = X1)
+        dip.box(0.02, 0.36, 0.46, '#1b1b1e', [X1 - 0.012, p[1], p[0]]);
+        dip.box(0.006, 0.3, 0.4, i === 2 ? '#e8e0cf' : '#f3eee2', [X1 - 0.024, p[1], p[0]]);
+        dip.box(0.004, 0.035, 0.035, '#c9a25e', [X1 - 0.028, p[1] - 0.08, p[0] + 0.12]);
+        dip.box(0.004, 0.012, 0.22, '#2b3a55', [X1 - 0.028, p[1] + 0.08, p[0]]);
       });
       dip.build(SATIN(), own, { parent: rg });
 
@@ -1682,11 +1712,18 @@
         noise(ctx, w, h, 0.02, 2);
       }, false);
       const art = new Merger();
-      art.rbox(2.04, 1.28, 0.05, 0.01, '#1b1b1e', [0.5, 1.78, Z1 - 0.1]);
+      art.rbox(2.04, 1.28, 0.05, 0.01, '#1b1b1e', [0.5, 1.78, Z1 - 0.03]);
       art.build(SATIN(), own, { parent: fgw });
       const artP = new T.Mesh(M.planeGeo(1.96, 1.2), stdMat('art-office', { map: artTex, rough: 0.9 }));
-      artP.rotation.y = PI; artP.position.set(0.5, 1.78, Z1 - 0.13);
+      artP.rotation.y = PI; artP.position.set(0.5, 1.78, Z1 - 0.057);
       fgw.add(artP);
+      // luminária de quadro (latão) — acende com as luzes da sala (tarde/noite)
+      const picL = new Merger();
+      picL.box(0.7, 0.035, 0.05, BRASS, [0.5, 2.5, Z1 - 0.16]);
+      picL.box(0.03, 0.03, 0.13, BRASS, [0.5, 2.5, Z1 - 0.075]);
+      picL.box(0.05, 0.09, 0.012, BRASS, [0.5, 2.5, Z1 - 0.006]);
+      picL.build(METAL(), own, { parent: fgw });
+      const picGlow = M.glow('#ffd9a0', 1.9, 0); own.add(picGlow.material); picGlow.position.set(0.5, 2.15, Z1 - 0.25); picGlow.scale.set(2.3, 1.1, 1); fgw.add(picGlow);
       const bar = new Merger();
       bar.rbox(1.8, 0.62, 0.45, 0.015, '#ffffff', [0.5, 0.48, Z1 - 0.3]);
       bar.build(WOOD(), own, { parent: fgw });
@@ -1726,6 +1763,9 @@
         m.box(0.22, 0.012, 0.16, '#b9bcc2', [0, 0.006, 0.02]);
         m.box(0.05, 0.3, 0.02, '#b9bcc2', [0, 0.16, -0.03]);
         m.rbox(0.64, 0.4, 0.03, 0.01, '#9a9da3', [0, 0.36, 0]);
+        m.rbox(0.4, 0.26, 0.022, 0.01, '#8a8d93', [0, 0.35, -0.02]);              // carcaça traseira
+        m.cyl(0.022, 0.022, 0.004, '#d6d9de', [0, 0.4, -0.032], [HP, 0, 0], 18);    // logotipo
+        for (let i = 0; i < 5; i++) m.box(0.2, 0.005, 0.004, '#6f7277', [0, 0.27 + i * 0.012, -0.031]); // grade de ventilação
       });
       // teclado + mouse
       deskM.at([MX - 0.2, 0.75, DZ - 0.3], 0.05, (m) => {
@@ -1765,7 +1805,7 @@
       sm2.cyl(0.035, 0.035, 0.1, '#1d1d20', [DX - 0.62, 0.8, DZ - 0.32], null, 14);
       for (let i = 0; i < 4; i++) sm2.cyl(0.004, 0.004, 0.14, ['#1b2233', '#c9a25e', '#7a2f35', '#1b2233'][i], [DX - 0.62 + (i - 1.5) * 0.012, 0.88, DZ - 0.32 + (i % 2) * 0.01], [0.1 * (i - 1.5), 0, 0.12 * (i - 1.5)]);
       sm2.rbox(0.075, 0.008, 0.15, 0.004, '#141416', [DX - 0.05, 0.754, DZ - 0.05], [0, 0.4, 0]);
-      sm2.at([DX - 0.28, 0.75, DZ + 0.3], PI - 0.35, (m) => { m.box(0.23, 0.175, 0.014, '#1b1b1e', [0, 0.092, 0], [-0.18, 0, 0]); m.box(0.03, 0.15, 0.012, '#1b1b1e', [0, 0.072, -0.05], [0.4, 0, 0]); m.box(0.205, 0.15, 0.002, '#efe8da', [0, 0.092, 0.0078], [-0.18, 0, 0]); });
+      sm2.at([DX - 0.28, 0.75, DZ + 0.3], PI - 0.35, (m) => { m.box(0.23, 0.175, 0.014, '#3b2618', [0, 0.092, 0], [-0.18, 0, 0]); m.box(0.03, 0.15, 0.012, '#3b2618', [0, 0.072, -0.05], [0.4, 0, 0]); m.box(0.205, 0.15, 0.002, '#efe8da', [0, 0.092, 0.0078], [-0.18, 0, 0]); m.box(0.17, 0.12, 0.002, '#5a3c26', [0, 0.092, -0.0078], [-0.18, 0, 0]); });
       sm2.at([DX + 0.25, 0.75, DZ + 0.42], 0, (m) => { m.add(M.boxGeo(0.34, 0.06, 0.05), '#2a1a10', [0, 0.03, 0], [-0.35, 0, 0]); });
       sm2.build(SATIN(), own, { parent: root });
       // foto do porta-retrato (o filho/a filha aos 8 anos, de beca, na formatura do jardim)
@@ -1916,6 +1956,7 @@
         deskLight.intensity = 1.1 * k;
         bankShade.emissiveIntensity = 0.55 * k;
         deskGlow.material.opacity = 0.45 * k;
+        picGlow.material.opacity = 0.22 * k;
         ledMesh.material = stdMat('vc-led-' + tm, { vc: true, rough: 1, emissive: '#ffd59a', ei: P.shelf });
         const e = envMap('office-' + tm, OFFICE_ENV[tm]);
         if (e) applyEnv(root, e, tm === 'noite' ? 0.6 : 1);
@@ -2148,17 +2189,47 @@
       corA.box(0.08, 2.38, 0.06, '#3a3b40', [3.02, 1.19, CZ1 - 0.03]);
       corA.box(0.08, 0.16, 0.02, '#2a2b30', [3.3, 1.15, CZ1 - 0.015]);
       corA.build(METAL(), own, { parent: corG });
+      // gravura abstrata (pôr do sol sobre a cidade) entre o ripado e o elevador — é o que se vê do ponto 'corredor'
+      const corArtTex = ctex('art-board', 768, 512, (ctx, w, h) => {
+        const g2 = ctx.createLinearGradient(0, 0, 0, h);
+        g2.addColorStop(0, '#f2e6d4'); g2.addColorStop(0.55, '#f0c9a0'); g2.addColorStop(1, '#e0896a');
+        ctx.fillStyle = g2; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = '#e8763f'; ctx.beginPath(); ctx.arc(w * 0.68, h * 0.5, h * 0.17, 0, PI * 2); ctx.fill();
+        const rA = M.rng(77);
+        [['#2b3a55', 0.62], ['#3d4d6a', 0.7], ['#1f2a40', 0.8]].forEach((ly) => {
+          ctx.fillStyle = ly[0]; let x = 0;
+          while (x < w) { const bw = 30 + rA() * 70, bh = h * (0.12 + rA() * 0.3); ctx.fillRect(x, h * ly[1] - bh + h * 0.2, bw, h); x += bw + rA() * 8; }
+        });
+        ctx.fillStyle = 'rgba(0,0,0,0.04)'; for (let y = 0; y < h; y += 3) ctx.fillRect(0, y, w, 1);
+        noise(ctx, w, h, 0.02, 78);
+      }, false);
+      const corArt = new Merger();
+      corArt.box(1.16, 0.8, 0.04, '#1b1b1e', [0.78, 1.66, CZ1 - 0.025]);
+      corArt.box(0.5, 0.025, 0.06, BRASS, [0.78, 2.12, CZ1 - 0.05]);
+      corArt.build(SATIN(), own, { parent: corG });
+      const corArtP = new T.Mesh(M.planeGeo(1.06, 0.7), stdMat('art-board', { map: corArtTex, rough: 0.85 }));
+      corArtP.rotation.y = PI; corArtP.position.set(0.78, 1.66, CZ1 - 0.047);
+      corG.add(corArtP);
       const callBtn = M.sphere(0.012, M.basic('#ffcf8a'), { parent: corG, pos: [3.3, 1.18, CZ1 - 0.03], cast: false });
       void callBtn;
       // vidro da frente (corredor) com faixa jateada e porta
-      const frontG = curtainWall(own, { parent: root, len: X1 - X0, h: H, z: Z1, rotY: PI, panes: 6, convector: false, frame: '#3a3a3e' });
+      // 7 vãos: nenhum montante fica bem na frente do ponto 'corredor' (x 1,2) nem da porta (x≈3,35)
+      const frontG = curtainWall(own, { parent: root, len: X1 - X0, h: H, z: Z1, rotY: PI, panes: 7, convector: false, frame: '#3a3a3e' });
       walls.push({ obj: frontG, px: 0, pz: Z1, normal: [0, 0, -1] });
-      const frostTex = ctex('frost', 512, 64, (ctx, w, h) => {
-        ctx.fillStyle = 'rgba(255,255,255,0.78)'; ctx.fillRect(0, 0, w, h);
-        ctx.fillStyle = 'rgba(255,255,255,0.0)';
-        for (let x = 0; x < w; x += 16) { ctx.clearRect(x, h * 0.42, 9, h * 0.16); }
+      // faixa jateada (película de segurança): fosca, com dois filetes transparentes e o logotipo vazado
+      const frostTex = ctex('frost2', 1024, 128, (ctx, w, h) => {
+        ctx.fillStyle = 'rgba(255,255,255,0.82)'; ctx.fillRect(0, 0, w, h);
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, h * 0.1, w, 3); ctx.fillRect(0, h * 0.88, w, 3);
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.arc(w / 2, h * 0.49, h * 0.22, 0, PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(w / 2 + h * 0.03, h * 0.47, h * 0.09, 0, PI * 2); ctx.fill();
+        ctx.fillRect(w / 2 + h * 0.36, h * 0.44, w * 0.12, 6);
+        ctx.fillRect(w / 2 - h * 0.36 - w * 0.12, h * 0.44, w * 0.12, 6);
+        ctx.globalCompositeOperation = 'source-over';
       });
-      const frost = new T.Mesh(M.planeGeo(X1 - X0 - 0.1, 0.42), stdMat('frost', { map: texRepeat(frostTex, 'frost-b', 6, 1), rough: 0.6, opacity: 0.75, depthWrite: false }));
+      const frost = new T.Mesh(M.planeGeo(X1 - X0 - 0.1, 0.42), stdMat('frost2', { map: texRepeat(frostTex, 'frost-c7', 7, 1), rough: 0.6, opacity: 0.8, depthWrite: false }));
       frost.position.set(0, 1.35, -0.01); frost.rotation.y = 0;
       frost.renderOrder = 3;
       frontG.add(frost);
@@ -2516,7 +2587,7 @@
   const CAR_LIGHT = {
     dia: { sky: '#e6f0ff', ground: '#6a6460', hemi: 0.85, sun: '#fff3e2', sunI: 2.2, sunPos: [3, 9, 6], amb: 0.14, inner: 0.25 },
     tarde: { sky: '#ffcfa8', ground: '#5a4250', hemi: 0.6, sun: '#ff9a50', sunI: 2.8, sunPos: [-8, 2.6, 6], amb: 0.1, inner: 0.4 },
-    noite: { sky: '#5a6ab0', ground: '#2a2436', hemi: 0.5, sun: '#8fa0ff', sunI: 0.35, sunPos: [4, 9, 5], amb: 0.1, inner: 1.1 },
+    noite: { sky: '#6a7ac0', ground: '#3a3046', hemi: 0.62, sun: '#8fa0ff', sunI: 0.4, sunPos: [4, 9, 5], amb: 0.12, inner: 1.1 },
   };
   const CAR_ENV = {
     dia: ['#bcd6f0', '#e8e2d8', '#4a4642', [[0, 4, 0, 8, 3, '#ffffff'], [6, 2, 5, 4, 2, '#fff2dc']]],
@@ -2620,46 +2691,189 @@
     glare(ctx, w, h);
   }
 
-  /** Uma "fileira" da rua (um lado), em [-L/2, L/2]. Retorna malhas (sem pai). side: +1 (z>0) ou −1. */
-  function streetRow(own, side, L, seed, atlas) {
+  // lojas do térreo: [fundo, prateleira/balcão, cores de produtos, toldo] — mesma ordem do atlas de letreiros
+  const SHOPS = [
+    ['#f3dfb8', '#8a5a32', ['#e8b04a', '#c0392b', '#f6efe0', '#d9a066'], '#b8332a'],   // padaria
+    ['#eef6f2', '#c9d4d0', ['#1f8a5a', '#4a90d0', '#ffffff', '#e94b5a'], '#1f8a5a'],   // farmácia
+    ['#f0dcc0', '#5a3a26', ['#3a2a22', '#c98a4a', '#f3c98b', '#7a4a2a'], '#3a2a22'],   // café
+    ['#e8e4d8', '#3a4a6a', ['#2b4aa8', '#ffe066', '#e05a47', '#ffffff'], '#2b4aa8'],   // banca
+    ['#f6e2c0', '#7a4a20', ['#e8a020', '#c0392b', '#2f7a3a', '#f6efe0'], '#d08a20'],   // lanches
+    ['#ece6f2', '#d8d0e0', ['#5a2a7a', '#26272b', '#c9a25e', '#9fd0e8'], '#5a2a7a'],   // ótica
+    ['#e9edf2', '#9aa4b4', ['#24324f', '#ffffff', '#c9a25e', '#8a95a8'], '#24324f'],   // banco
+    ['#f6e6ea', '#6a8a4a', ['#d0607a', '#f2c230', '#ffffff', '#e88ab8'], '#c0506a'],   // flores
+  ];
+  /**
+   * Uma "fileira" da rua (um lado), em [-L/2, L/2]. Retorna geometrias (sem pai). side: +1 (z>0) ou −1.
+   * Térreo recuado 0,9 m com vitrine de verdade (vidro + caixilhos + interior iluminado com prateleiras e
+   * balcão), andares com janelas emolduradas, peitoris, aparelhos de ar-condicionado e varandas; na calçada:
+   * árvores (ipês/tipuanas), postes, frades, lixeiras laranja, ponto de ônibus e banca de jornal.
+   */
+  function streetRow(own, side, L, seed) {
     const r = M.rng(seed);
     const fac = new Merger(), win = new Merger(), lit = new Merger(), sign = new Merger(), tree = new Merger(), pole = new Merger(), glowM = new Merger(), pool = new Merger();
-    const z0 = side * 9.6;
-    const facCols = ['#d8cfc0', '#c9b9a3', '#e2dccf', '#b9c3c9', '#cfc4b2', '#a8b4bb', '#d9c9b2', '#c4b29b', '#e6e0d4', '#9fa8ae'];
-    let x = -L / 2;
+    const shop = new Merger(), pane = new Merger();
+    const z0 = side * 9.6, SW = 0.16;                 // plano da fachada · altura da calçada
+    const out = (d) => z0 - side * d;                 // d m à frente da fachada (para a rua)
+    const inn = (d) => z0 + side * d;                 // d m para dentro do prédio
+    const facCols = ['#d8cfc0', '#c9b9a3', '#e2dccf', '#b9c3c9', '#cfc4b2', '#a8b4bb', '#d9c9b2', '#c4b29b', '#e6e0d4', '#9fa8ae', '#c98f72', '#8fa596'];
+    const G = 4.4, RS = 0.9;                          // altura do térreo · recuo da vitrine
+    let x = -L / 2, bi = 0;
     while (x < L / 2 - 4) {
       const bw = Math.min(L / 2 - x, 7 + r() * 10);
       if (bw < 4) break;
       const bh = 9 + r() * r() * 42, bd = 9 + r() * 6;
       const cx = x + bw / 2, cz = z0 + side * bd / 2;
       const c = facCols[Math.floor(r() * facCols.length)];
-      fac.box(bw - 0.3, bh, bd, c, [cx, bh / 2, cz]);
-      // coroamento
-      fac.box(bw - 0.1, 0.35, bd + 0.1, M.hex(M.mix(c, '#000', 0.25)), [cx, bh + 0.17, cz]);
+      const dk = M.hex(M.mix(c, '#000', 0.22)), lt = M.hex(M.mix(c, '#ffffff', 0.45));
+      const curtain = r() < 0.28 && bh > 18;          // prédio de vidro (pele de vidro)
+      const BW = bw - 0.3;
+      // corpo dos andares + fundo do térreo (recuado)
+      fac.box(BW, bh - G, bd, c, [cx, G + (bh - G) / 2, cz]);
+      fac.box(BW, G, bd - RS, '#4a4642', [cx, G / 2, inn(RS + (bd - RS) / 2)]);
+      // pilares das pontas + viga do letreiro + soleira de granito
+      [-1, 1].forEach((s) => fac.box(0.36, G, RS + 0.02, dk, [cx + s * (BW / 2 - 0.18), G / 2, inn(RS / 2)]));
+      fac.box(BW, G - 3.15, RS + 0.02, c, [cx, 3.15 + (G - 3.15) / 2, inn(RS / 2)]);
+      fac.box(BW + 0.02, 0.1, 0.12, dk, [cx, G, out(0.04)]);
+      // coroamento + casa de máquinas
+      fac.box(bw - 0.1, 0.35, bd + 0.1, dk, [cx, bh + 0.17, cz]);
       if (r() > 0.5) fac.box(bw * 0.3, 2.2, bd * 0.3, '#8e9196', [cx + (r() - 0.5) * bw * 0.4, bh + 1.1, cz]);
-      // térreo: loja com vitrine + toldo + letreiro
-      win.box(bw - 1.2, 2.6, 0.08, '#2a3440', [cx, 1.6, z0 - side * 0.02]);
-      fac.box(bw - 0.9, 0.12, 1.1, ['#c0392b', '#2f6a4a', '#24324f', '#d08a2a', '#3a3a3e'][Math.floor(r() * 5)], [cx, 3.2, z0 - side * 0.5], [side * 0.18, 0, 0]);
-      const si = Math.floor(r() * 8);
-      sign.add(M.boxGeo(Math.min(3.2, bw - 1.4), 0.6, 0.08), '#ffffff', [cx, 3.75, z0 - side * 0.06], [0, side > 0 ? 0 : PI, 0], null, [(si % 2) * 0.5, 1 - (Math.floor(si / 2) + 1) * 0.25, (si % 2) * 0.5 + 0.5, 1 - Math.floor(si / 2) * 0.25]);
-      // janelas dos andares
-      const cols = Math.max(2, Math.floor(bw / 2.2)), floors = Math.floor((bh - 4.6) / 3.1);
-      for (let f = 0; f < floors; f++) for (let k = 0; k < cols; k++) {
-        const wx = x + 0.6 + (k + 0.5) * ((bw - 1.2) / cols), wy = 5.4 + f * 3.1;
-        win.box(1.2, 1.6, 0.06, '#33414f', [wx, wy, z0 - side * 0.03]);
-        if (r() > 0.55) lit.box(1.1, 1.5, 0.02, r() > 0.3 ? '#ffd28a' : '#dfe8ff', [wx, wy, z0 - side * 0.065]);
+      // ---- loja (interior iluminado visto pela vitrine)
+      const si = (bi * 3 + Math.floor(r() * 8)) % 8;
+      const S = SHOPS[si];
+      const IW = BW - 0.72;
+      shop.box(IW, 3.0, 0.03, S[0], [cx, SW + 1.5, inn(RS - 0.02)]);                       // parede do fundo
+      shop.box(IW, 0.02, RS, M.hex(M.mix(S[0], '#7a6a5a', 0.45)), [cx, SW + 0.01, inn(RS / 2)]); // piso
+      shop.box(IW, 0.02, RS, '#fffaf0', [cx, 3.13, inn(RS / 2)]);                           // forro claro
+      const faceRoad = side > 0 ? PI : 0;
+      const shelves = (rows, y0, dy, dens) => {
+        for (let k = 0; k < rows; k++) {
+          const sy = SW + y0 + k * dy;
+          shop.box(IW - 0.3, 0.035, 0.26, S[1], [cx, sy, inn(RS - 0.15)]);
+          let px = cx - IW / 2 + 0.25;
+          while (px < cx + IW / 2 - 0.3) {
+            const pw = 0.08 + r() * 0.16, ph = 0.12 + r() * 0.26;
+            if (r() < dens) shop.add(M.planeGeo(pw, ph), S[2][Math.floor(r() * 4)], [px + pw / 2, sy + 0.018 + ph / 2, inn(RS - 0.24)], [0, faceRoad, 0]); // só a frente (é visto da rua)
+            px += pw + 0.02 + (r() > 0.85 ? 0.25 : 0);
+          }
+        }
+      };
+      if (si === 6) {
+        // banco: caixas eletrônicos + painel com a marca
+        for (let ax = cx - IW / 2 + 0.7; ax < cx + IW / 2 - 0.5; ax += 1.1) {
+          shop.box(0.7, 1.55, 0.35, '#c9ced6', [ax, SW + 0.775, inn(RS - 0.2)]);
+          shop.box(0.4, 0.3, 0.02, '#3a7ad0', [ax, SW + 1.25, inn(RS - 0.385)]);
+          shop.box(0.3, 0.1, 0.06, '#8a95a8', [ax, SW + 0.95, inn(RS - 0.4)]);
+        }
+        shop.box(Math.min(2.4, IW - 0.6), 0.5, 0.02, '#24324f', [cx, SW + 2.35, inn(RS - 0.04)]);
+      } else if (si === 2 || si === 4) {
+        // café / lanchonete: quadro de cardápio, prateleira alta com xícaras, balcão comprido e banquetas
+        const mw = Math.min(2.6, IW * 0.5);
+        shop.box(mw, 0.75, 0.02, '#2a2622', [cx, SW + 2.2, inn(RS - 0.04)]);
+        for (let k = 0; k < 4; k++) shop.box(mw * (0.5 + r() * 0.35), 0.03, 0.01, '#f3e6c8', [cx - mw * 0.05, SW + 2.43 - k * 0.15, inn(RS - 0.055)]);
+        shelves(1, 1.55, 0, 0.8);
+        shop.box(IW * 0.7, 0.95, 0.36, S[1], [cx, SW + 0.475, inn(RS - 0.28)]);
+        for (let k = 0; k < 3; k++) { const bx2 = cx - IW * 0.25 + k * IW * 0.25; shop.box(0.28, 0.05, 0.28, '#2a2622', [bx2, SW + 0.72, inn(0.27)]); shop.box(0.05, 0.7, 0.05, '#2a2622', [bx2, SW + 0.35, inn(0.27)]); }
+      } else if (si === 7) {
+        // floricultura: degraus com baldes de flores
+        for (let k = 0; k < 3; k++) {
+          shop.box(IW - 0.4, 0.3 + k * 0.35, 0.22, '#8a6a4a', [cx, SW + (0.3 + k * 0.35) / 2, inn(RS - 0.12 - k * 0.2)]);
+          for (let fx = cx - IW / 2 + 0.4; fx < cx + IW / 2 - 0.3; fx += 0.32) shop.add(M.planeGeo(0.22, 0.24), S[2][Math.floor(r() * 4)], [fx, SW + 0.3 + k * 0.35 + 0.12, inn(RS - 0.24 - k * 0.2)], [0, faceRoad, 0]);
+        }
+      } else {
+        shelves(3, 0.75, 0.62, 1);
+        const ctrX = cx + (r() - 0.5) * Math.max(0, IW - 2.2);
+        shop.box(1.5, 0.95, 0.45, S[1], [ctrX, SW + 0.475, inn(0.42)]);                       // balcão
+        shop.box(1.56, 0.04, 0.5, M.hex(M.mix(S[1], '#ffffff', 0.5)), [ctrX, SW + 0.97, inn(0.42)]);
       }
-      x += bw;
+      shop.box(IW - 0.6, 0.03, 0.07, '#ffffff', [cx, 3.1, inn(0.3)]);                       // fita de luz
+      // ---- vitrine: vidro + caixilhos + porta + mureta
+      const zf = inn(0.08);
+      pane.box(IW, 2.62, 0.01, '#ffffff', [cx, SW + 0.36 + 1.31, zf]);
+      pole.box(IW, 0.36, 0.1, '#2a2b2e', [cx, SW + 0.18, zf]);
+      pole.box(IW, 0.07, 0.1, '#2a2b2e', [cx, SW + 2.98, zf]);
+      const nb = Math.max(2, Math.round(IW / 1.5));
+      for (let k = 0; k <= nb; k++) pole.box(0.06, 2.62, 0.1, '#2a2b2e', [cx - IW / 2 + k * (IW / nb), SW + 0.36 + 1.31, zf]);
+      const db = Math.floor(r() * nb);
+      pole.box(0.025, 0.7, 0.04, '#c4c8ce', [cx - IW / 2 + (db + 0.5) * (IW / nb) + 0.25, SW + 1.1, out(-0.02)]); // puxador
+      // toldo + letreiro (na viga)
+      fac.box(bw - 0.9, 0.08, 1.15, S[3], [cx, 3.32, out(0.52)], [side * 0.2, 0, 0]);
+      fac.box(bw - 0.9, 0.22, 0.03, S[3], [cx, 3.13, out(1.08)]);
+      sign.add(M.boxGeo(Math.min(3.2, bw - 1.4), 0.6, 0.08), '#ffffff', [cx, 3.8, out(0.06)], [0, side > 0 ? 0 : PI, 0], null, [(si % 2) * 0.5, 1 - (Math.floor(si / 2) + 1) * 0.25, (si % 2) * 0.5 + 0.5, 1 - Math.floor(si / 2) * 0.25]);
+      // ---- andares
+      const floors = Math.floor((bh - G - 0.3) / 3.1);
+      const cols = Math.max(2, Math.floor(bw / 2.2));
+      const balc = !curtain && r() > 0.55;
+      if (curtain) {
+        // pele de vidro: um plano espelhado + montantes + faixas de laje
+        win.box(BW - 0.2, bh - G - 0.5, 0.05, '#55708a', [cx, G + (bh - G - 0.5) / 2 + 0.25, out(0.025)]);
+        const nm = Math.max(3, Math.round(BW / 1.5));
+        for (let k = 0; k <= nm; k++) pole.box(0.05, bh - G - 0.5, 0.09, '#3a3f46', [cx - (BW - 0.2) / 2 + k * ((BW - 0.2) / nm), G + (bh - G - 0.5) / 2 + 0.25, out(0.05)]);
+        for (let f = 0; f <= floors; f++) fac.box(BW - 0.2, 0.22, 0.08, '#2c333c', [cx, G + 0.25 + f * 3.1, out(0.05)]);
+        for (let f = 0; f < floors; f++) for (let k = 0; k < nm; k++) if (r() > 0.62) lit.box((BW - 0.2) / nm - 0.1, 2.5, 0.02, r() > 0.3 ? '#ffd28a' : '#dfe8ff', [cx - (BW - 0.2) / 2 + (k + 0.5) * ((BW - 0.2) / nm), G + 1.65 + f * 3.1, out(0.06)]);
+      } else {
+        for (let f = 0; f <= floors; f++) fac.box(BW, 0.16, 0.07, dk, [cx, G + 0.05 + f * 3.1, out(0.035)]);   // frisos de laje
+        for (let f = 0; f < floors; f++) {
+          const wy = G + 1.6 + f * 3.1;
+          if (balc && f < 7) {
+            // varanda corrida: laje + guarda-corpo (vidro escuro + corrimão + montantes)
+            const bl = BW - 1.0;
+            fac.box(bl, 0.12, 0.85, lt, [cx, wy - 1.0, out(0.42)]);
+            win.box(bl, 0.8, 0.02, '#4a5c6c', [cx, wy - 0.52, out(0.83)]);
+            pole.box(bl, 0.04, 0.05, '#3a3b40', [cx, wy - 0.1, out(0.84)]);
+            for (let k = 0; k <= 4; k++) pole.box(0.035, 0.9, 0.035, '#3a3b40', [cx - bl / 2 + k * (bl / 4), wy - 0.52, out(0.84)]);
+          }
+          for (let k = 0; k < cols; k++) {
+            const wx = x + 0.6 + (k + 0.5) * ((bw - 1.2) / cols);
+            fac.box(1.38, 1.8, 0.04, lt, [wx, wy, out(0.02)]);                       // moldura
+            win.box(1.2, 1.62, 0.06, '#40566a', [wx, wy, out(0.03)]);                // vidro
+            pole.box(0.03, 1.62, 0.07, '#e8e6e0', [wx, wy, out(0.035)]);             // montante central
+            fac.box(1.5, 0.07, 0.2, lt, [wx, wy - 0.88, out(0.1)]);                  // peitoril
+            if (r() > 0.5) lit.box(1.1, 1.5, 0.02, r() > 0.3 ? '#ffd28a' : '#dfe8ff', [wx, wy, out(0.07)]);
+            if (!balc && f < 6 && r() > 0.72) {
+              // ar-condicionado de janela (bem paulistano)
+              const ax = wx + (r() > 0.5 ? 0.42 : -0.42);
+              fac.box(0.62, 0.4, 0.34, '#e4e3df', [ax, wy - 1.16, out(0.19)]);
+              fac.box(0.38, 0.28, 0.01, '#8d8c88', [ax, wy - 1.16, out(0.365)]);
+            }
+          }
+        }
+      }
+      x += bw; bi++;
     }
-    // árvores (ipês e tipuanas) e postes
+    // ---- calçada: frades no meio-fio, lixeiras, ponto de ônibus, banca de jornal
+    for (let bx = -L / 2 + 1.5; bx < L / 2; bx += 3.2) pole.cyl(0.07, 0.08, 0.75, '#3a3b40', [bx, SW + 0.375, side * 5.98], null, 10);
+    for (let i = 0; i < 3; i++) {
+      const lx = -L / 2 + (i + 0.3) * (L / 3);
+      pole.cyl(0.035, 0.035, 0.9, '#5a5e66', [lx, SW + 0.45, side * 6.15], null, 8);
+      fac.cyl(0.2, 0.17, 0.5, '#e8761a', [lx, SW + 0.75, side * 6.15 + side * 0.22], null, 14);
+    }
+    const busX = -L / 4 + (r() - 0.5) * 4, kioskX = L / 4 + (r() - 0.5) * 4;
+    {
+      const bx = busX, bz = side * 7.0;
+      fac.box(3.6, 0.08, 1.5, '#e9e9e6', [bx, SW + 2.62, bz]);                           // cobertura
+      pane.box(3.4, 1.9, 0.02, '#ffffff', [bx, SW + 1.4, bz + side * 0.62]);              // vidro do fundo
+      [-1.7, 1.7].forEach((dx) => { pole.box(0.06, 2.6, 0.06, '#5a5e66', [bx + dx, SW + 1.3, bz + side * 0.62]); pole.box(0.06, 2.6, 0.06, '#5a5e66', [bx + dx, SW + 1.3, bz - side * 0.5]); });
+      fac.box(2.6, 0.06, 0.4, '#8a6a4a', [bx, SW + 0.46, bz + side * 0.38]);              // banco
+      shop.box(1.1, 1.7, 0.08, '#ff9a5a', [bx + 1.15, SW + 1.4, bz + side * 0.6]);        // painel publicitário (iluminado)
+      shop.box(0.9, 1.4, 0.09, '#24324f', [bx + 1.15, SW + 1.42, bz + side * 0.6]);
+    }
+    {
+      const kx = kioskX, kz = side * 8.2;
+      fac.box(2.4, 2.3, 1.5, '#2f6a4a', [kx, SW + 1.15, kz]);                             // banca de jornal
+      fac.box(2.8, 0.1, 1.9, '#24503a', [kx, SW + 2.35, kz - side * 0.1]);
+      for (let k = 0; k < 4; k++) for (let j = 0; j < 7; j++) shop.box(0.26, 0.34, 0.02, ['#e05a47', '#ffe066', '#ffffff', '#4a90d0', '#2f9e74', '#e88ab8'][(k * 7 + j) % 6], [kx - 1.02 + j * 0.34, SW + 0.75 + k * 0.38, kz - side * 0.77]);
+    }
+    // árvores (ipês e tipuanas) — longe do ponto de ônibus e da banca
     for (let i = 0; i < 6; i++) {
-      const tx = -L / 2 + (i + 0.3 + r() * 0.4) * (L / 6), tz = side * 7.4;
+      let tx = -L / 2 + (i + 0.3 + r() * 0.4) * (L / 6);
+      [busX, kioskX].forEach((ax) => { if (Math.abs(tx - ax) < 2.8) tx = ax + (tx < ax ? -2.8 : 2.8); });
+      const tz = side * 7.2;
       const kind = r();
       const canopy = kind > 0.66 ? ['#e88ab8', '#d870a8', '#f0a0c8'] : kind > 0.4 ? ['#f2c230', '#e8b020', '#f8d050'] : ['#4a7a3a', '#3a6a32', '#5a8a44'];
       tree.cyl(0.13, 0.18, 3.6, '#5a4636', [tx, 1.8, tz]);
       tree.cyl(0.08, 0.1, 1.6, '#5a4636', [tx + 0.5, 3.6, tz], [0, 0, -0.6]);
-      for (let k = 0; k < 7; k++) tree.sph(1.0 + r() * 0.5, canopy[k % 3], [tx + (r() - 0.5) * 2.6, 4.4 + r() * 1.4, tz + (r() - 0.5) * 2.2], [1, 0.75, 1], 10);
-      tree.cyl(0.55, 0.55, 0.06, '#4a3a2a', [tx, 0.03, tz], null, 14);
+      for (let k = 0; k < 7; k++) tree.sph(0.95 + r() * 0.4, canopy[k % 3], [tx + (r() - 0.5) * 2.6, 4.45 + r() * 1.3, tz + (r() - 0.5) * 1.2], [1, 0.75, 1], 10);
+      tree.cyl(0.55, 0.55, 0.03, '#3e3226', [tx, SW + 0.012, tz], null, 14);
     }
     for (let i = 0; i < 4; i++) {
       const lx = -L / 2 + (i + 0.5) * (L / 4), lz = side * 6.3;
@@ -2667,13 +2881,13 @@
       pole.box(0.12, 0.12, 2.2, '#5a5e66', [lx, 7.4, lz - side * 1.1]);
       pole.box(0.5, 0.14, 0.7, '#4a4e56', [lx, 7.3, lz - side * 2.1]);
       glowM.box(0.42, 0.04, 0.6, '#ffd9a0', [lx, 7.22, lz - side * 2.1]);
-      pool.add(M.planeGeo(6.5, 6.5), '#ffffff', [lx, -0.39, lz - side * 2.6], [-HP, 0, 0]);
+      pool.add(M.planeGeo(6.5, 6.5), '#ffffff', [lx, 0.012, lz - side * 2.6], [-HP, 0, 0]);
     }
-    const out = {
+    return {
       fac: fac.geometry(own), win: win.geometry(own), lit: lit.geometry(own), sign: sign.geometry(own),
       tree: tree.geometry(own), pole: pole.geometry(own), glow: glowM.geometry(own), pool: pool.geometry(own),
+      shop: shop.geometry(own), pane: pane.geometry(own),
     };
-    return out;
   }
 
   /** Veículo simples (local: frente para −X). kind: 'onibus' | 'carro' | 'moto'. */
@@ -2685,13 +2899,23 @@
       gm.box(0.05, 1.7, 2.2, '#22303c', [-5.5, 2.0, 0]);
       [-3.6, 3.6].forEach((x) => [-1.15, 1.15].forEach((z) => mg.cyl(0.5, 0.5, 0.3, '#1a1a1c', [x, 0.5, z], [HP, 0, 0], 16)));
     } else if (kind === 'moto') {
-      mg.box(1.6, 0.35, 0.3, colr, [0, 0.75, 0]);
-      mg.cyl(0.32, 0.32, 0.12, '#1a1a1c', [-0.7, 0.32, 0], [HP, 0, 0], 14);
-      mg.cyl(0.32, 0.32, 0.12, '#1a1a1c', [0.7, 0.32, 0], [HP, 0, 0], 14);
-      mg.box(0.5, 0.45, 0.45, '#e84a2a', [0.65, 1.15, 0]);
-      mg.capsule = null;
-      mg.add(M.capsuleGeo(0.2, 0.45), '#2a3550', [0.05, 1.35, 0], [0, 0, 0.35]);
-      mg.sph(0.17, '#d23a3a', [-0.15, 1.85, 0]);
+      // motoboy: moto + baú + piloto inclinado (tronco, braços no guidão, pernas, capacete com viseira)
+      mg.box(1.3, 0.28, 0.26, colr, [0, 0.74, 0]);
+      mg.box(0.5, 0.12, 0.3, '#1f1f24', [0.25, 0.92, 0]);                                  // banco
+      [-0.72, 0.72].forEach((wx) => { mg.cyl(0.32, 0.32, 0.1, '#1a1a1c', [wx, 0.32, 0], [HP, 0, 0], 16); mg.cyl(0.13, 0.13, 0.11, '#8a8e96', [wx, 0.32, 0], [HP, 0, 0], 12); });
+      mg.box(0.04, 0.55, 0.05, '#3a3b40', [-0.6, 0.6, 0], [0, 0, 0.35]);                   // garfo
+      mg.box(0.04, 0.04, 0.62, '#26272b', [-0.5, 1.05, 0]);                                // guidão
+      mg.box(0.5, 0.42, 0.44, '#e84a2a', [0.66, 1.16, 0]);                                 // baú
+      mg.box(0.52, 0.05, 0.46, '#b83a20', [0.66, 1.39, 0]);
+      mg.add(M.capsuleGeo(0.15, 0.3), '#2a3550', [0.0, 1.25, 0], [0, 0, 0.5]);            // tronco
+      [-1, 1].forEach((sd) => {
+        mg.add(M.capsuleGeo(0.055, 0.32), '#2a3550', [-0.27, 1.2, sd * 0.2], [0, 0, 1.05]); // braço
+        mg.add(M.capsuleGeo(0.07, 0.32), '#1f2633', [-0.08, 0.95, sd * 0.15], [0, 0, 1.35]); // coxa
+        mg.add(M.capsuleGeo(0.06, 0.3), '#1f2633', [-0.3, 0.68, sd * 0.17], [0, 0, -0.25]); // canela
+      });
+      mg.sph(0.15, '#26272b', [-0.17, 1.6, 0]);                                            // capacete
+      gm.box(0.06, 0.09, 0.2, '#22303c', [-0.3, 1.58, 0]);                                 // viseira
+      gm.box(0.05, 0.1, 0.16, '#fff6dc', [-0.84, 0.86, 0]);                                // farol
     } else {
       mg.rbox(4.4, 0.75, 1.8, 0.25, colr, [0, 0.62, 0]);
       mg.rbox(2.4, 0.62, 1.66, 0.25, colr, [0.25, 1.22, 0]);
@@ -2712,7 +2936,12 @@
       root.add(L.group);
       L.sun.shadow.camera.far = 50;
       const ROAD = -0.42;
-      const city = buildCity(root, own, { seed: 63, horizonY: ROAD, towers: [], sunDir: [-0.8, 0.18, 0.55] });
+      // torres ao longe (paradas: o paralaxe lento delas contra a rua rolando dá profundidade)
+      const CAR_TOWERS = [
+        [0.05, 44, 14, 14, 34, 'vidro'], [0.5, 52, 12, 12, 52, 'concreto'], [-0.42, 50, 13, 13, 30, 'escuro'], [0.85, 62, 14, 12, 60, 'vidro'], [-0.8, 60, 12, 12, 44, 'concreto'],
+        [PI + 0.1, 46, 14, 12, 40, 'concreto'], [PI + 0.48, 52, 12, 12, 28, 'vidro'], [PI - 0.4, 50, 13, 13, 56, 'escuro'], [PI + 0.85, 62, 14, 12, 48, 'vidro'], [PI - 0.82, 60, 12, 12, 36, 'concreto'],
+      ];
+      const city = buildCity(root, own, { seed: 63, horizonY: ROAD, towers: CAR_TOWERS, sunDir: [-0.8, 0.18, 0.55] });
       // ---------- rua (rola em +X)
       const street = M.group({ parent: root, name: 'rua', pos: [0, ROAD, 0] });
       const roadTex = texRepeat(asphaltTex(), 'asphalt-run', 10, 1);
@@ -2744,15 +2973,21 @@
       const glowMat = new T.MeshBasicMaterial({ vertexColors: true, toneMapped: false }); own.add(glowMat);
       const poolTex = ctex('pool', 128, 128, (ctx) => { const g2 = ctx.createRadialGradient(64, 64, 2, 64, 64, 62); g2.addColorStop(0, 'rgba(255,210,150,0.55)'); g2.addColorStop(1, 'rgba(255,210,150,0)'); ctx.fillStyle = g2; ctx.fillRect(0, 0, 128, 128); }, false);
       const poolMat = new T.MeshBasicMaterial({ map: poolTex, transparent: true, depthWrite: false, blending: T.AdditiveBlending, vertexColors: true }); own.add(poolMat);
+      // interior das lojas: sem iluminação de cena (parece aceso); a cor multiplica conforme a hora
+      const shopMat = new T.MeshBasicMaterial({ vertexColors: true, toneMapped: false, color: col('#a39d93') }); own.add(shopMat);
+      const paneMat = stdMat('car-shopglass', { color: '#d6e6f0', rough: 0.04, metal: 0.1, opacity: 0.2, env: 1.3, depthWrite: false });
       [-1, 1].forEach((sd, si) => {
-        const gset = streetRow(own, sd, LEN, 101 + si * 17, atlas);
-        const pieces = [[gset.fac, vc(0.85, 0), true], [gset.win, GLOSS(), false], [gset.lit, litMat, false], [gset.sign, signMat, false], [gset.tree, vc(0.9, 0, 'tree'), true], [gset.pole, METAL(), true], [gset.glow, glowMat, false], [gset.pool, poolMat, false]];
-        for (let copy = 0; copy < 2; copy++) {
+        const gset = streetRow(own, sd, LEN, 101 + si * 17);
+        const flat = [litMat, signMat, glowMat, poolMat, shopMat, paneMat];
+        const pieces = [[gset.fac, vc(0.85, 0), true], [gset.win, GLOSS(), false], [gset.lit, litMat, false], [gset.sign, signMat, false], [gset.tree, vc(0.9, 0, 'tree'), true], [gset.pole, METAL(), true], [gset.glow, glowMat, false], [gset.pool, poolMat, false], [gset.shop, shopMat, false], [gset.pane, paneMat, false]];
+        // 3 cópias (atrás, aqui, à frente): a rua nunca "acaba" dentro do alcance da névoa
+        for (let copy = -1; copy < 2; copy++) {
           const g = M.group({ parent: street });
           pieces.forEach((pc) => {
             const m = new T.Mesh(pc[0], pc[1]);
-            m.castShadow = pc[2]; m.receiveShadow = pc[1] !== litMat && pc[1] !== signMat && pc[1] !== glowMat && pc[1] !== poolMat;
+            m.castShadow = pc[2]; m.receiveShadow = flat.indexOf(pc[1]) < 0;
             m.userData.piece = pc[1] === litMat ? 'lit' : pc[1] === glowMat ? 'glow' : pc[1] === poolMat ? 'pool' : '';
+            if (pc[1] === paneMat) m.renderOrder = 2;
             g.add(m);
           });
           rows.push({ g, copy });
@@ -2833,6 +3068,18 @@
       tl.rbox(0.05, 0.06, 1.66, 0.02, '#ffffff', [2.5, 0.52, 0]);
       [-1, 1].forEach((sd) => tl.rbox(0.06, 0.1, 0.32, 0.03, '#ffffff', [2.48, 0.5, sd * 0.7]));
       tl.build(tailMat, own, { parent: tub, cast: false });
+      // facho dos faróis no asfalto (só à noite)
+      const beamTex = ctex('beam', 128, 256, (ctx, w, h) => {
+        const g2 = ctx.createLinearGradient(0, 0, 0, h);
+        g2.addColorStop(0, 'rgba(255,236,200,0)'); g2.addColorStop(0.5, 'rgba(255,236,200,0.28)'); g2.addColorStop(1, 'rgba(255,240,215,0.7)');
+        ctx.fillStyle = g2; ctx.beginPath(); ctx.moveTo(w * 0.28, h); ctx.lineTo(w * 0.72, h); ctx.lineTo(w, 0); ctx.lineTo(0, 0); ctx.closePath(); ctx.fill();
+      }, false);
+      const beamMat = new T.MeshBasicMaterial({ map: beamTex, transparent: true, depthWrite: false, blending: T.AdditiveBlending, toneMapped: false, opacity: 0.85 });
+      own.add(beamMat);
+      const beam = new T.Mesh(M.planeGeo(4.2, 9), beamMat);
+      beam.rotation.set(-HP, 0, HP); beam.position.set(-7.1, ROAD + 0.025, 0); beam.renderOrder = 1;
+      beam.castShadow = false; beam.receiveShadow = false;
+      car.add(beam);
       // rodas (aro de liga, 5 raios)
       const wheels = [];
       [[-1.65, 1], [-1.65, -1], [1.5, 1], [1.5, -1]].forEach((wp) => {
@@ -2846,29 +3093,45 @@
         wheels.push(wg);
       });
       // ---------- interior
-      const qTex = ctex('quilt2', 256, 256, (ctx, w, h) => {
-        // couro capitonê discreto: gomos 8×8, pesponto fino, leve volume
+      const qTex = ctex('quilt3', 256, 256, (ctx, w, h) => {
+        // couro capitonê em losangos: vincos macios + pesponto claro + leve granulado (lê como couro, não madeira)
         ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);
-        const n = 8, s3 = w / n;
-        for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
-          const g = ctx.createRadialGradient(i * s3 + s3 / 2, j * s3 + s3 * 0.42, 1, i * s3 + s3 / 2, j * s3 + s3 / 2, s3 * 0.75);
-          g.addColorStop(0, 'rgba(255,250,240,0.10)'); g.addColorStop(1, 'rgba(60,35,18,0.13)');
-          ctx.fillStyle = g; ctx.fillRect(i * s3, j * s3, s3, s3);
+        const n = 4, s3 = w / n;
+        // volume de cada gomo (losango): luz em cima, sombra embaixo
+        for (let i = -1; i <= n; i++) for (let j = -1; j <= n * 2; j++) {
+          const cx = i * s3 + (j % 2 ? 0 : s3 / 2), cy = j * s3 / 2;
+          const g = ctx.createRadialGradient(cx, cy - s3 * 0.12, 2, cx, cy, s3 * 0.62);
+          g.addColorStop(0, 'rgba(255,250,240,0.24)'); g.addColorStop(0.65, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(70,40,20,0.18)');
+          ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(cx, cy - s3 / 2); ctx.lineTo(cx + s3 / 2, cy); ctx.lineTo(cx, cy + s3 / 2); ctx.lineTo(cx - s3 / 2, cy); ctx.closePath(); ctx.fill();
         }
-        ctx.strokeStyle = 'rgba(70,42,22,0.32)'; ctx.lineWidth = 1;
-        for (let i = 0; i <= n; i++) { ctx.beginPath(); ctx.moveTo(i * s3 + 0.5, 0); ctx.lineTo(i * s3 + 0.5, h); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, i * s3 + 0.5); ctx.lineTo(w, i * s3 + 0.5); ctx.stroke(); }
-        noise(ctx, w, h, 0.05, 19);
-      }, false);
-      const QUILT = stdMat('vc-quilt', { vc: true, map: qTex, rough: 0.48, env: 0.3 });
+        // vincos (diagonais) + pesponto
+        const diag = (k, dir) => { ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k + dir * h, h); ctx.stroke(); };
+        for (let k = -w; k <= w * 2; k += s3) {
+          ctx.strokeStyle = 'rgba(60,34,16,0.30)'; ctx.lineWidth = 3; diag(k, 1); diag(k, -1);
+          ctx.strokeStyle = 'rgba(255,240,215,0.35)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+          ctx.save(); ctx.translate(2.5, 0); diag(k, 1); diag(k, -1); ctx.restore(); ctx.setLineDash([]);
+        }
+        // botões nos cruzamentos
+        for (let i = 0; i <= n; i++) for (let j = 0; j <= n * 2; j++) {
+          const cx = i * s3 + (j % 2 ? s3 / 2 : 0), cy = j * s3 / 2;
+          ctx.fillStyle = 'rgba(50,28,12,0.35)'; ctx.beginPath(); ctx.arc(cx, cy, 2.2, 0, PI * 2); ctx.fill();
+        }
+        noise(ctx, w, h, 0.08, 19);
+      });
+      // nas caixas arredondadas a face plana usa só o miolo da UV (0,4…0,6): repetir 4× dá ~3 gomos por face
+      const QUILT = stdMat('vc-quilt', { vc: true, map: texRepeat(qTex, 'quilt3r', 4, 4), rough: 0.48, env: 0.3 });
       const inQ = new Merger();
       const inL = new Merger();
       // banco traseiro (2 lugares + apoio central)
+      // (encostos reclinados para trás = giro negativo em Z, já que a frente do carro é −X)
       [-1, 1].forEach((sd) => {
         const z = sd * 0.37;
         inQ.rbox(0.62, 0.15, 0.5, 0.07, LTH, [0.55, 0.385, z]);
-        inQ.rbox(0.17, 0.66, 0.5, 0.08, LTH, [0.93, 0.8, z], [0, 0, 0.2]);
-        inL.rbox(0.14, 0.17, 0.3, 0.07, LTH2, [1.0, 1.24, z], [0, 0, 0.2]);
+        inQ.rbox(0.17, 0.66, 0.46, 0.06, LTH, [0.93, 0.8, z], [0, 0, -0.2]);
+        [-1, 1].forEach((b) => inL.rbox(0.13, 0.62, 0.075, 0.035, LTH2, [0.895, 0.8, z + b * 0.235], [0, 0, -0.2])); // abas laterais
+        inL.rbox(0.1, 0.21, 0.27, 0.035, LTH2, [1.035, 1.255, z], [0, 0, -0.2]);      // encosto de cabeça
         inL.rbox(0.62, 0.06, 0.04, 0.02, LTH2, [0.55, 0.39, z + sd * 0.25]);          // vivo lateral
+        inL.rbox(0.5, 0.035, 0.012, 0.006, LTH2, [0.56, 0.462, z], null);             // costura do assento
       });
       inL.rbox(0.66, 0.22, 1.16, 0.06, LTH2, [0.58, 0.2, 0]);                          // base do banco
       inL.rbox(0.5, 0.1, 0.22, 0.05, LTH2, [0.62, 0.56, 0]);                           // apoio de braço central
@@ -2877,11 +3140,12 @@
         const z = sd * 0.38;
         inQ.rbox(0.52, 0.13, 0.48, 0.06, LTH, [-0.76, 0.41, z]);
         inL.rbox(0.42, 0.28, 0.42, 0.05, '#2a2622', [-0.76, 0.18, z]);
-        inL.rbox(0.15, 0.6, 0.48, 0.07, LTH, [-0.43, 0.76, z], [0, 0, 0.14]);
-        inL.rbox(0.012, 0.5, 0.4, 0.006, LTH2, [-0.351, 0.771, z], [0, 0, 0.14]);        // painel de couro das costas
-        inL.rbox(0.13, 0.12, 0.42, 0.05, LTH2, [-0.37, 1.1, z], [0, 0, 0.14]);
-        inL.rbox(0.11, 0.15, 0.26, 0.06, LTH2, [-0.33, 1.3, z], [0, 0, 0.1]);
-        inL.rbox(0.02, 0.04, 0.44, 0.01, '#2a2622', [-0.355, 0.62, z], [0, 0, 0.14]); // bolso do encosto
+        inL.rbox(0.15, 0.6, 0.48, 0.05, LTH, [-0.43, 0.76, z], [0, 0, -0.14]);
+        inL.rbox(0.014, 0.48, 0.38, 0.006, LTH2, [-0.352, 0.77, z], [0, 0, -0.14]);       // painel de couro das costas
+        inL.rbox(0.13, 0.11, 0.44, 0.04, LTH2, [-0.385, 1.1, z], [0, 0, -0.14]);          // ombro
+        [-1, 1].forEach((b) => inL.rbox(0.17, 0.5, 0.06, 0.03, LTH2, [-0.445, 0.76, z + b * 0.235], [0, 0, -0.14])); // abas
+        inL.rbox(0.1, 0.19, 0.27, 0.035, LTH2, [-0.37, 1.32, z], [0, 0, -0.1]);            // encosto de cabeça
+        inL.rbox(0.02, 0.05, 0.42, 0.01, '#7a5638', [-0.373, 0.62, z], [0, 0, -0.14]); // bolso do encosto
       });
       inQ.build(QUILT, own, { parent: car });
       inL.build(LEATHER(), own, { parent: car });
@@ -2921,15 +3185,15 @@
       inM.cyl(0.05, 0.05, 0.04, '#3a3b40', [-1.09, 0.935, 0.38], [0, 0, 1.12]);
       [-1, 1].forEach((sd) => {
         // hastes cromadas dos encostos de cabeça
-        inM.cyl(0.007, 0.007, 0.12, '#c4c8ce', [-0.345, 1.19, sd * 0.38 - 0.07], [0, 0, 0.1]);
-        inM.cyl(0.007, 0.007, 0.12, '#c4c8ce', [-0.345, 1.19, sd * 0.38 + 0.07], [0, 0, 0.1]);
+        inM.cyl(0.007, 0.007, 0.12, '#c4c8ce', [-0.38, 1.2, sd * 0.38 - 0.07], [0, 0, -0.1]);
+        inM.cyl(0.007, 0.007, 0.12, '#c4c8ce', [-0.38, 1.2, sd * 0.38 + 0.07], [0, 0, -0.1]);
         inM.rbox(0.1, 0.02, 0.03, 0.008, '#c4c8ce', [0.1, 0.58, sd * 0.725]);           // puxador interno
       });
       // suporte do celular preso às hastes do encosto do passageiro (de frente para o banco de trás)
-      inM.box(0.015, 0.22, 0.015, '#1c1d21', [-0.27, 1.1, -0.43]);
-      inM.box(0.015, 0.22, 0.015, '#1c1d21', [-0.27, 1.1, -0.33]);
-      inM.box(0.03, 0.03, 0.12, '#1c1d21', [-0.26, 1.0, -0.38]);
-      inM.box(0.06, 0.02, 0.02, '#1c1d21', [-0.23, 0.98, -0.38]);
+      inM.box(0.022, 0.026, 0.2, '#1c1d21', [-0.372, 1.2, -0.38]);                          // barra presa às hastes
+      inM.box(0.018, 0.216, 0.018, '#1c1d21', [-0.2875, 1.11, -0.38], [0, 0, -2.406]);     // braço
+      inM.rbox(0.012, 0.18, 0.095, 0.005, '#1c1d21', [-0.204, 0.99, -0.38]);               // berço
+      [-1, 1].forEach((k) => inM.box(0.026, 0.012, 0.05, '#1c1d21', [-0.193, 0.99 + k * 0.086, -0.38])); // garras
       inM.build(METAL(), own, { parent: car });
       // celular no suporte
       const phoneG = M.group({ parent: car, pos: [-0.19, 0.99, -0.38], rot: [0, HP, 0] });
@@ -2954,8 +3218,9 @@
       cluster.draw('cl', (ctx, w, h) => { ctx.fillStyle = '#0c0f16'; ctx.fillRect(0, 0, w, h); ctx.strokeStyle = '#4ac0ff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(w * 0.25, h * 0.6, h * 0.38, PI, PI * 1.8); ctx.stroke(); ctx.beginPath(); ctx.arc(w * 0.75, h * 0.6, h * 0.38, PI * 1.2, PI * 2); ctx.stroke(); font(ctx, h * 0.3, 800); ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('48', w * 0.5, h * 0.55); });
       car.add(cluster.mesh);
       // ---------- estufa (vidros com reflexo rolando + colunas + teto)
-      const streakTex = ctex('streak', 512, 128, (ctx, w, h) => {
+      const streakTex = ctex('streak2', 512, 128, (ctx, w, h) => {
         ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = 'rgba(255,255,255,0.62)'; ctx.fillRect(0, 0, w, h);
         const rr2 = M.rng(5);
         for (let i = 0; i < 26; i++) {
           const x = rr2() * w, ww = 10 + rr2() * 80;
@@ -2964,7 +3229,7 @@
           ctx.fillStyle = g; ctx.fillRect(x, 0, ww, h);
         }
       });
-      const glassMat = new T.MeshStandardMaterial({ color: col('#4a5866'), roughness: 0.05, metalness: 0.2, transparent: true, opacity: 0.3, depthWrite: false, map: streakTex.clone(), side: T.DoubleSide });
+      const glassMat = new T.MeshStandardMaterial({ color: col('#3e4a56'), roughness: 0.05, metalness: 0.2, transparent: true, opacity: 0.34, depthWrite: false, map: streakTex.clone(), side: T.DoubleSide });
       glassMat.map.needsUpdate = true; glassMat.map.wrapS = T.RepeatWrapping; glassMat.map.repeat.set(0.5, 1);
       glassMat.userData.wantsEnv = 1.4;
       own.add(glassMat); own.add(glassMat.map);
@@ -3094,7 +3359,9 @@
         litMat.color.set(night ? '#ffffff' : '#9a8a70');
         poolMat.opacity = night ? 1 : 0.4;
         signMat.color.set(night ? '#ffffff' : '#d8d8d8');
+        shopMat.color.set(night ? '#ffffff' : dusk ? '#c9bfb2' : '#a39d93');
         headMat.emissiveIntensity = night ? 1.6 : 0.2;
+        beam.visible = night;
         tailMat.emissiveIntensity = night ? 1.4 : 0.3;
         domeLight.intensity = P.inner;
         roadMat.color.set(night ? '#8a8a9a' : '#ffffff');
@@ -3137,14 +3404,14 @@
           phone.draw(pm + JSON.stringify(p.chat || null), (ctx, w, h) => drawPhone(pm, ctx, w, h, { chat: p.chat, typing: p.typing, phase: chatPhase }));
           curPhone = pm;
           const f = P2.core && P2.core.scene && P2.core.scene.fog;
-          if (f) { f.near = 14; f.far = curTime === 'noite' ? 70 : 60; }
+          if (f) { f.near = 16; f.far = curTime === 'noite' ? 80 : 90; }
         },
         update(t, p, dt) {
           dt = dt || 0;
           city.update(t);
           const v = 9 * speedK;
           off = (off + v * dt) % LEN;
-          rows.forEach((rw2) => (rw2.g.position.x = off - rw2.copy * LEN));
+          rows.forEach((rw2) => (rw2.g.position.x = off - rw2.copy * LEN - LEN / 2));
           roadMat.map.offset.x = -(off / 8) % 1;
           swMat.map.offset.x = -(off / 2) % 1;
           wheels.forEach((w) => (w.rotation.z += (v * dt) / 0.34));

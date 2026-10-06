@@ -1,53 +1,92 @@
 /* PAI 2.0 — env-especial.js
  * Ambientes especiais em 3D: arena (sonho / chefão), aula (sala de aula imaginada),
- * titulo (diorama da tela de título) e void (espaço abstrato para cartões).
+ * titulo (diorama da tela de título) e void (espaço abstrato para cartões/transições).
  *
- * Convenções: metros, Y para cima, chão em y = 0, rot 0 = olhando para +Z.
+ * Convenções: metros, Y para cima, chão em y = 0, rot 0 = olhando para +Z (rot = atan2(dx, dz)).
+ * Todos devolvem {root, spots, shots, defaultShot:'geral', walls, colliders, bounds, background,
+ * fog, setParams, update, dispose}. Primeira pessoa: o jogador nasce em spots.inicio.
  *
  * ── arena ──────────────────────────────────────────────────────────
- *  Ilha flutuante com grama e cristais à esquerda (heróis), espaço do chefão à direita
- *  (sobre um vórtice roxo), céu cósmico com estrelas, aurora e espiral de tempestade.
- *  params: calm (0..1 → amanhecer lilás/pêssego depois da vitória: flores brotam, sol nasce
- *          onde estava a espiral; a transição é suave mesmo se o valor pular),
- *          intensity (0..1 → tempestade: relâmpagos com clarão, vórtice mais rápido).
- *  spots:  pai    {x:-2.5,  z:0.35, rot:1.15}   em pé no círculo de runas, virado para o chefão
- *          faisca {x:-1.75, z:0.95, rot:1.0, y:1.25}  flutuando à direita/à frente do pai
- *          boss   {x:2.6,   z:-1.0, rot:-0.55}  a Dúvida (nuvem ~3 m) sobre o vórtice
- *          centro {x:-1.0,  z:0.55, rot:0.6} · heroi2 {x:-3.2, z:-0.35, rot:1.0} (alguém atrás do pai)
- *  shots:  geral, herois, boss, baixo (contra-plongée por trás dos heróis), confronto,
- *          amanhecer (plano aberto do céu), ilha (a ilha vista de baixo)
+ *  Ilha flutuante (grama, flores, pilares com runas, árvore dos sonhos, cristais, nascente com
+ *  cachoeira caindo no mar de nuvens, cipós com brotos de luz embaixo) à esquerda; à direita a
+ *  ilhota do chefão sobre um vórtice. Céu cósmico (estrelas, nebulosa, aurora, planeta com anéis,
+ *  espiral de tempestade), ilhotas e destroços flutuando. Sem paredes/teto (walls: []).
+ *  params: calm      0..1 → amanhecer lilás/pêssego depois da vitória (flores brotam, sol nasce onde
+ *                    estava a espiral, vórtice some, grama na ilhota do chefão; transição suave
+ *                    mesmo se o valor pular; P2.skipping aplica na hora)
+ *          intensity 0..1 → tempestade: relâmpagos (≈1 a cada 2 s no máximo; clarão reduzido com
+ *                    settings.reduceMotion), vórtice mais rápido. Sem efeito quando calm = 1.
+ *  spots:  pai      {x:-2.5,  z:0.35,  rot:1.15}        em pé no círculo de runas, virado para o chefão
+ *          faisca   {x:-2.95, z:0.9,   rot:1.15, y:1.25} flutuando à direita do pai
+ *          boss     {x:2.6,   z:-1.0,  rot:-0.55}        a Dúvida (nuvem ~3 m) sobre o vórtice
+ *                                                         (fora da área andável: flutua sobre o abismo)
+ *          centro   {x:-1.0,  z:0.55,  rot:0.6}
+ *          heroi2   {x:-3.2,  z:-0.35, rot:1.0}          alguém atrás do pai
+ *          inicio   {x:-2.5,  z:0.35,  rot:1.8}          1ª pessoa: no lugar do pai, olhando a Dúvida
+ *          arvore   {x:-3.25, z:-0.45, rot:-2.57}        diante da árvore dos sonhos (frutos de luz)
+ *          cristais {x:-3.9,  z:-0.35, rot:-2.2}         diante do grande cristal azul
+ *          borda    {x:0.35,  z:0.3,   rot:2.0}          na beira da ilha, olhando o vórtice/abismo
+ *          nascente {x:-2.65, z:0.73,  rot:-0.29}        diante da nascente/cachoeira (borda da frente)
+ *  shots:  geral (estabelecimento: ilha + chefão), herois (pai e Faísca de frente),
+ *          boss (a Dúvida de perto), baixo (contra-plongée atrás do ombro esquerdo do pai:
+ *          pai à direita, Faísca na ponta, Dúvida no centro), confronto (plano aberto dos dois lados),
+ *          amanhecer (plano aberto do céu, para calm = 1), ilha (a ilha inteira vista de baixo)
+ *  FP: bounds = caixa da borda; colliders = cerca na borda da ilha (88% do raio), pilares,
+ *      tambor caído, pedras, cristais, árvore, nascente e os morros (em 1ª pessoa o chão é plano).
  *
  * ── aula ───────────────────────────────────────────────────────────
- *  Sala de aula aconchegante "imaginada", à noite, sem teto (céu estrelado acima),
- *  lanternas de papel flutuando. Paredes somem para a câmera girar 360°.
- *  params: lines (array de até 4 frases curtas, escritas a giz no quadro),
- *          tema ('violao' violão no suporte | 'ingles' mapa-múndi + pôster ABC |
- *                'negocios' flip chart com gráfico) — padrão 'violao'.
- *  spots:  quadro {x:1.75,  z:-1.75, rot:-0.45} em pé ao lado do quadro (quem ensina)
- *          faisca {x:1.45,  z:-1.55, rot:-0.5, y:1.55} (flutuando junto ao quadro)
- *          mesa   {x:-1.75, z:-1.7,  rot:0.25}  em pé atrás da mesa do professor
- *          aluno  {x:0.75,  z:1.25,  rot:-2.894} SENTADO na carteira, olhando o quadro
- *                                               (a mesa fica 0,5 m à frente)
- *          aluno2 {x:-1.05, z:1.35,  rot:-2.75}  2ª carteira (sentado)
- *          centro {x:0.1,   z:0.2,   rot:0} · porta {x:-2.1, z:1.85, rot:π}
- *  shots:  geral, quadro (lousa legível), aluno (por cima do ombro), mesa, janela
+ *  Sala de aula aconchegante "imaginada", à noite (6 × 5 m, pé-direito 2,9 m): lousa a giz,
+ *  mesa do professor (globo, luminária verde, maçã), 2 carteiras, janela com lua e cidade,
+ *  estante, mural de cortiça, cantinho de leitura (poltrona, abajur, mesinha), bandeirinhas,
+ *  lanternas de papel flutuando. Teto de gesso com vigas, spots e claraboia estrelada.
+ *  walls: parede_fundo, parede_esq, parede_frente, parede_dir e o teto (normal [0,-1,0], py 2.9)
+ *  somem quando a câmera está do lado de fora (órbita 360° e planos de cima).
+ *  params: lines (array de até 4 frases curtas — ou uma string — escritas a giz; a 1ª ganha destaque
+ *                 quando há mais de uma),
+ *          tema  ('violao' violão no suporte + estante de partitura + acorde de Dó na lousa |
+ *                 'ingles' mapa-múndi + pôster ABC na parede direita (no lugar do mural) + "A b C"/"Hi!" |
+ *                 'negocios' flip chart "META 2026" + gráfico na lousa) — padrão 'violao'.
+ *  spots:  quadro  {x:1.75,  z:-1.75, rot:-0.45}       em pé ao lado da lousa (quem ensina)
+ *          faisca  {x:1.45,  z:-1.55, rot:-0.5, y:1.55} flutuando junto à lousa
+ *          mesa    {x:-1.75, z:-1.7,  rot:0.25}        em pé atrás da mesa do professor
+ *          aluno   {x:0.75,  z:1.25,  rot:-2.894}      SENTADO na carteira, olhando a lousa
+ *                                                      (o tampo fica 0,52 m à frente)
+ *          aluno2  {x:-1.05, z:1.35,  rot:-2.75}       2ª carteira (sentado)
+ *          centro  {x:0.1,   z:0.2,   rot:0}
+ *          porta   {x:-2.1,  z:1.85,  rot:π}           junto à porta (parede da frente)
+ *          inicio  {x:-2.0,  z:1.75,  rot:2.72}        1ª pessoa: junto à porta, olhando a lousa
+ *          lousa   {x:-0.2,  z:-1.3,  rot:π}           diante da lousa (ler o que está escrito)
+ *          janela  {x:-2.3,  z:-0.35, rot:-π/2}        diante da janela (lua e cidade)
+ *          estante {x:2.15,  z:-0.7,  rot:π/2}         diante da estante de livros
+ *          mural   {x:2.2,   z:1.0,   rot:π/2}         diante do mural de recados (mapa, tema 'ingles')
+ *  shots:  geral, quadro (lousa legível), aluno (por cima do ombro de quem está na carteira),
+ *          mesa (mesa do professor + janela), janela
+ *  FP: bounds = paredes internas; colliders = mesas, carteiras (as cadeiras são pontos de sentar),
+ *      cadeira do professor, estante, vaso, parapeito, poltrona, abajur, mesinha + adereços do tema.
  *
  * ── titulo ─────────────────────────────────────────────────────────
- *  Diorama em miniatura de uma quadra de São Paulo ao entardecer, flutuando no céu:
- *  a torre do CEO (heliponto, andar dele aceso), a casa da família com piscina, praça
- *  com ipês, lojinhas, carros andando, postes acendendo, janelas acendendo aos poucos,
- *  avião lento, nuvens. O motor gira a câmera em volta de shots.geral.target.
- *  A parte de cima-centro do quadro fica calma (céu) para o logo.
- *  spots:  faisca {x:0.25, z:2.9, rot:0, y:1.75} (flutuando na frente da cidade)
- *          centro {x:0, z:1.4, rot:0} (no meio da avenida — escala de maquete!)
- *  shots:  geral, torre, casa, praca, ceu
+ *  Diorama em miniatura de uma quadra de São Paulo ao entardecer, flutuando num mar de nuvens:
+ *  a torre do CEO (heliponto, andar dele aceso, farol), a casa da família com piscina, praça com
+ *  pedra portuguesa e fonte, parque com ipês, lojinhas, carros andando, postes e janelas acendendo
+ *  aos poucos, avião lento, bando de pássaros, nuvens. Plinto com aros de latão.
+ *  O motor gira a câmera em volta de shots.geral.target; 'geral' é rasante (horizonte de pôr do sol
+ *  atrás do skyline), então o terço de cima fica só céu, calmo para o logo. Sem params.
+ *  spots:  faisca {x:1.0, z:3.9, rot:0.3, y:1.1}  flutuando na frente da cidade
+ *          centro {x:0,   z:1.4, rot:0}           no meio da avenida (escala de maquete!)
+ *          inicio {x:0,   z:1.4, rot:π}           só por contrato (não se anda aqui)
+ *  shots:  geral, torre (a torre do CEO), casa (casa com piscina), praca (parque e ipês),
+ *          ceu (de baixo: torre contra o céu, avião)
  *
  * ── void ───────────────────────────────────────────────────────────
- *  Espaço abstrato elegante (fatos, transições): degradê, piso de luz com anéis,
- *  formas flutuando, partículas. params: color (tinta, padrão '#7c6cff').
- *  spots:  centro {x:0,z:0} · esquerda {x:-1.3, z:0.3, rot:0.35} · direita {x:1.3, z:0.3, rot:-0.35}
- *          faisca {x:0.8, z:0.5, y:1.3}
+ *  Espaço abstrato elegante: degradê com nebulosa, palco circular com anéis de luz girando, portal
+ *  de anéis atrás do centro, formas (pérola, vidro, arame) flutuando, partículas subindo.
+ *  params: color (tinta de tudo, padrão '#7c6cff').
+ *  spots:  centro   {x:0,    z:0,   rot:0}
+ *          esquerda {x:-1.3, z:0.3, rot:0.35} · direita {x:1.3, z:0.3, rot:-0.35}
+ *          faisca   {x:0.8,  z:0.5, rot:-0.2, y:1.3}
+ *          inicio   {x:0,    z:2.0, rot:π}        1ª pessoa: na borda do palco, olhando o centro
  *  shots:  geral, close, alto, lado
+ *  FP: colliders = borda circular do palco (raio 3,05 m) · bounds = quadrado que a contém.
  */
 (function () {
   'use strict';
@@ -167,6 +206,17 @@
       group.add(mesh);
     });
     return group;
+  }
+
+  /** Grama: normais quase verticais → as folhas recebem a mesma luz do chão (tufo macio, não "espinho" escuro). */
+  function grassNormalsUp(geo, k) {
+    const n = geo.attributes.normal, s = k == null ? 0.3 : k;
+    for (let i = 0; i < n.count; i++) {
+      const x = n.getX(i) * s, y = 1, z = n.getZ(i) * s, l = Math.hypot(x, y, z);
+      n.setXYZ(i, x / l, y / l, z / l);
+    }
+    n.needsUpdate = true;
+    return geo;
   }
 
   /** Pinta de "musgo" as faces viradas para cima (geometria não indexada, normais planas). */
@@ -545,13 +595,13 @@
         cTop: col('#02031a'), cBand: col('#0d1140'), cMid: col('#2b2266'), cBot: col('#0b0820'),
         cAur1: col('#3dffc4'), cAur2: col('#c05cff'), cNeb: col('#26339a'), cSun: col('#ffd2a0'),
         hemiSky: col('#8f86e8'), hemiGround: col('#1a1236'), sun: col('#d2c4ff'), pl1: col('#6fe6ff'), pl2: col('#c04aff'),
-        fog: col('#141238'), sea: col('#2e2a6e'), cloud: col('#3c3680'), rune: col('#7fe9ff'), mote: col('#b9a6ff'),
+        fog: col('#141238'), sea: col('#2e2a6e'), cloud: col('#3c3680'), rune: col('#7fe9ff'), mote: col('#b9a6ff'), bud: col('#9ff4ff'), water: col('#9ee8ff'), pond: col('#3aa8d0'), pondE: col('#2b8fc0'),
       };
       const DAWN = {
         cTop: col('#4f63b8'), cBand: col('#b49ae0'), cMid: col('#ffc4a2'), cBot: col('#e3a0b6'),
         cAur1: col('#ffd2a0'), cAur2: col('#ff9ad0'), cNeb: col('#ffb3c8'), cSun: col('#ffdfa6'),
         hemiSky: col('#ffe4d4'), hemiGround: col('#8a6a9a'), sun: col('#ffd2a6'), pl1: col('#ffd9a0'), pl2: col('#ffb0d0'),
-        fog: col('#e2b8c8'), sea: col('#ffd6cc'), cloud: col('#ffe0d6'), rune: col('#ffd27a'), mote: col('#ffe39a'),
+        fog: col('#e2b8c8'), sea: col('#ffd6cc'), cloud: col('#ffe0d6'), rune: col('#ffd27a'), mote: col('#ffe39a'), bud: col('#ffd9a0'), water: col('#fff3ec'), pond: col('#8fd8f0'), pondE: col('#ffb8a0'),
       };
       const sky = makeSky({ cTop: '#02031a', cMid: '#2b2266', swirlDir: [0.32, 0.2, -0.93], sunDir: [0.28, 0.09, -0.96], stars: 1, aurora: 1, swirl: 1, nebula: 0.5 });
       root.add(sky);
@@ -590,8 +640,13 @@
       const gBase = col('#2a6450'), gTip = col('#9be08e'), gTmp = new T.Color();
       const bladeC = (x, y) => gTmp.copy(gBase).lerp(gTip, clamp(y, 0, 1));
       const grassParts = [];
+      const addGlowLater = [];
       const RUNE = { x: -2.1, z: 0.62, r: 1.0 };
       const inRune = (x, z) => Math.hypot(x - RUNE.x, z - RUNE.z) < RUNE.r;
+      // nascente com cachoeira na borda da frente-esquerda (água caindo no mar de nuvens)
+      const WFA = 1.8, wq = ig.loc(0.82, WFA);
+      const POND = { x: ICX + wq[0], z: ICZ + wq[1], r: 0.36 };
+      const inPond = (x, z) => Math.hypot(x - POND.x, z - POND.z) < POND.r + 0.08;
       for (let i = 0; i < 190; i++) {
         const s = Math.sqrt(r()) * 0.95, a = r() * TAU;
         const q = ig.loc(s, a);
@@ -600,10 +655,11 @@
         const y = hW(x, z);
         const nb = 3 + Math.floor(r() * 3), hh = 0.12 + r() * 0.17 + (s > 0.85 ? 0.08 : 0);
         for (let b = 0; b < nb; b++) {
-          grassParts.push({ g: blade, m: mat4([x + (r() - 0.5) * 0.09, y - 0.02, z + (r() - 0.5) * 0.09], [(r() - 0.5) * 0.8, r() * TAU, (r() - 0.5) * 0.8], [1, hh * (0.7 + r() * 0.6), 1]), c: bladeC });
+          const gm = mat4([x + (r() - 0.5) * 0.09, y - 0.02, z + (r() - 0.5) * 0.09], [(r() - 0.5) * 0.8, r() * TAU, (r() - 0.5) * 0.8], [1, hh * (0.7 + r() * 0.6), 1]);
+          if (!inPond(x, z)) grassParts.push({ g: blade, m: gm, c: bladeC });
         }
       }
-      const grass = new T.Mesh(K.geo(mergeParts(grassParts)), K.vc({ rough: 0.9 }));
+      const grass = new T.Mesh(K.geo(grassNormalsUp(mergeParts(grassParts))), K.vc({ rough: 0.9 }));
       grass.receiveShadow = true;
       root.add(grass);
 
@@ -623,6 +679,7 @@
         do { const s = Math.sqrt(r()) * 0.9, a = r() * TAU; const q = ig.loc(s, a); x = ICX + q[0]; z = ICZ + q[1]; tries++; } while (inRune(x, z) && tries < 8);
         const d = Math.hypot(x - RUNE.x, z - RUNE.z);
         flowerData.push({ x, y: hW(x, z) + 0.1 + r() * 0.06, z, s: 1.1 + r() * 1.0, rot: r() * TAU, tilt: (r() - 0.5) * 0.5, delay: clamp(d / 6, 0, 0.6) * 0.8 + r() * 0.1 });
+        if (inPond(x, z)) flowerData[flowerData.length - 1].s = 0.0001;
         flowers.setColorAt(i, M.color(FCOLS[i % FCOLS.length]));
       }
       root.add(flowers);
@@ -651,10 +708,84 @@
         const x = ICX + q[0], z = ICZ + q[1];
         rockParts.push({ g: peb, m: mat4([x, hW(x, z) - 0.03, z], [r(), r() * TAU, r()], 0.07 + r() * 0.12), c: '#7a6c9c', flat: true });
       }
+      // pedrinhas em volta da nascente (com a abertura por onde a água sai)
+      const wr = M.rng(93);
+      const wRim = ig.loc(1.0, WFA), wLip = ig.loc(1.06, WFA);
+      const RIM = { x: ICX + wRim[0], z: ICZ + wRim[1] };
+      const od = new T.Vector3(RIM.x - POND.x, 0, RIM.z - POND.z).normalize();
+      const outA = Math.atan2(od.z, od.x);
+      for (let i = 0; i < 13; i++) {
+        const a = (i / 13) * TAU + wr() * 0.25;
+        const sz = 0.06 + wr() * 0.07, rot = wr() * TAU;
+        if (Math.abs(Math.atan2(Math.sin(a - outA), Math.cos(a - outA))) < 0.42) continue;
+        const x = POND.x + Math.cos(a) * (POND.r + 0.03), z = POND.z + Math.sin(a) * (POND.r + 0.03);
+        rockParts.push({ g: peb, m: mat4([x, hW(x, z) + 0.01, z], [0, rot, 0], [sz * 1.3, sz, sz * 1.1]), c: '#8a7cae', flat: true });
+      }
       const rocksG = K.geo(mossify(mergeParts(rockParts), '#4f9a6c', 0.55, 0.85));
       const rocks = new T.Mesh(rocksG, K.vc({ rough: 0.88 }));
       rocks.castShadow = true; rocks.receiveShadow = true;
       root.add(rocks);
+
+      // nascente + riacho + cachoeira (fita com textura de fios d'água correndo; some na névoa lá embaixo)
+      const pondY = hW(POND.x, POND.z) + 0.022;
+      const pondM = K.mat(new T.MeshStandardMaterial({ color: '#3aa8d0', roughness: 0.06, metalness: 0.25, emissive: col('#2b8fc0'), emissiveIntensity: 0.45 }));
+      const pond = new T.Mesh(K.geo(new T.CircleGeometry(POND.r, 28)), pondM);
+      pond.rotation.x = -Math.PI / 2; pond.position.set(POND.x, pondY, POND.z); pond.receiveShadow = true; root.add(pond);
+      const wfTex = K.tex(128, 512, (ctx, w, h) => {
+        ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
+        const rr = M.rng(94);
+        for (let i = 0; i < 90; i++) {
+          const x = rr() * w, y = rr() * h, l = 50 + rr() * 220, lw = 2 + rr() * 7, al = (0.35 + rr() * 0.65).toFixed(2);
+          [y - h, y].forEach((yy) => { const g = ctx.createLinearGradient(0, yy, 0, yy + l); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.5, 'rgba(255,255,255,' + al + ')'); g.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = g; ctx.fillRect(x, yy, lw, l); });
+        }
+      }, { repeat: [1, 1] });
+      wfTex.encoding = T.LinearEncoding;
+      const wfU = { map: { value: wfTex }, time: { value: 0 }, color: { value: col('#9ee8ff') }, opacity: { value: 1 } };
+      const wfM = K.mat(new T.ShaderMaterial({
+        uniforms: wfU, transparent: true, depthWrite: false, side: T.DoubleSide, fog: false,
+        vertexShader: 'attribute float aA; varying vec2 vUv; varying float vA; void main(){ vUv = uv; vA = aA; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: 'uniform sampler2D map; uniform float time; uniform vec3 color; uniform float opacity; varying vec2 vUv; varying float vA; void main(){ float s1 = texture2D(map, vec2(vUv.x * 0.8, vUv.y * 0.5 - time * 1.1)).r; float s2 = texture2D(map, vec2(vUv.x * 0.6 + 0.37, vUv.y * 0.33 - time * 0.72)).r; float st = max(s1, s2 * 0.85); float edge = smoothstep(0.0, 0.24, vUv.x) * smoothstep(1.0, 0.76, vUv.x); float a = (0.4 + 0.6 * st) * edge * vA * opacity; gl_FragColor = vec4(mix(color, vec3(1.0), st * 0.6), a);\n#include <encodings_fragment>\n}',
+      }));
+      (function () {
+        const rimY = hW(RIM.x, RIM.z);
+        const C = [], WID = [], AL = [];
+        const P = (x, y, z, w, al) => { C.push(new T.Vector3(x, y, z)); WID.push(w); AL.push(al); };
+        P(POND.x + od.x * 0.12, pondY + 0.004, POND.z + od.z * 0.12, 0.2, 0.55);
+        P((POND.x + RIM.x) / 2, (pondY + rimY) / 2 + 0.012, (POND.z + RIM.z) / 2, 0.16, 0.85);
+        P(RIM.x, rimY + 0.012, RIM.z, 0.17, 0.95);
+        const lx = ICX + wLip[0], lz = ICZ + wLip[1], ly = rimY - 0.06;
+        P(lx, ly, lz, 0.2, 1);
+        const N = 22, DROP = 6.4;
+        for (let i = 1; i <= N; i++) {
+          const t = i / N, drop = DROP * Math.pow(t, 1.35), out = 0.55 * Math.sqrt(drop);
+          P(lx + od.x * out, ly - drop, lz + od.z * out, 0.2 + 0.24 * t, 1 - sstep(0.45, 1, t));
+        }
+        const n = C.length, pos = new Float32Array(n * 2 * 3), uv = new Float32Array(n * 2 * 2), aa = new Float32Array(n * 2), idx = [];
+        const side = new T.Vector3(-od.z, 0, od.x);
+        let v = 0;
+        for (let i = 0; i < n; i++) {
+          if (i) v += C[i].distanceTo(C[i - 1]);
+          for (let k = 0; k < 2; k++) {
+            const sg = k ? 1 : -1, j = i * 2 + k;
+            pos[j * 3] = C[i].x + side.x * WID[i] * sg; pos[j * 3 + 1] = C[i].y; pos[j * 3 + 2] = C[i].z + side.z * WID[i] * sg;
+            uv[j * 2] = k; uv[j * 2 + 1] = v; aa[j] = AL[i];
+          }
+          if (i < n - 1) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
+        }
+        const g = new T.BufferGeometry();
+        g.setAttribute('position', new T.BufferAttribute(pos, 3));
+        g.setAttribute('uv', new T.BufferAttribute(uv, 2));
+        g.setAttribute('aA', new T.BufferAttribute(aa, 1));
+        g.setIndex(idx);
+        g.computeBoundingSphere();
+        const fall = new T.Mesh(K.geo(g), wfM);
+        fall.renderOrder = 3; fall.castShadow = fall.receiveShadow = false;
+        root.add(fall);
+        // borrifo na borda + névoa onde a água se desfaz
+        addGlowLater.push(['#dff8ff', 0.7, lx + od.x * 0.1, ly - 0.05, lz + od.z * 0.1, 0.5]);
+        addGlowLater.push(['#cfe8ff', 2.2, lx + od.x * 1.2, ly - 4.6, lz + od.z * 1.2, 0.22]);
+        addGlowLater.push(['#9fe4ff', 0.9, POND.x, pondY + 0.1, POND.z, 0.3]);
+      })();
 
       // pilares antigos com runas
       const stoneM = M.mat('#a79fc6', { rough: 0.82 });
@@ -732,6 +863,43 @@
         const x = ICX + q[0], z = ICZ + q[1];
         crystalCluster(i % 2 ? violetParts : cyanParts, cg, { x, y: ring[1] + 0.1, z, n: 3, size: 0.5 + (i % 3) * 0.18, color: i % 2 ? '#7a4cd0' : '#2fa8d0', tip: '#bff4ff', seed: 10 + i, out: [Math.cos(a), -0.7, Math.sin(a)] });
       });
+      // raízes/cipós pendurados sob a ilha, com brotos de luz nas pontas (silhueta de "ilha viva")
+      const vineParts = [], budPts = [];
+      const petalLeaf = K.geo(new T.SphereGeometry(0.06, 6, 4)); petalLeaf.scale(1, 0.22, 0.5);
+      const vr = M.rng(91), vA = col('#2f6a52'), vB = col('#4a3470'), vT = new T.Color();
+      for (let i = 0; i < 30; i++) {
+        const a = (i / 30) * TAU + vr() * 0.18;
+        const ring = ig.rings[1 + Math.floor(vr() * 2.4)];
+        const q = ig.loc(ring[0] * 0.985, a);
+        const x0 = ICX + q[0], z0 = ICZ + q[1], y0 = ring[1] + 0.08;
+        const len = 0.5 + vr() * vr() * 2.6, sw = (vr() - 0.5) * 0.5, ph = vr() * TAU;
+        const pts = [];
+        for (let k = 0; k <= 5; k++) {
+          const t = k / 5;
+          pts.push(new T.Vector3(x0 + Math.cos(a) * t * 0.18 + Math.sin(t * 2.6 + ph) * sw * t, y0 - t * len, z0 + Math.sin(a) * t * 0.18 + Math.cos(t * 2.2 + ph) * sw * t));
+        }
+        const curve = new T.CatmullRomCurve3(pts);
+        const TS = 10, RS = 5, rad = 0.03 + vr() * 0.025;
+        const tg = new T.TubeGeometry(curve, TS, rad, RS, false);
+        const tp = tg.attributes.position, cp = new T.Vector3();
+        for (let s = 0; s <= TS; s++) {
+          curve.getPointAt(s / TS, cp);
+          const k = 1 - 0.8 * (s / TS);
+          for (let j = 0; j <= RS; j++) { const v = s * (RS + 1) + j; tp.setXYZ(v, cp.x + (tp.getX(v) - cp.x) * k, cp.y + (tp.getY(v) - cp.y) * k, cp.z + (tp.getZ(v) - cp.z) * k); }
+        }
+        vineParts.push({ g: tg, c: (x, y) => vT.copy(vA).lerp(vB, clamp((y0 - y) / 2.2, 0, 1)) });
+        if (len > 0.9) budPts.push(pts[5]);
+        // folhinhas ao longo do cipó
+        for (let k = 1; k < 4; k++) if (vr() < 0.7) vineParts.push({ g: petalLeaf, m: mat4([pts[k].x, pts[k].y, pts[k].z], [vr() * 1.2, vr() * TAU, 0.6 + vr() * 0.6], 0.6 + vr() * 0.5), c: '#3f8a5e' });
+      }
+      const vines = new T.Mesh(K.geo(mergeParts(vineParts)), K.vc({ rough: 0.85 }));
+      vineParts.forEach((p) => { if (p.g !== petalLeaf) p.g.dispose(); });
+      vines.castShadow = false; vines.receiveShadow = false;
+      root.add(vines);
+      const buds = glowPoints(K, budPts.length, 0.34, { tex: dotTex(K), color: '#9ff4ff', opacity: 0.95 });
+      budPts.forEach((p, i) => buds.geometry.attributes.position.setXYZ(i, p.x, p.y - 0.03, p.z));
+      root.add(buds);
+
       const cyanM = K.mat(new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.18, metalness: 0.1, emissive: col('#2fb8e0'), emissiveIntensity: 0.55 }));
       const violetM = K.mat(new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.18, metalness: 0.1, emissive: col('#8a4ce8'), emissiveIntensity: 0.55 }));
       const darkM = K.mat(new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.25, metalness: 0.1, emissive: col('#c03aff'), emissiveIntensity: 0.6 }));
@@ -742,6 +910,7 @@
       addGlow('#5fe0ff', 2.6, -5.55, hW(-5.55, -1.55) + 0.9, -1.55, 0.45);
       addGlow('#b48cff', 1.5, -0.75, hW(-0.75, -3.0) + 0.5, -3.0, 0.4);
       addGlow('#5fe0ff', 1.0, 0.95, 0.35, 1.15, 0.4);
+      addGlowLater.forEach((g) => addGlow(g[0], g[1], g[2], g[3], g[4], g[5]));
 
       // árvore dos sonhos
       const TX = -4.35, TZ = -2.15, TY = hW(TX, TZ) - 0.05;
@@ -785,7 +954,7 @@
         const hh = 0.1 + r() * 0.14;
         for (let b = 0; b < 4; b++) bossGrassParts.push({ g: blade, m: mat4([q[0] + (r() - 0.5) * 0.09, -0.02, q[1] + (r() - 0.5) * 0.09], [(r() - 0.5) * 0.8, r() * TAU, (r() - 0.5) * 0.8], [1, hh * (0.7 + r() * 0.6), 1]), c: bladeC });
       }
-      const bossGrass = new T.Mesh(K.geo(mergeParts(bossGrassParts)), K.vc({ rough: 0.9 }));
+      const bossGrass = new T.Mesh(K.geo(grassNormalsUp(mergeParts(bossGrassParts))), K.vc({ rough: 0.9 }));
       bossGrass.receiveShadow = true; bossGrass.castShadow = false;
       bossIsle.add(bossGrass);
       bossIsle.userData.base = bossIsle.position.y;
@@ -1013,6 +1182,10 @@
         runeMat.opacity = lerp(0.8, 0.55, k);
         lerpC(runeGlowM.emissive, STORM.rune, DAWN.rune, k);
         lerpC(motes.material.color, STORM.mote, DAWN.mote, k);
+        lerpC(buds.material.color, STORM.bud, DAWN.bud, k);
+        lerpC(wfU.color.value, STORM.water, DAWN.water, k);
+        lerpC(pondM.color, STORM.pond, DAWN.pond, k);
+        lerpC(pondM.emissive, STORM.pondE, DAWN.pondE, k);
         vortexM1.opacity = 0.85 * (1 - sstep(0, 0.6, c));
         vortexM2.opacity = 0.5 * (1 - sstep(0, 0.6, c));
         vortex1.visible = vortex2.visible = c < 0.98;
@@ -1041,6 +1214,7 @@
       [[-3.7, -2.75, 0.95], [1.0, -1.45, 0.55], [-5.65, 1.35, 0.5], [1.25, -0.25, 0.34], [-0.15, 1.75, 0.28], [-4.2, 1.95, 0.32], [-2.75, -3.1, 0.45]].forEach((b) => colliders.push({ x: b[0], z: b[1], w: b[2] * 1.9, d: b[2] * 1.9 }));
       [[-5.55, -1.55, 1.1], [-0.75, -3.0, 0.7], [0.95, 1.15, 0.5], [-4.3, 1.85, 0.45], [-3.45, -2.3, 0.45]].forEach((c) => colliders.push({ x: c[0], z: c[1], w: c[2], d: c[2] }));
       colliders.push({ x: -4.35, z: -2.15, w: 0.6, d: 0.6 }); // árvore
+      colliders.push({ x: POND.x, z: POND.z, w: 0.8, d: 0.8, rot: outA }); // nascente
       // morros (octógono = 2 quadrados): em primeira pessoa o chão é plano, então não se sobe neles
       colliders.push({ x: -4.75, z: -2.35, w: 3.2, d: 3.2 }, { x: -4.75, z: -2.35, w: 3.2, d: 3.2, rot: Math.PI / 4 });
       colliders.push({ x: -0.7, z: -2.75, w: 1.9, d: 1.9, rot: Math.PI / 4 });
@@ -1060,6 +1234,7 @@
           arvore: { x: -3.25, z: -0.45, rot: -2.57 },         // diante da árvore dos sonhos (no morro, frutos de luz)
           cristais: { x: -3.9, z: -0.35, rot: -2.2 },         // diante do grande cristal azul
           borda: { x: 0.35, z: 0.3, rot: 2.0 },               // na beira da ilha, olhando o vórtice/abismo
+          nascente: { x: +(POND.x - od.x * 1.3).toFixed(2), z: +(POND.z - od.z * 1.3).toFixed(2), rot: +Math.atan2(od.x, od.z).toFixed(2) }, // diante da nascente (a água cai da borda para o mar de nuvens)
         },
         colliders,
         bounds: { minX: bnd.minX, maxX: bnd.maxX, minZ: bnd.minZ, maxZ: bnd.maxZ },
@@ -1067,7 +1242,7 @@
           geral: { target: [0.0, 1.45, -0.4], yaw: 0.08, pitch: 0.13, dist: 11.8, fov: 40 },
           herois: { target: [-2.6, 1.3, 0.55], yaw: 0.95, pitch: 0.06, dist: 4.4, fov: 38 },
           boss: { target: [2.6, 2.05, -1.0], yaw: -0.45, pitch: -0.06, dist: 6.6, fov: 42 },
-          baixo: { target: [1.8, 1.9, -0.8], yaw: -1.147, pitch: -0.115, dist: 6.85, fov: 46 },
+          baixo: { target: [2.4, 1.78, -0.4], yaw: -1.511, pitch: -0.115, dist: 7.21, fov: 46 }, // contra-plongée atrás do ombro ESQUERDO do pai: pai à direita, Faísca na ponta, Dúvida no centro
           confronto: { target: [0.1, 1.5, -0.3], yaw: 0.42, pitch: 0.24, dist: 9.6, fov: 40 },
           amanhecer: { target: [-0.5, 1.9, -0.9], yaw: 0.3, pitch: 0.05, dist: 12.5, fov: 44 },
           ilha: { target: [-2.2, -0.9, -0.3], yaw: 0.55, pitch: -0.1, dist: 12.5, fov: 42 },
@@ -1098,6 +1273,7 @@
           st.swirlT += dt * (0.35 + 1.4 * I);
           SU.swirlT.value = st.swirlT;
           rune.rotation.z = lt * 0.12;
+          wfU.time.value = lt;
           vortex1.rotation.z = -st.swirlT * 0.9;
           vortex2.rotation.z = -st.swirlT * 1.6;
           minis.forEach((m) => { m.g.position.y = m.base + Math.sin(lt * 0.5 + m.ph) * m.amp; m.g.rotation.y = Math.sin(lt * 0.1 + m.ph) * 0.2; });
@@ -1112,21 +1288,23 @@
           runeGlowM.emissiveIntensity = 1.2 + 0.4 * Math.sin(lt * 2);
           // relâmpagos determinísticos
           if (I > 0.02) {
-            const rate = 0.45 + 1.4 * I;
+            const rate = 0.25 + 0.35 * I; // ~1 raio a cada 2 s no auge (antes era estroboscópico)
             const slot = Math.floor(t * rate);
             if (slot !== st.slot) {
               st.slot = slot;
-              if (hash(slot * 1.7 + 3.1) < 0.3 + 0.6 * I) { st.pending = true; st.strikeAt = (slot + 0.1 + hash(slot * 2.3 + 7.7) * 0.6) / rate; st.seed = slot; }
+              if (hash(slot * 1.7 + 3.1) < 0.4 + 0.45 * I) { st.pending = true; st.strikeAt = (slot + 0.1 + hash(slot * 2.3 + 7.7) * 0.6) / rate; st.seed = slot; }
             }
             if (st.pending && t >= st.strikeAt) { st.pending = false; strike(t, Math.abs(st.seed)); }
           } else st.pending = false;
           const e = t - st.flashT;
           let f = 0;
           if (e >= 0 && e < 1.2) f = e < 0.07 ? 1 : e < 0.12 ? 0.3 : e < 0.2 ? 0.9 : Math.exp(-(e - 0.2) * 6) * 0.9;
-          SU.flash.value = f * 0.55;
+          const fk = P2.settings && P2.settings.reduceMotion ? 0.3 : 1; // fotossensibilidade
+          f *= fk;
+          SU.flash.value = f * 0.5;
           bolts.forEach((b) => { if (b.visible) { b.material.opacity = f > 0.15 ? Math.min(1, f * 1.2) : 0; if (e > 1.2) b.visible = false; } });
-          pl2.intensity = st.pl2Base + f * 5;
-          L.hemi.intensity = lerp(0.72, 0.85, sstep(0, 1, st.calm)) * (1 - 0.3 * I) + f * 0.6;
+          pl2.intensity = st.pl2Base + f * 4;
+          L.hemi.intensity = lerp(0.72, 0.85, sstep(0, 1, st.calm)) * (1 - 0.3 * I) + f * 0.5;
         },
         dispose() { K.dispose(root); },
       };
@@ -1263,7 +1441,7 @@
       L.sun.target.position.set(0, 0, 0);
       L.amb.intensity = 0.12;
       L.sun.shadow.camera.far = 30;
-      const porch = new T.PointLight('#ffb867', 0.9, 2.6, 2); porch.position.set(-1.85, 0.55, 3.55); root.add(porch);
+      const porch = new T.PointLight('#ffb867', 0.55, 2.4, 2); porch.position.set(-1.75, 0.5, 4.05); root.add(porch); // longe da parede (antes estourava a fachada de branco)
       const plaza = new T.PointLight('#ffd08a', 0.8, 2.6, 2); plaza.position.set(-0.7, 0.45, 0.25); root.add(plaza);
 
       // ---------------- base (plinto flutuante) ----------------
@@ -1366,14 +1544,14 @@
       roof.scale.set(1, 1, 0.55); roof.position.set(-0.12, 0.56 + 0.42 * 0.5 * 0.55, -0.1); roof.castShadow = true;
       house.add(roof);
       // janelas acesas (fundos virados para +Z)
-      const warmWin = M.mat('#ffe2a0', { emissive: '#ffb35c', emissiveIntensity: 1.5 });
+      const warmWin = M.mat('#ffe2a0', { emissive: '#ffb35c', emissiveIntensity: 1.1 });
       M.box(0.5, 0.2, 0.01, warmWin, { parent: house, pos: [0.15, 0.13, 0.315], cast: false });
       M.box(0.22, 0.13, 0.01, warmWin, { parent: house, pos: [-0.3, 0.45, 0.2], cast: false });
       M.box(0.18, 0.13, 0.01, warmWin, { parent: house, pos: [0.08, 0.45, 0.2], cast: false });
       M.box(0.012, 0.13, 0.2, warmWin, { parent: house, pos: [0.535, 0.13, -0.1], cast: false });
       M.box(0.012, 0.2, 0.16, wood, { parent: house, pos: [-0.535, 0.1, 0.0], cast: false });
       [0.05, 0.25].forEach((dx) => M.box(0.012, 0.2, 0.012, '#e8e0d0', { parent: house, pos: [dx, 0.13, 0.322], cast: false }));
-      const hGlow = M.glow('#ffb35c', 0.9, 0.35); hGlow.position.set(0.15, 0.15, 0.45); house.add(hGlow);
+      const hGlow = M.glow('#ffb35c', 0.6, 0.2); hGlow.position.set(0.15, 0.15, 0.5); house.add(hGlow);
       // piscina, deck, muro, árvore, carro
       const pool = M.rbox(0.62, 0.03, 0.32, 0.03, M.mat('#3fd6e8', { emissive: '#1fb8d8', emissiveIntensity: 0.9, rough: 0.15 }), { parent: house, pos: [0.15, 0.012, 0.62], cast: false });
       pool.receiveShadow = false;
@@ -1492,16 +1670,42 @@
       const navG = M.glow('#3aff7a', 0.28, 0.9); navG.position.set(0, 0, 0.31); plane.add(navG);
       const strobe = M.glow('#ffffff', 0.4, 0.0); strobe.position.set(-0.28, 0.1, 0); plane.add(strobe);
 
+      // ---------------- bando de pássaros (silhuetas contra o pôr do sol) ----------------
+      const birdG = K.geo(new T.BufferGeometry());
+      birdG.setAttribute('position', new T.Float32BufferAttribute([0, 0, 0.05, -0.09, 0.03, -0.01, 0, 0, -0.02, 0, 0, 0.05, 0, 0, -0.02, 0.09, 0.03, -0.01, 0, 0, 0.05, 0.0, 0.0, -0.02, 0, -0.008, 0.0], 3));
+      birdG.computeVertexNormals();
+      const birdM = K.mat(new T.MeshBasicMaterial({ color: '#3a2c52', side: T.DoubleSide, fog: true }));
+      const NB = 9;
+      const birds = new T.InstancedMesh(birdG, birdM, NB);
+      birds.castShadow = birds.receiveShadow = false; birds.frustumCulled = false;
+      root.add(birds);
+      const birdD = Array.from({ length: NB }, (_, i) => ({ da: (i % 3) * 0.075 + Math.floor(i / 3) * 0.11 + hash(i * 3.3) * 0.04, dr: (i % 3 - 1) * 0.55 + (Math.floor(i / 3) - 1) * 0.2, dy: hash(i * 2.7) * 0.5, ph: hash(i * 5.3) * TAU, s: 0.95 + hash(i * 9.1) * 0.35 }));
+      const _bm = new T.Matrix4(), _bq = new T.Quaternion(), _bv = new T.Vector3(), _bs = new T.Vector3();
+      function updBirds(t) {
+        const A = -t * 0.06 + 1.2;
+        birdD.forEach((b, i) => {
+          const a = A - b.da, rad = 7.6 + b.dr;
+          const flap = 0.35 + 0.65 * Math.abs(Math.sin(t * 5.5 + b.ph));
+          _bq.setFromEuler(_e.set(0, Math.PI - a, Math.sin(t * 0.7 + b.ph) * 0.15));
+          _bm.compose(_bv.set(Math.cos(a) * rad, 4.6 + b.dy + Math.sin(t * 0.5 + b.ph) * 0.12, Math.sin(a) * rad), _bq, _bs.set(b.s, b.s * flap, b.s));
+          birds.setMatrixAt(i, _bm);
+        });
+        birds.instanceMatrix.needsUpdate = true;
+      }
+      updBirds(0);
+
       // ---------------- nuvens ----------------
       const puff = puffTex(K);
       const clouds = new T.Group(); root.add(clouds);
       const sunAz = Math.atan2(SUN[2], SUN[0]);
       for (let i = 0; i < 13; i++) {
-        const a = (i / 13) * TAU + r() * 0.35, rad = 9.5 + r() * 6;
+        const a = (i / 13) * TAU + r() * 0.35, rr0 = r();
         const low = i % 3 === 0;
+        // as altas ficam ALÉM da órbita da câmera (~16,6 m): nunca viram borrões gigantes na frente da lente
+        const rad = low ? 8 + rr0 * 5 : 20 + rr0 * 9, k = low ? 1 : 1.7;
         const near = Math.cos(a - sunAz) * 0.5 + 0.5;
         const c = M.mix('#9f8ac8', '#ffb48a', near * near);
-        const s = cloudSprite(puff, c, 5 + r() * 5, 2.4 + r() * 1.6, 0.92);
+        const s = cloudSprite(puff, c, (5 + r() * 5) * k, (2.4 + r() * 1.6) * k, 0.92);
         s.position.set(Math.cos(a) * rad, low ? -2.2 - r() * 1.5 : 0.6 + r() * 3.2, Math.sin(a) * rad);
         clouds.add(s);
       }
@@ -1537,7 +1741,7 @@
         colliders: [{ x: -0.7, z: -1.2, w: 1.7, d: 1.7 }],
         bounds: { minX: -3.4, maxX: 3.4, minZ: -3.4, maxZ: 3.4 },
         shots: {
-          geral: { target: [0, 2.3, 0.8], yaw: 0.35, pitch: 0.6, dist: 15.5, fov: 34 },
+          geral: { target: [0, 3.0, 0.6], yaw: 0.35, pitch: 0.22, dist: 17, fov: 34 }, // horizonte de fim de tarde atrás do skyline; céu calmo sob o logo
           torre: { target: [-0.7, 2.7, -1.2], yaw: 0.55, pitch: 0.12, dist: 4.6, fov: 36 },
           casa: { target: [-1.8, 0.25, 3.1], yaw: 0.3, pitch: 0.34, dist: 3.4, fov: 36 },
           praca: { target: [0.35, 0.3, 3.2], yaw: -0.45, pitch: 0.3, dist: 3.4, fov: 36 },
@@ -1565,6 +1769,7 @@
           plane.position.set(Math.cos(pa) * 12.5, 5.4 + Math.sin(lt * 0.1) * 0.25, Math.sin(pa) * 12.5);
           plane.rotation.set(0, -pa - Math.PI, 0.12);
           strobe.material.opacity = (lt % 1.4) < 0.08 ? 1 : 0;
+          updBirds(lt);
           beacon.material.opacity = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(lt * 2.4));
           clouds.rotation.y = lt * 0.01;
           spray.scale.setScalar(0.36 + 0.05 * Math.sin(lt * 5));
@@ -1681,7 +1886,7 @@
       L.forEach((ln, i) => {
         let sz = i === 0 && L.length > 1 ? Math.round(size * 1.12) : size;
         t.font = '700 ' + sz + 'px ' + font;
-        while (t.measureText(ln).width > w * 0.86 && sz > 20) { sz -= 2; t.font = '700 ' + sz + 'px ' + font; }
+        while (t.measureText(ln).width > w * 0.72 && sz > 20) { sz -= 2; t.font = '700 ' + sz + 'px ' + font; }
         const y = area.y0 + (area.y1 - area.y0) / 2 - total / 2 + lh * (i + 0.5);
         t.save(); t.translate(area.x, y); t.rotate((rr() - 0.5) * 0.02);
         t.fillText(ln, 0, 0);
@@ -1700,18 +1905,20 @@
       [[1, 1], [2, 3], [4, 2]].forEach((d) => { t.beginPath(); t.arc(x0 + (5 - d[1]) * cw, y0 + (d[0] - 0.5) * fh, 6, 0, TAU); t.fill(); });
       t.font = '700 34px ' + font; t.fillText('C', x0 + cw * 2.5, y0 - 22);
       // notas musicais
-      [[0.08, 0.2], [0.13, 0.32]].forEach((p) => { const x = w * p[0], y = h * p[1]; t.beginPath(); t.ellipse(x, y, 11, 8, -0.4, 0, TAU); t.fill(); t.beginPath(); t.moveTo(x + 10, y); t.lineTo(x + 10, y - 44); t.quadraticCurveTo(x + 28, y - 34, x + 26, y - 20); t.stroke(); });
+      [[0.045, 0.2], [0.085, 0.3]].forEach((p) => { const x = w * p[0], y = h * p[1]; t.beginPath(); t.ellipse(x, y, 11, 8, -0.4, 0, TAU); t.fill(); t.beginPath(); t.moveTo(x + 10, y); t.lineTo(x + 10, y - 44); t.quadraticCurveTo(x + 28, y - 34, x + 26, y - 20); t.stroke(); });
     } else if (tema === 'ingles') {
-      t.font = '700 46px ' + font; t.fillText('A b C', w * 0.11, h * 0.16);
-      t.lineWidth = 3; t.beginPath(); t.ellipse(w * 0.88, h * 0.78, 64, 34, 0, 0, TAU); t.stroke();
-      t.beginPath(); t.moveTo(w * 0.85, h * 0.85); t.lineTo(w * 0.83, h * 0.95); t.lineTo(w * 0.88, h * 0.86); t.stroke();
-      t.font = '700 36px ' + font; t.fillText('Hi!', w * 0.88, h * 0.78);
+      t.font = '700 40px ' + font; t.fillText('A b C', w * 0.075, h * 0.14);
+      t.lineWidth = 3; t.beginPath(); t.ellipse(w * 0.925, h * 0.8, 52, 30, 0, 0, TAU); t.stroke();
+      t.beginPath(); t.moveTo(w * 0.9, h * 0.865); t.lineTo(w * 0.885, h * 0.96); t.lineTo(w * 0.93, h * 0.875); t.stroke();
+      t.font = '700 32px ' + font; t.fillText('Hi!', w * 0.925, h * 0.8);
     } else if (tema === 'negocios') {
-      const x0 = w * 0.83, y0 = h * 0.9;
+      const x0 = w * 0.87, y0 = h * 0.92;
+      t.save(); t.translate(x0, y0); t.scale(0.78, 0.78); t.translate(-x0, -y0);
       t.lineWidth = 3; t.beginPath(); t.moveTo(x0, y0 - 120); t.lineTo(x0, y0); t.lineTo(x0 + 140, y0); t.stroke();
       [40, 62, 54, 92].forEach((bh, i) => t.strokeRect(x0 + 14 + i * 30, y0 - bh, 18, bh));
       t.beginPath(); t.moveTo(x0 + 10, y0 - 50); t.lineTo(x0 + 120, y0 - 112); t.stroke();
       t.beginPath(); t.moveTo(x0 + 120, y0 - 112); t.lineTo(x0 + 100, y0 - 110); t.moveTo(x0 + 120, y0 - 112); t.lineTo(x0 + 112, y0 - 94); t.stroke();
+      t.restore();
     }
     // estrelinha + sublinhado decorativo
     t.lineWidth = 3;
@@ -1932,6 +2139,42 @@
       M.box(1.0, 0.07, 0.07, trimM, { parent: front, pos: [2.1, 2.08, 0.04] });
       M.sphere(0.035, '#d8b060', { parent: front, pos: [1.75, 1.0, 0.08] });
       M.rbox(0.5, 0.7, 0.02, 0.01, '#f4ead8', { parent: front, pos: [-1.2, 1.6, 0.02] });
+      // cabideiro de parede ao lado da porta: cachecol listrado, boné e sacola (a parede do fundo da sala não fica nua)
+      (function () {
+        const pg = M.group({ parent: front, pos: [0.55, 1.68, 0] });
+        M.rbox(1.0, 0.1, 0.03, 0.012, '#6b4428', { parent: pg, pos: [0, 0, 0.018] });
+        [-0.36, 0, 0.36].forEach((x) => { M.cyl(0.012, 0.012, 0.07, '#c9a46a', { parent: pg, pos: [x, 0, 0.065], rot: [Math.PI / 2, 0, 0], metal: 0.5 }); M.sphere(0.02, '#c9a46a', { parent: pg, pos: [x, 0, 0.1] }); });
+        // cachecol (duas pontas listradas)
+        [[-0.395, 0.0], [-0.33, 0.04]].forEach((q, i) => {
+          for (let k = 0; k < 5; k++) M.box(0.075, 0.086, 0.02, k % 2 ? '#2a3a5a' : '#c0392b', { parent: pg, pos: [q[0], -0.06 - k * 0.085 - q[1], 0.085 + i * 0.008], rot: [0, 0, (i - 0.5) * 0.06] });
+        });
+        M.box(0.15, 0.06, 0.035, '#c0392b', { parent: pg, pos: [-0.36, -0.025, 0.09] });
+        // boné
+        const cap = M.group({ parent: pg, pos: [0, -0.08, 0.1], rot: [0.25, 0, 0] });
+        M.mesh(K.geo(new T.SphereGeometry(0.1, 16, 8, 0, TAU, 0, Math.PI / 2)), M.mat('#e6b33a', { rough: 0.85 }), { parent: cap, scale: [1, 0.75, 1] });
+        M.box(0.15, 0.008, 0.09, '#e6b33a', { parent: cap, pos: [0, 0.002, 0.115] });
+        // sacola de pano
+        M.cyl(0.006, 0.006, 0.2, '#d8c8a8', { parent: pg, pos: [0.33, -0.1, 0.09], rot: [0, 0, 0.25] });
+        M.cyl(0.006, 0.006, 0.2, '#d8c8a8', { parent: pg, pos: [0.39, -0.1, 0.09], rot: [0, 0, -0.25] });
+        M.rbox(0.28, 0.3, 0.05, 0.02, '#e6d2a8', { parent: pg, pos: [0.36, -0.33, 0.08] });
+        M.rbox(0.12, 0.12, 0.004, 0.01, '#5fb8a8', { parent: pg, pos: [0.36, -0.33, 0.107] });
+      })();
+      // pôster motivacional (antes era uma folha em branco vista ao virar para a porta)
+      const posterTex = K.tex(256, 360, (ctx, w, h) => {
+        ctx.fillStyle = '#fbf3e2'; ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = '#e8604a'; ctx.lineWidth = 6; ctx.strokeRect(10, 10, w - 20, h - 20);
+        // lâmpada (ideia)
+        ctx.fillStyle = '#f2c45a'; ctx.beginPath(); ctx.arc(w / 2, 112, 54, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#ffe9a8'; ctx.beginPath(); ctx.arc(w / 2 - 16, 96, 18, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#8a8a96'; ctx.fillRect(w / 2 - 24, 160, 48, 26);
+        ctx.strokeStyle = '#6a6a76'; ctx.lineWidth = 3; [168, 176].forEach((y) => { ctx.beginPath(); ctx.moveTo(w / 2 - 24, y); ctx.lineTo(w / 2 + 24, y); ctx.stroke(); });
+        ctx.strokeStyle = '#f2b33a'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+        for (let i = 0; i < 7; i++) { const a = -Math.PI * 0.95 + i * (Math.PI * 0.9 / 6); ctx.beginPath(); ctx.moveTo(w / 2 + Math.cos(a) * 66, 112 + Math.sin(a) * 66); ctx.lineTo(w / 2 + Math.cos(a) * 84, 112 + Math.sin(a) * 84); ctx.stroke(); }
+        ctx.fillStyle = '#2a3a5a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = '800 30px Arial, sans-serif'; ctx.fillText('NUNCA É', w / 2, 236); ctx.fillText('TARDE PARA', w / 2, 272);
+        ctx.fillStyle = '#e8604a'; ctx.fillText('APRENDER', w / 2, 310);
+      });
+      M.plane(0.46, 0.65, K.mat(new T.MeshStandardMaterial({ map: posterTex, roughness: 0.9 })), { parent: front, pos: [-1.2, 1.6, 0.032], cast: false });
 
       // ---------------- mesa do professor ----------------
       const deskM = M.mat('#8a5434', { rough: 0.6 });
@@ -2001,7 +2244,8 @@
       nb.receiveShadow = true;
       M.cyl(0.004, 0.004, 0.16, '#e6b33a', { parent: d1.dg, pos: [0.2, 0.766, -0.02], rot: [Math.PI / 2, 0, 0.6], cast: false });
       M.cyl(0.038, 0.032, 0.085, '#e9846a', { parent: d1.dg, pos: [0.3, 0.805, 0.14] });
-      M.cyl(0.033, 0.033, 0.005, '#7a4a2a', { parent: d1.dg, pos: [0.3, 0.845, 0.14], cast: false });
+      M.cyl(0.0335, 0.0335, 0.004, M.mat('#6a3c22', { rough: 0.2 }), { parent: d1.dg, pos: [0.3, 0.8495, 0.14], cast: false }); // chá (acima da boca da caneca: sem z-fighting)
+      M.torus(0.0355, 0.004, '#e9846a', { parent: d1.dg, pos: [0.3, 0.8478, 0.14], rot: [Math.PI / 2, 0, 0], cast: false }); // borda da caneca
       M.torus(0.022, 0.006, '#e9846a', { parent: d1.dg, pos: [0.338, 0.805, 0.14], rot: [0, 0, 0], cast: false });
       const steam = [0, 1, 2].map((i) => { const s = M.glow('#ffffff', 0.08, 0.25); s.position.set(0.3, 0.88 + i * 0.06, 0.14); d1.dg.add(s); return s; });
       const d2 = desk(-1.05, 1.35, -2.75, false);
@@ -2011,7 +2255,17 @@
       [['#c0392b', 0], ['#3f8a5a', 0.04]].forEach((b, i) => M.rbox(0.26, 0.035, 0.2, 0.008, b[0], { parent: d2.dg, pos: [0.15, 0.78 + b[1], 0], rot: [0, i * 0.3, 0] }));
 
       // ---------------- lanternas de papel flutuando ----------------
-      const lanternM = M.mat('#ffe2b0', { emissive: '#ffb35c', emissiveIntensity: 1.25, rough: 0.9 });
+      // papel de lanterna com costelas de bambu (lê como lanterna, não como "bola branca")
+      const lanTex = K.tex(128, 256, (ctx, w, h) => {
+        const g = ctx.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, '#f2c890'); g.addColorStop(0.5, '#fff1d8'); g.addColorStop(1, '#f2c890');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = 'rgba(150,80,30,0.55)';
+        for (let i = 1; i < 12; i++) ctx.fillRect(0, (i / 12) * h - 1.5, w, 3);
+        ctx.fillStyle = 'rgba(150,80,30,0.18)';
+        for (let i = 0; i < 8; i++) ctx.fillRect((i / 8) * w, 0, 1.5, h);
+      });
+      const lanternM = K.mat(new T.MeshStandardMaterial({ color: '#ffe2b0', map: lanTex, emissive: col('#ffb35c'), emissiveMap: lanTex, emissiveIntensity: 1.2, roughness: 0.9 }));
       const capM = M.mat('#5e3622', { rough: 0.8 });
       // (nas laterais: nunca na frente da lousa vista pelos planos geral/quadro/aluno)
       const lanterns = [[-2.3, 2.45, 1.35, 0.17], [2.35, 2.5, 0.5, 0.18], [-2.4, 2.55, -1.3, 0.15], [-1.0, 2.5, 2.1, 0.14]].map((p, i) => {

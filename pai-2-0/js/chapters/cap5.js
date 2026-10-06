@@ -8,14 +8,14 @@
  *           (stats.consentimento); montagem cômica 14:00 → 15:40 (relógio, caos,
  *           HUD); saída da sala (exploração curta: Tadeu valida, Jorge reclama).
  * Parte 3 — Depois, no carro: ditado por voz; minigame "Ata em 1 minuto"
- *           (10 trechos → Decisão / Responsável / Prazo / A definir / Só conversa);
+ *           (8 trechos → Decisão / Responsável / Prazo / A definir / Só conversa);
  *           minigame "Confira a ata" (o "13" que virou "30" e o dono inventado);
  *           o e-mail de acompanhamento ditado (risca o enfeite); mensagem d@ filh@
  *           (afeto vai na voz dele). Fatos reais + lição.
  *
- * stats.cap5 = { acertos, total: 17, minutosEconomizados, consentimento }
- *   acertos = trechos classificados de primeira (10) + linhas da ata conferidas
- *   certo de primeira (7). Conquista: ata_perfeita (17/17).
+ * stats.cap5 = { acertos, total: 15, minutosEconomizados, consentimento }
+ *   acertos = trechos classificados de primeira (8) + linhas da ata conferidas
+ *   certo de primeira (7). Conquista: ata_perfeita (15/15).
  */
 (function () {
   'use strict';
@@ -54,7 +54,7 @@
   const CAT_BY = {};
   CATS.forEach((c) => (CAT_BY[c.id] = c));
 
-  // Os 10 trechos da transcrição (como a máquina transcreveu — inclusive o "30")
+  // Os 8 trechos da transcrição (como a máquina transcreveu — inclusive o "30")
   const TRECHOS = [
     { h: '14:21', who: 'Você', txt: 'Então está decidido: reajuste de 6% a partir do mês que vem.', cat: 'decisao',
       why: 'Ficou resolvido, com número e data de início. É a primeira linha da ata.',
@@ -63,18 +63,13 @@
       why: 'Diz *quem* faz. Tarefa sem dono vira tarefa de ninguém.',
       alt: { decisao: 'Você não decidiu um rumo aqui: você deu dono às tarefas.' } },
     { h: '14:51', who: 'Tadeu', txt: 'A carta sai até o dia 30. Sem falta.', cat: 'prazo',
-      why: 'Diz *até quando*. Prazo sem data vira “um dia desses”.',
+      why: 'Diz *até quando*. Prazo sem data vira “um dia desses”. (Achou a data estranha? Guarde: a conferência vem já.)',
       alt: { resp: 'O dono da carta (Tadeu) você já tinha definido. O que este trecho acrescenta é a data.' } },
     { h: '15:04', who: 'Jorge', txt: 'Falando em atraso… alguém viu o jogo ontem? Que golaço!', cat: 'conversa',
       why: 'Simpático, mas não é ata. Ata registra decisões, não o placar.' },
     { h: '15:09', who: 'Luana', txt: 'Campanha de fim de ano: quem pega? (silêncio) — Jorge: A gente vê depois.', cat: 'adefinir',
       why: 'Ninguém assumiu. Entra na ata como pendência “a definir”, sem inventar dono.',
       alt: { conversa: 'Parece conversa, mas é um assunto de trabalho sem dono: é pendência.', resp: 'Ninguém assumiu, então não há responsável. Fica “a definir”.' } },
-    { h: '15:24', who: 'Bia', txt: 'Fica aprovado: viagens congeladas até o fim do trimestre.', cat: 'decisao',
-      why: '“Fica aprovado” é decisão. O “até o fim do trimestre” é parte da própria decisão.',
-      alt: { prazo: 'Tem uma data, sim. Mas “fica aprovado” é o coração do trecho: é decisão.' } },
-    { h: '15:27', who: 'Rafael', txt: 'Acabou o pão de queijo. De novo.', cat: 'conversa',
-      why: 'Grave, mas não para a ata.' },
     { h: '15:31', who: 'Você', txt: 'Bia, o fluxo de caixa novo é com você.', cat: 'resp',
       why: 'Nome e tarefa: a Bia é a responsável.' },
     { h: '15:32', who: 'Você', txt: 'Tem que estar pronto até quinta, antes do conselho.', cat: 'prazo',
@@ -111,7 +106,7 @@
       src: { h: '15:38', who: 'Luana e Bia', fala: 'Luana: E as contratações, doze ou oito? — Bia: Depende de o reajuste pegar.' },
       fb: 'Confere: pendência com o motivo. Na próxima reunião, isso vira decisão.' },
   ];
-  const TOTAL = TRECHOS.length + ATA.length; // 17
+  const TOTAL = TRECHOS.length + ATA.length; // 15
 
   // De pé ao lado da cabeceira, virado para quem ficou na sala (Tadeu e Jorge)
   const PAI_DE_PE = { x: 3.1, z: 0.7, rot: -1.0 };
@@ -129,8 +124,23 @@
   // Em 1ª pessoa, a Faísca que "segue" o pai fica presa ao olhar dele: quando ela fala, o olhar
   // automático a persegue e a visão gira. Nas conversas, ela pousa num ponto fixo perto dele.
   function pousa(G, x, z, y) { G.faisca.unfollow(); G.faisca.at({ x, z }, y); G.faisca.face(G.pai); }
-  // Na cabeceira: em cima da ponta da mesa, um pouco abaixo da linha dos olhos (não cobre ninguém)
-  const FAISCA_MESA = [2.1, 0, 0.98];
+  // Na cabeceira: pousada na mesa, à esquerda do pai, na linha das cadeiras vazias (c5/c6), abaixo da
+  // linha dos rostos. A 1,4 m ela não toma a tela do celular nem tapa o telão ou um diretor.
+  const FAISCA_MESA = [1.5, 0.42, 0.88];
+  // No carro: entre os encostos dos bancos da frente (a ~0,8 m do pai) e o celular no suporte
+  const FAISCA_CARRO = { x: -0.12, z: 0.02, y: 0.98 };
+  const CELULAR = { x: -0.19, y: 0.99, z: -0.38 };
+
+  // Esvazia a caixa de fala (como o motor faz ao abrir uma exploração): no corte para o relógio
+  // da montagem, a última fala não fica pendurada na tela.
+  function limpaFala(G) {
+    const R = G.ui && G.ui.refs && G.ui.refs();
+    if (!R) return;
+    G.ui.setMode('dialog');
+    if (R.text) R.text.innerHTML = '';
+    if (R.name) R.name.hidden = true;
+    if (G.ui.markEmpty) G.ui.markEmpty(true);
+  }
 
   // Animação curta sem esperar (e sem promessa solta ao sair do capítulo)
   function anim(actor, name, secs) {
@@ -159,6 +169,7 @@
   .c5-item.on .chk { background: var(--brand); border-color: var(--brand); color: #fff; }
   .c5-kbd { font-family: var(--head); font-size: 0.66em; font-weight: 800; background: rgba(20,30,60,0.07); color: var(--muted); border-radius: 6px; padding: 0.1em 0.45em; flex: 0 0 auto; }
   .c5-pauta.confirm .c5-kbd { visibility: hidden; }
+  @media (max-width: 760px) { .c5-kbd { display: none; } } /* no celular, atalho de teclado só polui */
   .c5-pauta.lock .c5-item { cursor: default; }
   .c5-meter { display: flex; align-items: center; gap: 10px; background: #f4f6fa; border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; }
   .c5-meter .lb { font-family: var(--head); font-weight: 800; font-size: 0.85em; white-space: nowrap; }
@@ -186,7 +197,6 @@
   .c5-cat .ic { font-size: 1.25em; }
   .c5-cat b { font-family: var(--head); font-size: 0.95em; }
   .c5-cat small { margin-top: 0 !important; }
-  .c5-cat .n { position: absolute; top: 8px; right: 10px; font-family: var(--head); font-weight: 800; font-size: 0.72em; color: var(--muted); background: #eef0f5; border-radius: 99px; padding: 1px 8px; }
   .c5-cat .c5-kbd { position: absolute; bottom: 8px; right: 10px; }
   .c5-cats .c5-cat:last-child:nth-child(odd) { grid-column: 1 / -1; }
   @media (min-width: 820px) { .c5-cats .c5-cat:last-child:nth-child(odd) { grid-column: auto; } }
@@ -201,7 +211,9 @@
   .c5-ata .mg-line:disabled { opacity: 1; }
   .c5-ata .fora { font-size: 0.84em; color: var(--muted); font-style: italic; margin-top: 8px; }
   .c5-ata .c5-nada { padding: 8px 12px; border: 1px dashed #cfd5e3; border-radius: 10px; color: var(--muted); font-size: 0.95em; }
-  .c5-audio { border: 1px solid #c9d4ee; background: var(--blue-l); border-radius: 14px; padding: 10px 12px; margin: 4px 0 8px; display: flex; flex-direction: column; gap: 8px; }
+  .c5-ata .c5-nada.fixed { color: var(--ink); border-color: #e7b9c2; background: #fff6f7; }
+  .c5-ata .c5-nada s { color: #b0485a; }
+  .c5-audio { border: 1px solid #c9d4ee; background: var(--blue-l); border-radius: 14px; padding: 10px 12px; margin: 4px 0 8px; display: flex; flex-direction: column; gap: 8px; scroll-margin: 12px 0 170px; }
   .c5-audio .top { display: flex; align-items: center; gap: 10px; }
   .c5-audio .play { width: 34px; height: 34px; border-radius: 50%; background: #2b4a8a; color: #fff; display: grid; place-items: center; flex: 0 0 auto; font-size: 0.8em; }
   .c5-wave { display: flex; align-items: center; gap: 3px; height: 26px; flex: 1 1 auto; overflow: hidden; }
@@ -212,6 +224,9 @@
   .c5-audio .fala { font-style: italic; line-height: 1.4; }
   .c5-audio .mg-actions { margin-top: 0; justify-content: flex-start; }
   .c5-score { font-family: var(--head); font-weight: 800; }
+  /* Contorno de um bug do style.css: no celular em pé, a regra geral do #btn-skip (top: 14px) vem depois
+     da regra do celular (top: auto; bottom: 30px) e o "Pular cena" vira uma pílula esticada na altura toda. */
+  @media (max-width: 760px) and (orientation: portrait) { body #btn-skip { top: auto; } }
   `;
 
   // ------------------------------------------------------------------
@@ -250,7 +265,7 @@
       });
       const foot = el('div', 'c5-sticky row');
       const fb = el('div', 'mg-feedback info');
-      fb.appendChild(api.rich('Toque nos itens para pôr ou tirar. Entra o que pede *decisão* com várias áreas na mesa. Sem pressa: a pauta é sua.', true));
+      fb.appendChild(api.rich('Toque para pôr ou tirar. Entra o que pede *decisão* de várias áreas. Sem pressa: a pauta é sua.', true));
       const actions = el('div', 'mg-actions');
       const lblFechar = el('span', null, 'Fechar a pauta ▶');
       const btnFechar = api.btn(lblFechar, () => fechar(), { cls: 'primary', key: '9' });
@@ -367,8 +382,6 @@
       const { el } = api;
       let idx = 0, acertos = 0;
       const res = [];
-      const cont = {};
-      CATS.forEach((c) => (cont[c.id] = 0));
       const prog = el('div', 'c5-prog');
       const progTx = el('span', 'mg-label', '');
       const dots = el('div', 'c5-dots');
@@ -387,12 +400,10 @@
         b.appendChild(el('span', 'ic', c.ic));
         b.appendChild(el('b', null, c.t));
         b.appendChild(el('small', null, c.sub));
-        const n = el('span', 'n', '0');
-        b.appendChild(n);
         b.appendChild(el('span', 'c5-kbd', String(i + 1)));
         b.addEventListener('click', (e) => { e.stopPropagation(); responder(c.id); });
         cats.appendChild(b);
-        btns[c.id] = { b, n };
+        btns[c.id] = { b };
       });
       root.appendChild(cats);
       const foot = el('div', 'c5-sticky row');
@@ -424,8 +435,6 @@
         const certo = cat === t.cat;
         res[idx] = certo;
         if (certo) acertos++;
-        cont[t.cat]++;
-        btns[t.cat].n.textContent = String(cont[t.cat]);
         CATS.forEach((c) => {
           const x = btns[c.id];
           x.b.disabled = true;
@@ -465,7 +474,7 @@
         mostrar();
       }
       mostrar();
-    }, { title: '📝 Ata em 1 minuto', size: 'l', intro: 'Dez trechos da transcrição, em ordem. Para cada um: é decisão, quem faz, até quando, o que ficou sem dono… ou só conversa?', introWho: 'faisca' });
+    }, { title: '📝 Ata em 1 minuto', size: 'l', intro: 'Oito trechos da transcrição, em ordem. Para cada um: é decisão, quem faz, até quando, o que ficou sem dono… ou só conversa?', introWho: 'faisca' });
   }
 
   // ------------------------------------------------------------------
@@ -497,20 +506,25 @@
       });
       // A 4ª parte da ata: o que a própria IA achou que precisava conferir
       doc.appendChild(el('h5', null, 'A conferir (segundo a IA)'));
-      doc.appendChild(el('div', 'c5-nada', 'Nenhum trecho ambíguo.'));
+      const nada = el('div', 'c5-nada', 'Nenhum trecho ambíguo.');
+      doc.appendChild(nada);
       doc.appendChild(el('div', 'fora', '(Fora da ata: o golaço e o pão de queijo.)'));
       const foot = el('div', 'c5-sticky row');
+      // Rodapé fixo enxuto (no celular ele não pode tapar os botões do áudio): o retorno aparece
+      // depois do 1º veredito, e o "Assinar" só quando todas as linhas foram conferidas.
       const fb = el('div', 'mg-feedback info');
-      fb.appendChild(api.rich('Ouça cada trecho e compare com a linha: nome, número e prazo. Conferidas: *0 de ' + ATA.length + '*.', true));
+      fb.hidden = true;
       const actions = el('div', 'mg-actions');
       const btnAssinar = api.btn('✍️ Assinar a ata', () => assinar(), { cls: 'primary', key: '9' });
       btnAssinar.disabled = true;
+      btnAssinar.hidden = true;
       actions.appendChild(btnAssinar);
       foot.appendChild(fb);
       foot.appendChild(actions);
       root.appendChild(foot);
 
       function setFb(kind, txt) {
+        fb.hidden = false;
         fb.className = 'mg-feedback ' + kind;
         fb.textContent = '';
         fb.appendChild(api.rich(txt, true));
@@ -583,11 +597,17 @@
           r.lt.appendChild(api.rich('✏️ ' + ln.fix, true));
           r.st.textContent = '🖊️';
           r.b.classList.add('ok');
+          // A "parte 4" da ata (o que a IA achou que não precisava conferir) também leva caneta
+          nada.textContent = '';
+          nada.appendChild(el('s', null, 'Nenhum trecho ambíguo.'));
+          nada.appendChild(document.createTextNode(' ✏️ ' + (achados > 1 ? achados + ' trechos errados, corrigidos por você.' : '1 trecho errado, corrigido por você.')));
+          nada.classList.add('fixed');
           if (certo) { api.sfx('success'); setFb('ok', '🖊️ Pegou! ' + ln.fb); anim(G.faisca, 'ashamed', 1.6); }
           else { api.sfx('fail'); setFb('bad', 'Esta não confere: compare com o áudio. ' + ln.fb + ' Corrigido com a sua caneta.'); anim(G.faisca, 'ashamed', 1.6); }
         }
         const restam = ATA.length - conferidas;
         if (!restam) {
+          btnAssinar.hidden = false;
           btnAssinar.disabled = false;
           api.say('Tudo conferido. Agora sim: pode assinar.', 'faisca');
           setTimeout(() => { try { btnAssinar.focus({ preventScroll: true }); } catch (e) { /* nada */ } }, 30);
@@ -617,13 +637,14 @@
     title: 'A Reunião Infinita',
     subtitle: 'Duas horas de reunião. E na quarta, quem lembra o que ficou decidido?',
     music: 'trabalho',
-    minutes: 9,
+    minutes: 10,
     parts: [
       // ================================================================
       // PARTE 1 — Antes: a sala vazia, a pauta e o briefing
       // ================================================================
       async (G) => {
         await G.titleCard();
+        P2.ui.css('cap5', CSS);
         G.scene('sala_reuniao', { clock: '13:50', chaos: 0, slide: SLIDE_VELHA });
         G.pai.at('porta');
         pousa(G, 2.9, 1.9, 1.35);
@@ -637,7 +658,8 @@
         await G.narrate('Reunião de diretoria às 14h. Duração prevista: uma hora. Recorde da casa: três horas e quarenta. Esse relógio viu tudo.');
         G.player.fp();
         G.pai.at('porta');
-        await G.say('pai', 'E a Sônia está de folga. Ou seja: hoje, nem ata vai ter.', { expr: 'cansado' });
+        await G.say('pai', 'Toda terça é igual. Duas horas de reunião, e na quarta ninguém lembra quem ficou com o quê.', { expr: 'cansado' });
+        await G.say('pai', 'E a Sônia está de folga. Ou seja: hoje, nem ata vai ter.', { expr: 'desconfiado' });
         await G.say('faisca', 'Vai ter, sim. Eu anoto, você confere. E chegamos dez minutos antes: isso é uma arma.', { anim: 'wave' });
 
         const env = G.core.world.env || {};
@@ -648,10 +670,10 @@
           objetivo: 'Sente-se na cabeceira antes de a diretoria chegar',
           hotspots: [
             {
-              id: 'tela', label: 'A pauta do mês passado', icon: '📺', at: 'tela', y: 1.6, optional: true,
+              id: 'tela', label: 'A pauta da semana passada', icon: '📺', at: 'tela', y: 1.6, optional: true,
               onInteract: async (G) => {
                 G.player.lookAt({ x: -4.2, y: 1.6, z: 0 });
-                await G.say('pai', 'A pauta do mês passado ainda está na tela. Onze itens. Lembro de ter discutido todos.', { expr: 'pensativo' });
+                await G.say('pai', 'A pauta da semana passada ainda está na tela. Onze itens. Lembro de ter discutido todos.', { expr: 'pensativo' });
                 await G.say('faisca', 'E decidido?', { anim: 'doubt', cam: false });
                 await G.say('pai', 'Próxima pergunta.', { expr: 'sem_graca' });
               },
@@ -677,10 +699,8 @@
         G.pai.setAnim('sit');
         pousa(G, ...FAISCA_MESA);
         G.player.lookAt(null);
-        await G.say('pai', 'Toda terça é igual. Duas horas de reunião. Na quarta, ninguém lembra quem ficou com o quê.', { expr: 'cansado' });
         await G.say('faisca', 'Posso ajudar antes, durante e depois. Antes: uma pauta enxuta e o que cada diretor deve trazer.', { anim: 'teach' });
-        await G.say('faisca', 'Lembrando: aqui eu rodo na ferramenta aprovada pela empresa, com o acesso ao e-mail e à agenda que a TI liberou.');
-        await G.say('faisca', 'E essa ferramenta não treina com os dados da empresa.');
+        await G.say('faisca', 'Aqui eu rodo na ferramenta aprovada pela empresa, que não treina com os dados da casa. E só vejo o e-mail e a agenda que a TI liberou.');
         await G.say('pai', 'Então junta os pedidos de pauta que chegaram. Mas quem fecha a pauta sou eu.', { expr: 'determinado' });
 
         const pauta = await miniPauta(G);
@@ -690,11 +710,12 @@
         G.v.pautaAjustou = pauta.ajustou;
         G.sceneParams({ slide: slidePauta(pauta.sel) });
         G.player.lookAt({ x: -4.2, y: 1.6, z: 0 });
-        if (pauta.perfeita) {
+        if (pauta.ajustou) {
+          await G.say('faisca', 'Pauta ajustada e na tela: quatro decisões, cinquenta e cinco minutos. O resto vai por e-mail, e ninguém sai perdendo.', { anim: 'teach', cam: false });
+          await G.say('pai', 'E sobram cinco para o Jorge chegar atrasado.', { expr: 'rindo' });
+        } else if (pauta.perfeita) {
           await G.say('faisca', 'Quatro decisões, cinquenta e cinco minutos. Sobram cinco para o Jorge chegar atrasado.', { anim: 'celebrate', cam: false });
           await G.say('pai', 'Você já conhece o Jorge.', { expr: 'rindo' });
-        } else if (pauta.ajustou) {
-          await G.say('faisca', 'Pauta ajustada e na tela. O que não pede decisão vai por e-mail: ninguém sai perdendo.', { anim: 'teach', cam: false });
         } else {
           await G.say('faisca', 'A pauta é sua, e está na tela. Só guardo o palpite: o que não pede decisão costuma caber num e-mail.', { anim: 'think', cam: false });
           await G.say('pai', 'Anotado. Hoje vai assim.', { expr: 'determinado' });
@@ -703,6 +724,8 @@
         // Briefing no estilo Nadella (com a ressalva honesta)
         await G.say('faisca', 'Agora, um pedido que o CEO da Microsoft contou, em público, que faz ao assistente dele.', { anim: 'teach' });
         await G.fact('nadella_cinco_prompts');
+        await G.say('pai', 'O homem vende a ferramenta. Claro que ele usa.', { expr: 'desconfiado' });
+        await G.say('faisca', 'Justo. Então julgue pelo resultado, não pelo vendedor. Vamos testar com a sua diretoria?', { anim: 'point' });
         await G.aiChat([
           { from: 'voce', text: 'Com base nas minhas conversas recentes com cada diretor: o que deve estar na cabeça de cada um para hoje? E o que cada um precisa trazer?' },
           { from: 'ia', text: '- *Bia:* margem do semestre e a renovação da linha de crédito com o banco. Trazer: o fluxo de caixa.\n- *Rafael:* o terceiro atraso do fornecedor. Trazer: as datas.\n- *Tadeu:* a multa do contrato, nunca cobrada. Trazer: a cláusula.\n- *Luana:* gente para o turno novo. Trazer: o custo por contratação.\n- *Jorge:* pediu por e-mail prioridade para o cliente do Sul. Trazer: o volume desse cliente.' },
@@ -723,12 +746,12 @@
         }
         G.v.riscou = risca === 'risca';
 
-        await G.say('pai', 'E o reajuste? Vai ter chiadeira.', { expr: 'desconfiado' });
+        await G.say('pai', 'E o reajuste? Seis ou doze, vai ter chiadeira.', { expr: 'desconfiado' });
         await G.aiChat([
-          { from: 'voce', text: 'Quais as 3 perguntas mais duras que a diretoria pode me fazer sobre um reajuste de 6%?' },
-          { from: 'ia', text: '1. Quanto do faturamento é do cliente do Sul, e o que acontece se ele sair?\n2. Quanto volume a gente perde com 6%?\n3. Por que não 3% agora e 3% daqui a seis meses?' },
+          { from: 'voce', text: 'Vou propor o reajuste da tabela hoje, entre 6% e 12%. Quais as 3 perguntas mais duras que a diretoria pode me fazer?' },
+          { from: 'ia', text: '1. Quanto do faturamento é do cliente do Sul, e o que acontece se ele sair?\n2. Quanto volume a gente perde com 12%? E com 6%?\n3. Com o fornecedor de embalagens atrasando, vamos subir o preço justo quando a entrega piora?' },
         ], { title: 'Faísca · ferramenta da empresa' });
-        await G.say('pai', 'As duas primeiras eu já tinha na cabeça. A terceira, não. Boa.', { expr: 'pensativo' });
+        await G.say('pai', 'As duas primeiras eu já tinha na cabeça. A terceira, não: subir preço com a entrega atrasando. Boa.', { expr: 'pensativo' });
         await G.say('faisca', 'Você tem trinta anos de mesa. Eu tenho três segundos de leitura. Juntos, a gente chega preparado.', { anim: 'celebrate' });
         await G.say('faisca', 'Mando a pauta para a diretoria, com o que cada um deve trazer? Está na tela, para você ler antes.');
         await G.say('pai', 'Li. Pode mandar.', { expr: 'determinado' });
@@ -740,6 +763,7 @@
       // PARTE 2 — Durante: consentimento, a montagem e a saída
       // ================================================================
       async (G) => {
+        P2.ui.css('cap5', CSS);
         const sel = G.v.pauta || PAUTA.filter((p) => p.ok).map((p) => p.id);
         G.scene('sala_reuniao', { clock: '14:02', chaos: 0, slide: slidePauta(sel) });
         G.pai.at('cabeceira');
@@ -802,6 +826,7 @@
           G.talkCam(false);
           G.player.cine();
           const tick = async (hhmm, chaos, shot) => {
+            limpaFala(G);
             G.sceneParams({ clock: hhmm, chaos });
             G.hud.set({ clock: hhmm });
             G.sfx('tick');
@@ -813,14 +838,14 @@
           bia.setAnim('sittalk');
           await G.say('bia', 'Sem reajuste no mês que vem, a margem do semestre não fecha. Simples assim.', { expr: 'determinado' });
           bia.setAnim('sit');
-          await G.say('jorge', 'Seis por cento eu seguro. Mais que isso, o cliente do Sul vai embora.', { expr: 'preocupado' });
+          await G.say('jorge', 'Seis eu seguro. Doze, o cliente do Sul vai embora. Ainda mais com entrega atrasando.', { expr: 'preocupado' });
           await G.say('pai', 'Então está decidido: reajuste de 6% a partir do mês que vem.', { expr: 'determinado' });
           if (tem('aniversarios')) {
             await G.narrate('14h30: parabéns aos aniversariantes do mês. Cantado duas vezes, porque o Jorge errou a letra.');
           }
           await tick('14:45', 0.35, 'lateral');
           await G.say('rafael', 'O fornecedor de embalagens atrasou de novo. Terceira vez no trimestre.', { expr: 'cansado', emote: 'sweat' });
-          await G.say('tadeu', 'E o contrato tem multa por atraso. Que a gente nunca cobrou.', { expr: 'desconfiado' });
+          await G.say('tadeu', 'E aquele contrato de oitenta páginas tem multa por atraso. Que a gente nunca cobrou.', { expr: 'desconfiado' });
           await G.say('pai', 'Rafael, a conversa com o fornecedor é sua. Tadeu, a carta de cobrança.');
           await G.say('tadeu', 'A carta sai até o dia *13*. Sem falta.', { expr: 'determinado' });
           if (tem('slides')) {
@@ -859,10 +884,20 @@
         G.pai.at('cabeceira');
         G.pai.setAnim('sit');
         if ((G.v.pautaRuins || []).length) {
-          await G.say('faisca', 'Previsão: sessenta minutos. Realizado: cem, e um bom pedaço foi para o que não pedia decisão. Mesmo assim, eu guardei tudo.', { anim: 'think' });
+          await G.say('faisca', 'Previsão: sessenta minutos. Realizado: cem. E um bom pedaço foi para o que não pedia decisão.', { anim: 'think' });
         } else {
-          await G.say('faisca', 'Previsão: sessenta minutos. Realizado: cem. Mas a mais curta que esse relógio já viu, e com decisões. Eu guardei tudo.', { anim: 'spin' });
+          await G.say('faisca', 'Previsão: sessenta minutos. Realizado: cem. Ainda assim, a mais curta que esse relógio já viu. E com decisões.', { anim: 'spin' });
         }
+        await G.say('pai', 'E você não encurtou nada.', { expr: 'desconfiado' });
+        // Honestidade: a IA não encurta reunião (copilot_campo_email, já mostrado no Cap 2)
+        const viuCap2 = !!(G.allStats().cap2);
+        if (viuCap2) {
+          await G.say('faisca', 'Nem tento. Lembra do estudo de hoje cedo? A IA cortou o tempo de e-mail. O de reunião ficou igual.', { anim: 'think' });
+        } else {
+          await G.say('faisca', 'Nem tento. Num experimento em empresas de verdade, a IA cortou o tempo de e-mail. O de reunião ficou igual.', { anim: 'think' });
+          await G.fact('copilot_campo_email');
+        }
+        await G.say('faisca', 'Reunião, quem encurta é a pauta. Eu fico com o antes e o depois. E o depois está gravado, com a licença de todos.', { anim: 'teach' });
 
         // A sala esvazia num corte rápido (ninguém atravessa a mesa); Tadeu e Jorge ficam de pé
         await G.fadeOut(0.5);
@@ -911,6 +946,7 @@
       // PARTE 3 — Depois: o carro, a ata, o e-mail e {filho}
       // ================================================================
       async (G) => {
+        P2.ui.css('cap5', CSS);
         const consentiu = !!G.v.consentimento;
         G.scene('carro', { time: 'tarde', phone: 'chat', speed: 1, chat: CHAT_CARRO });
         G.pai.at('banco');
@@ -923,27 +959,33 @@
         await G.cam.shot('geral', 0);
         await G.fadeIn(1);
         await G.narrate('15h52. De volta para o escritório, no trânsito da tarde.');
-        await G.cam.shot('banco', 1.6);
-        await G.say('pai', 'Antigamente, eu passava esse trajeto tentando lembrar quem prometeu o quê.', { expr: 'cansado' });
+        // (o plano 'banco' enquadra mal no celular em pé: do plano geral, corta direto para a 1ª pessoa)
         G.player.fp();
         G.pai.at('banco');
         G.pai.setAnim('sit');
+        // Em 1ª pessoa, o 'centro' fica colado no rosto do pai: ela pousa entre os bancos da frente
+        pousa(G, FAISCA_CARRO.x, FAISCA_CARRO.z, FAISCA_CARRO.y);
+        G.faisca.set({ scale: 0.85 });
+        G.player.lookAt({ x: -1.2, y: 1.1, z: -0.37 }); // a rua pelo para-brisa
+        await G.say('pai', 'Antigamente, eu passava esse trajeto tentando lembrar quem prometeu o quê.', { expr: 'cansado' });
         await G.say('faisca', 'Hoje a ata sai no caminho. Você fala, eu organizo. Falar é bem mais rápido que digitar no celular.', { anim: 'listen' });
         G.faisca.setAnim('listen');
         await G.say('pai', 'Então anota: reajuste aprovado, Rafael com o fornecedor, Tadeu com a carta, Bia com o caixa. O resto você puxa da transcrição.', { expr: 'determinado' });
         G.faisca.setAnim('idle');
-        await G.say('faisca', 'Anotado! Puxei dez trechos da transcrição. Agora a parte que faz uma ata servir para alguma coisa.', { anim: 'teach' });
+        await G.say('faisca', 'Anotado! Puxei oito trechos da transcrição. Agora a parte que faz uma ata servir para alguma coisa.', { anim: 'teach' });
 
+        G.player.lookAt(CELULAR); // durante o minijogo, a cena mostra o celular no suporte (a transcrição)
         const cl = await miniClassifica(G);
         G.v.classAcertos = cl.acertos;
         if (cl.acertos === cl.total) {
-          await G.say('faisca', 'Dez de dez. Você separa como quem já fez mil atas.', { anim: 'celebrate' });
+          await G.say('faisca', 'Oito de oito. Você separa como quem já fez mil atas.', { anim: 'celebrate' });
           await G.say('pai', 'Fiz. Só que à mão, e de madrugada.', { expr: 'orgulhoso' });
         } else {
-          await G.say('faisca', cl.acertos + ' de 10 de primeira. O que importa: o que ninguém assumiu fica “a definir”. Não se inventa dono.', { anim: 'teach' });
+          await G.say('faisca', cl.acertos + ' de ' + cl.total + ' de primeira. O que importa: o que ninguém assumiu fica “a definir”. Não se inventa dono.', { anim: 'teach' });
         }
         await G.say('faisca', 'Montei a ata em quatro partes: decisões, tarefas, pendências e o que conferir. Antes de assinar: nomes, números e prazos. Essa parte é sua.', { anim: 'point' });
 
+        G.player.lookAt(CELULAR);
         const cf = await miniConfere(G);
         G.v.confAcertos = cf.acertos;
         G.v.confFalsos = cf.falsos;
@@ -970,7 +1012,7 @@
         ], { prompt: 'Tem uma frase no e-mail que você não ditou…' });
         if (enfeite === 'risca') {
           await G.say('faisca', 'Riscado! Eu enfeitei. Você disse “obrigado pela reunião” e pronto.', { anim: 'ashamed' });
-          await G.say('pai', 'Cem minutos e pão de queijo frio não é inspirador. É terça.', { expr: 'desconfiado' });
+          await G.say('pai', 'Cem minutos, e ainda acabou o pão de queijo. Isso não é inspirador. É terça.', { expr: 'desconfiado' });
         } else {
           await G.say('faisca', 'O e-mail é seu. Só lembro: quem te conhece vai estranhar. Você nunca escreveu “inspiradora” na vida.', { anim: 'doubt' });
           await G.say('pai', '…Verdade. Risca.', { expr: 'sem_graca' });
@@ -988,7 +1030,7 @@
         const resp = await G.choose([
           { text: 'Essa não. Essa eu mesmo dito, do meu jeito.', value: 'eu' },
           { text: 'Escreve aí, você escreve bem.', value: 'ia' },
-        ], { prompt: '{Filhoa} perguntou: “E aí, {apelido}? Sobreviveu à diretoria? 😄”' });
+        ], { prompt: '{filho} perguntou: “E aí, {apelido}? Sobreviveu à diretoria? 😄”' });
         if (resp === 'eu') {
           G.faisca.emote('heart');
           await G.say('faisca', 'Perfeito. Mensagem de afeto vai melhor na sua voz. Eu só atrapalharia.', { anim: 'celebrate' });
@@ -996,8 +1038,11 @@
           await G.say('faisca', 'Escrevo, se você quiser. Mas mensagem de afeto vai melhor na sua voz: quem recebe sente a diferença.', { anim: 'think' });
           await G.say('pai', 'Tá. Do meu jeito, então.', { expr: 'amigavel' });
         }
-        await G.say('pai', G.v.confPegos === 2 ? '(ditando) Sobrevivi. A Faísca fez a ata e eu achei dois erros dela. Te conto no jantar.' : '(ditando) Sobrevivi. A Faísca fez a ata e eu conferi linha por linha. Te conto no jantar.', { expr: 'orgulhoso' });
-        G.toast('{filho}: 😂 Quem diria! Te vejo à noite.', { icon: '💬', kind: 'notif', dur: 4 });
+        // Callback da aposta do Prólogo (a louça por um mês)
+        const aposta = !!G.flag('aposta');
+        const fez = G.v.confPegos === 2 ? 'Sobrevivi. A Faísca fez a ata e eu achei dois erros dela.' : 'Sobrevivi. A Faísca fez a ata e eu conferi linha por linha.';
+        await G.say('pai', '(ditando) ' + fez + (aposta ? ' A louça continua em disputa. Te conto no jantar.' : ' Te conto no jantar.'), { expr: 'orgulhoso' });
+        G.toast(aposta ? '{filho}: 😂 “Em disputa” já é quase um elogio, {apelido}. Te vejo à noite!' : '{filho}: 😂 Quem diria! Te vejo à noite.', { icon: '💬', kind: 'notif', dur: 4.5 });
         await G.wait(0.6);
 
         // Chegada
@@ -1005,7 +1050,7 @@
         G.hud.set({ clock: '16:08' });
         await G.narrate('16h08. O carro para na frente do escritório.');
         await G.say('pai', 'Cem minutos de reunião, e a ata pronta antes do elevador. Conferida por mim.', { expr: 'orgulhoso' });
-        await G.say('faisca', 'E assinada por você. Os pedidos de hoje (pauta, ata em quatro partes, e-mail) estão no seu Guia do CEO, no botão 📘.', { anim: 'celebrate' });
+        await G.say('faisca', 'E assinada por você. Ditar e resumir com IA é bem mais rápido, mas os dois deixam escapar coisa. Conferir é o que faz valer.', { anim: 'celebrate' });
 
         // Estatísticas e conquista
         const acertos = (G.v.classAcertos || 0) + (G.v.confAcertos || 0);
@@ -1015,13 +1060,14 @@
         if (acertos === TOTAL) G.achieve('ata_perfeita');
 
         await G.fact(['stanford_voz', 'microsoft_reuniao_perdida'], { titulo: 'Falar acelera. Resumir acelera. Conferir continua sendo seu.' });
+        await G.say('faisca', 'Os pedidos de hoje (pauta, ata em quatro partes, e-mail ditado) estão no seu Guia do CEO, no botão 📘, em “Reuniões”.', { anim: 'point' });
         await G.lesson('Falar é mais rápido que digitar. A IA organiza a bagunça; você confirma quem faz o quê e até quando.', { titulo: 'A ata é da IA. A assinatura é sua.' });
       },
     ],
     summary: (G) => {
       const st = (G.allStats().cap5) || {};
       const out = [];
-      if (st.total) out.push('Ata: ' + (st.acertos || 0) + ' de ' + st.total + ' acertos (10 trechos + 7 linhas conferidas)');
+      if (st.total) out.push('Ata: ' + (st.acertos || 0) + ' de ' + st.total + ' acertos (' + TRECHOS.length + ' trechos + ' + ATA.length + ' linhas conferidas)');
       out.push(st.consentimento ? 'Transcrição: com aviso e o ok de todos, desde o começo' : 'Transcrição: com aviso, depois do puxão de orelha da Faísca');
       if (st.minutosEconomizados) out.push('Tempo poupado: ≈ ' + st.minutosEconomizados + ' min (estimativa do jogo)');
       out.push(G.v.confPegos === 2 ? 'Erros da IA que você pegou: o “13” que virou “30” e o dono inventado' : 'Erros da IA na ata: o “13” que virou “30” e o dono inventado (' + (G.v.confPegos || 0) + ' de 2 pegos de primeira)');

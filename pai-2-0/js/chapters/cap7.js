@@ -20,7 +20,7 @@
  * Stats (bíblia F): cap7 { premortem:bool, criterios:bool, decisao } (+ extras: revelouPreferencia,
  * premissaPega, otimismoPego, segundaOpiniao). Conquista: estrategista (pré-mortem E critérios com pesos).
  * Ambiente: escritorio { time 'tarde' → 'noite', screen, tv (slides), papers }.
- * Fatos: executivos_previsao_otimista, ia_ceo_simulador, cybernetic_teammate_pg.
+ * Fatos: executivos_previsao_otimista, ia_ceo_simulador, vaccaro_humano_ia.
  * Guia do CEO: seções "Decisões e estratégia" e "Pessoas" (cap: 'cap7').
  */
 (function () {
@@ -855,7 +855,7 @@
         await G.cutscene(async () => {
           bg(G.cam.shot({ target: [-3.0, 1.0, 1.3], yaw: 1.45, pitch: 0.12, dist: 3.1, fov: 38 }, 6));
           await G.narrate('Seis da tarde. O andar esvazia, a cidade começa a acender e o sol se despede atrás dos prédios.');
-          await G.narrate('No colo de {pai}, a decisão que ele vem empurrando a semana inteira: comprar ou não comprar a *Distribuidora Vale Verde*.');
+          await G.narrate('No colo de {pai}, a decisão que ele vem empurrando há semanas: comprar ou não comprar a *Distribuidora Vale Verde*.');
         });
         G.player.fp();
         G.player.lookAt(SOL);
@@ -900,8 +900,8 @@
         sentaNaMesa(G);
         await G.fadeIn(0.4);
         G.player.lookAt(MONITOR);
-        await G.say('faisca', 'Você está com cara de quem já decidiu e só procura alguém para assinar embaixo.');
-        await G.say('pai', 'Quero a sua opinião sobre a Vale Verde. Você leu a proposta e a planilha do Osvaldo.', { expr: 'neutro' });
+        await G.say('faisca', 'Decisão grande, prazo curto e um amigo do outro lado da mesa. Combinação perigosa.');
+        await G.say('pai', 'Quero a sua opinião sobre a Vale Verde. Você já leu a proposta e a planilha do Osvaldo.', { expr: 'neutro' });
         await G.say('faisca', 'Li, aqui na ferramenta aprovada da empresa. Compra que ainda não foi anunciada é assunto de conselho: num chat pessoal, nem pensar.');
         await G.say('pai', 'Diga isso ao grupo do Jorge.', { expr: 'rindo' });
         fa(G, 'jump', 1);
@@ -924,14 +924,14 @@
           await G.say('pai', '"É difícil dar errado." Foi o que me disse um vendedor de consórcio em 1998.', { expr: 'desconfiado' });
           fa(G, 'ashamed', 2);
           await G.say('faisca', 'Pausa. Eu elogiei o seu instinto sem saber nada do seu histórico. Isso foi puxa-saquismo, não análise.');
-          await G.say('faisca', 'Você me disse o que queria ouvir, e eu disse amém. A IA tende a concordar com quem pergunta. E chefe não precisa de mais um sim-senhor.');
-          await G.say('faisca', 'O antídoto: não me conte o que você prefere. Ou me peça o contra. Pergunta de novo?');
+          await G.say('faisca', 'É o mesmo de hoje de manhã, com os 12% do reajuste: você mostrou o que queria ouvir, e eu disse amém. Pergunta de novo, sem me contar o que prefere?');
           perg = await G.choose([
             Object.assign({}, PERG[0], { disabled: true, sub: 'Já vimos onde isso dá.' }), PERG[1], PERG[2],
           ], { prompt: 'Como você pergunta agora?', who: 'pai' });
         } else {
           fa(G, 'celebrate', 1.6);
           await G.say('faisca', 'Boa! Você não me contou o que prefere. Assim eu não tenho para onde puxar o saco.');
+          await G.say('pai', 'Aprendi hoje de manhã. Com os doze por cento e a risada do Jorge.', { expr: 'rindo' });
         }
         G.v.pergunta = perg;
         G.sceneParams({ screen: 'chat', chat: CHAT_PERGUNTA });
@@ -946,7 +946,7 @@
             { from: 'ia', text: '*Os 4 argumentos mais fortes contra*\n1. Você pode estar comprando o Osvaldo, não a empresa. Se ele se aposenta, os clientes vão junto?\n2. R$ 24 milhões sem auditoria: dívida escondida só aparece depois da assinatura.\n3. O frete subiu em agosto. Se cair, o principal motivo da compra encolhe.\n4. "Resposta até sexta, tem outro interessado" é pressão clássica de negociação.\n*O que me faria mudar de ideia:* auditoria limpa, o Osvaldo na transição e os 5 maiores clientes confirmando que ficam.', thinking: 1.4 },
           ], { title: 'Faísca', subtitle: 'ferramenta aprovada da empresa' });
         }
-        await G.say('pai', 'Os clientes compram do Osvaldo. Isso é verdade. Ele é a Vale Verde.', { expr: 'pensativo' });
+        await G.say('pai', 'Nisso você acertou: os clientes compram do Osvaldo. A Vale Verde é ele.', { expr: 'pensativo' });
         await G.narrate('O bigode de {pai} deu aquela tremidinha. A mesma de quando um número não fecha.');
         await G.say('faisca', 'Quer ir mais fundo? Tem um exercício de um psicólogo, Gary Klein, que eu adoro: o *pré-mortem*.');
         await G.say('pai', 'Pré-mortem. Parece nome de seguro.', { expr: 'desconfiado' });
@@ -978,10 +978,11 @@
         G.v.premissaPega = r.premissaPega;
         G.stats({ premortem: true, premissaPega: r.premissaPega });
         if (r.premissaPega) {
-          await G.say('faisca', 'E obrigada pela caneta. O dólar eu inventei: quando me falta informação, eu completo com chute. Com cara de certeza.');
+          fa(G, 'jump', 1.2);
+          await G.say('faisca', 'Obrigada pela caneta. O antídoto para o meu chute é o que você fez: comparar a minha lista com o que você *sabe*. Melhor ainda: me peça para marcar o que é suposição.');
         } else {
           fa(G, 'ashamed', 1.8);
-          await G.say('faisca', 'E o dólar, de novo: eu inventei. Quando me falta informação, eu completo com chute, com cara de certeza. Por isso a lista é rascunho.');
+          await G.say('faisca', 'O antídoto para o meu chute: comparar a minha lista com o que você *sabe*, como naquele quadro. E me pedir para marcar o que é suposição.');
         }
         await G.say('faisca', 'Uma dica: faça isso também com a diretoria. Cada um escreve sozinho, *antes* de ver a minha lista. Senão todo mundo concorda comigo. Ou com você.');
         G.player.lookAt(G.faisca);
@@ -1028,13 +1029,9 @@
         G.stats({ criterios: true, otimismoPego: m.corrigiu });
         G.achieve('estrategista');
         G.sceneParams({ tv: slideMatriz(m) });
-        if (m.corrigiu) {
-          await G.say('faisca', 'E bem pego na nota de risco. Uma empresa sem auditoria não é "risco baixo". Era otimismo meu.');
-        } else {
-          await G.say('faisca', 'Aquela nota de risco eu mesma corrigi no fim: empresa sem auditoria não é "risco baixo". Otimismo meu.');
-        }
+        if (m.corrigiu) await G.say('pai', '"Risco baixo" sem auditoria. Nem o Osvaldo teria essa coragem.', { expr: 'rindo' });
         fa(G, 'teach', 1.8);
-        await G.say('faisca', 'E não é só comigo. Num exercício com executivos, quem consultou uma IA ficou mais otimista e errou mais. Quem conversou com colegas acertou mais.');
+        await G.say('faisca', 'E o otimismo não é só meu. Num exercício com uns 300 executivos, quem consultou uma IA ficou mais otimista e errou mais. Quem ouviu colegas acertou mais.');
         await G.fact('executivos_previsao_otimista');
         await G.say('pai', 'Então antes de decidir, uma segunda opinião.', { expr: 'pensativo' });
         const op = await G.choose([
@@ -1060,7 +1057,7 @@
           await G.say('faisca', 'Ela viu uma coisa que eu não vi: a cláusula para o caso de venda. Duas IAs enxergam mais. Mas duas IAs concordando não viram verdade.');
         }
         if (op !== 'bia') await G.say('pai', 'Agora, gente de carne e osso.', { expr: 'determinado' });
-        G.sfx('phone_vibrate');
+        G.sfx('blip');
         await G.say('pai', 'Bia? Sobe aqui um minutinho. Quero uma segunda opinião.', { expr: 'neutro' });
         if (op === 'bia') await G.say('faisca', 'Boa escolha. E, se quiser, dá também para rodar de novo ou perguntar a outra IA: se a resposta muda muito, é sinal de que ela é frágil.');
         await G.fadeOut(0.6);
@@ -1103,7 +1100,7 @@
         await G.say('bia', 'Resposta certa. Eu só queria ver se ela dizia não.', { expr: 'rindo' });
 
         // A decisão
-        await G.say('faisca', 'Eu dei a lista, as notas e a conta. A Bia deu o caixa e o faro. Agora é com você.', { cam: false });
+        await G.say('faisca', 'Lista, notas, conta e uma opinião de gente. Agora é com você.', { cam: false });
         await G.think('pai', 'Trinta anos de estrada. É para isto que me pagam.');
         const dec = await G.choose(['comprar', 'parceria', 'proprio', 'esperar'].map((k) => ({ text: DEC[k].t, sub: DEC[k].sub, value: k })), { prompt: 'A sua decisão:', who: 'pai' });
         G.v.decisao = dec;
@@ -1123,9 +1120,13 @@
           fa(G, 'think', 1.4);
           await G.say('faisca', 'A matriz avisou o ponto fraco: o prazo. Vale um cronograma bem conferido.', { cam: false });
         } else {
-          await G.say('bia', 'Pressa do outro lado da mesa não é problema nosso.', { expr: 'feliz' });
+          await G.say('bia', 'Sessenta dias de auditoria. Se o tal outro interessado existir, ele também vai pedir.', { expr: 'desconfiado' });
           fa(G, 'celebrate', 1.4);
           await G.say('faisca', 'Esperar também é decidir. Desde que tenha data: sessenta dias.', { cam: false });
+        }
+        const venc = G.v.matriz && G.v.matriz.vencedor;
+        if (venc && venc !== 'empate' && venc !== dec && dec !== 'esperar') {
+          await G.say('faisca', 'A matriz apontava outro caminho, e tudo bem: ela organiza o raciocínio, não decide. Só deixe o porquê por escrito.', { cam: false });
         }
         await G.say('pai', 'A Faísca rascunha, a Bia confere o caixa... e quem decide sou eu.', { expr: 'determinado' });
         await G.say('bia', 'Do jeito que tem que ser. Amanhã cedo eu confiro os números. E parabéns pelo pré-mortem.', { expr: 'amigavel' });
@@ -1161,7 +1162,7 @@
           await G.wait(1.4);
         });
         G.sfx('notify');
-        G.toast('{chefe}: "Recebi. Primeira vez que vejo uma recomendação de compra com a lista do que pode dar errado. Quinta, 8h. E quero saber como você fez isso."', { icon: '💬', kind: 'notif', dur: 9 });
+        G.toast('{chefe}: "Recebi. Primeira vez que vejo uma recomendação com a lista do que pode dar errado. Quinta, 8h. E quero saber como você fez isso."', { icon: '💬', kind: 'notif', dur: 9 });
         await G.wait(1.2);
         G.player.fp();
         G.talkCam(true);
@@ -1171,10 +1172,13 @@
         await G.say('faisca', 'Anotado! O advogado do diabo, o pré-mortem, a matriz e o memorando estão no seu Guia do CEO, botão 📘, em "Decisões e estratégia".');
 
         G.sfx('phone_vibrate');
-        G.toast('{filho}: "Chega que horas, {apelido}? A geladeira está com cara de desafio 😅"', { icon: '💬', kind: 'notif', dur: 7 });
+        G.toast('{filho}: "Janta em casa hoje, {apelido}? Se demorar, é pizza de novo 🍕"', { icon: '💬', kind: 'notif', dur: 7 });
         await G.wait(0.8);
         const cet = varDe('prologo', 'ceticismo');
-        if (cet === 'inventou') await G.think('pai', 'Hoje cedo eu disse que ela inventava números. Agora há pouco ela inventou uma importação... e eu peguei.', { expr: 'orgulhoso' });
+        if (cet === 'inventou') {
+          await G.think('pai', G.v.premissaPega ? 'Hoje cedo eu disse que ela inventava números. Hoje à tarde ela inventou uma importação... e eu peguei.'
+            : 'Hoje cedo eu disse que ela inventava números. Inventa mesmo. A diferença é que agora eu sei onde procurar.', { expr: 'orgulhoso' });
+        }
         else if (cet === 'modinha') await G.think('pai', 'Modinha, eu disse hoje cedo. Modinha que faz pré-mortem.', { expr: 'pensativo' });
         else if (cet === 'caneta') await G.think('pai', 'Papel e caneta, eu disse hoje cedo. A caneta continua minha. Só que agora risca mais rápido.', { expr: 'orgulhoso' });
         if (G.flag('aposta')) await G.think('pai', 'E aquela aposta da louça está ficando difícil de ganhar.', { expr: 'sem_graca' });
@@ -1212,8 +1216,12 @@
           await G.narrate('Ele não sabe se a decisão vai dar certo. Ninguém sabe.');
           await G.narrate('Mas sabe por que decidiu, o que vai vigiar e quem confere o quê. Numa página, com a assinatura dele.');
         });
+        fa(G, 'teach', 1.8);
+        await G.say('faisca', 'Dois estudos para o caminho. Num simulador de CEO, a IA foi ótima em tempo bom... e a primeira a ser demitida na crise.');
+        await G.say('faisca', 'Em mais de cem experimentos, a dupla gente + IA tendeu a ganhar ao criar e a perder ao escolher. Quando a pessoa sabia mais que a IA, a dupla venceu.');
+        await G.say('pai', 'Trinta anos de assunto. Gostei dessa parte.', { expr: 'rindo' });
         G.talkCam(true);
-        await G.fact(['ia_ceo_simulador', 'cybernetic_teammate_pg'], { titulo: 'Conselheira, não oráculo' });
+        await G.fact(['ia_ceo_simulador', 'vaccaro_humano_ia'], { titulo: 'Conselheira, não oráculo' });
         await G.lesson('A IA amplia o seu raciocínio. *Peça o contra, não o a favor. A decisão é sua.*\n- Não conte antes o que você prefere.\n- Pré-mortem: imagine que deu errado e pergunte por quê.\n- Os pesos são seus; as notas da IA são opinião.\n- Ouça mais de uma opinião, e pelo menos uma de gente.\n- Decisão sobre pessoas fica com pessoas.', { titulo: 'O conselheiro de bolso' });
         await G.fadeOut(0.8);
       },

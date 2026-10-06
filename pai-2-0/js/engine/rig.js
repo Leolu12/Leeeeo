@@ -18,7 +18,26 @@
  *
  * API (mantida): P2.rig.human(spec) → controlador {root, height, headY, kind:'human',
  *   joints, face, props, mats, update(dt, actor), dispose()}; P2.rig.POSES; P2.rig.EXPRS;
- *   P2.rig.SKINS; P2.rig.makeController.
+ *   P2.rig.SKINS; P2.rig.makeController. (Também: MOUTHS, HAIR, HAND_SHAPES, REG, RIM, addRim,
+ *   bodyMaterial, Bucket, tubeGeo, lockGeo, bez, roundEnd, handGeo, headPoint, makeDims, ik, fk.)
+ *
+ * POSES (actor.anim): idle stand talk walk · sit sittalk type sitphone sitlookphone sitthink
+ *   sitcoffee sitpoint sitarms sitread sitlisten sitwrite sitmouse sitrelax sitdictate (sentadas:
+ *   raiz = centro do assento ~0,46 m; quadril a 0,5 m; coxas para +Z; mesa padrão 0,75 m com borda
+ *   ~0,45 m à frente) · phone lookphone showphone think cheer victory clap coffee point shrug facepalm
+ *   stretch wave arms laugh sad scared nod headshake listen read present handshake dictate pocket
+ *   thumbsup idea nervous hug lurk · sleep/lie (deitado: corpo a ~0,62 m, cabeça para -Z) ·
+ *   appear vanish (= idle; o golpista faz o dissolve) · apelidos: celebrate(=victory) jump(cheer
+ *   pulando) ashamed(nervous cabisbaixo) doubt(shrug) teach(present).
+ *   talking + idle/stand → talk; talking + sit → sittalk. Acessórios automáticos por pose
+ *   (phone, mug, papers, pen, clicker) e via actor.props {phone, mug, papers, tablet, pen, folder,
+ *   briefcase, clicker, phoneColor}.
+ * EXPRS (actor.expr): neutro feliz rindo orgulhoso cansado preocupado bravo surpreso assustado triste
+ *   pensativo desconfiado sem_graca empolgado impaciente amigavel determinado confuso aliviado serio
+ *   emocionado (extras: suor, lágrima, rubor, raiva, olheiras).
+ * HAIR: grisalho curto raspado baguncado cacheado careca coque rabo coque_base longo chanel nenhum.
+ * HAND_SHAPES: relax fist point open grip pinch thumb flat.
+ * Fade (actor.alpha < 1): pré-passo de profundidade → sem "raio-x" das partes internas.
  */
 (function () {
   'use strict';
@@ -76,7 +95,7 @@
   // Formas de boca: w largura · open abertura · curve cantos (+ sorriso) · round "o" · teeth dentes · asym · wavy
   const MOUTHS = {
     line: { w: 1, open: 0, curve: 0.05 },
-    smile: { w: 1.08, open: 0.06, curve: 0.75, teeth: 0.4 },
+    smile: { w: 1.1, open: 0.17, curve: 0.78, teeth: 0.6 },
     grin: { w: 1.18, open: 0.9, curve: 0.8, teeth: 1 },
     frown: { w: 0.92, open: 0, curve: -0.7 },
     open: { w: 0.85, open: 0.75, curve: -0.1, teeth: 0.5 },
@@ -450,7 +469,7 @@
    */
   function hairShell(hs, def, bucket) {
     const NT = def.nt || 46, NP = def.np || 120, thMax = def.thetaMax || 2.25;
-    const verts = [], qs = [];
+    const verts = [], qs = [], hn = [];
     const d = new V3(), S = new V3(), Nn = new V3();
     const cBase = col(def.base), cDark = col(def.dark || def.base), cLight = col(def.light || def.base), cSkin = col(def.skin || '#d59c70');
     const colors = [];
@@ -483,6 +502,7 @@
         const t = Math.max(0, def.thick(e, ph, d) * (0.45 + 0.55 * m) * (1 + gA * (clump - 0.85) * 1.4 + lump));
         const off = Math.min(q * ramp, t + 0.0018);
         verts.push(S.x + Nn.x * off, S.y + Nn.y * off, S.z + Nn.z * off);
+        hn.push(Nn.x, Nn.y, Nn.z);
         qs.push(q);
         // cor: vales escuros estreitos, fios finos, mechas claras, sombra embaixo, esfumado TOTAL para a pele na borda
         const c = cBase.clone().lerp(cDark, (1 - clump) * 0.55);
@@ -508,6 +528,8 @@
     g.setAttribute('position', new T.Float32BufferAttribute(verts, 3));
     g.setIndex(idx);
     g.computeVertexNormals();
+    // na linha do cabelo a normal vira a da pele → o cabelo "nasce" do couro cabeludo sem vinco/risco de luz
+    { const nn = g.attributes.normal; for (let i = 0; i < nn.count; i++) { const k = smooth(0.1, 1.6, qs[i]); if (k >= 1) continue; const x = lerp(hn[i * 3], nn.getX(i), k), y = lerp(hn[i * 3 + 1], nn.getY(i), k), z = lerp(hn[i * 3 + 2], nn.getZ(i), k); const l = Math.hypot(x, y, z) || 1; nn.setXYZ(i, x / l, y / l, z / l); } }
     bucket.add(g, { color: (p, n, l, i) => colors[i], region: REG.hair });
   }
   /** Ponto na casca do cabelo numa direção (para prender mechas). */
@@ -586,7 +608,9 @@
           const e = lerp(o.eTop == null ? 0.42 : o.eTop, o.eMid == null ? -0.04 : o.eMid, Math.pow(i / NH, 0.8));
           d.set(cos(e) * sin(ph), sin(e), cos(e) * cos(ph));
           headPoint(d, hs, S); headNormal(d, hs, N);
-          const lift = i === 0 ? 0.003 : (o.lift || 0.02) * (0.8 + 0.2 * i / NH) + 0.004 * clump;
+          const lift = o.shell
+            ? (i === 0 ? o.shell(d) - 0.0025 : o.shell(d) + 0.0016 + 0.004 * (i / NH) + 0.0035 * clump * smooth(0.25, 0.7, i / NH)) // colada na casca: sem degrau nem "z-fighting"
+            : i === 0 ? 0.003 : (o.lift || 0.02) * (0.8 + 0.2 * i / NH) + 0.004 * clump;
           P = S.clone().addScaledVector(N, lift); nrm = N.clone();
           last = P.clone();
         } else {
@@ -601,8 +625,9 @@
         const th = (o.th || 0.014) * (0.35 + 0.65 * smooth(0, 0.06, edge)) * (i === NR - 1 ? 0.3 : 1);
         inner.push(P.clone().addScaledVector(nrm, -th));
         const v = i / (NR - 1);
-        const k = cc.clone().lerp(cd, (1 - clump) * 0.5 + 0.18 * smooth(0.3, 1, v));
-        k.lerp(cl, clump * (0.3 * Math.exp(-((v - 0.2) ** 2) / 0.03) + 0.12));
+        const top = smooth(0.02, 0.22, v); // no topo a saia tem a cor da casca (sem costura)
+        const k = cc.clone().lerp(cd, ((1 - clump) * 0.5 + 0.18 * smooth(0.3, 1, v)) * top);
+        k.lerp(cl, clump * (0.3 * Math.exp(-((v - 0.26) ** 2) / 0.03) + 0.12) * top);
         colsO.push(k);
         colsI.push(cd.clone().multiplyScalar(0.85));
       }
@@ -628,23 +653,40 @@
   const lum = (c) => { const k = col(c); return 0.3 * k.r + 0.59 * k.g + 0.11 * k.b; };
   const HAIR = {};
   HAIR.grisalho = (hs, hb, c, sk) => {
-    // entradas fundas em "M", topo ralo (pele aparecendo) penteado para trás, laterais curtas e cheias
-    const lo = keys([[0, 0.84], [0.16, 0.87], [0.34, 1.04], [0.5, 1.03], [0.66, 0.74], [0.82, 0.46], [0.98, 0.18], [1.08, -0.08], [1.18, -0.12], [1.3, 0.16], [1.6, 0.24], [1.86, 0.1], [2.15, -0.26], [2.6, -0.44], [PI, -0.5]]);
-    const sk2 = col(sk);
+    // Grisalho de executivo (sem cara de capacete):
+    //  - entradas fundas em "M" e topo ralo: o couro cabeludo aparece ENTRE os fios penteados para trás;
+    //  - laterais com volume acima das orelhas; nuca curta que DEGRADA até a pele (corte "fade");
+    //  - sal e pimenta: prata clara no topo, cinza-chumbo embaixo/atrás;
+    //  - mechas penteadas para trás quebram a silhueta (tufos nas têmporas e no alto da nuca).
+    const lo = keys([[0, 0.84], [0.16, 0.87], [0.34, 1.05], [0.5, 1.03], [0.66, 0.75], [0.82, 0.47], [0.98, 0.2], [1.08, -0.04], [1.18, -0.1], [1.3, 0.14], [1.6, 0.22], [1.86, 0.04], [2.15, -0.36], [2.6, -0.68], [PI, -0.76]]);
+    const sk2 = col(sk), cPep = M.mix(c, '#2f2c35', 0.55), cSilver = M.mix(c, '#ffffff', 0.38);
     hairShell(hs, {
-      lo: (ph) => lo(abs(ph)), feather: 0.17,
+      thetaMax: 2.42, nt: 50, np: 124,
+      qfn: (d, e, ph) => { const a = abs(ph); return (e - lo(a)) / lerp(0.15, 0.36, smooth(1.75, 2.75, a)); },
       thick: (e, ph, d) => {
-        const side = smooth(0.35, 0.85, abs(d.x));
-        const top = smooth(0.78, 0.97, d.y);
-        return lerp(0.0075, 0.0135, side) * (1 - top * 0.45) + 0.0035 * smooth(0.55, 0.85, d.y) * smooth(0.0, 0.6, d.z);
+        const wing = smooth(0.4, 0.85, abs(d.x)) * smooth(-0.2, 0.2, d.y) * smooth(0.72, 0.35, d.y); // volume acima das orelhas
+        const top = smooth(0.74, 0.97, d.y);
+        const nape = smooth(0.0, -0.6, d.y);
+        return (0.0095 + 0.0075 * wing + 0.003 * smooth(0.2, 0.7, d.y) * smooth(0.1, -0.7, d.z)) * (1 - top * 0.55) * (1 - nape * 0.8);
       },
-      comb: (d) => Math.atan2(d.x, d.y + 1.3), freq: 58, groove: 0.16, lump: 0.02, seed: 1.3, warp: 0.25, fineK: 0.09,
-      base: c, dark: M.mix(c, '#4c4954', 0.55), light: M.mix(c, '#ffffff', 0.28), skin: sk,
+      comb: (d) => Math.atan2(d.x, d.y + 1.3), freq: 24, groove: 0.42, lump: 0.06, seed: 1.3, warp: 0.45, fineK: 0.22,
+      base: c, dark: M.mix(c, '#34313b', 0.62), light: cSilver, skin: sk, edgeSkin: 1.1,
       tint: (cc, d) => {
-        cc.lerp(sk2, 0.2 * smooth(0.82, 0.97, d.y) * smooth(-0.45, 0.3, d.z)); // ralo no topo
-        cc.lerp(col('#6f6b76'), 0.22 * smooth(0.15, -0.35, d.y)); // grisalho mais escuro embaixo (sal e pimenta)
+        // sal e pimenta: mais escuro nas laterais baixas e na nuca
+        cc.lerp(cPep, 0.72 * smooth(0.6, -0.3, d.y) * (0.75 + 0.25 * sin(d.x * 61 + d.z * 23)));
+        // prata mais clara no alto da cabeça
+        cc.lerp(cSilver, 0.3 * smooth(0.6, 0.92, d.y));
+        // topo ralo: faixas de pele entre os fios (penteado para trás)
+        const stripe = 0.5 + 0.5 * sin(d.x * 150 + sin(d.z * 7.0) * 2.2);
+        const thin = smooth(0.8, 0.975, d.y) * smooth(-0.55, 0.3, d.z);
+        cc.lerp(sk2, thin * (0.3 + 0.45 * stripe));
+        // nuca degradê: os fios rareiam até a pele
+        cc.lerp(sk2, 0.5 * smooth(-0.25, -0.75, d.y) * (0.6 + 0.4 * stripe));
       },
     }, hb);
+    // dois redemoinhos discretos no alto da nuca (quebram a silhueta sem virar "folhas" coladas)
+    const lc2 = M.hex(M.mix(c, '#5a5662', 0.2));
+    [-1, 1].forEach((sx) => addLock(hb, hs, { follow: true, ph: sx * 2.55, e: 0.62, dir: [-sx * 0.3, -0.85, -0.45], len: 0.075, w: 0.03, th: 0.006, lift: 0.0115, tipOut: 0.03, profile: (t) => Math.pow(sin(Math.min(1, t * 0.9 + 0.1) * PI), 0.6) * (1 - t * 0.35), shade: { dark: 0.22, light: 0.15 } }, lc2));
   };
   HAIR.curto = (hs, hb, c, sk) => {
     const lo = keys([[0, 0.86], [0.35, 0.9], [0.62, 0.9], [0.86, 0.6], [1.05, 0.16], [1.16, -0.18], [1.28, 0.08], [1.6, 0.2], [1.85, 0.06], [2.3, -0.35], [PI, -0.46]]);
@@ -660,28 +702,39 @@
     hairShell(hs, { lo: (ph) => lo(abs(ph)), feather: 0.09, thick: () => 0.0042, comb: (d) => Math.atan2(d.x, d.y + 1.3), freq: 140, groove: 0.05, warp: 0.8, fineK: 0.12, occ: 0.4, base: c, dark: M.mix(c, '#000', 0.25), light: M.mix(c, '#ffffff', 0.08), skin: sk, edgeSkin: 0.8, tint: (cc) => cc.lerp(col(sk), 0.18) }, hb);
   };
   HAIR.baguncado = (hs, hb, c, sk) => {
-    const lo = keys([[0, 0.62], [0.4, 0.66], [0.8, 0.56], [1.04, 0.2], [1.16, -0.16], [1.29, 0.1], [1.6, 0.21], [1.9, 0.04], [2.3, -0.38], [PI, -0.48]]);
+    // corte jovem texturizado: volume e mechas no topo caindo para a frente, laterais e nuca
+    // curtas que degradam até a pele (nada de "cuia"/capacete), redemoinho no alto da cabeça.
+    const lo = keys([[0, 0.62], [0.4, 0.66], [0.8, 0.56], [1.04, 0.2], [1.16, -0.12], [1.29, 0.1], [1.6, 0.16], [1.9, -0.06], [2.3, -0.5], [PI, -0.7]]);
+    const sk2 = col(sk), cTop = M.mix(c, '#8a5a3a', 0.22);
     hairShell(hs, {
-      lo: (ph) => lo(abs(ph)), feather: 0.1,
-      thick: (e, ph, d) => lerp(0.02, 0.032, smooth(0.15, 0.85, d.y)),
-      comb: (d) => Math.atan2(d.x, d.z + 0.6), freq: 16, groove: 0.3, lump: 0.14, seed: 3,
-      base: c, dark: M.mix(c, '#000', 0.35), light: M.mix(c, '#8a5a3a', 0.35), skin: sk,
+      thetaMax: 2.4, nt: 50,
+      qfn: (d, e, ph) => { const a = abs(ph); return (e - lo(a)) / lerp(0.1, 0.3, smooth(1.5, 2.7, a)); },
+      thick: (e, ph, d) => {
+        const top = smooth(0.35, 0.85, d.y);
+        const nape = smooth(0.05, -0.6, d.y);
+        return (0.007 + 0.024 * top) * (1 - nape * 0.75);
+      },
+      comb: (d) => Math.atan2(d.x, d.z + 0.6), freq: 16, groove: 0.5, lump: 0.14, seed: 3, warp: 0.5,
+      base: c, dark: M.mix(c, '#000', 0.4), light: cTop, skin: sk, edgeSkin: 1.1,
+      tint: (cc, d) => {
+        cc.lerp(cTop, 0.25 * smooth(0.6, 0.95, d.y));
+        const stripe = 0.5 + 0.5 * sin(d.x * 120 + d.y * 40);
+        cc.lerp(sk2, 0.42 * smooth(0.1, -0.6, d.y) * (0.65 + 0.35 * stripe)); // laterais/nuca degradê
+      },
     }, hb);
-    // franja e mechas espetadas (bagunçado mas com estilo)
+    // franja e mechas do topo: caem para a frente/para os lados, coladas no volume (sem "chifres")
     const L = [
       { ph: -0.42, e: 0.98, dir: [-0.35, -0.55, 1], len: 0.075, w: 0.026, droop: 0.3, arc: 0.55 },
       { ph: -0.08, e: 1.04, dir: [0.05, -0.5, 1], len: 0.085, w: 0.03, droop: 0.32, arc: 0.55 },
       { ph: 0.3, e: 1.0, dir: [0.4, -0.55, 1], len: 0.075, w: 0.026, droop: 0.28, arc: 0.55 },
       { ph: 0.66, e: 0.86, dir: [0.75, -0.7, 0.5], len: 0.06, w: 0.022, droop: 0.2, arc: 0.45 },
       { ph: -0.72, e: 0.86, dir: [-0.75, -0.7, 0.5], len: 0.06, w: 0.022, droop: 0.2, arc: 0.45 },
-      { ph: -0.25, e: 1.32, dir: [-0.3, 0.45, 0.8], len: 0.07, w: 0.03, tipOut: 0.12, arc: 0.4 },
-      { ph: 0.45, e: 1.28, dir: [0.55, 0.45, 0.4], len: 0.065, w: 0.028, tipOut: 0.12, arc: 0.4 },
-      { ph: -0.95, e: 1.2, dir: [-0.7, 0.35, 0.1], len: 0.06, w: 0.026, tipOut: 0.1, arc: 0.35 },
-      { ph: 2.7, e: 1.18, dir: [0.25, 0.5, -0.8], len: 0.06, w: 0.026, tipOut: 0.12, arc: 0.35 },
-      { ph: 1.5, e: 1.05, dir: [0.7, 0.2, -0.6], len: 0.055, w: 0.024, tipOut: 0.08, arc: 0.3 },
-      { ph: -1.5, e: 1.05, dir: [-0.7, 0.2, -0.6], len: 0.055, w: 0.024, tipOut: 0.08, arc: 0.3 },
     ];
-    L.forEach((o) => addLock(hb, hs, Object.assign({ lift: 0.012 }, o), M.hex(M.mix(c, '#5a3a2a', 0.12))));
+    L.forEach((o) => addLock(hb, hs, Object.assign({ lift: 0.012, shade: { lightTo: '#b07a50', light: 0.2, dark: 0.4 } }, o), M.hex(M.mix(c, '#5a3a2a', 0.12))));
+    // textura do topo: mechas curtas que nascem no redemoinho e deitam para a frente/lados
+    const tl = M.hex(M.mix(c, '#6a4430', 0.1));
+    [[-0.35, 1.32, [-0.35, 0.1, 1]], [0.25, 1.36, [0.3, 0.1, 1]], [0.9, 1.18, [0.85, -0.1, 0.6]], [-0.95, 1.16, [-0.85, -0.1, 0.55]], [1.6, 1.05, [0.9, -0.35, -0.1]], [-1.6, 1.05, [-0.9, -0.35, -0.1]], [2.5, 1.12, [0.45, -0.45, -0.75]], [-2.5, 1.12, [-0.45, -0.45, -0.75]], [PI, 1.2, [0, -0.5, -1]]].forEach(([ph, e, dir], i) =>
+      addLock(hb, hs, { follow: true, ph, e, dir, len: 0.1 + (i % 3) * 0.014, w: 0.03, th: 0.011, lift: 0.031, tipOut: 0.12, profile: (t) => Math.pow(sin(Math.min(1, t * 0.8 + 0.2) * PI), 0.8) * (1 - t * 0.6), shade: { dark: 0.45, light: 0.12, lightTo: '#a07050' } }, tl));
   };
   HAIR.cacheado = (hs, hb, c, sk) => {
     // volume crespo/cacheado: casca grossa e "fofa" (ruído de cachos) + cachinhos soltos na silhueta
@@ -706,12 +759,20 @@
     }
   };
   HAIR.careca = (hs, hb, c, sk) => {
-    const lo = keys([[0.6, 1.2], [0.92, 0.32], [1.04, -0.02], [1.13, -0.14], [1.26, -0.02], [1.42, 0.18], [1.65, 0.2], [1.9, 0.05], [2.3, -0.32], [PI, -0.42]]);
-    const hi = keys([[0.6, 0.3], [0.95, 0.36], [1.1, 0.48], [1.5, 0.58], [2.2, 0.66], [PI, 0.7]]);
+    // calvície de "ferradura": cabelo baixinho só nas laterais/nuca, que some aos poucos no couro
+    // cabeludo (borda de cima bem esfumada, nada de "faixa"), com fios mais claros (grisalhos) misturados.
+    const lo = keys([[0.6, 1.2], [0.92, 0.32], [1.04, -0.02], [1.13, -0.14], [1.26, -0.02], [1.42, 0.16], [1.65, 0.18], [1.9, 0.0], [2.3, -0.42], [PI, -0.62]]);
+    const hi = keys([[0.6, 0.3], [0.95, 0.38], [1.1, 0.5], [1.5, 0.6], [2.2, 0.68], [PI, 0.72]]);
+    const sk2 = col(sk), cSalt = M.mix(c, '#b8b2ac', 0.55);
     hairShell(hs, {
-      lo: (ph) => lo(abs(ph)), hi: (ph) => hi(abs(ph)), feather: 0.18, np: 140,
-      thick: () => 0.0085, comb: (d) => Math.atan2(d.x, d.z) + d.y * 0.6, freq: 30, groove: 0.16, lump: 0.04, warp: 0.4, occ: 0.5,
-      base: M.hex(M.mix(c, sk, 0.12)), dark: M.mix(c, '#000', 0.2), light: M.mix(c, '#b8b0a8', 0.4), skin: sk,
+      thetaMax: 2.4, nt: 50, np: 140,
+      qfn: (d, e, ph) => { const a = abs(ph); return Math.min((e - lo(a)) / lerp(0.12, 0.26, smooth(1.6, 2.7, a)), (hi(a) - e) / 0.2); },
+      thick: (e, ph, d) => 0.0062 * (1 - 0.6 * smooth(0.0, -0.55, d.y)), comb: (d) => Math.atan2(d.x, d.z) + d.y * 0.6, freq: 40, groove: 0.12, lump: 0.03, warp: 0.5, occ: 0.4, fineK: 0.16,
+      base: M.hex(M.mix(c, sk, 0.08)), dark: M.mix(c, '#000', 0.25), light: cSalt, skin: sk, edgeSkin: 1.5,
+      tint: (cc, d) => {
+        cc.lerp(cSalt, 0.18 + 0.12 * snoise(d.x * 9, d.y * 9, d.z * 9));
+        cc.lerp(sk2, 0.3 * smooth(-0.1, -0.6, d.y));
+      },
     }, hb);
   };
   HAIR.coque = (hs, hb, c, sk) => {
@@ -765,14 +826,15 @@
     // risca lateral, volume no topo, cortina de mechas até os ombros e duas mechas emoldurando o rosto
     const lo = keys([[-PI, -0.62], [-2.2, -0.55], [-1.6, -0.42], [-1.25, -0.3], [-1.05, 0.12], [-0.8, 0.42], [-0.4, 0.66], [0, 0.78], [0.3, 0.8], [0.6, 0.66], [0.9, 0.36], [1.1, 0.06], [1.25, -0.3], [1.6, -0.42], [2.2, -0.55], [PI, -0.62]]);
     const part = new V3(0.32, 0.95, 0.12).normalize();
+    const thkL = (d) => 0.019 + 0.009 * smooth(0.0, 0.85, d.y) + 0.004 * smooth(0.5, -0.4, d.y);
     hairShell(hs, {
-      lo: (ph) => lo(ph), feather: 0.1, thetaMax: 2.3,
-      thick: (e, ph, d) => 0.019 + 0.009 * smooth(0.0, 0.85, d.y) + 0.004 * smooth(0.5, -0.4, d.y),
+      lo: (ph) => lo(ph), feather: 0.13, thetaMax: 2.3, nt: 66, np: 140,
+      thick: (e, ph, d) => thkL(d),
       comb: (d) => { const a = new V3().crossVectors(part, d); return Math.atan2(a.y, a.x); }, freq: 22, groove: 0.05, lump: 0.01, warp: 0.25,
       base: c, dark: M.mix(c, '#000', 0.35), light: M.mix(c, '#c08a5a', 0.3), skin: sk,
     }, hb);
     hairSkirt(hs, hb, c, {
-      a0: 1.12, a1: 2 * PI - 1.12, eTop: 1.08, eMid: -0.05, lift: 0.031, th: 0.016, freq: 15, seed: 21,
+      a0: 1.12, a1: 2 * PI - 1.12, eTop: 1.08, eMid: -0.05, lift: 0.031, shell: (d) => thkL(d) * 1.02, th: 0.016, freq: 15, seed: 21,
       y1: (ph) => -0.34 + 0.06 * Math.pow(abs(sin(ph)), 4),
       flare: (ph, t) => 0.012 * t + 0.05 * Math.pow(abs(sin(ph)), 3) * smooth(0.25, 0.7, t),
       fwd: (ph, t) => 0.025 * smooth(1.75, 1.2, abs(ph > PI ? 2 * PI - ph : ph)) * t * t,
@@ -781,14 +843,15 @@
   HAIR.chanel = (hs, hb, c, sk) => {
     // chanel com franja: franja cobre a testa até as sobrancelhas; mechas até o queixo, pontas para dentro
     const lo = keys([[0, 0.5], [0.4, 0.52], [0.7, 0.5], [0.95, 0.3], [1.1, -0.02], [1.24, -0.3], [1.6, -0.4], [PI, -0.55]]);
+    const thkC = (d) => 0.021 + 0.007 * smooth(0.1, 0.85, d.y) + 0.004 * smooth(0.5, 0.9, d.z) * smooth(0.75, 0.45, d.y);
     hairShell(hs, {
-      lo: (ph) => lo(abs(ph)), feather: 0.07, thetaMax: 2.35,
-      thick: (e, ph, d) => 0.021 + 0.007 * smooth(0.1, 0.85, d.y) + 0.004 * smooth(0.5, 0.9, d.z) * smooth(0.75, 0.45, d.y),
+      lo: (ph) => lo(abs(ph)), feather: 0.09, thetaMax: 2.35, nt: 62, np: 136,
+      thick: (e, ph, d) => thkC(d),
       comb: (d) => Math.atan2(d.x, d.z + 0.15), freq: 30, groove: 0.06, warp: 0.25,
       base: c, dark: M.mix(c, '#000', 0.35), light: M.mix(c, '#ffffff', 0.2), skin: sk, edgeSkin: 0.5,
     }, hb);
     hairSkirt(hs, hb, c, {
-      a0: 1.0, a1: 2 * PI - 1.0, eTop: 1.05, eMid: -0.02, lift: 0.032, th: 0.018, freq: 17, seed: 9, tipK: 0.014, lightTo: '#ffffff', light: 0.2,
+      a0: 1.0, a1: 2 * PI - 1.0, eTop: 1.05, eMid: -0.02, lift: 0.032, shell: (d) => thkC(d) * 1.02, th: 0.018, freq: 17, seed: 9, tipK: 0.014, lightTo: '#ffffff', light: 0.2,
       y1: () => -0.165, flare: (ph, t) => 0.01 * t, inK: 0.03,
     });
   };
@@ -999,7 +1062,7 @@
           A.crossVectors(TG, ns[i]).normalize();
           const s = -1 + (2 * i) / (MS - 1);
           const taper = 0.45 + 0.55 * Math.pow(1 - s * s, 0.5);
-          const h = hTop * taper, dd = 0.0022 * taper;
+          const h = hTop * taper, dd = 0.0029 * taper;
           for (let k = 0; k < LSEG; k++) {
             const ang = (k / LSEG) * PI * 2;
             tmp.copy(pts[i]).addScaledVector(A, cos(ang) * h).addScaledVector(ns[i], sin(ang) * dd);
@@ -1045,12 +1108,13 @@
   // ------------------------------------------------------------------
   const HAND_SHAPES = {
     relax: { f: [[0.28, 0.32], [0.36, 0.42], [0.42, 0.48], [0.5, 0.55]], spread: 0.04, thumb: { d: [0.35, -0.6, 0.7], curl: 0.25 } },
-    fist: { f: [[1.5, 1.75], [1.55, 1.75], [1.55, 1.75], [1.5, 1.7]], spread: 0, thumb: { d: [0.8, -0.55, -0.05], curl: 0.35, at: [0.016, -0.03, 0.026] } },
-    point: { f: [[0.02, 0.02], [1.5, 1.75], [1.55, 1.75], [1.5, 1.7]], spread: 0, thumb: { d: [0.8, -0.6, 0.05], curl: 0.3, at: [0.016, -0.032, 0.022] } },
+    // punho: o polegar deita POR CIMA das falanges do indicador/médio (não fica espetado)
+    fist: { f: [[1.5, 1.75], [1.55, 1.75], [1.55, 1.75], [1.5, 1.7]], spread: 0, thumb: { d: [0.62, -0.42, -0.66], curl: 0.22, at: [0.019, -0.042, 0.03], len: 0.043 } },
+    point: { f: [[0.02, 0.02], [1.5, 1.75], [1.55, 1.75], [1.5, 1.7]], spread: 0, thumb: { d: [0.62, -0.45, -0.64], curl: 0.22, at: [0.019, -0.044, 0.028], len: 0.043 } },
     open: { f: [[0.04, 0.05], [0.02, 0.04], [0.04, 0.05], [0.06, 0.08]], spread: 0.11, thumb: { d: [0.1, -0.4, 1], curl: 0.05 } },
     grip: { f: [[0.85, 0.95], [0.95, 1.0], [1.0, 1.05], [1.05, 1.1]], spread: 0.02, thumb: { d: [0.55, -0.55, 0.55], curl: 0.3 } },
     pinch: { f: [[0.55, 0.6], [0.75, 0.8], [0.95, 1.0], [1.1, 1.2]], spread: 0.02, thumb: { d: [0.5, -0.75, 0.4], curl: 0.25 } },
-    thumb: { f: [[1.5, 1.75], [1.55, 1.75], [1.55, 1.75], [1.5, 1.7]], spread: 0, thumb: { d: [0.12, -0.12, 1], curl: -0.05 } },
+    thumb: { f: [[1.5, 1.75], [1.55, 1.75], [1.55, 1.75], [1.5, 1.7]], spread: 0, thumb: { d: [0.1, 0.05, 1], curl: -0.08, at: [0.012, -0.03, 0.026], r: 1.18, len: 0.046 } },
     flat: { f: [[0.06, 0.06], [0.05, 0.05], [0.06, 0.06], [0.08, 0.08]], spread: 0.02, thumb: { d: [0.15, -0.6, 0.75], curl: 0.02 } },
   };
   R.HAND_SHAPES = HAND_SHAPES;
@@ -1095,10 +1159,10 @@
     const ta = th.at || [0.012, -0.02, 0.026];
     let tp = new V3(pn.x * ta[0] * k, ta[1] * k, ta[2] * k);
     const tst = [];
-    const TL = 0.05 * k;
+    const TL = (th.len || 0.05) * k;
     for (let i = 0; i <= 7; i++) {
       const t = i / 7;
-      const r = 0.0118 * k * (1 - 0.25 * t);
+      const r = 0.0118 * (th.r || 1) * k * (1 - 0.25 * t) * (t < 0.3 ? 1.08 - 0.08 * t / 0.3 : 1);
       tst.push({ p: tp.clone(), rx: r, ry: r * 0.9 });
       tdir = tdir.clone().lerp(pn, th.curl * 0.12).normalize();
       tp = tp.clone().addScaledVector(tdir, TL / 7);
@@ -1355,8 +1419,9 @@
       patch(poly([[0.085, 0.17], [0.1, 0.17], [0.13, 0.03], [0.115, 0.03]]), { color: cTopD, region: REG.knit, th: 0.0075, grow: 0.002 });
       // cordões
       [-1, 1].forEach((s) => {
-        const z0 = frontAt(0.5, s * 0.03, 0.006), z1 = frontAt(0.36, s * 0.036, 0.008);
-        const pts = bez(new V3(s * 0.03, yHip + 0.515 * H, z0 + 0.004), new V3(s * 0.034, yHip + 0.45 * H, z0 + 0.01), new V3(s * 0.036, yHip + 0.37 * H, z1 + 0.006), null, 8);
+        // cordão colado na frente do moletom (amostrado na superfície → não "some" dentro do peito)
+        const pts = [];
+        for (let k = 0; k <= 9; k++) { const t = k / 9, yr = lerp(0.515, 0.37, t), x = s * lerp(0.03, 0.037, t); pts.push(new V3(x + s * 0.004 * sin(t * PI), yHip + yr * H, frontAt(Math.min(0.5, yr), x, 0.008) + 0.0075)); }
         b.add(lockGeo(pts, 0.0045, 0.0045, { profile: () => 1 }), { color: col('#f4f1e8'), region: REG.cloth, weight: wTorso });
         const e = pts[pts.length - 1];
         b.add(new T.CylinderGeometry(0.006, 0.0055, 0.018, 8), { m: mat4([e.x, e.y - 0.006, e.z]), color: col('#d8d4c8'), region: REG.metal, bone: BI.chest });
@@ -1413,7 +1478,8 @@
         tgt.add(tubeGeo(st, { segs: 16, up: new V3(0, 0, 1), close0: true, close1: true }), { m, color: (p, n, l) => (typeof c === 'function' ? c(p, n, l) : shade(c, p, n, 0.08)), region: reg, weight: wArm, uvFn: tgt === pat ? (p) => [p.x * 3.2 + p.z * 1.4, p.y * 3.2] : null });
       };
       if (kind === 'cloak') {
-        tube([[0.02, 0.05], [-0.05, 0.052], [-ua, 0.05], [-ua - fa * 0.6, 0.06], [-ua - fa + 0.02, 0.078], [-ua - fa + 0.012, 0.074]], (p, n, l) => (l.y < -ua - fa + 0.016 ? col('#030205') : cTop.clone().multiplyScalar(0.8 + 0.2 * smooth(-0.6, 0.6, n.y))), REG.knit, { capTop: true });
+        // manga em sino ABERTA: a borda dobra para dentro (oco escuro), a mão sai lá de dentro
+        tube([[0.02, 0.05], [-0.05, 0.052], [-ua, 0.05], [-ua - fa * 0.6, 0.062], [-ua - fa + 0.024, 0.08], [-ua - fa + 0.009, 0.084], [-ua - fa + 0.004, 0.078], [-ua - fa + 0.014, 0.066], [-ua - fa + 0.07, 0.036]], (p, n, l) => (n.x * l.x + n.z * l.z < 0 || l.y > -ua - fa + 0.012 && Math.hypot(l.x, l.z) < 0.07 && l.y < -ua - fa * 0.5 ? col('#030205') : cTop.clone().multiplyScalar(0.8 + 0.2 * smooth(-0.6, 0.6, n.y))), REG.knit, { capTop: true });
       } else if (short) {
         tube([[0.0, 0.054], [-0.04, 0.058], [-0.1, 0.058], [-0.155, 0.061]], sleeveCol, topReg, { capTop: true, pat: true });
         tube([[-0.09, 0.047], [-ua + 0.02, 0.042], [-ua - 0.04, 0.043], [-ua - fa * 0.55, 0.039], [-ua - fa + 0.02, 0.033], [-ua - fa + 0.004, 0.032]], cSkin, REG.skin);
@@ -1526,9 +1592,9 @@
     const cStub = M.mix(skin.dark, '#56606e', 0.55);
     const dd = new V3();
     hb.add(headGeo(hs), {
-      region: REG.skin,
+      region: ghost ? REG.knit : REG.skin, // golpista: vazio fosco (sem brilho de "capacete")
       color: (p, n, l) => {
-        if (ghost) return col('#07040b');
+        if (ghost) { dd.copy(l).normalize(); return col('#0a0610').multiplyScalar(0.45 + 0.55 * smooth(0.95, 0.35, dd.z)); }
         dd.copy(l).normalize();
         const c = cS.clone();
         const cx = abs(dd.x) - 0.55, cy = dd.y + 0.3, cz = dd.z - 0.75;
@@ -1554,6 +1620,13 @@
         { const pp = eg.attributes.position; for (let i = 0; i < pp.count; i++) { const x = pp.getX(i), y = pp.getY(i), z = pp.getZ(i); const r = Math.hypot(y / 0.034, z / 0.024); if (x > 0) pp.setX(i, x * (r < 0.72 ? 0.25 + 0.75 * smooth(0.35, 0.72, r) : 1)); } eg.computeVertexNormals(); }
         const cIn = M.mix(skin.base, skin.dark, 0.55).lerp(col(skin.cheek || skin.lip), 0.15);
         hb.add(eg, { m: mat4([p.x + sx * 0.0035, p.y, p.z], [0, sx * 0.32 + (sx < 0 ? PI : 0), -sx * 0.1]), color: (pp, n, l) => (l.x > 0 && Math.hypot(l.y / 0.034, l.z / 0.024) < 0.7 ? cIn : cS), region: REG.skin });
+        // hélice (borda dobrada da orelha): dá forma de orelha de verdade
+        {
+          const back = sx > 0 ? -1 : 1, rim = [];
+          for (let k = 0; k <= 12; k++) { const a = -0.45 * PI + (k / 12) * 1.25 * PI; rim.push(new V3(0.0052, 0.0305 * sin(a), back * 0.0205 * cos(a))); }
+          const rg = lockGeo(rim, 0.0056, 0.0044, { profile: (t) => 0.45 + 0.55 * sin(Math.min(1, t * 1.1) * PI * 0.5 + 0.25) * (1 - t * 0.35), up: new V3(1, 0, 0), segs: 8 });
+          hb.add(rg, { m: mat4([p.x + sx * 0.0035, p.y, p.z], [0, sx * 0.32 + (sx < 0 ? PI : 0), -sx * 0.1]), color: cS.clone().lerp(cCheek, 0.12), region: REG.skin });
+        }
         if (spec.earrings) hb.add(ballGeo(0.0065, 0.0065, 0.0065, 8, 6), { m: mat4([p.x + sx * 0.008, p.y - 0.034, p.z + 0.004]), color: col(spec.earrings === true ? '#f6f0e6' : spec.earrings), region: REG.teeth });
       });
       // nariz: ponte + ponta + asas
@@ -1564,10 +1637,13 @@
       const pmid = p0.clone().lerp(ntip, 0.5).addScaledVector(nN, 0.004 * ns);
       hb.add(lockGeo(bez(p0.clone().addScaledVector(nN, -0.004), pmid, ntip, null, 7), 0.0085 * ns, 0.008 * ns, { up: new V3(0, 0, 1), profile: (t) => 0.6 + 0.5 * t }), { color: cNose, region: REG.skin });
       hb.add(ballGeo(0.0128 * ns, 0.0118 * ns, 0.012 * ns, 14, 10), { m: mat4([ntip.x, ntip.y - 0.002, ntip.z - 0.004]), color: cNose, region: REG.skin });
+      // asas do nariz: ficam ENTRE a ponta e o rosto (base do nariz cheia), não coladas na bochecha
       [-1, 1].forEach((sx) => {
-        surf(sx * 0.0125 * ns, -0.0345, P, N);
-        hb.add(ballGeo(0.0064 * ns, 0.0054 * ns, 0.006 * ns, 10, 8), { m: mat4([P.x - sx * 0.0008, P.y + 0.0005, P.z - 0.0018], [0, sx * 0.4, 0]), color: cNose.clone().multiplyScalar(0.98), region: REG.skin });
+        surf(sx * 0.0098 * ns, -0.0325, P, N);
+        hb.add(ballGeo(0.0064 * ns, 0.0056 * ns, 0.0082 * ns, 12, 9), { m: mat4([P.x + N.x * 0.0068 * ns, P.y + N.y * 0.0068 * ns + 0.0008, P.z + N.z * 0.0068 * ns], [0, sx * 0.5, sx * 0.25]), color: cNose.clone().multiplyScalar(0.985), region: REG.skin });
       });
+      // narinas (sombra discreta embaixo da ponta)
+      [-1, 1].forEach((sx) => hb.add(ballGeo(0.0034 * ns, 0.0016 * ns, 0.003 * ns, 8, 6), { m: mat4([ntip.x + sx * 0.0058 * ns, ntip.y - 0.0118 * ns, ntip.z - 0.0062 * ns], [0, 0, sx * 0.3]), color: M.mix(skin.dark, '#3a1a14', 0.4), region: REG.skin }));
       // brilho dos olhos (fixo na cabeça — some quando a pálpebra fecha)
       E.forEach((e) => {
         [[-0.4, 0.42, 0.81, 0.0062], [0.34, -0.36, 0.87, 0.0028]].forEach(([x, y, z, r]) => {
@@ -1586,9 +1662,10 @@
           [[-0.006, -0.0565], [0.012, -0.058], [0.029, -0.0625], [0.039, -0.069], [0.046, -0.078], [0.049, -0.086]].forEach(([x, y]) => {
             surf(sx * x, y, P, N); pts.push(P.clone().addScaledVector(N, 0.008)); ups.push(N.clone());
           });
-          const sm = bez(pts[0], pts[2], pts[4], pts[5], 9);
-          const g = lockGeo(sm, 0.0122, 0.0082, { ups: sm.map((q, i) => ups[Math.min(5, Math.round(i * 5 / 8))]), profile: (t) => (1 - Math.pow(t, 2.2) * 0.75) * (0.85 + 0.15 * sin(t * PI)), segs: 10 });
-          hb.add(g, { color: (p, n, l, i) => { const k = hash(i * 0.37); return k < 0.3 ? md : k > 0.8 ? ml : mc; }, region: REG.hair });
+          const sm = bez(pts[0], pts[2], pts[4], pts[5], 23);
+          const g = lockGeo(sm, 0.0132, 0.0088, { ups: sm.map((q, i) => ups[Math.min(5, Math.round(i * 5 / 22))]), profile: (t) => (1 - Math.pow(t, 2.2) * 0.72) * (0.86 + 0.14 * sin(t * PI)), segs: 10 });
+          // fios penteados para baixo: listras ao longo do bigode + parte de baixo mais escura
+          hb.add(g, { color: (p, n, l, i) => { const ring = i % 10, stn = Math.floor(i / 10); const st = 0.5 + 0.5 * sin(stn * 1.9 + sx * 1.1 + hash(stn * 0.71 + sx) * 1.6); const c2 = mc.clone().lerp(st > 0.5 ? ml : md, Math.abs(st - 0.5) * 1.5); const down = sin((ring / 10) * PI * 2); return c2.lerp(md, 0.45 * smooth(-0.2, -0.9, down)); }, region: REG.hair });
         });
       }
       // barba curta
@@ -1873,9 +1950,11 @@
       const p = breathe(base(info), t);
       p.head = add3(p.head, [0.04, -0.12, 0.1]);
       const ear = fk(p, info, 'head', [-0.215, -0.095, 0.045]);
-      const r = ik(p, 'R', ear, info, { palm: [1, 0, -0.1], fingers: [0.15, 1, 0.25], pole: [-0.25, -1, 0.5] });
-      ik(p, 'L', [r.elbow.x + 0.08, r.elbow.y - 0.035, r.elbow.z + 0.06 + B(info) * 0.04], info, { palm: [0, 1, 0], fingers: [-1, 0.1, 0.1], pole: [0.8, -0.6, -0.2] });
-      p.hands = { R: 'grip', L: 'grip' };
+      // cotovelo para baixo e para a frente (perto do peito); a outra mão segura o cotovelo SEM atravessar o corpo
+      const r = ik(p, 'R', ear, info, { palm: [1, 0, -0.1], fingers: [0.15, 1, 0.25], pole: [0.05, -1, 0.75] });
+      void r;
+      ik(p, 'L', [0.165, 0.9 * HY(info) + 0.01, 0.095 + B(info) * 0.05], info, { palm: [-1, 0, 0.1], fingers: [-0.25, -1, -0.35], pole: [0.6, -0.4, -0.8] });
+      p.hands = { R: 'grip', L: 'flat' };
       p.props = { phone: true };
       return p;
     },
@@ -1883,7 +1962,7 @@
       const p = seated(breathe(base(info), t, 0.5), info);
       p.head = add3(p.head, [0.04, -0.12, 0.1]);
       const ear = fk(p, info, 'head', [-0.215, -0.095, 0.045]);
-      ik(p, 'R', ear, info, { palm: [1, 0, -0.1], fingers: [0.15, 1, 0.25], pole: [-0.25, -1, 0.5] });
+      ik(p, 'R', ear, info, { palm: [1, 0, -0.1], fingers: [0.15, 1, 0.25], pole: [0.05, -1, 0.75] });
       ik(p, 'L', [0.13, 0.565, 0.27], info, Object.assign({ pole: [0.4, -0.3, -0.8] }, HP.thigh(1)));
       p.hands = { R: 'grip' };
       p.props = { phone: true };
@@ -2267,6 +2346,12 @@
     },
     appear(t, a, info) { return POSES.idle(t, a, info); },
     vanish(t, a, info) { return POSES.idle(t, a, info); },
+    // apelidos (nomes de animação da Faísca usados num humano não caem no "idle" parado)
+    celebrate(t, a, info) { return POSES.victory(t, a, info); },
+    jump(t, a, info) { const p = POSES.cheer(t, a, info); p.rootY = Math.max(0, sin(t * 7)) * 0.06; return p; },
+    ashamed(t, a, info) { const p = POSES.nervous(t, a, info); p.head = add3(p.head, [0.16, 0, 0]); p.chest = add3(p.chest, [0.06, 0, 0]); p.shUp = 0.012; return p; },
+    doubt(t, a, info) { const p = POSES.shrug(t, a, info); p.head = add3(p.head, [0, 0.12, 0.08]); return p; },
+    teach(t, a, info) { return POSES.present(t, a, info); },
   };
   R.POSES = POSES;
 
@@ -2450,9 +2535,16 @@
       root.add(pmesh); pmesh.bind(skeleton);
       mats.push(pm);
     }
-    const headMesh = new T.Mesh(G.head, bodyMat);
+    const headMat = ghost ? bodyMaterial({ rim: 0.35 }) : bodyMat; // golpista: rosto é um vazio (sem contorno de luz no "ovo")
+    if (headMat !== bodyMat) mats.push(headMat);
+    const headMesh = new T.Mesh(G.head, headMat);
     headMesh.name = 'headStatic'; headMesh.castShadow = true; headMesh.receiveShadow = true;
     skull.add(headMesh);
+    // pré-passo de profundidade (só durante fade in/out): com transparência o corpo não mostra
+    // o "raio-x" das partes de dentro (pescoço sob a gola, braço dentro da manga, crânio sob o cabelo)
+    const preMat = new T.MeshBasicMaterial({ colorWrite: false, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+    const preBody = new T.SkinnedMesh(G.body, preMat); preBody.frustumCulled = false; preBody.visible = false; root.add(preBody); preBody.bind(skeleton);
+    const preHead = new T.Mesh(G.head, preMat); preHead.visible = false; skull.add(preHead);
     let lensMesh = null;
     if (G.lenses) {
       const lm = new T.MeshStandardMaterial({ color: '#e8f3ff', roughness: 0.04, metalness: 0.2, transparent: true, opacity: 0.09, depthWrite: false });
@@ -2497,7 +2589,7 @@
         browColor: col(spec.browColor || M.hex(M.mix((spec.hair && spec.hair.color) || '#3a2a22', '#000', 0.2))),
         browIn: 0.02, browOut: fem ? 0.088 : 0.094, browY: ey + (fem ? 0.062 : 0.058), browH: fem ? 0.0088 : (spec.browH || 0.0118), browTaper: fem ? 0.45 : 0.6,
         mouthY: spec.mouthY || (spec.mustache ? -0.1 : -0.093), mouthW: (fem ? 0.0275 : 0.0305) * (spec.mouthSize || 1),
-        lipTop: M.mix(skin.lip, skin.dark, 0.3), lipBot: col(skin.lip), lipUp: fem ? 0.0036 : 0.003, lipLow: fem ? 0.0052 : 0.0042,
+        lipTop: M.mix(skin.lip, skin.dark, 0.25), lipBot: col(skin.lip), lipUp: fem ? 0.0046 : 0.0037, lipLow: fem ? 0.0068 : 0.0056,
       });
       skull.add(faceDyn.mesh);
       // extras: suor, lágrima, vergonha, raiva
@@ -2559,7 +2651,7 @@
 
     const baseHeight = D.hipY + D.hipUp + D.spine + D.chest + D.neck + hs.r * 0.95 + hs.r * 1.08 + 0.02;
     const headY = D.hipY + D.hipUp + D.spine + D.chest + D.neck + hs.r * 0.95;
-    const info = { dims: D, belly: spec.belly || 0, baseHeight, headY, ghost, fem, hands, handSize, handCol, faceDyn, eyeGroups, E, skeleton, body };
+    const info = { dims: D, belly: spec.belly || 0, baseHeight, headY, ghost, fem, hands, handSize, handCol, faceDyn, eyeGroups, E, skeleton, body, prepass: [preBody, preHead], preMat };
     return makeController(root, J, face, props, mats, info);
   };
 
@@ -2655,15 +2747,18 @@
         const op = a.alpha == null ? 1 : a.alpha;
         if (op !== opacityNow) {
           opacityNow = op;
+          if (info.prepass) info.prepass.forEach((m) => (m.visible = op < 0.999 && op > 0.01));
           mats.forEach((m) => {
             if (m.userData.baseOpacity == null) { m.userData.baseOpacity = m.opacity; m.userData.baseTransparent = m.transparent; m.userData.baseDepthWrite = m.depthWrite; }
-            m.transparent = op < 1 || m.userData.baseTransparent;
+            const tr = op < 1 || !!m.userData.baseTransparent;
+            if (m.transparent !== tr) { m.transparent = tr; m.needsUpdate = true; } // r149: OPAQUE é define do shader → recompila
             m.opacity = m.userData.baseOpacity * op;
             m.depthWrite = op >= 1 ? m.userData.baseDepthWrite : false;
           });
         }
       },
       dispose() {
+        if (info.preMat) info.preMat.dispose();
         root.traverse((o) => {
           if (o.material && o.material.dispose && mats.indexOf(o.material) >= 0) o.material.dispose();
           if (o.geometry && o.name === 'faceDyn') o.geometry.dispose();
