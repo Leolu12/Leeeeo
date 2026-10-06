@@ -711,7 +711,7 @@
         G.hud.set({ clock: '16:45' });
         olhaMonitor(G);
         await G.fadeIn();
-        await G.say('pai', 'Margem eu sei o que é, Faísca. Trinta anos de DRE.', { expr: 'desconfiado' });
+        await G.say('pai', 'Margem eu sei o que é, Faísca. Leio DRE desde antes de você existir.', { expr: 'desconfiado' });
         fa(G, 'teach', 1.8);
         await F(G, 'Eu sei! Não é aula, é ensaio: como explicar isso em duas frases para o conselho. Se alguma explicação ficar torta, peça de outro jeito.');
 
@@ -908,7 +908,7 @@
 
         const quem = await G.choose([
           { text: 'Com a Faísca. Ela rascunhou, eu conferi.', value: 'junto' },
-          { text: 'Sozinho. Trinta anos de DRE.', value: 'sozinho' },
+          { text: 'Sozinho. DRE eu leio desde sempre.', value: 'sozinho' },
         ], { prompt: 'O que você responde para a Bia?', who: 'pai' });
         G.v.contouBia = quem;
         if (quem === 'sozinho') {

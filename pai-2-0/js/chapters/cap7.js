@@ -890,7 +890,7 @@
             {
               id: 'janela', label: 'Ver o pôr do sol', icon: '🌇', at: 'janela', optional: true,
               onInteract: async (G) => {
-                await G.think('pai', 'Trinta anos olhando esta cidade. Comprei pouca coisa por impulso. E me arrependi de quase todas.', { expr: 'pensativo' });
+                await G.think('pai', 'Décadas olhando esta cidade. Comprei pouca coisa por impulso. E me arrependi de quase todas.', { expr: 'pensativo' });
               },
             },
             { id: 'mesa', label: 'Sentar à mesa', icon: '🪑', at: 'mesa' },
@@ -1101,7 +1101,7 @@
 
         // A decisão
         await G.say('faisca', 'Lista, notas, conta e uma opinião de gente. Agora é com você.', { cam: false });
-        await G.think('pai', 'Trinta anos de estrada. É para isto que me pagam.');
+        await G.think('pai', 'Anos de estrada. É para isto que me pagam.');
         const dec = await G.choose(['comprar', 'parceria', 'proprio', 'esperar'].map((k) => ({ text: DEC[k].t, sub: DEC[k].sub, value: k })), { prompt: 'A sua decisão:', who: 'pai' });
         G.v.decisao = dec;
         G.stats({ decisao: dec });
