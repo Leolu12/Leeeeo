@@ -109,7 +109,8 @@
   const TOTAL = TRECHOS.length + ATA.length; // 15
 
   // De pé ao lado da cabeceira, virado para quem ficou na sala (Tadeu e Jorge)
-  const PAI_DE_PE = { x: 3.1, z: 0.7, rot: -1.0 };
+  const PAI_DE_PE = { x: 3.1, z: 0.7, rot: -0.92 };
+  const TADEU_DE_PE = { x: 2.15, z: 1.8, rot: Math.PI };
   const CHAT_CARRO = [['eu', '🎙️ Reajuste aprovado, Rafael com o fornecedor, Tadeu com a carta, Bia com o caixa.'], ['ia', 'Anotado. Puxando os trechos da transcrição…']];
   const SLIDE_VELHA = { title: 'Pauta da reunião passada', lines: ['11 itens discutidos', 'Itens decididos: nenhum', 'Próxima reunião: terça, 14h'] };
   function slidePauta(sel) {
@@ -908,7 +909,8 @@
         [bia, rafael, luana].forEach((a) => a.remove());
         G.pai.setAnim('idle');
         G.pai.at(PAI_DE_PE);
-        tadeu.setAnim('idle').setExpr('neutro').at('pe2');
+        // Tadeu perto da quina da mesa e Jorge no centro: vistos da porta, um não fica atrás do outro
+        tadeu.setAnim('idle').setExpr('neutro').at(TADEU_DE_PE);
         tadeu.face(G.pai);
         tadeu.lookAt(G.pai);
         jorge.setAnim('idle').setExpr('feliz').at('centro');
@@ -970,7 +972,7 @@
         // Em 1ª pessoa, o 'centro' fica colado no rosto do pai: ela pousa entre os bancos da frente
         pousa(G, FAISCA_CARRO.x, FAISCA_CARRO.z, FAISCA_CARRO.y);
         G.faisca.set({ scale: 0.85 });
-        G.player.lookAt({ x: -1.2, y: 1.1, z: -0.37 }); // a rua pelo para-brisa
+        G.player.lookAt({ x: -1.2, y: 1.05, z: 0.1 }); // a rua pelo vão entre os bancos: o celular e a Faísca cabem no quadro
         await G.say('pai', 'Antigamente, eu passava esse trajeto tentando lembrar quem prometeu o quê.', { expr: 'cansado' });
         await G.say('faisca', 'Hoje a ata sai no caminho. Você fala, eu organizo. Falar é bem mais rápido que digitar no celular.', { anim: 'listen' });
         G.faisca.setAnim('listen');
