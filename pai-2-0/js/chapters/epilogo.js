@@ -292,7 +292,16 @@
     if (agora - ultimaImpressao < 4000) return;
     if (navigator.webdriver) return; // testes automáticos: sem diálogo de impressão
     ultimaImpressao = agora;
+    // em alguns lugares (ex.: o jogo aberto dentro de outra página) a impressão é bloqueada sem aviso:
+    // se a janela não abrir, sugere uma captura de tela
+    let abriu = false;
+    const onBP = () => { abriu = true; };
+    window.addEventListener('beforeprint', onBP, { once: true });
     try { window.print(); } catch (e) { /* sem impressora: nada a fazer */ }
+    setTimeout(() => {
+      window.removeEventListener('beforeprint', onBP);
+      if (!abriu && P2.ui && P2.ui.toast) P2.ui.toast('A impressão não abriu aqui. Para guardar, faça uma captura de tela.', { icon: '🖨️', kind: 'warn', dur: 6 });
+    }, 1500);
   }
   function hoje() {
     try { return new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }); } catch (e) { return new Date().toISOString().slice(0, 10); }
