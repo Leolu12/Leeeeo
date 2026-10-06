@@ -385,7 +385,8 @@
         G.scene('escritorio', office());
         G.pai.at('janela');
         G.pai.set({ anim: 'coffee', expr: 'pensativo', props: { mug: true } });
-        G.faisca.follow(G.pai);
+        // no plano de abertura ela fica à esquerda dele (do lado direito, colava na mão da caneca)
+        G.faisca.follow(G.pai, { side: -1 });
         G.faisca.setAnim('idle');
         G.music('misterio');
         G.hud.set({ clock: '11:30' });
@@ -403,6 +404,7 @@
         // De costas para o vidro, olhando a sala (TV à esquerda, bar ao fundo). G.explore() volta a
         // visão para a rotação do corpo, por isso é o corpo que gira, não só o olhar.
         G.pai.set({ rot: -0.18 });
+        G.faisca.follow(G.pai); // de volta ao canto direito da visão
         G.player.fp();
         G.player.setLook(-0.06, -0.18);
         await G.fadeIn(0.5);
