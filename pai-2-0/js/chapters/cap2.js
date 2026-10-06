@@ -1008,7 +1008,7 @@
         G.pai.set({ rot: PI / 2 - 0.3 }); // os dois levemente virados um para o outro
         luana.set({ rot: PI / 2 + 0.3 });
         G.faisca.unfollow();
-        G.faisca.at(FAISCA_SOFA, 1.5);
+        G.faisca.at(FAISCA_SOFA, 1.4);
         if (v.cafe) { luana.set({ props: { mug: true, tablet: false } }); G.pai.set({ props: { mug: true } }); }
         // decisão sobre gente: plano de cinema dos dois no sofá (na primeira pessoa, lado a lado, ficava apertado)
         G.player.cine();

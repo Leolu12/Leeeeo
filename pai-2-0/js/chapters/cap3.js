@@ -141,6 +141,9 @@
       linha: 'Seja positiva: o fornecedor é parceiro há 15 anos.',
       why: 'Armadilha: dar a sua opinião antes puxa a resposta para o lado que você quer. A IA já tende a concordar com quem pergunta.' },
   ];
+  // Ordem na tela: as armadilhas no meio da lista (no fim, ficavam abaixo da dobra e entregavam o padrão).
+  // O pedido montado segue a ordem de ING (lógica de leitura).
+  const ING_TELA = ['base', 'resumo', 'assinar', 'riscos', 'trecho', 'otimista', 'naoconsta'].map((id) => ING.find((g) => g.id === id));
 
   // Anexo III (p. 78): uma linha em letra branca
   const ANEXO = [
@@ -167,7 +170,7 @@
   .k3-tag { display: inline-block; margin-top: 6px; font-family: var(--head); font-size: 0.78em; font-weight: 800; color: #7a4d00; background: #ffecc2; border-radius: 99px; padding: 2px 10px; }
 
   .k3-ings { display: flex; flex-direction: column; gap: 8px; }
-  .k3-ing { display: flex !important; gap: 10px; align-items: center; padding: 10px 12px !important; min-height: 52px; }
+  .k3-ing { display: flex !important; gap: 10px; align-items: center; padding: 8px 12px !important; min-height: 48px; }
   .k3-ing .k3-ic { font-size: 1.25em; flex: 0 0 auto; width: 1.4em; text-align: center; }
   .k3-ing .k3-tx { flex: 1 1 auto; line-height: 1.3; }
   .k3-ing .k3-k { flex: 0 0 auto; font-family: var(--head); font-size: 0.72em; font-weight: 800; background: rgba(20, 30, 60, 0.08); border-radius: 6px; padding: 0.1em 0.45em; color: var(--muted); }
@@ -324,7 +327,7 @@
         contador.textContent = st.n + ' de 5';
         contador.className = 'mg-badge' + (st.n >= 5 ? ' mint' : '');
       }
-      ING.forEach((g, i) => {
+      ING_TELA.forEach((g, i) => {
         const b = api.el('button', 'mg-card k3-ing', [api.el('span', 'k3-ic', g.ic), api.el('span', 'k3-tx', g.t), api.el('span', 'k3-k', String(i + 1))]);
         b.type = 'button';
         b.dataset.key = String(i + 1);
@@ -357,7 +360,8 @@
             enviar.disabled = false;
             api.say('Pedido de quem já leu muito contrato. Pode enviar.', 'faisca');
             lista.querySelectorAll('button:not(:disabled)').forEach((x) => x.classList.add('dim'));
-            if (estreito()) { right.appendChild(fb); mostra(enviar); }
+            if (estreito()) right.appendChild(fb);
+            mostra(enviar); // o botão fica abaixo da lista: rola o painel até ele, em qualquer tela
           }
         });
         lista.appendChild(b);
