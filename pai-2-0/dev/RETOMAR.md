@@ -1,6 +1,6 @@
 # Como retomar o Pai 2.0
 
-Pausa em 06/10/2026, ~00h10 UTC, por fim dos créditos. Tudo está na branch
+Pausa em 06/10/2026, ~01h20 UTC, por fim dos créditos. Resumo do que está pronto: `dev/RELATORIO.md`. Tudo está na branch
 `claude/pai-2-0-jogo` (PR #2, draft). Link de teste (privado):
 https://claude.ai/artifact/EZKn686ZBrUi8ZttjUZaQQ
 
