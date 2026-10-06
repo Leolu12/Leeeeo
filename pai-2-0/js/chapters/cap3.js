@@ -974,7 +974,7 @@
           } else decisao = d;
         }
         G.v.decisao = decisao;
-        G.faisca.at({ x: -0.05, z: -1.65 }, 0.95); // ao lado do pai no contra-plongée, sem tapá-lo (e dentro do quadro no celular)
+        G.faisca.at({ x: -0.15, z: -2.0 }, 1.25); // no contra-plongée, de perfil junto à cabeça do pai (sem tapá-lo; cabe no celular)
         G.faisca.face(G.pai, true);
         G.player.cine();
         await G.cam.shot('poder', 0);

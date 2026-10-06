@@ -861,6 +861,64 @@
     ctx.fillStyle = 'rgba(255,240,210,0.08)'; ctx.fillRect(0, 0, w, h);
   }
 
+  /** Atlas com 3 diplomas/certificados (512×396 cada): graduação, MBA, prêmio. */
+  function drawDiplomas(ctx, W, H) {
+    const SER = 'Georgia,"Times New Roman",serif';
+    const docs = [
+      { kind: 'Faculdade de Engenharia', title: 'DIPLOMA', sub: 'Bacharel em Engenharia de Produção', year: 'São Paulo, dezembro de 1989', seal: '#b2302a', ink: '#1f2c4a' },
+      { kind: 'Escola de Negócios', title: 'MBA Executivo', sub: 'Gestão Empresarial Internacional', year: 'São Paulo, junho de 2004', seal: '#c9a25e', ink: '#3a2414' },
+      { kind: 'Associação Comercial', title: 'Empresário do Ano', sub: 'Reconhecimento pela liderança e inovação', year: 'São Paulo, 2019', seal: '#c9a25e', ink: '#1f2c4a' },
+    ];
+    docs.forEach((d, i) => {
+      const x0 = i * 512, w = 512, h = H;
+      ctx.save(); ctx.translate(x0, 0);
+      const g = ctx.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, i === 2 ? '#f3ead6' : '#f8f3e6'); g.addColorStop(1, i === 2 ? '#e9dcc0' : '#efe6d2');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+      // guilhoché (fundo de segurança) bem suave
+      ctx.strokeStyle = 'rgba(120,100,60,0.07)'; ctx.lineWidth = 1;
+      for (let k = 0; k < 22; k++) { ctx.beginPath(); for (let x = 0; x <= w; x += 8) { const y = h * 0.5 + Math.sin(x * 0.035 + k * 0.6) * (40 + k * 6); x ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); }
+      // bordas: filete duplo
+      ctx.strokeStyle = d.ink; ctx.lineWidth = 5; ctx.strokeRect(14, 14, w - 28, h - 28);
+      ctx.strokeStyle = '#b8935a'; ctx.lineWidth = 2; ctx.strokeRect(24, 24, w - 48, h - 48);
+      [[24, 24], [w - 24, 24], [24, h - 24], [w - 24, h - 24]].forEach((c) => { ctx.fillStyle = '#b8935a'; ctx.beginPath(); ctx.arc(c[0], c[1], 6, 0, PI * 2); ctx.fill(); });
+      // brasão
+      ctx.fillStyle = d.ink; ctx.beginPath(); ctx.arc(w / 2, 66, 22, 0, PI * 2); ctx.fill();
+      ctx.strokeStyle = '#d8b878'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(w / 2, 66, 16, 0, PI * 2); ctx.stroke();
+      ctx.fillStyle = '#d8b878'; ctx.beginPath(); ctx.moveTo(w / 2, 54); ctx.lineTo(w / 2 + 8, 70); ctx.lineTo(w / 2 - 8, 70); ctx.closePath(); ctx.fill();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#5a4a3a'; ctx.font = '600 15px ' + SER; ctx.fillText(d.kind.toUpperCase(), w / 2, 104);
+      ctx.fillStyle = d.ink; ctx.font = (i === 0 ? 'bold 44px ' : 'italic bold 38px ') + SER; ctx.fillText(d.title, w / 2, 148);
+      ctx.fillStyle = '#4a3f33'; ctx.font = 'italic 16px ' + SER; ctx.fillText('confere a', w / 2, 186);
+      // "nome" manuscrito (rabisco caligráfico)
+      ctx.strokeStyle = d.ink; ctx.lineWidth = 2.6; ctx.beginPath();
+      const rr3 = M.rng(90 + i);
+      let x = w * 0.27; ctx.moveTo(x, 214);
+      while (x < w * 0.73) { const nx = x + 10 + rr3() * 14; ctx.bezierCurveTo(x + 4, 196 + rr3() * 6, nx - 4, 232 - rr3() * 6, nx, 214 + (rr3() - 0.5) * 8); x = nx; }
+      ctx.stroke();
+      ctx.fillStyle = '#4a3f33'; ctx.font = '15px ' + SER; ctx.fillText(d.sub, w / 2, 250);
+      // linhas de texto corrido
+      ctx.fillStyle = 'rgba(70,60,48,0.45)';
+      [272, 286].forEach((y, k) => ctx.fillRect(w * (0.2 + k * 0.06), y, w * (0.6 - k * 0.12), 3));
+      ctx.fillStyle = '#5a4a3a'; ctx.font = 'italic 13px ' + SER; ctx.fillText(d.year, w / 2, 310);
+      // assinaturas
+      [w * 0.27, w * 0.73].forEach((sx, k) => {
+        ctx.strokeStyle = 'rgba(40,40,60,0.8)'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(sx - 56, 342);
+        ctx.bezierCurveTo(sx - 30, 318 - k * 6, sx - 10, 352, sx + 8, 330); ctx.bezierCurveTo(sx + 24, 316, sx + 34, 350, sx + 56, 334); ctx.stroke();
+        ctx.fillStyle = 'rgba(70,60,48,0.6)'; ctx.fillRect(sx - 62, 352, 124, 1.5);
+      });
+      // selo
+      const sx = w * 0.5, sy = 344;
+      ctx.fillStyle = d.seal; ctx.beginPath();
+      for (let k = 0; k < 24; k++) { const a = k / 24 * PI * 2, r = k % 2 ? 24 : 28; k ? ctx.lineTo(sx + Math.cos(a) * r, sy + Math.sin(a) * r) : ctx.moveTo(sx + r, sy); }
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(sx, sy, 17, 0, PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.arc(sx - 6, sy - 6, 6, 0, PI * 2); ctx.fill();
+      ctx.restore();
+    });
+    noise(ctx, W, H, 0.02, 93);
+  }
+
   /** Tela em canvas como malha. */
   function makeScreen(own, w, h, pxW, pxH) {
     const c = document.createElement('canvas');
@@ -1682,16 +1740,22 @@
       dh.box(0.015, 0.02, 0.14, BRASS, [X1 - 0.08, 1.05, doorZ - 0.33]);
       dh.cyl(0.03, 0.03, 0.008, BRASS, [X1 - 0.047, 1.05, doorZ - 0.38], [0, 0, HP]);
       dh.build(METAL(), own, { parent: rg });
-      // diplomas
-      const dip = new Merger();
-      [[0.15, 1.75], [0.68, 1.75], [0.415, 1.3]].forEach((p, i) => {
+      // diplomas: moldura fina + passe-partout + certificado em canvas (atlas com 3 documentos, legível de perto)
+      const dipTex = ctex('diplomas3', 1536, 396, drawDiplomas, false);
+      const dipFr = new Merger(), dipP = new Merger();
+      [[0.15, 1.75, 0], [0.68, 1.75, 1], [0.415, 1.3, 2]].forEach((p) => {
         // (encostados na parede: face interna em x = X1)
-        dip.box(0.02, 0.36, 0.46, '#1b1b1e', [X1 - 0.012, p[1], p[0]]);
-        dip.box(0.006, 0.3, 0.4, i === 2 ? '#e8e0cf' : '#f3eee2', [X1 - 0.024, p[1], p[0]]);
-        dip.box(0.004, 0.035, 0.035, '#c9a25e', [X1 - 0.028, p[1] - 0.08, p[0] + 0.12]);
-        dip.box(0.004, 0.012, 0.22, '#2b3a55', [X1 - 0.028, p[1] + 0.08, p[0]]);
+        const fc = p[2] === 2 ? '#2a1a10' : '#16161a';
+        dipFr.box(0.022, 0.37, 0.025, fc, [X1 - 0.013, p[1], p[0] - 0.2375]);
+        dipFr.box(0.022, 0.37, 0.025, fc, [X1 - 0.013, p[1], p[0] + 0.2375]);
+        dipFr.box(0.022, 0.025, 0.5, fc, [X1 - 0.013, p[1] + 0.1725, p[0]]);
+        dipFr.box(0.022, 0.025, 0.5, fc, [X1 - 0.013, p[1] - 0.1725, p[0]]);
+        dipFr.box(0.006, 0.32, 0.45, '#f4f0e6', [X1 - 0.006, p[1], p[0]]);                     // passe-partout
+        dipFr.box(0.005, 0.275, 0.365, '#d9d2c2', [X1 - 0.009, p[1], p[0]]);                     // chanfro do passe-partout
+        dipP.add(M.planeGeo(0.35, 0.262), '#ffffff', [X1 - 0.0135, p[1], p[0]], [0, -HP, 0], null, [p[2] / 3, 0, (p[2] + 1) / 3, 1]);
       });
-      dip.build(SATIN(), own, { parent: rg });
+      dipFr.build(SATIN(), own, { parent: rg });
+      dipP.build(stdMat('diplomas', { map: dipTex, vc: true, rough: 0.6, env: 0.15 }), own, { parent: rg, cast: false });
 
       // --- parede da frente (quadro + bar)
       const front = solidWall(own, { parent: root, len: X1 - X0 + 0.28, h: H, pos: [0, Z1 + 0.07], rotY: PI });
