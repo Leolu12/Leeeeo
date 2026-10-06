@@ -30,6 +30,9 @@
   // direção da visão; olhar para ela assim faz a visão girar sem parar.
   const FA_MESA = { x: 0.4, z: -1.2 };
   const PLANO_TIJOLO = { target: [-1.31, 1.15, -1.79], yaw: 1.88, pitch: 0.17, dist: 3.15, fov: 38 };
+  // A revelação na tela: o plano 'tela' do cenário (sobre o ombro, centrado no monitor) desviado ~9° para a
+  // direita, para a Faísca (que fala nele) caber inteira também no celular em pé.
+  const PLANO_TELA = { target: [0.7, 1.02, -1.26], yaw: -3.016, pitch: 0.36, dist: 1.44, fov: 40 };
   const TV = ['Hoje · terça-feira', '✓ Relatório do conselho', '✓ Cliente e pauta das 14h', '→ Contrato do fornecedor', '14h · Reunião de diretoria'];
   const ARQUIVO = 'Contrato_Fornecedor_v3.pdf';
   const MIN_POUPADOS = 140; // estimativa do jogo: ~3h de leitura atenta → ~40 min com a IA, conferindo
@@ -876,7 +879,7 @@
         // a revelação (sobre o ombro, a tela)
         G.sceneParams({ chat: r.achou ? TELA.achada : TELA.injecao, typing: false });
         G.player.cine();
-        await G.cam.shot('tela', 0);
+        await G.cam.shot(PLANO_TELA, 0);
         await G.letterbox(true, 0.35);
         G.music('tensao');
         G.sfx('glitch');
@@ -971,7 +974,7 @@
           } else decisao = d;
         }
         G.v.decisao = decisao;
-        G.faisca.at({ x: -0.2, z: -1.6 }, 0.95); // fora da frente do pai no contra-plongée
+        G.faisca.at({ x: -0.05, z: -1.65 }, 0.95); // ao lado do pai no contra-plongée, sem tapá-lo (e dentro do quadro no celular)
         G.faisca.face(G.pai, true);
         G.player.cine();
         await G.cam.shot('poder', 0);
@@ -998,10 +1001,11 @@
         G.sceneParams({ papers: 0.42, screen: 'on', laptop: 'agenda' });
         G.v.fim = true;
         salvar(G);
+        G.player.lookAt(G.faisca); // o "+2H20" sobe da Faísca: ela no centro, o número inteiro na tela
+        await G.wait(0.4);
         G.fx.float(G.faisca, '+2H20 LIVRES', '#ffe066');
         G.sfx('coin');
         await G.narrate('Estimativa do jogo: umas três horas de leitura viraram uns quarenta minutos, com cada número conferido na página.');
-        G.player.lookAt(G.faisca);
         await G.say('pai', 'Pode ficar com a leitura rápida, Faísca. Quem confere sou eu.', { expr: 'orgulhoso' });
         fa(G, 'celebrate', 1.6);
         await G.say('faisca', 'Fechado: eu faço a primeira leitura, você confere. O parecer é do Tadeu, e a assinatura, sua.');
