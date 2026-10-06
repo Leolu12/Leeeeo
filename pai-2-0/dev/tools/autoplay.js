@@ -62,9 +62,14 @@ const GAME = '/home/user/Leeeeo/pai-2-0/index.html';
     if (st.mode === 'choices') {
       if (steps % 4 === 0) await shot('choice');
       await p.waitForTimeout(420);
-      const n = await p.evaluate(() => document.querySelectorAll('#choices .choice:not(:disabled)').length);
-      const k = pick === 'random' ? 1 + Math.floor(Math.random() * n) : pick === 'last' ? n : 1;
-      await p.keyboard.press(String(Math.max(1, k))); await p.waitForTimeout(350); continue;
+      // clica numa opção habilitada (há opções desativadas de propósito, ex.: "Já vimos onde isso dá")
+      await p.evaluate((pick) => {
+        const en = Array.from(document.querySelectorAll('#choices .choice')).filter((b) => !b.disabled);
+        if (!en.length) return;
+        const b = pick === 'random' ? en[Math.floor(Math.random() * en.length)] : pick === 'last' ? en[en.length - 1] : en[0];
+        b.click();
+      }, pick);
+      await p.waitForTimeout(350); continue;
     }
     if (st.mode === 'chat') { await p.keyboard.press('Space'); await p.waitForTimeout(250); continue; }
     if (st.mode === 'mini') {
