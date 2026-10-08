@@ -67,7 +67,8 @@ Como funciona:
 - Se um amigo sai no meio, **um bot assume o lugar** dele (com mente própria, inclusive no meio da votação). Se quem criou a sala sai, a partida acaba e os amigos voltam ao menu com aviso.
 - O chat da reunião é o mesmo: bots e amigos conversam juntos, e os bots leem o que os amigos escrevem (onde estavam, quem acusam, quem confirmam), como leem as falas uns dos outros.
 - O **banco de dados** guarda a lista de salas abertas (some quando a sala fecha; salas abandonadas são apagadas sozinhas depois de 15 minutos) e o histórico das últimas partidas online, mostrado na tela do online.
-- Permissões do claude.ai: **criar sala** (e gravar no banco) pede acesso de **Colaborador** ou mais ao jogo; **entrar** numa sala funciona para quem pode abrir o link.
+- Quem pode jogar: a sala ao vivo do claude.ai aceita quem está **com login** no claude.ai e foi **convidado** para o jogo (pelo e-mail, no botão de compartilhar). Aberto por **link público** ou sem login, o online não conecta (o resto do jogo funciona, e a tela do online explica o que fazer). O plano da conta não entra nessa regra.
+- Permissões do claude.ai: **criar sala** (e gravar no banco) pede acesso de **Colaborador** ou mais ao jogo; **entrar** numa sala funciona com qualquer nível, inclusive **Leitor** (o amigo manda posição e ações pela presença, que qualquer um pode; só quem cria a sala manda eventos).
 - Limites: o simulador da partida é o aparelho de quem criou a sala (se ele travar, todo mundo espera); fantasmas que estão em outro aparelho não têm o chat dos mortos; o relatório final de quem não é o anfitrião é resumido.
 
 ## IA das conversas (modelo de linguagem)
@@ -288,6 +289,7 @@ tools/build.py    gera a versão de arquivo único em dist/
 
 ## Testes
 
+- **Amigo com acesso de Leitor** (versão 37): ao entrar, o aparelho do amigo testava se podia mandar eventos (um teste copiado de quem cria a sala) e, como Leitor não pode, desistia com "Não deu para entrar agora". O amigo não precisa mandar eventos; o teste saiu. Testado com uma imitação da sala que recusa eventos do amigo: ele entra, anda, recebe papel e tarefas, fala e vota na reunião e vê o fim do jogo. Quem abre por link público (sem sala ao vivo) agora vê o motivo e o que fazer, em vez de "aberto fora do claude.ai".
 - **Revisão geral** (versão 36), lendo o código com calma e medindo cada parte:
   - Online, movimento: o amigo manda a posição ~15 vezes por segundo e o anfitrião desenha a 60. Antes, no anfitrião, o amigo andava aos trancos e a perna piscava entre andar e parado; agora desliza (quadros parados no meio da caminhada: 54 de 108 → 0 a 5). Com a aba visível, a simulação online anda junto com o desenho (antes, 30 vezes por segundo). No amigo, os outros são desenhados um instante no passado, entre dois estados conhecidos: a velocidade oscilava ±32% de um quadro para o outro, agora ±10–16%.
   - Online, regras: fantasma não conserta sabotagem pelo comando online (no jogo local já era assim), o teclado do O2 exige estar perto, e "reaparecer" só vale para quem está invisível. Testado com o amigo impostor: abate, corpo, duto (entrar, trocar, sair), sabotagem, portas, report, fantasma atravessando parede e fim por tarefas, iguais nos dois lados.

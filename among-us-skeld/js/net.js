@@ -77,6 +77,8 @@
           this.state = 'off';
           return false;
         }
+        /* dentro do claude.ai: se a sala não abrir, é a conta (sem login, ou aberto por link público) */
+        this.inClaude = true;
         try {
           const [room, db] = await Promise.all([cl.use('room').catch(() => null), cl.use('db').catch(() => null)]);
           this.room = room;
@@ -798,17 +800,9 @@
     }
     async start() {
       this.keys = await keyPair();
+      /* o amigo não manda eventos (posição e ações vão na presença, que qualquer um pode): entra com qualquer nível
+         de acesso, inclusive Leitor */
       this.gr = await Net.room.join('au-' + this.code.toLowerCase());
-      /* só quem pode mandar eventos (acesso de colaborador ou mais) consegue rodar a partida: testa antes de abrir
-         (o teste tem número 0, que os amigos ignoram) */
-      try {
-        await this.gr.emit('ev', { s: 0, k: 'ping' });
-      } catch (e) {
-        if (e && e.code === 'not_permitted') {
-          this.gr.leave().catch(() => {});
-          throw e;
-        }
-      }
       this.unsub = [
         this.gr.onPeers((ch) => this.onPeers(ch), () => {}),
         this.gr.on('ev', (m) => this.onEvent(m), () => {}),
@@ -1256,6 +1250,17 @@
       if (Net.host && !Net.host.closed && !Net.host.g) return hostView(card, Net.host);
       if (Net.client && !Net.client.closed && !Net.client.started) return clientView(card, Net.client);
       card.append(title);
+      if (!ok && Net.inClaude) {
+        /* no claude.ai, mas a sala ao vivo não abriu para esta pessoa */
+        card.append(
+          h('p', { class: 'online-msg' }, 'A sala ao vivo não abriu para a sua conta.'),
+          h('ul', { class: 'online-list' },
+            h('li', {}, 'Ela funciona para quem está com login no claude.ai e foi convidado para este jogo.'),
+            h('li', {}, 'Aberto por link público, ou sem login, o online não conecta (o resto do jogo funciona).'),
+            h('li', {}, 'Peça para quem compartilhou te convidar pelo e-mail, no botão de compartilhar do claude.ai, e abra o jogo de novo logado.')),
+          h('p', { class: 'fine' }, 'Para entrar na sala de um amigo, qualquer nível de acesso serve. Para criar uma sala, é preciso acesso de Colaborador ou mais.'));
+        return;
+      }
       if (!ok) {
         card.append(
           h('p', { class: 'online-msg' }, 'O modo online funciona no link do jogo no claude.ai: quem estiver com o link aberto ao mesmo tempo joga junto, cada um no seu aparelho.'),
@@ -1340,7 +1345,7 @@
       card.innerHTML = '';
       card.append(h('div', { class: 'online-head' }, h('h2', {}, 'Criar sala'), h('button', { class: 'btn ghost', onclick: () => Net.screen(card.parentNode.parentNode) }, '← Voltar')));
       card.append(h('p', { class: 'online-msg bad' }, e && e.code === 'not_permitted'
-        ? 'Para criar uma sala você precisa de acesso de Colaborador (ou mais) a este jogo — peça para quem compartilhou o link. Entrar na sala de um amigo funciona com qualquer acesso.'
+        ? 'Para criar uma sala você precisa de acesso de Colaborador (ou mais) a este jogo — peça para quem compartilhou o link. Para entrar na sala de um amigo, qualquer nível de acesso serve.'
         : 'Não deu para abrir a sala agora. Tente de novo em instantes.'));
       return;
     }
@@ -1392,7 +1397,9 @@
     try {
       await cl.start();
     } catch (e) {
-      status.textContent = 'Não deu para entrar agora. Confira o código e tente de novo.';
+      status.textContent = e && e.code === 'not_permitted'
+        ? 'Sua conta não pode usar as salas deste jogo. Peça para quem compartilhou te convidar pelo e-mail (pelo link público o online não conecta).'
+        : 'Não deu para entrar agora. Confira o código e tente de novo.';
       return;
     }
     setTimeout(() => {
