@@ -60,7 +60,7 @@ Funciona quando o jogo está aberto **pelo link do claude.ai** (a sala ao vivo e
 3. Quem criou a sala clica em **Começar partida**. Os lugares que sobrarem até o tamanho da sala ficam com bots (com as configurações de quem criou a sala).
 
 Como funciona:
-- **Quem cria a sala roda a partida** (regras, bots, abates, sabotagens, reuniões). Cada amigo manda a posição dele e as ações (abater, reportar, usar duto, sabotar, votar, falar no chat) e recebe o estado da nave umas 12 vezes por segundo; o próprio personagem anda na hora, sem esperar, e os outros andam lisos (cada aparelho desenha os outros um instante no passado, entre dois estados conhecidos).
+- **Quem cria a sala roda a partida** (regras, bots, abates, sabotagens, reuniões). Cada amigo manda a posição dele e as ações (abater, reportar, usar duto, sabotar, votar, falar no chat) e recebe o estado da nave umas 12 vezes por segundo; o próprio personagem anda na hora, sem esperar (e não é puxado de volta pelo atraso da rede), e os outros andam lisos (cada aparelho desenha os outros um instante no passado, entre dois estados conhecidos, com folga ajustada ao atraso medido).
 - O anfitrião confere tudo: um amigo não atravessa parede nem anda mais rápido que o permitido, e uma ação só vale se for possível naquele momento.
 - **Segredos ficam secretos**: a função, as tarefas e o parceiro de cada um vão cifrados só para aquela pessoa (chave combinada entre os dois aparelhos).
 - Mensagens perdidas são reenviadas (testado com 25% de perda); quem atrasa recebe de novo o que faltou.
@@ -290,6 +290,13 @@ tools/build.py    gera a versão de arquivo único em dist/
 
 ## Testes
 
+- **Online travando** (versão 39). A imitação da sala usada nos testes não tinha o limite de envios (~40 por segundo por página) nem o atraso de uma rede de verdade. Com os dois, apareceram seis causas:
+  - O anfitrião reanunciava a sala (presença da sala geral e gravação no banco) a cada atualização de qualquer amigo. Eram 39 a 66 envios e 27 a 54 gravações por segundo, a fila da sala enchia e os eventos se perdiam: 80 em 20 s com 3 amigos. Agora são 12 envios, 0,1 gravação por segundo e nenhum evento perdido.
+  - O próprio personagem do amigo era puxado para trás de 2 a 3,4 tiles cerca de uma vez por segundo andando, com latência de 150–300 ms. O jogo comparava a posição de agora com a que voltava do anfitrião, que é de meio segundo antes. Agora compara com o caminho dos últimos 2 s: zero puxadas, também a 300–600 ms.
+  - O anfitrião validava só a reta até o último ponto. Numa esquina, ou encostado na parede (onde a posição arredondada caía um fio dentro dela), recusava e deixava o amigo para trás. Agora valida o rastro do último segundo, pedaço por pedaço, com a mesma colisão do movimento, e um passo curto não atravessa mais parede fina.
+  - O estado da nave saía antes de os bots andarem naquele quadro, então para os amigos todos os bots apareciam parados: deslizavam sem mexer as pernas e sem passos. Agora sai no fim do quadro.
+  - Os outros eram desenhados um tempo fixo no passado; com a rede oscilando, paravam e pulavam em 14% a 34% dos quadros. Agora esse tempo se ajusta ao atraso medido e o boneco segue na mesma direção por um instante quando o estado atrasa: 0,3% a 1,5%. Na tela do anfitrião, o amigo para em 0–5 quadros de cada 120, antes 9–14.
+  - Num computador lento, o relógio de segundo plano tomava o processador do desenho. Agora ele só roda com a aba escondida.
 - **Diagnóstico do online** (versão 38): com uma imitação da sala e o jogo dentro de um iframe, como no claude.ai, quatro casos dão quatro respostas diferentes: tudo certo; sala que não carrega (link público); sala que recusa a conta (`not_granted`, antes o jogo achava que estava conectado e o amigo ficava esperando); e página própria fora do claude.ai.
 - **Amigo com acesso de Leitor** (versão 37): ao entrar, o aparelho do amigo testava se podia mandar eventos (um teste copiado de quem cria a sala) e, como Leitor não pode, desistia com "Não deu para entrar agora". O amigo não precisa mandar eventos; o teste saiu. Testado com uma imitação da sala que recusa eventos do amigo: ele entra, anda, recebe papel e tarefas, fala e vota na reunião e vê o fim do jogo. Quem abre por link público (sem sala ao vivo) agora vê o motivo e o que fazer, em vez de "aberto fora do claude.ai".
 - **Revisão geral** (versão 36), lendo o código com calma e medindo cada parte:

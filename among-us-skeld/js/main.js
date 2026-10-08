@@ -397,9 +397,12 @@
       const tick = () => {
         const g = this.game;
         if (!g || !this.online || (this.screen !== 'game' && this.screen !== 'end')) return;
-        /* aba visível: a simulação anda junto com o desenho (60 por segundo, movimento liso); o relógio só assume
-           quando o navegador para de dar quadros */
-        if (this.screen === 'game' && performance.now() - (this.rafSimAt || 0) < 150) return;
+        /* aba visível: a simulação anda junto com o desenho (movimento liso); o relógio só assume com a aba escondida
+           (o navegador para de dar quadros) ou se o desenho parar de vez. Assumir com quadros lentos (antes, depois de
+           0,15 s) era pior: num computador mais lento o relógio rodava a cada 33 ms, ocupava o processador, o navegador
+           não conseguia mais desenhar e o relógio seguia no comando (quadros de 1 s para o anfitrião e para todos) */
+        const hidden = typeof document !== 'undefined' && document.hidden;
+        if (this.screen === 'game' && !hidden && performance.now() - (this.rafSimAt || 0) < 1000) return;
         this.simNow(g);
       };
       try {

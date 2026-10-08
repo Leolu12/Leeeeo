@@ -401,6 +401,7 @@
       if (this.phase === 'meeting') {
         if (this.net) this.net.tick(dt);
         if (this.meeting) this.meeting.update(dt);
+        if (this.net) this.net.post(dt);
         return;
       }
       this.t += dt;
@@ -484,6 +485,8 @@
         }
       }
       for (const p of this.players) if (p.brain) p.brain.update(dt);
+      /* online: o estado da nave sai agora, com todo mundo já andado neste quadro */
+      if (this.net) this.net.post(dt);
       if (this.phase !== 'play') return;
 
       this.percT -= dt;

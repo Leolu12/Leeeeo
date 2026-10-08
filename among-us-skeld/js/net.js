@@ -72,7 +72,7 @@
     ready: null,
     state: 'checking',
     /* versão do jogo (aparece no diagnóstico: ajuda a saber se o amigo está com a página antiga) */
-    version: 38,
+    version: 39,
     async init() {
       if (this.ready) return this.ready;
       this.ready = (async () => {
@@ -245,8 +245,9 @@
   };
 
   /* ---------- estado público da nave (o anfitrião manda; todos aplicam) ---------- */
-  /* quanto o amigo desenha os outros no passado: um pouco mais que o intervalo entre estados (0,08 s) */
-  const NET_DELAY = 0.12;
+  /* quanto o amigo desenha os outros no passado: o intervalo entre estados (0,08 s, mais a folga do quadro) mais o
+     atraso variável da rede, medido (ver applySnapshot) */
+  const NET_DELAY = 0.13;
   const FL = { alive: 1, vent: 2, moving: 4, invis: 8, shield: 16, busy: 32, cams: 64, pop: 128, morph: 256, ejected: 512 };
   function snapshot(g) {
     const t = g.t;
@@ -298,6 +299,10 @@
        devagar quando todos começam a atrasar */
     const off = t - g.hostAt / 1000;
     g.netOff = g.netOff == null || off > g.netOff ? off : g.netOff + (off - g.netOff) * 0.02;
+    /* quanto este estado chegou atrasado em relação ao mais rápido; o pior recente (que esquece devagar) decide quanto
+       desenhar os outros no passado: o suficiente para quase sempre ter o próximo estado na mão */
+    g.netLate = Math.max(g.netOff - off, (g.netLate || 0) * 0.99);
+    g.netDelayT = U.clamp(NET_DELAY + g.netLate, 0.15, 0.6);
     if (g.t < t - 0.5 || g.t > t + 0.5) g.t = t;
     sn.pl.forEach((a, i) => {
       const p = g.players[i];
@@ -320,10 +325,17 @@
       if (!(f & FL.morph)) p.morph = null;
       p.invisUntil = f & FL.invis ? g.t + 1 : 0;
       if (p === me) {
-        /* o próprio corpo anda aqui; o anfitrião só corrige quando a diferença é grande (duto, reunião, abate) */
-        if (U.d2(p.x, p.y, x, y) > 2.2 || p.inVent) {
+        /* o próprio corpo anda aqui. A posição que volta do anfitrião é de um instante atrás (ida e volta pela rede:
+           300 a 500 ms, 1,5 a 2,6 tiles andando): comparar com a posição de agora puxava o personagem para trás
+           o tempo todo. Só corrige se ela não bate com nenhum ponto por onde passei nos últimos 2 s, ou seja, quando
+           o anfitrião mudou mesmo a minha posição (duto, reunião, porta que fechou na frente) */
+        const hist = g.netMyHist || [];
+        let near = U.d2(p.x, p.y, x, y);
+        for (let k = hist.length - 1; k >= 0 && near > 0.9; k--) near = Math.min(near, U.d2(hist[k][1], hist[k][2], x, y));
+        if (near > 0.9 || p.inVent) {
           p.x = x;
           p.y = y;
+          g.netMyHist = [];
         }
         return;
       }
@@ -447,6 +459,8 @@
       this.peers = new Map(); /* peer -> {slot, pres, key, ack, last} */
       this.seq = 0;
       this.ring = [];
+      this.sentAt = new Map();
+      this.snN = 0;
       this.g = null;
       this.snapT = 0;
       this.privT = 0;
@@ -481,9 +495,16 @@
       const pres = Object.assign({ app: 'au', v: V, role: 'host', code: this.code, hpk: this.keys ? this.keys.pub : null, st: this.g ? 'play' : 'lobby', nick: this.nick() }, extra || {});
       this.gr.presence(pres).catch(() => {});
     }
+    /* anuncia a sala (presença da sala geral + banco) só quando algo muda, ou a cada ~10 s. Antes isto rodava a cada
+       atualização de qualquer amigo (15 vezes por segundo cada um): estourava o limite de envios da sala, o estado da
+       partida ficava esperando na fila e todo mundo via o jogo travar */
     advertise() {
       if (this.closed) return;
       const info = { code: this.code, name: this.nick(), n: 1 + this.players().length, max: AU.Menu.S.room.players, st: this.g ? 'play' : 'lobby' };
+      const key = JSON.stringify(info), now = performance.now();
+      if (key === this.advKey && now - (this.advAt || 0) < 9000) return;
+      this.advKey = key;
+      this.advAt = now;
       Net.room.presence({ app: 'au', v: V, host: info }).catch(() => {});
       Net.publishRoom(info);
     }
@@ -491,6 +512,7 @@
       return [...this.peers.values()].filter((x) => x.pres && x.pres.role === 'cl');
     }
     onPeers(ch) {
+      let changed = ch.left.length > 0;
       for (const p of ch.peers) {
         if (p.isMe || p.kind !== 'viewer') continue;
         const pr = p.presence || {};
@@ -501,7 +523,9 @@
           if (this.players().length >= AU.Menu.S.room.players - 1) continue;
           e = { peer: p.peer, ack: 0, slot: null, key: null };
           this.peers.set(p.peer, e);
+          changed = true;
         }
+        if (!this.g && e.pres && e.pres.nick !== pr.nick) changed = true;
         e.pres = pr;
         e.seen = performance.now();
         if (pr.pk && pr.pk !== e.pk) {
@@ -515,6 +539,7 @@
         this.peers.delete(p.peer);
         if (this.g && e.slot != null) this.dropPlayer(e.slot, true);
       }
+      if (!changed) return;
       this.advertise();
       if (this.onChange) this.onChange();
     }
@@ -581,7 +606,8 @@
     emit(k, d) {
       const ev = { s: ++this.seq, k, d };
       this.ring.push(ev);
-      if (this.ring.length > 500) this.ring.shift();
+      this.sentAt.set(ev.s, performance.now());
+      if (this.ring.length > 500) this.sentAt.delete(this.ring.shift().s);
       this.gr.emit('ev', ev).catch(() => {});
     }
     /* ---------- a cada quadro do jogo ---------- */
@@ -595,21 +621,33 @@
         if (!p || !p.remote) continue;
         this.movePlayer(p, e.pres, dt);
         this.runCommands(p, e);
-        /* perdeu acontecimentos: manda de novo os que faltam */
+        /* perdeu acontecimentos: manda de novo os que faltam. Só os que já deviam ter chegado (mandados há mais de
+           0,8 s): o recibo do amigo vem pela presença dele, com atraso, e reenviar o que ainda está a caminho dobrava
+           o tráfego à toa */
         const have = +e.pres.have || 0;
-        if (have < this.seq && now - (e.resent || 0) > 700) {
-          e.resent = now;
-          const miss = this.ring.filter((x) => x.s > have).slice(0, 25);
-          if (miss.length && miss[0].s > have + 1) this.emit('resync', { to: e.peer });
-          for (const ev of miss) this.gr.emit('ev', ev).catch(() => {});
+        if (have < this.seq && now - (e.resent || 0) > 900) {
+          const first = this.ring.find((x) => x.s > have);
+          const miss = this.ring.filter((x) => x.s > have && now - (this.sentAt.get(x.s) || 0) > 800).slice(0, 20);
+          if (miss.length) {
+            e.resent = now;
+            if (first && first.s > have + 1) this.emit('resync', { to: e.peer });
+            for (const ev of miss) this.gr.emit('ev', ev).catch(() => {});
+          }
         }
       }
+    }
+    /* no fim do quadro, quando todo mundo (bots, você, os amigos) já andou: o estado da nave e os dados secretos.
+       Mandar o estado no meio do quadro (antes de os bots andarem) fazia todo bot aparecer parado para os amigos,
+       deslizando sem mexer as pernas e sem som de passo */
+    post(dt) {
+      const g = this.g;
+      if (!g || this.closed) return;
       this.snapT -= dt;
       if (this.snapT <= 0) {
         this.snapT = 0.08;
         const acks = {};
         for (const e of this.peers.values()) acks[e.peer] = e.ack;
-        this.setPres({ sn: snapshot(g), ack: acks, seq: this.seq });
+        this.setPres({ sn: snapshot(g), ack: acks, seq: this.seq, n: ++this.snN });
       }
       this.privT -= dt;
       if (this.privT <= 0) {
@@ -617,24 +655,45 @@
         this.sendPriv(false);
       }
     }
+    /* dados secretos de cada amigo (papel, tarefas, recargas), cifrados para ele. Todos os que mudaram vão juntos num
+       envio só (em vez de um por amigo) */
     async sendPriv(force) {
-      const g = this.g;
-      for (const e of this.peers.values()) {
-        if (e.slot == null) continue;
-        const p = g.players[e.slot];
-        if (!p) continue;
-        const pv = privOf(g, p);
-        const key = JSON.stringify(Object.assign({}, pv, { kc: Math.ceil(pv.kc), ac: Math.ceil(pv.ac), bat: Math.round(pv.bat), tu: 0, su: 0, iu: 0 }));
-        const last = this.lastPriv.get(e.peer);
-        if (!force && last && last.k === key && performance.now() - last.at < 3000) continue;
-        this.lastPriv.set(e.peer, { k: key, at: performance.now() });
-        try {
-          const box = await seal(e.key, pv);
-          this.emit('pv', Object.assign({ to: e.peer }, box));
-        } catch (err) {
-          /* tenta de novo no próximo ciclo */
-          this.lastPriv.delete(e.peer);
+      if (this.privBusy) return;
+      this.privBusy = true;
+      const g = this.g, out = [];
+      try {
+        for (const e of this.peers.values()) {
+          if (e.slot == null) continue;
+          const p = g.players[e.slot];
+          if (!p) continue;
+          const pv = privOf(g, p);
+          const key = JSON.stringify(Object.assign({}, pv, { kc: Math.ceil(pv.kc), ac: Math.ceil(pv.ac), bat: Math.round(pv.bat), tu: 0, su: 0, iu: 0 }));
+          const last = this.lastPriv.get(e.peer);
+          if (!force && last && last.k === key && performance.now() - last.at < 3000) continue;
+          try {
+            const box = await seal(e.key, pv);
+            this.lastPriv.set(e.peer, { k: key, at: performance.now() });
+            out.push(Object.assign({ to: e.peer }, box));
+          } catch (err) {
+            /* tenta de novo no próximo ciclo */
+            this.lastPriv.delete(e.peer);
+          }
         }
+        /* até ~3,4 KB por envio (o limite da sala é 4 KB) */
+        let pack = [], size = 0;
+        for (const b of out) {
+          const n = JSON.stringify(b).length;
+          if (pack.length && size + n > 3400) {
+            this.emit('pvs', { list: pack });
+            pack = [];
+            size = 0;
+          }
+          pack.push(b);
+          size += n + 1;
+        }
+        if (pack.length) this.emit('pvs', { list: pack });
+      } finally {
+        this.privBusy = false;
       }
     }
     /* posição que o amigo mandou: aceita se dava para chegar lá andando no tempo que passou (sem atravessar parede);
@@ -651,36 +710,97 @@
       }
       /* o jogo mudou a posição por conta própria (saiu do duto, matou e foi para o corpo, reunião): recomeça dali */
       if (p.netAx == null || p.x !== p.netSx || p.y !== p.netSy) {
+        /* o jogo levou o amigo para longe: as posições que ele mandou antes de saber disso ainda estão chegando e o
+           puxariam de volta. Espera o aparelho dele chegar ao lugar novo (no máximo 2 s) */
+        if (p.netAx != null && U.d2(p.x, p.y, p.netSx, p.netSy) > 1) p.netHold = g.t + 2;
         p.netAx = p.x;
         p.netAy = p.y;
       }
+      /* o amigo manda a posição e o rastro do último segundo; valida trecho por trecho, a partir do ponto do rastro
+         mais perto de onde ele está aqui: cada pedacinho sem atravessar parede e a soma dentro da velocidade. Validar
+         só a reta até o último ponto recusava a curva numa esquina quando as posições chegavam juntas (rede lenta) e
+         deixava o amigo para trás; e um passo curto atravessando parede fina passava */
       const pos = Array.isArray(pr.pos) ? pr.pos : null;
       const x = pos ? +pos[0] : NaN, y = pos ? +pos[1] : NaN;
-      if (isFinite(x) && isFinite(y) && x >= 0 && y >= 0 && x <= M.W && y <= M.H) {
+      const okPt = (qx, qy) => isFinite(qx) && isFinite(qy) && qx >= 0 && qy >= 0 && qx <= M.W && qy <= M.H;
+      let fresh = okPt(x, y);
+      if (fresh && p.netHold) {
+        if (g.t < p.netHold && U.d2(p.netAx, p.netAy, x, y) > 1.5) fresh = false;
+        else p.netHold = 0;
+      }
+      if (fresh) {
         const ghost = !p.alive, ax = p.netAx, ay = p.netAy;
-        const d = U.d2(ax, ay, x, y);
-        const since = Math.min(1, Math.max(dt, g.t - (p.netLastT == null ? g.t - dt : p.netLastT)));
-        const allowed = g.speedOf(p) * since * 1.35 + 0.35;
-        if (d < 0.002) {
-          p.netLastT = g.t;
-        } else if (d <= allowed && (ghost || g.canStand(x, y, false))) {
-          p.netAx = x;
-          p.netAy = y;
-          p.netLastT = g.t;
-        } else if (ghost || AU.Nav.clearLine(ax, ay, x, y, false)) {
-          const k = allowed / d, nx = ax + (x - ax) * k, ny = ay + (y - ay) * k;
-          if (ghost || g.canStand(nx, ny, false)) {
-            p.netAx = nx;
-            p.netAy = ny;
-            p.netLastT = g.t;
+        const pts = [];
+        if (Array.isArray(pr.tr)) for (const q of pr.tr.slice(-20)) if (Array.isArray(q) && okPt(+q[0], +q[1])) pts.push([+q[0], +q[1]]);
+        pts.push([x, y]);
+        let from = pts.length - 1, best = Infinity;
+        for (let i = 0; i < pts.length; i++) {
+          const d = U.d2(ax, ay, pts[i][0], pts[i][1]);
+          if (d < best) {
+            best = d;
+            from = i;
           }
         }
+        if (best > 1.2) from = pts.length - 1;
+        const since = Math.min(1.5, Math.max(dt, g.t - (p.netLastT == null ? g.t - dt : p.netLastT)));
+        const allowed = g.speedOf(p) * since * 1.35 + 0.35;
+        /* a mesma colisão do movimento (o teste de linha do mapa de navegação tem folga maior perto da parede e
+           recusava quem anda encostado nela), amostrada ao longo do trecho. Um passo curto que raspa uma quina vale
+           se o ponto final é um lugar onde dá para ficar (o movimento desliza na parede eixo a eixo) */
+        /* a posição viaja arredondada em 0,01: encostado na parede, o arredondamento pode pôr o corpo um fio dentro
+           dela. Acha o ponto válido mais perto (até 0,02 de distância) */
+        const NUDGE = [[0, 0], [0.012, 0], [-0.012, 0], [0, 0.012], [0, -0.012], [0.012, 0.012], [-0.012, 0.012], [0.012, -0.012], [-0.012, -0.012]];
+        const spot = (qx, qy) => {
+          for (const [ox, oy] of NUDGE) if (g.canStand(qx + ox, qy + oy, false)) return [qx + ox, qy + oy];
+          return null;
+        };
+        const free = (x0, y0, x1, y1) => {
+          if (ghost) return g.canStand(x1, y1, true) ? [x1, y1] : null;
+          const q = spot(x1, y1);
+          if (!q) return null;
+          const d = U.d2(x0, y0, q[0], q[1]), n = Math.max(1, Math.ceil(d / 0.2));
+          let ok = true;
+          for (let k = 1; k < n && ok; k++) ok = !!spot(x0 + ((q[0] - x0) * k) / n, y0 + ((q[1] - y0) * k) / n);
+          return ok || d <= 0.6 ? q : null;
+        };
+        let cx = ax, cy = ay, used = 0, moved = false;
+        for (let i = from; i < pts.length; i++) {
+          const [qx, qy] = pts[i];
+          const seg = U.d2(cx, cy, qx, qy);
+          if (seg < 0.002) continue;
+          if (used + seg > allowed) {
+            /* passou do que dava para andar: vai até o limite nesse trecho */
+            const k = (allowed - used) / seg, f = k > 0.05 ? free(cx, cy, cx + (qx - cx) * k, cy + (qy - cy) * k) : null;
+            if (f) {
+              cx = f[0];
+              cy = f[1];
+              moved = true;
+            }
+            break;
+          }
+          const f = free(cx, cy, qx, qy);
+          if (!f) break;
+          cx = f[0];
+          cy = f[1];
+          used += seg;
+          moved = true;
+        }
+        if (moved) {
+          p.netAx = cx;
+          p.netAy = cy;
+          p.netLastT = g.t;
+        } else if (U.d2(ax, ay, x, y) < 0.002) p.netLastT = g.t;
       }
       /* desliza até o alvo (um pouco mais rápido que a passada, para não ficar para trás; atrasado, recupera). Entre
          uma posição e outra o boneco chega antes da próxima: segue "andando" um instante, sem a perna parar e voltar */
       const dx = p.netAx - p.x, dy = p.netAy - p.y, dd = Math.hypot(dx, dy);
       if (dd > 0.002) {
-        const k = Math.min(1, Math.max(g.speedOf(p) * dt * 1.1, dd * Math.min(1, dt * 6)) / dd);
+        /* fica cerca de um pacote atrás do alvo (~0,08 s de caminhada): mais longe, acelera; mais perto, freia. Assim
+           o boneco não chega antes da próxima posição e para (a rede não entrega no compasso certo) */
+        const sp = g.speedOf(p), cushion = sp * 0.12;
+        const want = sp * U.clamp(dd / cushion, 0.5, 3);
+        p.netRate = p.netRate == null ? want : p.netRate + (want - p.netRate) * Math.min(1, dt * 5);
+        const k = Math.min(1, (Math.max(p.netRate, sp * 0.35) * dt) / dd);
         if (Math.abs(dx) > 0.01) p.facing = dx < 0 ? -1 : 1;
         p.x += dx * k;
         p.y += dy * k;
@@ -711,10 +831,23 @@
         const [seq, k, a] = c;
         if (!(seq > e.ack)) continue;
         e.ack = seq;
+        /* a ação vale onde o amigo está de verdade (a última posição validada), não onde o boneco desenhado aqui
+           vem deslizando um pouco atrás */
+        const ox = p.x, oy = p.y, ax = p.netAx, ay = p.netAy;
+        const atA = ax != null && !p.inVent;
+        if (atA) {
+          p.x = ax;
+          p.y = ay;
+        }
         try {
           this.exec(p, k, a);
         } catch (err) {
           if (window.console) console.warn('comando online falhou', k, err);
+        }
+        /* a ação não mudou o lugar dele (duto, abate): o desenho continua de onde estava */
+        if (atA && p.x === ax && p.y === ay) {
+          p.x = ox;
+          p.y = oy;
         }
       }
     }
@@ -886,6 +1019,7 @@
         have: this.have,
         cmd: this.cmds.slice(-12),
         pos: h0 ? [r2(h0.x), r2(h0.y)] : null,
+        tr: this.trail || [],
         f: this.flags,
       };
       this.gr.presence(pres).catch(() => {});
@@ -924,10 +1058,17 @@
       /* confirmações: tira da lista o que o anfitrião já fez */
       const ack = pr.ack && this.gr ? pr.ack[this.myPeer()] : null;
       if (ack != null) this.cmds = this.cmds.filter((c) => c[0] > ack);
+      /* a presença do anfitrião chega de novo sempre que QUALQUER um muda a sua (cada amigo, 15 vezes por segundo):
+         só aplica um estado novo. Reaplicar o mesmo estado velho puxava o relógio do anfitrião para trás e os outros
+         passavam a ser desenhados cada vez mais atrasados */
+      if (pr.n != null && pr.n === this.snN) return;
+      this.snN = pr.n;
       if (pr.sn && this.g && this.g.phase !== 'ended') applySnapshot(this.g, pr.sn, this.g.human);
     }
     myPeer() {
+      if (this.mePeer) return this.mePeer;
       const me = this.gr.peers().find((p) => p.isMe && p.sameTab);
+      if (me) this.mePeer = me.peer;
       return me ? me.peer : null;
     }
     onEvent(m) {
@@ -975,6 +1116,13 @@
           this.privQueue.push(d);
           this.flushPriv();
           break;
+        case 'pvs': {
+          const mine = Array.isArray(d.list) ? d.list.find((x) => x && x.to === this.myPeer()) : null;
+          if (!mine) break;
+          this.privQueue.push(mine);
+          this.flushPriv();
+          break;
+        }
         case 'fx':
           if (!g) break;
           g.addFx({ type: d.ty, x: d.x, y: d.y, ox: d.ox, oy: d.oy, color: d.c, facing: d.fa, hat: d.ht, visor: d.vs, seed: d.sd, dur: d.du, who: Number.isInteger(d.w) ? d.w : undefined });
@@ -1046,6 +1194,12 @@
       } else if (g.phase === 'play') {
         g.t += dt;
         const hh = g.human;
+        if (hh) {
+          /* por onde andei (para não ser puxado para trás pelo atraso da rede; ver applySnapshot) */
+          const hist = g.netMyHist || (g.netMyHist = []), now = performance.now();
+          hist.push([now, hh.x, hh.y]);
+          while (hist.length && now - hist[0][0] > 2000) hist.shift();
+        }
         if (hh && !hh.inVent && !hh.frozen) {
           const len = Math.hypot(g.input.x, g.input.y);
           if (len > 0.05) {
@@ -1057,27 +1211,45 @@
         /* interpolação: desenha os outros NET_DELAY atrás do relógio do anfitrião, em linha reta entre os dois
            estados em volta desse instante. Velocidade constante (perseguir o último ponto fazia o boneco acelerar e
            frear 12 vezes por segundo) */
-        const rt = performance.now() / 1000 + (g.netOff || 0) - NET_DELAY;
+        const want = g.netDelayT || 0.15;
+        g.netDelay = g.netDelay == null ? want : g.netDelay + (want - g.netDelay) * Math.min(1, dt * 1.5);
+        const rt = performance.now() / 1000 + (g.netOff || 0) - g.netDelay;
         for (const p of g.players) {
           if (p === hh) continue;
           const buf = p.netBuf;
           if (buf && buf.length) {
             let j = 0;
             while (j < buf.length && buf[j][0] < rt) j++;
-            let a, b, u = 0;
+            let a, b, u = 0, ex = 0;
             if (j === 0) a = b = buf[0];
-            else if (j === buf.length) a = b = buf[buf.length - 1];
-            else {
+            else if (j === buf.length) {
+              a = b = buf[buf.length - 1];
+              /* o próximo estado atrasou: segue andando na mesma direção por um instante, em vez de parar e pular */
+              const q = buf[buf.length - 2];
+              if (q && b[3] && b[0] > q[0]) ex = Math.min(rt - b[0], 0.15) / (b[0] - q[0]);
+              if (ex > 0) a = q;
+            } else {
               a = buf[j - 1];
               b = buf[j];
               u = (rt - a[0]) / Math.max(0.001, b[0] - a[0]);
             }
             /* salto grande (duto, reunião): troca de uma vez quando chega a hora */
-            if (Math.hypot(b[1] - a[1], b[2] - a[2]) > 3) u = u < 1 ? 0 : 1;
-            p.x = a[1] + (b[1] - a[1]) * u;
-            p.y = a[2] + (b[2] - a[2]) * u;
+            if (Math.hypot(b[1] - a[1], b[2] - a[2]) > 3) {
+              u = u < 1 ? 0 : 1;
+              ex = 0;
+            }
+            if (ex > 0) {
+              const nx = b[1] + (b[1] - a[1]) * ex, ny = b[2] + (b[2] - a[2]) * ex;
+              const ok = !p.alive || g.canStand(nx, ny, false);
+              p.x = ok ? nx : b[1];
+              p.y = ok ? ny : b[2];
+              a = b;
+            } else {
+              p.x = a[1] + (b[1] - a[1]) * u;
+              p.y = a[2] + (b[2] - a[2]) * u;
+            }
             p.facing = b[4];
-            p.moving = !!(a[3] || b[3]) && (b !== a || buf.length < 2 || rt - b[0] < 0.2);
+            p.moving = !!(a[3] || b[3]) && (b !== a || buf.length < 2 || rt - b[0] < 0.25);
             if (p.moving) {
               p.walkT += dt;
               g.footstep(p);
@@ -1107,6 +1279,12 @@
       if (this.presT <= 0) {
         this.presT = 0.066;
         const hh = g.human;
+        /* rastro do último segundo (o anfitrião valida o caminho, não só o ponto final) */
+        if (hh && g.phase === 'play') {
+          const tr = this.trail || (this.trail = []), last = tr[tr.length - 1], px = r2(hh.x), py = r2(hh.y);
+          if (!last || last[0] !== px || last[1] !== py) tr.push([px, py]);
+          if (tr.length > 16) tr.shift();
+        }
         this.flags = {
           cams: hh && hh.onCams ? 1 : 0,
           admin: hh && hh.onAdmin ? 1 : 0,
