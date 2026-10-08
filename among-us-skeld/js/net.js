@@ -64,32 +64,99 @@
   }
 
   /* ---------- acesso às capacidades do claude.ai ---------- */
+  /* erros da sala que valem para a página inteira (esta conta não conecta) */
+  const TERMINAL = new Set(['not_granted', 'revoked', 'capability_disabled', 'capability_removed', 'transform_error']);
   const Net = {
     room: null,
     db: null,
     ready: null,
     state: 'checking',
+    /* versão do jogo (aparece no diagnóstico: ajuda a saber se o amigo está com a página antiga) */
+    version: 38,
     async init() {
       if (this.ready) return this.ready;
       this.ready = (async () => {
         const cl = typeof window !== 'undefined' ? window.claude : null;
+        try {
+          this.framed = window.top !== window;
+        } catch (e) {
+          this.framed = true;
+        }
         if (!cl || typeof cl.use !== 'function') {
           this.state = 'off';
+          this.why = 'fora';
           return false;
         }
-        /* dentro do claude.ai: se a sala não abrir, é a conta (sem login, ou aberto por link público) */
         this.inClaude = true;
-        try {
-          const [room, db] = await Promise.all([cl.use('room').catch(() => null), cl.use('db').catch(() => null)]);
-          this.room = room;
-          this.db = db;
-        } catch (e) {
-          this.room = null;
+        const [room, db, perm] = await Promise.all(['room', 'db', 'permissions'].map((n) => new Promise((r) => r(cl.use(n))).catch(() => null)));
+        this.db = db;
+        if (perm) {
+          try {
+            this.perms = await perm.state();
+          } catch (e) {
+            this.perms = null;
+          }
         }
+        if (room) {
+          /* a sala pode carregar e mesmo assim recusar esta conta (not_granted): espera a primeira resposta */
+          await new Promise((res) => {
+            let tm = 0;
+            const done = () => {
+              clearTimeout(tm);
+              res();
+            };
+            tm = setTimeout(done, 4000);
+            try {
+              room.onConnection((c) => {
+                this.conn = c;
+                if (c) done();
+              }, (e) => {
+                this.roomErr = (e && e.code) || 'erro';
+                this.conn = false;
+                done();
+              });
+            } catch (e) {
+              done();
+            }
+          });
+          this.room = this.roomErr && TERMINAL.has(this.roomErr) ? null : room;
+        }
+        if (!this.room) this.why = !this.framed ? 'pagina' : this.perms && this.perms.room === 'denied' ? 'negada' : 'conta';
         this.state = this.room ? 'on' : 'off';
         return !!this.room;
       })();
       return this.ready;
+    },
+    /* o que dá para ver daqui sobre a conexão, em texto para copiar e mandar (sem nada pessoal) */
+    diagText() {
+      const yn = (v) => (v ? 'sim' : 'não');
+      const L = ['Impostor a Bordo · versão ' + this.version];
+      L.push('Dentro do claude.ai: ' + yn(this.inClaude) + ' · janela: ' + (this.framed ? 'dentro do claude.ai' : 'página própria'));
+      L.push('Sala ao vivo: ' + (this.room ? 'disponível' : 'indisponível') + (this.why ? ' (' + this.why + ')' : ''));
+      let peers = null;
+      try {
+        peers = this.room ? this.room.peers() : null;
+      } catch (e) {
+        peers = null;
+      }
+      let conn = this.conn;
+      try {
+        if (this.room) conn = this.room.connected();
+      } catch (e) {
+        /* sem resposta */
+      }
+      L.push('Conexão: ' + (conn ? 'conectado' : 'desconectado') + (this.roomErr ? ' · erro: ' + this.roomErr : ''));
+      if (peers) {
+        const me = peers.find((p) => p.isMe && p.sameTab);
+        L.push('Pessoas com o jogo aberto agora: ' + peers.filter((p) => p.kind === 'viewer').length + ' · você é convidado de fora: ' + yn(me && me.guest));
+        L.push('Salas abertas vistas: ' + this.listRooms().length);
+      }
+      L.push('Banco de dados: ' + (this.db ? 'disponível' : 'indisponível'));
+      if (this.perms) L.push('Permissões: ' + (Object.keys(this.perms).map((k) => k + '=' + this.perms[k]).join(', ') || 'nenhuma'));
+      if (this.lastErr) L.push('Último erro: ' + this.lastErr);
+      const ua = navigator.userAgent || '';
+      L.push('Navegador: ' + (/Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'outro') + (/Mobi|Android|iPhone|iPad/.test(ua) ? ' (celular)' : ''));
+      return L.join('\n');
     },
     available() {
       return !!this.room;
@@ -1251,14 +1318,29 @@
       if (Net.client && !Net.client.closed && !Net.client.started) return clientView(card, Net.client);
       card.append(title);
       if (!ok && Net.inClaude) {
-        /* no claude.ai, mas a sala ao vivo não abriu para esta pessoa */
-        card.append(
-          h('p', { class: 'online-msg' }, 'A sala ao vivo não abriu para a sua conta.'),
-          h('ul', { class: 'online-list' },
-            h('li', {}, 'Ela funciona para quem está com login no claude.ai e foi convidado para este jogo.'),
-            h('li', {}, 'Aberto por link público, ou sem login, o online não conecta (o resto do jogo funciona).'),
-            h('li', {}, 'Peça para quem compartilhou te convidar pelo e-mail, no botão de compartilhar do claude.ai, e abra o jogo de novo logado.')),
-          h('p', { class: 'fine' }, 'Para entrar na sala de um amigo, qualquer nível de acesso serve. Para criar uma sala, é preciso acesso de Colaborador ou mais.'));
+        /* no claude.ai, mas a sala ao vivo não abriu para esta pessoa: diz o motivo provável e o que fazer */
+        const why = Net.why;
+        if (why === 'pagina') {
+          card.append(
+            h('p', { class: 'online-msg' }, 'O jogo está aberto numa página própria, fora da janela do claude.ai, e aí a sala ao vivo não carrega.'),
+            h('ul', { class: 'online-list' },
+              h('li', {}, 'Abra o jogo pelo link do claude.ai (claude.ai/artifact/…), sem a opção de tela cheia ou nova aba.')));
+        } else if (why === 'negada') {
+          card.append(
+            h('p', { class: 'online-msg' }, 'A permissão da sala ao vivo foi recusada para este jogo.'),
+            h('ul', { class: 'online-list' },
+              h('li', {}, 'Libere no menu de permissões do jogo, no claude.ai, e recarregue a página.')));
+        } else {
+          card.append(
+            h('p', { class: 'online-msg' }, 'A sala ao vivo não abriu para a sua conta.'),
+            h('ul', { class: 'online-list' },
+              h('li', {}, 'Ela funciona para quem está com login no claude.ai e foi convidado para este jogo (conta gratuita serve).'),
+              h('li', {}, 'Entre com o mesmo e-mail que recebeu o convite e abra pelo link do convite.'),
+              h('li', {}, 'Quem chega pelo link público não conecta. Se o jogo também está liberado para "Qualquer pessoa com o link", peça para quem compartilhou deixar só os convites por e-mail.'),
+              h('li', {}, 'Abra o jogo original, não uma cópia salva ou remixada (a cópia é outro jogo, com outra sala).')),
+            h('p', { class: 'fine' }, 'Para entrar na sala de um amigo, qualquer nível de acesso serve. Para criar uma sala, é preciso acesso de Colaborador ou mais.'));
+        }
+        card.append(diagPanel());
         return;
       }
       if (!ok) {
@@ -1274,6 +1356,36 @@
       lobbyMenu(card, title, S);
     });
   };
+  /* painel "Diagnóstico do online": o texto de Net.diagText() para copiar e mandar para quem compartilhou */
+  function diagPanel() {
+    const txt = h('textarea', { class: 'diag-text', readonly: 'readonly', rows: '9', spellcheck: 'false' });
+    const fill = () => (txt.value = Net.diagText());
+    txt.addEventListener('focus', () => txt.select());
+    const note = h('span', { class: 'fine' }, '');
+    const copy = h('button', { class: 'btn', onclick: () => {
+      fill();
+      const ok = () => (note.textContent = 'Copiado.');
+      const manual = () => {
+        txt.focus();
+        txt.select();
+        note.textContent = 'Selecionado: copie com Ctrl+C (ou segure e copie no celular).';
+      };
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt.value).then(ok, manual);
+        else manual();
+      } catch (e) {
+        manual();
+      }
+    } }, 'Copiar');
+    const box = h('details', { class: 'online-diag' },
+      h('summary', {}, 'Diagnóstico do online'),
+      h('p', { class: 'fine' }, 'Se o online não funcionar, copie isto e mande para quem compartilhou o jogo. Não tem nada pessoal.'),
+      txt,
+      h('div', { class: 'row-btns' }, copy, note));
+    box.addEventListener('toggle', fill);
+    fill();
+    return box;
+  }
   function lobbyMenu(card, title, S) {
     const nick = h('input', { type: 'text', maxlength: '16', value: S.profile.name || '', placeholder: 'Seu nome no jogo' });
     nick.addEventListener('change', () => {
@@ -1303,7 +1415,8 @@
       h('h3', {}, 'Salas abertas'),
       list,
       h('h3', {}, 'Últimas partidas online'),
-      hist);
+      hist,
+      diagPanel());
     const draw = () => {
       if (!list.isConnected) return stop();
       list.innerHTML = '';
@@ -1341,12 +1454,13 @@
     try {
       await host.start();
     } catch (e) {
+      Net.lastErr = 'criar sala: ' + ((e && (e.code || e.message)) || 'erro');
       if (Net.host === host) Net.leave();
       card.innerHTML = '';
       card.append(h('div', { class: 'online-head' }, h('h2', {}, 'Criar sala'), h('button', { class: 'btn ghost', onclick: () => Net.screen(card.parentNode.parentNode) }, '← Voltar')));
       card.append(h('p', { class: 'online-msg bad' }, e && e.code === 'not_permitted'
         ? 'Para criar uma sala você precisa de acesso de Colaborador (ou mais) a este jogo — peça para quem compartilhou o link. Para entrar na sala de um amigo, qualquer nível de acesso serve.'
-        : 'Não deu para abrir a sala agora. Tente de novo em instantes.'));
+        : 'Não deu para abrir a sala agora. Tente de novo em instantes.'), diagPanel());
       return;
     }
     draw();
@@ -1397,13 +1511,17 @@
     try {
       await cl.start();
     } catch (e) {
+      Net.lastErr = 'entrar em ' + code + ': ' + ((e && (e.code || e.message)) || 'erro');
       status.textContent = e && e.code === 'not_permitted'
         ? 'Sua conta não pode usar as salas deste jogo. Peça para quem compartilhou te convidar pelo e-mail (pelo link público o online não conecta).'
         : 'Não deu para entrar agora. Confira o código e tente de novo.';
       return;
     }
     setTimeout(() => {
-      if (!cl.hostPeer && !cl.closed && status.isConnected) status.textContent = 'Ninguém está com a sala ' + code + ' aberta. Confira o código.';
+      if (!cl.hostPeer && !cl.closed && status.isConnected) {
+        Net.lastErr = 'sala ' + code + ': anfitrião não encontrado';
+        status.textContent = 'Ninguém está com a sala ' + code + ' aberta. Confira o código (e se você e quem criou a sala estão no mesmo jogo, não numa cópia).';
+      }
     }, 6000);
     cl.onChange();
   };
@@ -1417,7 +1535,7 @@
         Net.leave();
         Net.screen(card.parentNode.parentNode);
       } }, '← Sair')),
-      status, players);
+      status, players, diagPanel());
     cl.onChange = () => {
       if (!players.isConnected) return;
       const hp = cl.hostPres;
