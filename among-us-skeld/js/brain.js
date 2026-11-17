@@ -1032,6 +1032,16 @@
           return g.commsDown() ? false : this.planAdmin();
         case 'go':
           return o.room ? this.planWander(o.room, U.rf(2, 5)) : false;
+        case 'watch': {
+          /* "observar a Elétrica": para num ponto da sala e fica olhando quem entra e sai (os gestos de olhar em volta
+             vêm do corpo enquanto espera) */
+          const here = M.roomOf(M.areaAt(p.x, p.y), p.x, p.y).id;
+          const room = o.room || here;
+          const pos = room === here ? { x: p.x, y: p.y } : M.randomPointIn(room);
+          const span = U.rf(8, 14);
+          this.setPlan({ type: 'wander', area: room, x: pos.x, y: pos.y, watch: true, onArrive: (pl) => (pl.until = g.t + span) });
+          return true;
+        }
         case 'patrol':
           return this.planPatrol(U.rint(2, 4));
         case 'button':
@@ -1121,7 +1131,8 @@
           if (o.mind) this.mindProwl = g.t + 25;
           return this.planProwl();
         case 'group': {
-          const crowd = this.seenNow.filter((x) => !x.isImp && x.alive);
+          /* tripulante não sabe quem é impostor: fica perto de qualquer um que estiver à vista */
+          const crowd = this.seenNow.filter((x) => x.alive && (!p.isImp || !x.isImp));
           return crowd.length ? this.planFollow(U.pick(crowd), U.rf(8, 14), 2.8) : this.planWander('cafeteria', U.rf(2, 4));
         }
         case 'sab':
@@ -1382,6 +1393,8 @@
       for (const b of this.mem.bodies) if (b.t >= rs && (b.near || []).includes(id)) s += 25;
       s += (this.mem.lies[id] || 0) * 10;
       s += (this.fieldSus && this.fieldSus[id]) || 0;
+      /* a impressão que a mente própria registrou ("mais" / "menos" desconfiado) */
+      s += (this.lean && this.lean[id]) || 0;
       if (!strong && this.hardCleared(id)) return Math.min(s, -40);
       return s;
     }

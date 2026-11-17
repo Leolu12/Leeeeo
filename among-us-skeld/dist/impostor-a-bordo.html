@@ -187,7 +187,8 @@ textarea { resize: vertical; margin-top: 10px; }
 .lobby-bean { flex: none; }
 .lobby-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
 .lobby-info > span { color: var(--muted); font-size: 13px; }
-.lobby-row { display: flex; gap: 6px; }
+.lobby-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.lobby-gender { max-width: 92px; }
 .lobby-row select { padding: 5px 7px; font-size: 13px; }
 .lobby-name { padding: 5px 8px !important; font-weight: 700; }
 .lobby-pers-label { font-size: 12px; padding: 5px 9px; border-radius: 999px; background: var(--bg-2); border: 1px solid var(--line-2); white-space: nowrap; align-self: center; }
@@ -860,6 +861,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
 .win-crew { color: var(--crew); }
 .win-imp { color: var(--imp); }
 @media (max-width: 560px) { .big-code { font-size: 40px; } .online-card { padding: 16px; } }
+.gender-tag { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--bg-2); border: 1px solid var(--line-2); color: var(--muted); margin-left: auto; }
+.reveal-pron { display: block; font-size: 11px; opacity: 0.7; letter-spacing: 0.02em; }
 
 </style>
 </head>
@@ -1204,9 +1207,38 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     'Thay', 'Vini', 'Manu', 'Duda', 'Lari', 'Caio', 'Bruna', 'Fê', 'Gabs', 'Rê', 'Lipe', 'Tati', 'Otávio', 'Paulinha', 'Beto', 'Lia',
   ];
 
+  /* Gênero de cada jogador, combinado antes da partida (lobby): decide "ele/ela", "o/a", "suspeito/suspeita" no chat
+     dos bots e no que a IA escreve. Neutro = ninguém usa palavra com gênero para essa pessoa (chama pelo nome). */
+  C.GENDERS = [
+    { id: 'm', name: 'Ele', pron: 'ele', art: 'o' },
+    { id: 'f', name: 'Ela', pron: 'ela', art: 'a' },
+    { id: 'n', name: 'Neutro', pron: 'neutro', art: '' },
+  ];
+  C.GENDER = Object.fromEntries(C.GENDERS.map((x) => [x.id, x]));
+  /* os apelidos ambíguos (Rafa, Duda, Fê, Gabs, Rê, Manu) têm um gênero fixo, que aparece no lobby e pode ser trocado */
+  C.BOT_GENDER = {
+    Kaio: 'm', Mari: 'f', Dudu: 'm', 'Tiagão': 'm', Lulu: 'f', Nando: 'm', Bia: 'f', Rafa: 'm', Gui: 'm', Juju: 'f', Pedrinho: 'm', Carol: 'f',
+    'Zé': 'm', Nina: 'f', Thay: 'f', Vini: 'm', Manu: 'f', Duda: 'f', Lari: 'f', Caio: 'm', Bruna: 'f', 'Fê': 'f', Gabs: 'm', 'Rê': 'f',
+    Lipe: 'm', Tati: 'f', 'Otávio': 'm', Paulinha: 'f', Beto: 'm', Lia: 'f',
+  };
+  /* palpite para um nome digitado (só o ponto de partida: no lobby cada um escolhe o seu) */
+  C.guessGender = function (name) {
+    const raw = String(name || '').trim();
+    if (C.BOT_GENDER[raw]) return C.BOT_GENDER[raw];
+    const n = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (!n || n === 'jogador' || n === 'anfitriao') return 'n';
+    if (/^(gabi|dani|mari|lari|thay|tay|naty|nathy|paty|cami|lili|lulu|juju|bebel|isa|ju|lu|malu|babi|jaque|kelly|sol|ingrid|raquel|isabel|beatriz|thais|tais|ester|ruth|carmen|miriam|nicole|alice|clarice|liz|luz|flor|mel|cris|fer|rê|re|fê|fe|bia|duda|manu|lele|nanda|vivi|gi|ka|kah|lavinia|agnes|ines)$/.test(n)) return 'f';
+    if (/(inha|ete|ane|ine|iele|isa|ice|elle|aine|ah)$/.test(n)) return 'f';
+    if (/a$/.test(n) && !/(luca|joshua|nikita|isaia|elia|jonatha|matia|tobia|rocha|costa|sousa|souza|silva|garcia|batista|moura)$/.test(n)) return 'f';
+    return 'm';
+  };
+  C.genderOf = (o) => (o && C.GENDER[o.gender] ? o.gender : C.guessGender(o && o.name));
+  /* palavra que concorda com o jogador: C.agree(p, 'ejetado', 'ejetada', 'fora na votação') */
+  C.agree = (p, m, f, n) => (p && p.gender === 'f' ? f : p && p.gender === 'n' && n != null ? n : m);
+
   C.DEFAULTS = {
     preset: 'classico',
-    profile: { name: 'Jogador', color: 'ciano', hat: 'nenhum', visor: 'classico', pet: 'nenhum' },
+    profile: { name: 'Jogador', color: 'ciano', hat: 'nenhum', visor: 'classico', pet: 'nenhum', gender: '' },
     room: { players: 10, impostors: 2, draw: 'A', drawChance: 50 },
     rules: {
       confirmEjects: true, emergencyMeetings: 3, emergencyCooldown: 15, discussionTime: 15, votingTime: 120,
@@ -2923,6 +2955,18 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (form === 'no') return 'no ' + col;
       return col;
     };
+    /* pronome para quem já foi citado na frase: pela cor ("o roxo") é "ele"; pelo nome, o gênero combinado no lobby
+       (neutro: repete o nome, sem ele/ela) */
+    x.el = (pid) => {
+      const q = g.players[pid];
+      if (!q || named[pid] === false) return 'ele';
+      return q.gender === 'f' ? 'ela' : q.gender === 'n' ? q.name : 'ele';
+    };
+    /* palavra que concorda com quem fala: x.me('cansado', 'cansada', 'sem energia') */
+    x.me = (m, f, n) => {
+      const gd = sp && sp.p ? sp.p.gender : 'm';
+      return gd === 'f' ? f : gd === 'n' && n != null ? n : m;
+    };
     /* com adjetivo que muda com o gênero (morto, sozinho, suspeito, quieto) usa a cor: "o roxo", nunca "Mari morto" */
     x.Rc = (pid, form) => {
       const q = g.players[pid];
@@ -3159,7 +3203,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (d.who == null) return pick([`resumindo: ${lim}. do resto ninguém tem prova, eu pulo`, `então: ${lim}. sem prova contra mais ninguém, skip`]);
       return pick([`resumindo: ${lim ? lim + '. ' : ''}quem pesa é ${x.R(d.who, 'o')} (${d.why}). voto ${x.R(d.who, 'no')}`, `então: ${lim ? lim + '; ' : ''}contra ${x.R(d.who, 'o')}: ${d.why}. eu vou ${x.R(d.who, 'no')}`]);
     },
-    claimClash: (d, x) => pick([`${x.R(d.who, 'o')} disse que tava ${x.inA(d.claimed)}, mas ${d.by != null ? x.R(d.by, 'o') + ' viu ele' : 'viram ele'} ${x.inA(d.area)}`, `pera, ${x.R(d.who)} falou ${x.inA(d.claimed)}... e ${d.by != null ? x.R(d.by, 'o') : 'ele'} ${d.by != null ? 'viu' : 'foi visto'} ${x.inA(d.area)}? não bate`, `${x.R(d.who)}, você não disse que tava ${x.inA(d.claimed)}? como te viram ${x.inA(d.area)}?`]),
+    claimClash: (d, x) => pick([`${x.R(d.who, 'o')} disse que tava ${x.inA(d.claimed)}, mas ${d.by != null ? x.R(d.by, 'o') + ' viu ' + x.el(d.who) : 'viram ' + x.el(d.who)} ${x.inA(d.area)}`, `pera, ${x.R(d.who)} falou ${x.inA(d.claimed)}... e ${d.by != null ? x.R(d.by, 'o') + ' viu ' + x.el(d.who) : 'viram ' + x.el(d.who)} ${x.inA(d.area)}? não bate`, `${x.R(d.who)}, você não disse que tava ${x.inA(d.claimed)}? como te viram ${x.inA(d.area)}?`]),
     sawAgo: (d, x) => pick([`vi ${x.R(d.who, 'o')} ${x.inA(d.area)}, mas faz uns ${d.ago}s`, `${x.R(d.who, 'o')} tava ${x.inA(d.area)} uns ${d.ago}s antes, depois não vi mais`]),
     shiftDoubt: (d, x) => pick([`vi alguém igual a você ${x.inA(d.area)}, ${x.R(d.who)}... ou você mente, ou era o metamorfo com a sua cara`, `${x.R(d.who)}, te vi ${x.inA(d.area)}, não ${x.inA(d.claimed)}. se não era você, era o metamorfo disfarçado`]),
     /* vi dois iguais ao mesmo tempo (um era o metamorfo) */
@@ -3258,12 +3302,12 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       `alguém me espera na elétrica pfv`, `eu sempre morro primeiro`, `quem ainda tem task?`,
     ].concat(x.S && x.S.rules.taskBar !== 'nunca' ? [`a barra de task está enchendo`] : [])),
     panic: (d, x) => pick([`${x.R(d.who, 'o').toUpperCase()} ESTAVA ME SEGUINDO`, `gente, ${x.R(d.who, 'o')} ficou atrás de mim, fiquei com medo`]),
-    lost: (d, x) => pick([`eu me perdi kkk`, `demorei achando ${x.nA(d.area)}`, `fiquei perdido ${x.inA(d.area)}`]),
+    lost: (d, x) => pick([`eu me perdi kkk`, `demorei achando ${x.nA(d.area)}`, `fiquei ${x.me('perdido', 'perdida', 'rodando')} ${x.inA(d.area)}`]),
     ghost: (d, x) => pick([`foi ${x.R(d.who, 'o')} que me matou`, `${x.R(d.who, 'o')} impostor, confia`, `morri pro ${x.R(d.who)} kkk`]),
     ghostIdle: () => pick([`rip`, `ah não`, `vai tripulação`, `agora é com vocês`, `nãaao`]),
     defendPartner: (d, x) => pick([`sei lá, ${x.R(d.who, 'o')} estava fazendo task`, `vocês estão votando sem prova`, `acho que não é ${x.R(d.who, 'o')}`]),
     whoSus: (d, x) => (d.who == null ? pick([`não sei, sem info`, `ninguém ainda`]) : pick([`acho que é ${x.R(d.who, 'o')}`, `${x.R(d.who, 'o')} pra mim`])),
-    leaderVote: (d, x) => (d.who == null ? pick([`sem prova, todo mundo skip`, `ninguém tem certeza, skip`]) : pick([`vamos votar ${x.R(d.who, 'no')}, ninguém confirma ele`, `votem ${x.R(d.who, 'no')}`])),
+    leaderVote: (d, x) => (d.who == null ? pick([`sem prova, todo mundo skip`, `ninguém tem certeza, skip`]) : pick([`vamos votar ${x.R(d.who, 'no')}, ninguém confirma ${x.el(d.who)}`, `votem ${x.R(d.who, 'no')}`])),
     huh: () => pick([`como assim?`, `quê?`, `hã?`, `não entendi`]),
     offerVisual: (d, x) => pick([`tenho ${d.task ? x.task(d.task) : 'tarefa visual'}, posso fazer na frente de vocês`, `me segue na próxima que eu faço ${d.task ? x.task(d.task) : 'a visual'}`, `quem desconfiar me acompanha, eu provo com ${d.task ? x.task(d.task) : 'a visual'}`]),
     roleDup: (d, x) => pick([`só tem ${d.n} ${ROLE_TXT[d.role]} e ${x.R(d.who, 'o')} já disse que era`, `${ROLE_TXT[d.role]} de novo? ${x.R(d.who, 'o')} já falou que é`, `dois ${ROLE_TXT[d.role]}? só tem ${d.n} nessa partida, alguém tá mentindo`]),
@@ -3296,7 +3340,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     },
     roleDoubt: (d, x) => pick([`${x.R(d.who, 'o')} disse que é ${ROLE_TXT[d.role]}... sei não`, `${ROLE_TXT[d.role]}? conveniente né`, `qualquer um pode dizer que é ${ROLE_TXT[d.role]}`]),
     ack: () => pick([`ok`, `hmm`, `faz sentido`, `entendi`]),
-    thanks: () => pick([`valeu`, `obrigado`, `viu?`]),
+    thanks: (d, x) => pick([`valeu`, x.me(`obrigado`, `obrigada`, `valeu mesmo`), `viu?`]),
   };
 
   /* Converte o texto base para o tom do chat e a personalidade.
@@ -3331,7 +3375,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     [/^self ?report\?/gi, 'Será que reportou o próprio abate?'], [/\bself ?report\b/gi, 'reportar o próprio abate'], [/\bventou\b/gi, 'usou o duto'], [/\bventando\b/gi, 'usando o duto'], [/\bventar\b/gi, 'usar o duto'],
     [/\bvent\b/gi, 'duto'], [/\bimps\b/gi, 'impostores'], [/\bimp\b/gi, 'impostor'], [/\bvcs\b/gi, 'vocês'], [/\bvc\b/gi, 'você'],
     [/\btbm\b/gi, 'também'], [/\btb\b/gi, 'também'], [/\bpq\b/gi, 'por que'], [/\bmsm\b/gi, 'mesmo'], [/\bagr\b/gi, 'agora'], [/\bngm\b/gi, 'ninguém'],
-    [/\bblz\b/gi, 'certo'], [/\bvlw\b/gi, 'obrigado'], [/\bpfv\b/gi, 'por favor'], [/\bqm\b/gi, 'quem'], [/\btd\b/gi, 'tudo'], [/\bq\b/gi, 'que'],
+    [/\bblz\b/gi, 'certo'], [/\bvlw\b/gi, 'valeu'], [/\bpfv\b/gi, 'por favor'], [/\bqm\b/gi, 'quem'], [/\btd\b/gi, 'tudo'], [/\bq\b/gi, 'que'],
     [/\bcmg\b/gi, 'comigo'], [/\bdps\b/gi, 'depois'], [/\bmt\b/gi, 'muito'], [/\bss\b/gi, 'sim'], [/\bmds\b/gi, 'meu Deus'],
     [/\bsla\b/gi, 'sei lá'], [/\btlgd\b/gi, ''], [/\bt[aá] ligado\b/gi, ''], [/\bslk\b/gi, ''], [/\bpqp\b,?/gi, ''], [/\bmano\b,?/gi, ''], [/\bpô\b,?/gi, ''], [/\boxe\b,?/gi, ''], [/\bvéi\b,?/gi, ''], [/\bué\b,?/gi, ''],
     [/\bkk+\b/gi, ''], [/\brs\b/gi, ''], [/\bcams\b/gi, 'câmeras'], [/\bstack kill\b/gi, 'abate no meio do grupo'], [/\bcrew\b/gi, 'tripulação'],
@@ -3596,7 +3640,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     const me = ctx.self != null ? ctx.self : g.human ? g.human.id : -1;
     /* "é" (verbo) vira "eh" antes de tirar acentos, para não virar a conjunção "e" */
     const pre = String(text).replace(/(^|[^\p{L}])[éÉ](?=$|[^\p{L}])/gu, '$1 eh ');
-    const n = ' ' + U.norm(pre).replace(/[^a-z0-9?!\s]/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
+    /* vírgula, ponto e ponto e vírgula ficam (viram " , "): são eles que separam as frases ("vi o verde na nav, o azul é sus") */
+    const n = ' ' + U.norm(pre).replace(/[^a-z0-9?!,.;\s]/g, ' ').replace(/([,.;?!])/g, ' $1 ').replace(/\s+/g, ' ').trim() + ' ';
     const isQ = /\?/.test(text);
     const table = aliasTable(g);
     const intents = [];
@@ -3611,7 +3656,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     if (RX.deny.test(n)) intents.push({ type: 'deny' });
     if (RX.gaveUp.test(n)) intents.push({ type: 'explainTask' });
     if (RX.offer.test(n) || (RX.offerTask.test(n) && !/\b(fiz|fez|fizeram|fazendo|tava|estava)\b/.test(n))) intents.push({ type: 'offerVisual' });
-    if ((/^ (fechou|fechado|beleza|blz|ok|okay|pode ser|sim|claro|tranquilo|combinado|firmeza|show|demorou|s)\b/.test(n) || /^ (bora|vamo|vamos|pode)( sim| ja| entao)? $/.test(n)) && n.trim().split(' ').length <= 5 && !RX.pact.test(n) && !RX.vote.test(n) && !RX.sus.test(n) && !RX.skip.test(n)) intents.push({ type: 'yes', to: ctx.addressed != null ? ctx.addressed : null });
+    if ((/^ (fechou|fechado|beleza|blz|ok|okay|pode ser|sim|claro|tranquilo|combinado|firmeza|show|demorou|s)\b/.test(n) || /^ (bora|vamo|vamos|pode)( sim| ja| entao)? $/.test(n)) && n.trim().split(' ').filter((w) => /[a-z0-9]/.test(w)).length <= 5 && !RX.pact.test(n) && !RX.vote.test(n) && !RX.sus.test(n) && !RX.skip.test(n)) intents.push({ type: 'yes', to: ctx.addressed != null ? ctx.addressed : null });
     if (RX.pact.test(n) && !RX.pactNo.test(n)) {
       const o = all.players.find((x) => x.pid !== me);
       intents.push({ type: 'pact', who: o ? o.pid : null, to: o ? o.pid : ctx.addressed != null ? ctx.addressed : null, lead: RX.leadYou.test(n) ? 'addressee' : RX.leadMe.test(n) ? 'speaker' : null, scope: RX.scopeGame.test(n) ? 'game' : 'round' });
@@ -3623,23 +3668,49 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       intents.push({ type: 'window', area: all.rooms[0].area, ago: wm ? +wm[1] : 30 });
     }
 
-    let lastOthers = [];
-    for (const c of clauses) {
+    let lastOthers = [], voc = null, lastRooms = [];
+    const INTENT_RX = ['vi', 'kill', 'vent', 'sus', 'vote', 'safe', 'visual', 'comigo', 'been', 'deny', 'lie', 'skip', 'where', 'who', 'body', 'shift', 'vanish', 'follow', 'gaveUp', 'twin', 'selfrep', 'offer', 'offerTask', 'pact'];
+    clauses.forEach((c, ci) => (clauses[ci] = { c, last: ci === clauses.length - 1 }));
+    for (const { c, last } of clauses) {
       const ps = findAll(c, table, 'pid');
       const rooms = findAll(c, ROOM_ALIASES, 'area').map((r) => r.area);
       let others = ps.filter((x) => x.pid !== me).map((x) => x.pid);
       const selfNamed = ps.some((x) => x.pid === me);
       const has = (k) => RX[k].test(c);
-      if (!others.length && /\b(vc|voce|tu)\b/.test(c) && ctx.addressed != null) others = [ctx.addressed];
+      /* "verde, onde vc tava?": a primeira frase só chama alguém; o "vc" das seguintes é essa pessoa */
+      if (!last && others.length === 1 && ps.length === 1 && !rooms.length && c.trim().split(' ').length <= 3 && !INTENT_RX.some((k) => RX[k].test(c))) {
+        voc = others[0];
+        lastOthers = others;
+        intents.push({ type: 'mention', who: voc });
+        continue;
+      }
+      if (!others.length && /\b(vc|voce|tu)\b/.test(c) && (voc != null || ctx.addressed != null)) others = [voc != null ? voc : ctx.addressed];
+      /* "vota nela", "ele tava no duto", "vi ela matando": acha a pessoa pelo gênero combinado no lobby, entre quem foi
+         citado nesta mensagem e nas últimas da reunião ("ela" = só quem é "ela"; "ele" = ele, neutro ou chamado pela cor) */
+      const pr = !others.length && c.match(/\b(?:d|n)?(ele|ela)\b/);
+      if (pr) {
+        const fem = pr[1] === 'ela';
+        const fits = (pid) => {
+          const q = g.players[pid];
+          return !!q && pid !== me && (fem ? q.gender === 'f' : q.gender !== 'f');
+        };
+        const recent = ctx.recent || (g.meeting && g.meeting.recentRefs) || [];
+        const hit = lastOthers.concat(recent).find(fits);
+        if (hit != null) others = [hit];
+        else if (lastOthers.length === 1) others = lastOthers;
+      }
       /* "..., sus" / "..., vota nele": herda o jogador da oração anterior */
       if (!others.length && lastOthers.length && (has('sus') || has('vote') || has('safe') || has('lie') || has('kill') || has('vent')) && !rooms.length) others = lastOthers;
       if (others.length) lastOthers = others;
       const area = rooms[0] || null;
 
       if (has('where') && !has('body')) {
-        if (others.length) intents.push({ type: 'askWhere', who: others[0] });
+        if (others.length || voc != null) intents.push({ type: 'askWhere', who: others.length ? others[0] : voc });
         continue;
       }
+      /* "eu tava no reator. vi o verde passando": o "vi" sem sala é na sala que acabou de dizer */
+      const seenRoom = !rooms.length && has('vi') && lastRooms.length ? lastRooms[0] : null;
+      if (rooms.length) lastRooms = rooms;
       if (has('body') && rooms.length && !has('where') && !others.length) {
         intents.push({ type: 'bodyArea', area });
         continue;
@@ -3669,7 +3740,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         else if (has('follow') && !has('offer')) intents.push({ type: 'accuse', who, reason: 'follow', area });
         else if (has('selfrep')) intents.push({ type: 'accuse', who, reason: 'fastReport' });
         else if (has('body')) intents.push({ type: 'accuse', who, reason: 'nearBody', area });
-        else if (rooms.length && (has('vi') || has('been'))) intents.push({ type: 'sawAt', who, area });
+        /* "ele disse que tava na nav" é o que a pessoa contou, não onde foi vista */
+        else if (rooms.length && (has('vi') || has('been')) && !/\b(disse|falou|diz|fala|falando|dizendo|afirmou|alegou|contou)\b/.test(c)) intents.push({ type: 'sawAt', who, area });
+        else if (seenRoom) intents.push({ type: 'sawAt', who, area: seenRoom });
         else if (isQ && c.trim().split(' ').length <= 3) intents.push({ type: 'askWhere', who });
         else intents.push({ type: 'mention', who });
         continue;
@@ -4138,6 +4211,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.id = id;
       this.name = o.name;
       this.color = o.color;
+      /* 'm' | 'f' | 'n': combinado no lobby; decide ele/ela e o/a no chat e nas IAs */
+      this.gender = AU.C.genderOf(o);
       this.isHuman = !!o.isHuman;
       this.hat = o.hat || 'nenhum';
       this.pet = o.pet || 'nenhum';
@@ -4464,7 +4539,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const r = 0.3;
       return M.walkAt(x - r, y - r) && M.walkAt(x + r, y - r) && M.walkAt(x - r, y + r) && M.walkAt(x + r, y + r) && M.chamferGap(x, y) >= r && M.propGap(x, y) >= r;
     }
-    moveEntity(p, vx, vy, dt) {
+    /* keepFacing: o lado para onde o boneco olha é decidido por quem chama (o corpo dos bots, ver Motor.face) */
+    moveEntity(p, vx, vy, dt, keepFacing) {
       const ghost = !p.alive;
       const nx = p.x + vx * dt, ny = p.y + vy * dt;
       let moved = false;
@@ -4485,7 +4561,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           }
         }
       }
-      if (Math.abs(vx) > 0.01) p.facing = vx < 0 ? -1 : 1;
+      if (!keepFacing && Math.abs(vx) > 0.01) p.facing = vx < 0 ? -1 : 1;
       p.moving = moved && (Math.abs(vx) + Math.abs(vy) > 0.01);
       if (p.moving) {
         p.walkT += dt;
@@ -5354,11 +5430,245 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
 
 </script>
   <script>
+/* O corpo de cada bot: o jeito próprio de mexer o personagem, como cada pessoa mexe o seu.
+   Quem joga de verdade segura um controle: no teclado o boneco só anda em 8 direções (vira seco, de 45 em 45 graus,
+   e às vezes passa do ponto e volta um pouquinho); no celular ou no controle, o polegar faz curvas e balança um pouco.
+   Ninguém para perfeitamente imóvel esperando: uns olham em volta, dão passinhos, giram o boneco, rodam pela sala.
+   Cada bot sorteia o seu estilo (puxado pela personalidade) e o humor do momento muda o jeito de andar: nervoso olha
+   mais em volta e não para quieto, entediado gira e anda à toa, apressado corta caminho e não hesita.
+   Medido antes: 14 viradas bruscas por minuto em ângulos que nenhum controle faz, e o boneco trocando de lado ~10
+   vezes por minuto (às vezes por menos de 0,3 s) só por um desvio mínimo do caminho. */
+(function () {
+  'use strict';
+  const AU = window.AU;
+  const U = AU.U;
+
+  const TAU = Math.PI * 2;
+  const wrap = (a) => {
+    while (a > Math.PI) a -= TAU;
+    while (a < -Math.PI) a += TAU;
+    return a;
+  };
+
+  /* temperamento do corpo por personalidade: [hesitação, inquietação, olhar em volta, oscilação] (multiplicadores) */
+  const TEMPER = {
+    analitico: [1.2, 0.6, 1.4, 0.8],
+    impulsivo: [0.5, 1.4, 0.9, 1.2],
+    falador: [0.8, 1.3, 1.1, 1.1],
+    silencioso: [1, 0.5, 0.6, 0.8],
+    caotico: [0.6, 1.9, 1, 1.5],
+    lider: [0.7, 0.8, 1.2, 0.9],
+    defensor: [1, 0.8, 1, 1],
+    cetico: [1.1, 0.7, 1.6, 0.9],
+    seguidor: [1, 0.8, 1.1, 1],
+    inexperiente: [1.6, 1.1, 1.4, 1.6],
+  };
+
+  /* o que o humor muda: [hesitação, inquietação, olhar, oscilação, corte de quina] */
+  const MOOD = {
+    calmo: [1, 1, 1, 1, 1],
+    nervoso: [0.45, 1.7, 1.9, 1.6, 1.1],
+    desconfiado: [0.9, 0.9, 1.8, 1, 1],
+    entediado: [1.5, 2.2, 0.8, 1.1, 0.9],
+    apressado: [0.25, 0.3, 0.4, 0.9, 1.4],
+    focado: [0.7, 0.5, 0.6, 0.8, 1.2],
+  };
+  const MOODS = Object.keys(MOOD);
+
+  const Motor = {
+    MOODS,
+    /* estilo sorteado para o bot (uma vez por partida) */
+    make(b) {
+      const t = TEMPER[b.p && b.p.personality] || [1, 1, 1, 1];
+      const keyboard = Math.random() < 0.58;
+      const lostish = b.pers && b.pers.lost ? 1.3 : 1;
+      return {
+        input: keyboard ? 'teclado' : 'analogico',
+        /* joystick: quão rápido o polegar gira o boneco (rad/s) e quanto ele balança */
+        turn: U.rf(9, 15) / Math.sqrt(t[3]),
+        wobble: keyboard ? 0 : U.rf(0.02, 0.07) * t[3],
+        /* quanto antes da quina já começa a virar (tiles) */
+        cut: U.rf(0.35, 1.0),
+        /* teclado: solta a tecla um pouco tarde e passa do ponto */
+        overshoot: keyboard ? U.rf(0.08, 0.32) * lostish : U.rf(0, 0.1),
+        /* parar para decidir o próximo passo (s) */
+        hesitate: U.rf(0.12, 0.7) * t[0] * lostish,
+        /* não fica parado quieto: frequência dos gestos */
+        fidget: U.clamp(U.rf(0.25, 1) * t[1], 0.08, 2),
+        /* parar/virar para olhar quem passa ou a sala em que entrou */
+        look: U.clamp(U.rf(0.15, 0.6) * t[2], 0.05, 1.2),
+        /* depois da reunião, demora para começar a andar (lendo o chat, olhando o mapa) */
+        startLag: U.rf(0.15, 1.6) * t[0],
+        /* todos andam na velocidade do jogo; no joystick, às vezes o polegar não vai até o fim */
+        speed: keyboard ? 1 : U.rf(0.93, 1),
+        /* gestos preferidos quando parado */
+        gestures: U.shuffle(['olhar', 'olhar', 'passinho', 'girar', 'rodar']).slice(0, 3),
+        phase: Math.random() * 100,
+      };
+    },
+
+    /* humor do momento: o que a mente escolheu, ou o que o próprio corpo sente (susto, pressa, tédio) */
+    mood(b) {
+      const g = b.g, p = b.p, t = g.t;
+      if (b.moodSet && t < b.moodSet.until) return b.moodSet.kind;
+      if ((b.fear && t - b.fear.t < 25) || (b.shock && t < b.shock.until + 15) || (b.escape && t - b.escape.t0 < 20)) return 'nervoso';
+      if (g.sabCritical && g.sabCritical()) return 'apressado';
+      if (p.isImp ? b.plan && (b.plan.type === 'hunt' || b.plan.type === 'prowl') : false) return 'focado';
+      if (!p.isImp && p.alive && p.tasks.every((tk) => tk.done) && t - g.roundStart > 25) return 'entediado';
+      return 'calmo';
+    },
+    setMood(b, kind, secs) {
+      if (!MOOD[kind]) return;
+      b.moodSet = { kind, until: b.g.t + (secs || 60) };
+    },
+    k(b, i) {
+      return MOOD[Motor.mood(b)][i];
+    },
+
+    /* direção que o controle consegue fazer, a partir da direção desejada (vetor unitário) */
+    steer(b, dt, vx, vy) {
+      const st = b.motor, g = b.g;
+      const want = Math.atan2(vy, vx);
+      if (st.input === 'teclado') {
+        /* 8 direções; só troca de tecla quando a direção desejada sai bem do setor (sem tremer entre duas) */
+        const cur = b.keyDir;
+        if (cur == null || Math.abs(wrap(want - cur)) > (Math.PI / 8) * 1.45) b.keyDir = Math.round(want / (Math.PI / 4)) * (Math.PI / 4);
+        b.heading = b.keyDir;
+        return { x: Math.cos(b.keyDir), y: Math.sin(b.keyDir) };
+      }
+      /* joystick: o polegar gira o boneco até a direção desejada (meia-volta é mais rápida: a pessoa puxa o
+         polegar para o outro lado) e balança um pouquinho */
+      let h = b.heading == null ? want : b.heading;
+      const d = wrap(want - h), rate = st.turn * (Math.abs(d) > 2.2 ? 2.4 : 1) * (1 + 0.2 * (Motor.k(b, 4) - 1));
+      h += U.clamp(d, -rate * dt, rate * dt);
+      b.heading = wrap(h);
+      const w = st.wobble * Motor.k(b, 3) * Math.sin(g.t * 2.3 + st.phase) * Math.sin(g.t * 0.9 + st.phase * 2);
+      return { x: Math.cos(b.heading + w), y: Math.sin(b.heading + w) };
+    },
+    /* parou de andar: o controle volta ao centro */
+    release(b) {
+      b.keyDir = null;
+    },
+
+    /* para que lado o boneco olha: segue o lado para onde a pessoa empurra o controle de verdade, sem trocar por um
+       desvio mínimo (era isso que fazia o boneco piscar de lado nos corredores) */
+    face(b, vx) {
+      const p = b.p, g = b.g, st = b.motor;
+      const want = vx < 0 ? -1 : 1;
+      if (want === p.facing) return;
+      const strong = st.input === 'teclado' ? Math.abs(vx) > 0.3 : Math.abs(vx) > 0.45;
+      if (!strong) return;
+      if (st.input !== 'teclado' && g.t - (b.faceAt || 0) < 0.22 && Math.abs(vx) < 0.85) return;
+      p.facing = want;
+      b.faceAt = g.t;
+    },
+
+    /* hora de começar a andar para um destino novo? (pessoa leva um instante para decidir e sair) */
+    holding(b) {
+      return b.holdUntil && b.g.t < b.holdUntil;
+    },
+    hesitate(b, urgent) {
+      if (urgent) {
+        b.holdUntil = 0;
+        return;
+      }
+      const s = b.motor.hesitate * Motor.k(b, 0) * U.rf(0.5, 1.6);
+      if (s > 0.08) b.holdUntil = b.g.t + s;
+    },
+
+    /* entrou numa sala com gente: às vezes para um instante olhando (como quem confere quem está ali) */
+    enterRoom(b, people) {
+      const st = b.motor;
+      const pr = Math.min(0.55, st.look * Motor.k(b, 2) * (people ? 0.35 : 0.12));
+      if (Math.random() < pr) b.holdUntil = Math.max(b.holdUntil || 0, b.g.t + U.rf(0.25, 0.8));
+    },
+
+    /* parado esperando (não numa tarefa): gestos de quem segura o controle sem ter o que fazer */
+    idle(b, dt) {
+      const g = b.g, p = b.p, st = b.motor;
+      if (b.micro) return Motor.microStep(b, dt);
+      b.idleT = (b.idleT == null ? U.rf(0.6, 2) : b.idleT) - dt;
+      if (b.spin) {
+        b.spin.t -= dt;
+        if (b.spin.t <= 0) {
+          p.facing = -p.facing;
+          b.spin.n--;
+          b.spin.t = U.rf(0.09, 0.2);
+          if (b.spin.n <= 0) b.spin = null;
+        }
+        return;
+      }
+      if (b.idleT > 0) return;
+      const fid = st.fidget * Motor.k(b, 1);
+      b.idleT = U.rf(0.9, 3.2) / Math.max(0.15, fid);
+      if (Math.random() > Math.min(0.92, 0.35 + fid * 0.4)) return;
+      /* alguém por perto: quem gosta de olhar vira para a pessoa */
+      const near = (b.seenNow || []).filter((q) => q.alive && U.dist(p, q) < 6);
+      const lookK = st.look * Motor.k(b, 2);
+      if (near.length && Math.random() < Math.min(0.8, lookK)) {
+        const q = U.pick(near);
+        if (Math.abs(q.x - p.x) > 0.2) p.facing = q.x < p.x ? -1 : 1;
+        return;
+      }
+      const bored = Motor.mood(b) === 'entediado';
+      const gs = bored ? ['girar', 'rodar', 'passinho'] : st.gestures;
+      let gst = U.pick(gs);
+      /* rodar pela sala só quem é bem inquieto ou está entediado (andar à toa sem motivo parece robô) */
+      if (gst === 'rodar' && !bored && fid < 0.9) gst = 'passinho';
+      if (gst === 'olhar') p.facing = -p.facing;
+      else if (gst === 'girar') b.spin = { n: U.rint(2, 6), t: 0.1 };
+      else if (gst === 'passinho' || gst === 'rodar') {
+        const r = gst === 'rodar' ? U.rf(0.8, 1.8) : U.rf(0.2, 0.5);
+        for (let i = 0; i < 6; i++) {
+          const a = Math.random() * TAU, x = p.x + Math.cos(a) * r, y = p.y + Math.sin(a) * r;
+          if (g.canStand(x, y, !p.alive) && AU.Nav.clearLine(p.x, p.y, x, y, !p.alive)) {
+            b.micro = { pts: gst === 'rodar' ? [{ x, y }, { x: p.x + (p.x - x) * 0.4, y: p.y + (p.y - y) * 0.4 }, { x: p.x, y: p.y }] : [{ x, y }, { x: p.x, y: p.y }], i: 0 };
+            break;
+          }
+        }
+      }
+    },
+    /* passinhos de quem está esperando: anda devagar até cada ponto e volta */
+    microStep(b, dt) {
+      const g = b.g, p = b.p, m = b.micro;
+      const pt = m.pts[m.i];
+      if (!pt) {
+        b.micro = null;
+        return;
+      }
+      const dx = pt.x - p.x, dy = pt.y - p.y, d = Math.hypot(dx, dy);
+      const sp = g.speedOf(p) * (b.motor.input === 'teclado' ? 1 : 0.7);
+      if (d < 0.06 || d < sp * dt) {
+        m.i++;
+        if (m.i >= m.pts.length) b.micro = null;
+        return;
+      }
+      const bx = p.x, by = p.y;
+      g.moveEntity(p, (dx / d) * sp, (dy / d) * sp, dt, true);
+      Motor.face(b, dx / d);
+      if (Math.hypot(p.x - bx, p.y - by) < sp * dt * 0.3) b.micro = null;
+    },
+    /* para tudo (o plano mudou, começou a andar de verdade) */
+    stopIdle(b) {
+      b.micro = null;
+      b.spin = null;
+    },
+  };
+
+  AU.Motor = Motor;
+})();
+
+</script>
+  <script>
 /* Mente dos bots em campo: percepção limitada, memória, rotas, tarefas e estratégia de impostor. */
 (function () {
   'use strict';
   const AU = window.AU;
   const U = AU.U, C = AU.C, M = AU.Map, Nav = AU.Nav;
+  /* planos que não esperam a pessoa se decidir (sai correndo na hora) */
+  const URGENT = new Set(['flee', 'report', 'button', 'kill', 'hunt', 'vent', 'escape', 'leave']);
+  /* planos em que o personagem fica parado de verdade (no painel, nas câmeras, escondido, mirando alguém) */
+  const STILL = new Set(['task', 'fake', 'fix', 'cams', 'admin', 'report', 'kill', 'hunt', 'vent', 'wiggle', 'visual', 'noscan', 'stalk', 'prowl', 'flee']);
 
   /* estações onde a tarefa mostra animação o tempo todo (os escudos só piscam no fim; não servem para "não escaneou") */
   const VISUAL_ST = ['scan', 'asteroids'];
@@ -5520,7 +5830,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.sabThink = U.rf(8, 16);
       this.vitalsT = U.rf(15, 30);
       this.lastVitals = 0;
-      this.speedMul = U.rf(0.93, 1.02);
+      /* o corpo: jeito próprio de mexer o personagem (teclado ou joystick, hesitação, inquietação; ver Motor) */
+      this.motor = AU.Motor.make(this);
+      this.speedMul = this.motor.speed;
       /* jeito próprio de andar: faixa no corredor e preferência de caminho (cada um vai por um lado) */
       this.lane = U.rf(-0.85, 0.85);
       this.routeSeed = U.rint(1, 99991);
@@ -5576,6 +5888,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
       /* dentro do duto ninguém anda (o corpo fica escondido no duto até sair) */
       if (!p.inVent) this.act(dt);
+      this.body(dt);
       /* acabou o plano: decide o próximo já (gente não congela meio segundo entre uma coisa e outra) */
       if (this.plan) this.hadPlan = true;
       else if (this.hadPlan) {
@@ -5584,6 +5897,25 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
     }
 
+    /* o corpo entre um plano e outro: olhar em volta ao entrar numa sala com gente, e os gestos de quem espera parado */
+    body(dt) {
+      const g = this.g, p = this.p, Mo = AU.Motor;
+      if (p.inVent || !this.motor) return;
+      const a = M.areaAt(p.x, p.y);
+      const aid = a ? (a.kind === 'room' ? a.id : 'hall') : null;
+      if (aid !== this.bodyArea) {
+        if (this.bodyArea && a && a.kind === 'room' && p.moving && !(this.plan && URGENT.has(this.plan.type))) Mo.enterRoom(this, this.seenNow.some((q) => q.alive));
+        this.bodyArea = aid;
+      }
+      if (p.moving && !this.micro) {
+        Mo.stopIdle(this);
+        return;
+      }
+      const pl = this.plan;
+      const idleOK = !p.busy && !p.onCams && !p.onAdmin && (!pl || ((pl.stage === 'wait' || pl.stage === 'do') && !STILL.has(pl.type)));
+      if (idleOK) Mo.idle(this, dt);
+      else if (this.micro || this.spin) Mo.stopIdle(this);
+    }
     setPlan(pl) {
       const p = this.p;
       this.engHop = null;
@@ -5595,6 +5927,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.pi = 0;
       this.dest = null;
       this.dynT = 0;
+      AU.Motor.stopIdle(this);
+      /* um instante para decidir e sair (cada um no seu ritmo); urgência sai na hora */
+      if (pl && pl.x != null) AU.Motor.hesitate(this, URGENT.has(pl.type) || (pl.type === 'fix' && this.g.sabCritical()));
       if (pl && pl.x != null) this.routeTo(pl.x, pl.y);
       if (pl && !pl.stage) pl.stage = 'go';
     }
@@ -5606,6 +5941,16 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const plain = !p.alive || this.plainUntil > this.g.t;
       this.path = Nav.find(p.x, p.y, x, y, !p.alive, plain ? null : { seed: this.routeSeed + (U.chance(0.3) ? U.rint(1, 5000) : 0), vary: 0.9, lane }) || [];
       this.pi = 0;
+      /* chegando num painel, quem joga no teclado solta a tecla um pouco tarde: passa do ponto e volta um passinho */
+      const st = this.motor, pl = this.plan;
+      if (!plain && st && st.overshoot > 0.05 && pl && (pl.type === 'task' || pl.type === 'fake') && this.path.length && U.chance(0.7)) {
+        const last = this.path[this.path.length - 1], prev = this.path.length > 1 ? this.path[this.path.length - 2] : { x: p.x, y: p.y };
+        const dd = Math.hypot(last.x - prev.x, last.y - prev.y);
+        if (dd > 0.5) {
+          const k = (st.overshoot * U.rf(0.5, 1.25)) / dd, ox = last.x + (last.x - prev.x) * k, oy = last.y + (last.y - prev.y) * k;
+          if (this.g.canStand(ox, oy, !p.alive) && Nav.clearLine(last.x, last.y, ox, oy, !p.alive)) this.path.push({ x: ox, y: oy }, { x: last.x, y: last.y });
+        }
+      }
     }
     /* Lugar para ficar em volta de um painel: cada um num ponto um pouco diferente (não todos no mesmo pixel). */
     standNear(x, y, r) {
@@ -5696,24 +6041,74 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         }
         return false;
       }
-      const pt = this.path[this.pi];
-      const dx = pt.x - p.x, dy = pt.y - p.y, d = Math.hypot(dx, dy);
+      const Mo = AU.Motor, st = this.motor, plain = this.plainUntil > g.t;
+      /* decidindo para onde ir: fica um instante parado (cada um no seu ritmo) */
+      if (Mo.holding(this)) return false;
+      let pt = this.path[this.pi];
+      let dx = pt.x - p.x, dy = pt.y - p.y, d = Math.hypot(dx, dy);
+      const stick = st.input !== 'teclado' && !plain;
+      /* joystick: o ponto do caminho já passou do lado (ou está pertinho): segue para o próximo sem ir até ele */
+      if (stick && this.pi < this.path.length - 1 && d < 0.45) {
+        this.pi++;
+        pt = this.path[this.pi];
+        dx = pt.x - p.x;
+        dy = pt.y - p.y;
+        d = Math.hypot(dx, dy);
+      }
+      /* corta a quina como gente: perto do ponto, com o seguinte à vista, já mira nele */
+      if (!plain && !stick && this.pi < this.path.length - 1 && d < st.cut * Mo.k(this, 4)) {
+        const nx = this.path[this.pi + 1];
+        if (Nav.clearLine(p.x, p.y, nx.x, nx.y, !p.alive)) {
+          this.pi++;
+          pt = nx;
+          dx = pt.x - p.x;
+          dy = pt.y - p.y;
+          d = Math.hypot(dx, dy);
+        }
+      }
       const sp = g.speedOf(p) * this.speedMul;
       const step = sp * dt;
-      if (Math.abs(dx) > 0.02) p.facing = dx < 0 ? -1 : 1;
+      /* no teclado o boneco não acerta o ponto exato (8 direções): chegar perto já basta, menos no último */
+      const reach = st.input === 'teclado' && !plain && this.pi < this.path.length - 1 ? 0.3 : 0.05;
       /* com alguém parado em cima do ponto, chegar perto já basta (não fica rodeando) */
-      if (d <= step || d < 0.05 || (d < 0.55 && this.sepOn && this.pi < this.path.length - 1)) {
-        if (d <= step && g.canStand(pt.x, pt.y, !p.alive)) {
+      if (d <= step || d < reach || (d < 0.55 && this.sepOn && this.pi < this.path.length - 1)) {
+        if (d <= step && !stick && g.canStand(pt.x, pt.y, !p.alive)) {
           p.x = pt.x;
           p.y = pt.y;
         }
         this.pi++;
         p.moving = true;
         p.walkT += dt;
-        return this.pi >= this.path.length && U.d2(p.x, p.y, this.dest.x, this.dest.y) < 0.9;
+        const done = this.pi >= this.path.length && U.d2(p.x, p.y, this.dest.x, this.dest.y) < 0.9;
+        if (done) Mo.release(this);
+        return done;
       }
       const bx = p.x, by = p.y;
       let vx = dx / d, vy = dy / d;
+      /* joystick: mira um ponto um pouco à frente no caminho (quem joga olha adiante): a curva sai por dentro do
+         corredor, sem raspar a quina */
+      if (stick) {
+        const ahead = 0.7 + st.cut * 0.6;
+        let left = ahead, cx = p.x, cy = p.y, k = this.pi;
+        while (k < this.path.length && left > 0) {
+          const q = this.path[k], sl = Math.hypot(q.x - cx, q.y - cy);
+          if (sl >= left) {
+            cx += ((q.x - cx) * left) / sl;
+            cy += ((q.y - cy) * left) / sl;
+            left = 0;
+            break;
+          }
+          left -= sl;
+          cx = q.x;
+          cy = q.y;
+          k++;
+        }
+        const ax = cx - p.x, ay = cy - p.y, al = Math.hypot(ax, ay);
+        if (al > 0.05 && Nav.clearLine(p.x, p.y, cx, cy, !p.alive)) {
+          vx = ax / al;
+          vy = ay / al;
+        }
+      }
       if (p.alive && !(this.plan && this.plan.type === 'hunt') && !(this.plainUntil > g.t)) {
         const s = this.sepVec();
         this.sepOn = !!(s.x || s.y);
@@ -5725,7 +6120,20 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           vy /= n;
         }
       }
-      g.moveEntity(p, vx * sp, vy * sp, dt);
+      /* o controle de cada um: 8 direções no teclado, curva e balanço no joystick (preso, vai reto pelo caminho) */
+      if (!plain) {
+        const s2 = Mo.steer(this, dt, vx, vy);
+        vx = s2.x;
+        vy = s2.y;
+      }
+      g.moveEntity(p, vx * sp, vy * sp, dt, true);
+      Mo.face(this, vx);
+      /* raspou na parede (só um eixo andou): o polegar acompanha a parede, o teclado escolhe a tecla de novo */
+      const mx = p.x - bx, my = p.y - by, ml = Math.hypot(mx, my);
+      if (!plain && ml > step * 0.3 && (Math.abs(mx - vx * step) > step * 0.35 || Math.abs(my - vy * step) > step * 0.35)) {
+        if (stick) this.heading = Math.atan2(my, mx);
+        else Mo.release(this);
+      }
       if (Math.hypot(p.x - bx, p.y - by) < step * 0.3) {
         this.stuck += dt;
         if (this.stuck > 0.5) {
@@ -6286,6 +6694,16 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           return g.commsDown() ? false : this.planAdmin();
         case 'go':
           return o.room ? this.planWander(o.room, U.rf(2, 5)) : false;
+        case 'watch': {
+          /* "observar a Elétrica": para num ponto da sala e fica olhando quem entra e sai (os gestos de olhar em volta
+             vêm do corpo enquanto espera) */
+          const here = M.roomOf(M.areaAt(p.x, p.y), p.x, p.y).id;
+          const room = o.room || here;
+          const pos = room === here ? { x: p.x, y: p.y } : M.randomPointIn(room);
+          const span = U.rf(8, 14);
+          this.setPlan({ type: 'wander', area: room, x: pos.x, y: pos.y, watch: true, onArrive: (pl) => (pl.until = g.t + span) });
+          return true;
+        }
         case 'patrol':
           return this.planPatrol(U.rint(2, 4));
         case 'button':
@@ -6375,7 +6793,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           if (o.mind) this.mindProwl = g.t + 25;
           return this.planProwl();
         case 'group': {
-          const crowd = this.seenNow.filter((x) => !x.isImp && x.alive);
+          /* tripulante não sabe quem é impostor: fica perto de qualquer um que estiver à vista */
+          const crowd = this.seenNow.filter((x) => x.alive && (!p.isImp || !x.isImp));
           return crowd.length ? this.planFollow(U.pick(crowd), U.rf(8, 14), 2.8) : this.planWander('cafeteria', U.rf(2, 4));
         }
         case 'sab':
@@ -6636,6 +7055,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       for (const b of this.mem.bodies) if (b.t >= rs && (b.near || []).includes(id)) s += 25;
       s += (this.mem.lies[id] || 0) * 10;
       s += (this.fieldSus && this.fieldSus[id]) || 0;
+      /* a impressão que a mente própria registrou ("mais" / "menos" desconfiado) */
+      s += (this.lean && this.lean[id]) || 0;
       if (!strong && this.hardCleared(id)) return Math.min(s, -40);
       return s;
     }
@@ -8629,7 +9050,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.shownVisual = false;
       this.camsRound = false;
       this.patrolRoute = null;
-      this.startDelay = U.rf(0.2, 1.1);
+      this.startDelay = this.motor ? this.motor.startLag * U.rf(0.6, 1.5) : U.rf(0.2, 1.1);
       this.lostCount = Math.max(0, this.lostCount - 1);
     }
   }
@@ -11195,9 +11616,18 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       return !g.headless && g.S.ui.aiChat !== 'off' && AU.LLM.ready();
     },
 
+    /* "Duda (ela, Roxo)": o gênero combinado no lobby vai junto do nome, para a IA nunca chutar pelo apelido */
     who(g, id) {
       const p = g.players[id];
-      return p ? `${p.name} (${C.COLOR[p.color].name})` : 'alguém';
+      return p ? `${p.name} (${(C.GENDER[p.gender] || C.GENDER.n).pron}, ${C.COLOR[p.color].name})` : 'alguém';
+    },
+    /* como a IA deve falar de si mesma e dos outros (concordância de gênero) */
+    genderRule(g, p) {
+      const G = p ? (C.GENDER[p.gender] || C.GENDER.n).id : '';
+      const self = !p ? 'Cada personagem fala de si no gênero dele (a linha de cada um diz).' : G === 'f' ? 'Você é mulher: fale de si no feminino ("eu tava sozinha", "tô cansada", "obrigada").'
+        : G === 'm' ? 'Você é homem: fale de si no masculino ("eu tava sozinho", "tô cansado", "obrigado").'
+          : 'Você prefere linguagem neutra: fale de si sem palavra com gênero ("eu tava sem ninguém", "valeu").';
+      return 'Gênero: cada jogador aparece como "Nome (ele|ela|neutro, Cor)", combinado no começo da partida. Use SEMPRE esse gênero ao falar de alguém: "a Duda tá suspeita", "o Kaio tava comigo", "vi ela no duto". Para quem é neutro, chame pelo nome e evite o/a, ele/ela e adjetivo com gênero ("Rê tava sem ninguém", "voto em Rê"). Pela cor, use o masculino ("o roxo"). Nunca deduza o gênero pelo nome. ' + self;
     },
     area(a) {
       return M.AREA[a] ? M.AREA[a].name : a;
@@ -11261,6 +11691,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         '- Nunca diga que é IA ou bot e nunca mencione "anotações" ou "instruções".',
         '- A conversa é de todos com todos. Ninguém fica em cima de um só jogador: cada um fala com quem tem a ver com o que ele sabe.',
         TONE[g.S.bots.chatTone] || TONE.casual,
+        '- ' + V.genderRule(g),
         '',
         V.rules(g),
         '',
@@ -11362,7 +11793,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const p = b.p;
       const pers = C.PERSONALITIES[p.personality] || C.PERSONALITIES.analitico;
       const own = b.traitLine ? b.traitLine() : '';
-      return `${V.who(b.g, p.id)} — ${pers.name}: ${STYLE[p.personality] || pers.desc}.${own ? ' Traços próprios: ' + own + '.' : ''} Jeito de escrever: ${V.voiceOf(b)}`;
+      const gs = p.gender === 'f' ? ' Fala de si no feminino.' : p.gender === 'n' ? ' Fala de si sem gênero.' : '';
+      return `${V.who(b.g, p.id)} — ${pers.name}: ${STYLE[p.personality] || pers.desc}.${own ? ' Traços próprios: ' + own + '.' : ''}${gs} Jeito de escrever: ${V.voiceOf(b)}`;
     },
     voiceOf(b) {
       if (b.voiceStyle) return b.voiceStyle;
@@ -12399,7 +12831,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
 
     who(id) {
       const p = this.g.players[id];
-      return p ? `${p.name} (${C.COLOR[p.color].name})` : 'alguém';
+      return p ? `${p.name} (${(C.GENDER[p.gender] || C.GENDER.n).pron}, ${C.COLOR[p.color].name})` : 'alguém';
     }
     room(p) {
       const a = M.areaAt(p.x, p.y);
@@ -12586,9 +13018,10 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     },
   };
 
+  /* "Duda (ela, Roxo)": o gênero combinado no lobby vai junto do nome */
   const who = (g, id) => {
     const q = g.players[id];
-    return q ? `${q.name} (${C.COLOR[q.color].name})` : 'alguém';
+    return q ? `${q.name} (${(C.GENDER[q.gender] || C.GENDER.n).pron}, ${C.COLOR[q.color].name})` : 'alguém';
   };
   const area = (a) => (M.AREA[a] ? M.AREA[a].name : a || '?');
   const roomName = (x, y) => {
@@ -12616,6 +13049,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     'sinal NOME — chamar a pessoa com o zigue-zague ("vem comigo") e mostrar uma tarefa visual a ela',
     'responder NOME — devolver o zigue-zague (ok, tô indo) e ir junto de quem te chamou',
     'esperar — ficar onde está uns segundos olhando',
+    'observar SALA — parar num canto da sala e ficar de olho em quem entra e sai',
+    'grupo — ficar perto do pessoal',
     'patrulhar — rodar pelas salas vazias',
     'cameras — olhar as câmeras na Segurança',
     'admin — olhar o mapa no Admin',
@@ -12629,6 +13064,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     'seguir NOME — andar junto de alguém (parecer inocente)',
     'grupo — ficar no meio do pessoal',
     'esperar — ficar onde está uns segundos',
+    'observar SALA — parar num canto da sala e ficar olhando quem passa',
     'cacar NOME — ir atrás da pessoa e matar quando ela estiver sozinha e ninguém estiver vendo',
     'matar NOME — matar assim que alcançar, mesmo com risco de alguém ver',
     'procurar — matar o primeiro que encontrar sozinho, sem testemunha',
@@ -12648,6 +13084,31 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     metamorfo: ['transformar NOME — ficar com a aparência de outra pessoa', 'desfazer — voltar à sua aparência'],
     fantasma: ['sumir — ficar invisível por uns segundos (invisível não mata nem entra no duto)', 'aparecer — voltar a ficar visível'],
   };
+
+  /* Estilo de jogo próprio: cada mente recebe manias diferentes (sorteadas uma vez, coerentes com os hábitos e o nível
+     do corpo), para que dez bots com a mesma IA não joguem igual. */
+  function makeStyle(p, b) {
+    const pick = (xs) => xs[Math.floor(Math.random() * xs.length)];
+    const hab = (k) => b && b.hab && b.hab(k);
+    const pers = p.personality;
+    const out = [];
+    if (p.isImp) {
+      const L = (b && b.lvl) || {};
+      out.push(L.useVents > 0.5 ? 'foge pelo duto quando dá' : 'quase não usa duto (tem medo de ser visto)');
+      out.push(L.sabotage > 0.5 ? pick(['gosta de sabotar as luzes antes de atacar', 'sabota de um lado da nave e ataca do outro']) : 'sabota pouco, prefere não chamar atenção');
+      out.push(L.stalk > 0.5 ? 'escolhe uma vítima e vai atrás dela com paciência' : pick(['mata quem encontrar sozinho, sem planejar muito', 'espera o grupo se separar']));
+      out.push(pick(['finge tarefa com o tempo certo, de verdade', 'anda junto de alguém para ter álibi', 'fica perto da Cafeteria para parecer ocupado', 'circula entre salas fingindo procurar tarefa']));
+      if (L.selfReport > 0.4) out.push('às vezes reporta o próprio corpo para parecer inocente');
+      return out;
+    }
+    out.push(hab('solitario') ? 'faz tarefa sozinho, longe da muvuca' : hab('escolta') ? 'gosta de andar em dupla com quem confia' : pick(['anda perto dos outros, mas não segue ninguém', 'vai sozinho para as tarefas e volta para o grupo depois', 'gosta de terminar as tarefas de uma sala antes de sair']));
+    out.push(pers === 'inexperiente' ? 'às vezes se perde e demora a achar a sala' : pick(['evita a Elétrica e salas escuras quando está sozinho', 'não tem medo de sala nenhuma', 'sai de perto de quem acha suspeito na hora', 'fica de olho em quem desconfia, de longe']));
+    if (!hab('camper')) out.push(pick(['passa nas câmeras quando está perto da Segurança', 'dá uma olhada no Admin de vez em quando', 'quase nunca para em câmera ou Admin', 'olha em volta antes de começar uma tarefa']));
+    if (!hab('botao')) out.push(pers === 'impulsivo' || pers === 'caotico' ? 'aperta o botão quando algo parece estranho' : pick(['só aperta o botão com prova', 'prefere esperar alguém reportar a apertar o botão', 'guarda o botão para quando tiver certeza']));
+    out.push(pick(['para um segundo na porta antes de entrar numa sala', 'confere a barra de tarefas de vez em quando', 'presta atenção em quem anda junto', 'lembra bem das cores, esquece nomes', 'gosta de chegar primeiro no corpo para ver quem estava perto']));
+    return out;
+  }
+  const LEAN = { mais: 1, muito: 2, menos: -1, confio: -2, igual: 0, mesmo: 0, '+': 1, '-': -1 };
 
   /* Extrai o JSON da resposta (o modelo às vezes escreve algo antes ou depois). */
   function parseJSON(text) {
@@ -12690,6 +13151,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.calls = 0;
       this.planned = 0;
       this.idle = null;
+      /* impressão da própria mente sobre cada um (-2 confio ... +2 desconfio muito): vale para o corpo também */
+      this.lean = {};
+      this.style = makeStyle(p, p.brain);
     }
     get b() {
       return this.p.brain;
@@ -12828,11 +13292,87 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
       return out;
     }
+    /* Tabela de leitura de cada um, calculada FORA da IA a partir do que o personagem viveu (abates e dutos vistos,
+       tarefa visual, perto do corpo, mentiras), mais a impressão que a própria mente foi registrando. Estudos com
+       agentes de dedução social mostram que a IA sozinha esquece e "vai na onda" do chat; com a tabela pronta ela só
+       ajusta para mais ou para menos. */
+    readTable() {
+      const g = this.g, b = this.b, p = this.p, out = [], none = [];
+      if (!b) return out;
+      for (const q of g.players) {
+        if (q === p || !q.alive) continue;
+        let txt;
+        if (p.isImp && q.isImp) txt = 'seu parceiro';
+        else {
+          const s = b.liveSusp(q.id);
+          const hard = !p.isImp && b.hardCleared(q.id);
+          txt = hard ? 'INOCENTE com certeza (você viu tarefa visual)'
+            : s >= 85 ? 'IMPOSTOR com certeza (você viu)'
+              : s >= 45 ? 'desconfia muito'
+                : s >= 22 ? 'desconfia um pouco'
+                  : s <= -15 ? 'confia'
+                    : 'sem opinião ainda';
+          const l = this.lean[q.id] || 0;
+          if (l && !hard) txt += ' (sua impressão: ' + (l > 0 ? 'mais desconfiado' : 'mais confiante') + ')';
+          else if (txt === 'sem opinião ainda') {
+            none.push(who(g, q.id));
+            continue;
+          }
+        }
+        out.push(who(g, q.id) + ': ' + txt);
+      }
+      if (none.length) out.push('Sem opinião ainda: ' + none.join(', '));
+      return out;
+    }
+    /* O que é CERTO para este personagem e o que dá para deduzir disso (lógica de eliminação). */
+    certainties() {
+      const g = this.g, b = this.b, p = this.p, out = [];
+      if (!b || p.isImp) return out;
+      const alive = g.players.filter((q) => q.alive && q !== p);
+      const clean = alive.filter((q) => b.hardCleared(q.id));
+      const caught = alive.filter((q) => b.liveSusp(q.id) >= 85);
+      const left = b.impsAliveKnown ? b.impsAliveKnown() : g.S.room.impostors;
+      if (clean.length) out.push('Inocentes com certeza (tarefa visual que você viu): ' + clean.map((q) => q.name).join(', ') + '. Não vote neles e defenda se acusarem.');
+      if (caught.length) out.push('Impostor com certeza (você viu matar, entrar no duto ou mudar de forma): ' + caught.map((q) => q.name).join(', ') + '. Ninguém te convence do contrário.');
+      const pool = alive.filter((q) => !clean.includes(q));
+      if (left > 0 && pool.length && (clean.length || caught.length)) out.push('Impostores ainda vivos: até ' + left + '. Pelo que é certo, eles estão entre: ' + pool.map((q) => q.name).join(', ') + ' (' + pool.length + ' pessoa' + (pool.length > 1 ? 's' : '') + ').');
+      const all = g.players.filter((q) => q.alive).length;
+      if (left > 0 && all - left <= left + 1) out.push('ATENÇÃO: se ejetarem um tripulante agora, os impostores podem ficar em número igual e vencer. Pular é perigoso, errar também: vote em quem tem prova.');
+      return out;
+    }
+    /* "suspeitas": {"Kaio": "mais"} → a impressão da mente também muda o que o corpo faz (de quem se afasta, quem segue,
+       em quem vota se a IA cair) */
+    applyLean(sus) {
+      const g = this.g, b = this.b;
+      if (!sus || typeof sus !== 'object' || !b) return;
+      b.lean = b.lean || {};
+      for (const k of Object.keys(sus).slice(0, 8)) {
+        const nk = U.norm(k).replace(/[^a-z0-9 ]/g, ' ').trim();
+        const q = g.players.find((x) => x !== this.p && x.alive && (U.norm(x.name) === nk || nk.split(' ').includes(U.norm(x.name)) || nk.includes(U.norm(C.COLOR[x.color].name))));
+        if (!q) continue;
+        const v = U.norm(String(sus[k])).trim();
+        const d = LEAN[v.split(' ')[0]] != null ? LEAN[v.split(' ')[0]] : /confi|inocent|limp/.test(v) ? -1 : /impost|sus|descon/.test(v) ? 1 : 0;
+        if (!d) continue;
+        this.lean[q.id] = U.clamp((this.lean[q.id] || 0) + d, -2, 2);
+        b.lean[q.id] = this.lean[q.id] * 11;
+      }
+    }
+    applyMood(h) {
+      if (typeof h !== 'string' || !AU.Motor || !this.b) return;
+      const k = U.norm(h).replace(/[^a-z]/g, '');
+      const hit = AU.Motor.MOODS.find((m) => k.startsWith(U.norm(m).slice(0, 5)));
+      if (hit) AU.Motor.setMood(this.b, hit, U.rf(35, 70));
+    }
     memoryLines(n) {
       const g = this.g;
       const lines = [];
       let round = -1;
-      for (const d of this.diary.slice(-n)) {
+      /* memória enxuta: da rodada atual vai tudo (as últimas n); das anteriores só o que importa (corpos, abates,
+         dutos, tarefa visual, reuniões), para o que pesa não sumir debaixo de "entrou na sala X" */
+      const KEY = /REUNI|CORPO|MATA|MATOU|duto|DUTO|TRANSFORM|INVIS|visual|sinais vitais|rastre|alarme|DOIS|cara|seguindo|atrás de você|não subiu|sem a animação/;
+      const cur = this.diary.filter((d) => d.round === g.meetings).slice(-n);
+      const old = this.diary.filter((d) => d.round !== g.meetings && KEY.test(d.text)).slice(-Math.max(6, Math.round(n / 2)));
+      for (const d of old.concat(cur)) {
         if (d.round !== round) {
           round = d.round;
           lines.push(round === 0 ? '(começo da partida)' : '(depois da reunião ' + round + ')');
@@ -12855,6 +13395,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const lines = [];
       lines.push('Você é ' + who(g, p.id) + ', um dos ' + g.players.length + ' jogadores de uma partida de Among Us na nave The Skeld. Você controla só esse personagem: decide sozinho para onde ir, o que fazer, o que falar e em quem votar. Ninguém te dá ordens.');
       lines.push('Seu jeito: ' + (V && V.persona ? V.persona(b) : (C.PERSONALITIES[p.personality] || {}).desc || ''));
+      if (this.style && this.style.length) lines.push('Suas manias de jogo (só suas; os outros jogam diferente): ' + this.style.join('; ') + '.');
       if (p.isImp) {
         const mates = g.players.filter((q) => q.isImp && q !== p).map((q) => who(g, q.id) + (q.alive ? '' : ' (morto)'));
         lines.push('SEGREDO: você é IMPOSTOR.' + (mates.length ? ' Seu parceiro: ' + mates.join(', ') + '.' : ' Você é o único impostor.') + ' Ninguém mais sabe. Você vence quando os impostores ficarem em número igual ao de tripulantes (ou se uma sabotagem crítica não for consertada).');
@@ -12862,6 +13403,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (p.special && C.ROLES[p.special]) lines.push('Sua função: ' + C.ROLES[p.special].name + ' — ' + C.roleDesc(p.special, g.S) + '.');
       lines.push('Jogue como um jogador humano joga Among Us de verdade: preste atenção em quem anda com quem e onde, lembre do que viu, desconfie com motivo, chame reunião (aperte o botão) quando tiver um motivo forte, reporte corpo, ande com quem confia, faça a "chamadinha" (sinal de vem comigo) para mostrar tarefa visual, e na reunião defenda-se, acuse e vote. ' + (p.isImp ? 'Como impostor, finja tarefas, mate quando ninguém estiver vendo, fuja da cena, use dutos e sabotagens, e minta com cuidado na reunião.' : 'Como tripulante, faça suas tarefas, mas fique de olho.'));
       lines.push('Você só sabe o que o seu personagem viveu (a sua memória abaixo) e o que for dito no chat. Não invente o que não viu.');
+      if (V && V.genderRule) lines.push(V.genderRule(g, p));
       return lines.join('\n');
     }
     rules() {
@@ -12921,14 +13463,18 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const lines = [];
       lines.push(...this.now());
       lines.push('', 'Última vez que você viu cada um:', ...this.sightings().map((l) => '- ' + l));
+      lines.push('', 'Sua leitura de cada um (do que você viveu):', ...this.readTable().map((l) => '- ' + l));
+      const cert = this.certainties();
+      if (cert.length) lines.push('', 'O que é certo para você:', ...cert.map((l) => '- ' + l));
       lines.push('', 'Sua memória desta partida (o que você viveu):', ...this.memoryLines(26));
       lines.push('', 'Suas anotações (você mesmo escreveu): ' + (this.notes || '(nenhuma ainda)'));
       if (this.g.t - this.g.roundStart < 45) lines.push(...this.pastChatLines(10));
       if (this.why.length) lines.push('', 'O que acabou de acontecer: ' + this.why.join('; ') + '.');
       lines.push('', 'O que você pode fazer (escreva cada passo do plano assim):', ...acts.map((a) => '- ' + a));
       lines.push('', 'Decida o que fazer agora, como você jogaria. Responda SÓ com um JSON neste formato:');
-      lines.push('{"pensamento": "o que você está pensando, curto", "plano": ["primeiro passo", "segundo passo", "terceiro passo"], "depois": "o que fazer quando o plano acabar, enquanto pensa no próximo (um passo, ex.: ' + (p.isImp ? '\'fingir\', \'grupo\'' : '\'tarefa\', \'patrulhar\'') + ' ou \'seguir NOME\')", "notas": "o que quer lembrar daqui pra frente (suspeitas, álibis, planos); deixe vazio para manter as anteriores"}');
-      lines.push('O plano tem de 1 a 5 passos, na ordem (pense uns 30 a 60 segundos à frente). "tarefa" sem nome = a tarefa mais perto.');
+      lines.push('{"pensamento": "o que você está pensando, curto", "plano": ["primeiro passo", "segundo passo", "terceiro passo"], "depois": "o que fazer quando o plano acabar, enquanto pensa no próximo (um passo, ex.: ' + (p.isImp ? '\'fingir\', \'grupo\'' : '\'tarefa\', \'patrulhar\'') + ' ou \'seguir NOME\')", "suspeitas": {"Nome": "mais" ou "menos"}, "humor": "' + AU.Motor.MOODS.join('|') + '", "notas": "o que quer lembrar daqui pra frente (suspeitas, álibis, planos); deixe vazio para manter as anteriores"}');
+      lines.push('O plano tem de 1 a 5 passos, na ordem (pense uns 30 a 60 segundos à frente). "tarefa" sem nome = a tarefa mais perto. Jogue do SEU jeito (suas manias), não do jeito "certo" de manual: gente de verdade se distrai, muda de ideia, dá uma olhada no corredor, volta para buscar algo.');
+      lines.push('"suspeitas": só quem mudou na sua cabeça agora, com motivo (pode ser {}). "humor": como você está se sentindo (muda o seu jeito de andar).');
       return lines.join('\n');
     }
 
@@ -12955,6 +13501,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         reportar: 'report', botao: 'button', emergencia: 'button', consertar: 'fix', fingir: 'fake', grupo: 'group', cacar: 'hunt', matar: 'kill', procurar: 'prowl',
         atrair: 'lure', sabotar: 'sab', portas: 'doors', porta: 'doors', trancar: 'doors', duto: 'vent', ventar: 'vent', vitals: 'vitals', sinais: 'vitals',
         rastrear: 'track', transformar: 'shift', desfazer: 'unshift', sumir: 'vanish', aparecer: 'appear',
+        observar: 'watch', olhar: /camera/.test(rest) ? 'cams' : /admin|mapa/.test(rest) ? 'admin' : /vita|sinais/.test(rest) ? 'vitals' : 'watch',
       }[verb];
       if (!K) return null;
       const o = { kind: K, mind: true, label: txt };
@@ -12967,14 +13514,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         o.task = rest;
         o.room = findRoom();
       }
-      if (['go', 'doors', 'vent'].includes(K)) o.room = findRoom();
+      if (['go', 'doors', 'vent', 'watch'].includes(K)) o.room = findRoom();
       if (K === 'button') o.why = tidy(txt.replace(/^\S+\s*/, ''), 100);
       if (K === 'sab') {
         o.sab = /luz|luzes|light/.test(rest) ? 'lights' : /comm|comunic|coms/.test(rest) ? 'comms' : /reator|reactor/.test(rest) ? 'reactor' : /o2|oxigen/.test(rest) ? 'o2' : null;
         if (!o.sab) return null;
       }
       /* o que cada lado pode fazer (regras do jogo) */
-      const impOnly = ['fake', 'group', 'hunt', 'kill', 'prowl', 'lure', 'sab', 'doors'];
+      const impOnly = ['fake', 'hunt', 'kill', 'prowl', 'lure', 'sab', 'doors'];
       const crewOnly = ['task', 'signal', 'cams', 'admin', 'patrol'];
       if (!p.isImp && impOnly.includes(K)) return null;
       if (p.isImp && crewOnly.includes(K) && K !== 'cams' && K !== 'admin' && K !== 'patrol') return K === 'task' ? Object.assign(o, { kind: 'fake' }) : null;
@@ -12990,6 +13537,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (!j) return false;
       if (typeof j.notas === 'string' && tidy(j.notas, 700)) this.notes = tidy(j.notas, 700);
       if (typeof j.pensamento === 'string') this.thought = tidy(j.pensamento, 200);
+      this.applyLean(j.suspeitas);
+      this.applyMood(j.humor);
       const steps = Array.isArray(j.plano) ? j.plano : typeof j.plano === 'string' ? [j.plano] : [];
       const orders = steps.slice(0, 5).map((s) => this.parseStep(typeof s === 'string' ? s : s && (s.acao || s.passo || ''))).filter(Boolean);
       if (!orders.length) return false;
@@ -13026,6 +13575,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         lines.push('VOTAÇÃO aberta (faltam ' + left + 's). Já votaram: ' + (voted.length ? voted.join(', ') : 'ninguém') + '. Você ' + (mt.votes[p.id] !== undefined ? 'já votou.' : 'ainda NÃO votou: decida o seu voto agora.'));
       } else lines.push('Discussão (a votação abre em ' + Math.max(0, Math.round(mt.votingStart - mt.t)) + 's).');
       lines.push('', 'Última vez que você viu cada um nesta rodada:', ...this.sightings().map((l) => '- ' + l));
+      lines.push('', 'Sua leitura de cada um (do que você viveu, antes desta conversa):', ...this.readTable().map((l) => '- ' + l));
+      const cert = this.certainties();
+      if (cert.length) lines.push('', 'O que é certo para você:', ...cert.map((l) => '- ' + l));
       lines.push('', 'Sua memória (o que você viveu):', ...this.memoryLines(24));
       lines.push('', 'Suas anotações: ' + (this.notes || '(nenhuma)'));
       lines.push(...this.pastChatLines(12));
@@ -13035,12 +13587,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       for (const m of msgs) lines.push((m.from === p.id ? 'VOCÊ' : who(g, m.from)) + ': ' + m.text);
       const mine = mt.msgs.filter((m) => m.from === p.id).length;
       lines.push('');
-      lines.push('Escreva como no chat do jogo: mensagens curtas (até uns 100 caracteres), do seu jeito de escrever. Você já mandou ' + mine + ' mensagem(ns) nesta reunião. Mande de 0 a 2 mensagens novas: fale se tem algo a contar, perguntar, responder, acusar ou defender; se não tem nada útil, fique quieto (lista vazia). Não repita o que já foi dito.');
-      if (p.isImp) lines.push('Lembre: você é impostor e ninguém sabe. Não se entregue nem entregue o parceiro sem motivo.');
+      lines.push('Escreva como no chat do jogo: mensagens curtas (quase sempre 3 a 12 palavras, no máximo uns 100 caracteres), do seu jeito de escrever. Você já mandou ' + mine + ' mensagem(ns) nesta reunião. Mande de 0 a 2 mensagens novas: fale se tem algo a contar, perguntar, responder, acusar ou defender; se não tem nada útil, fique quieto (lista vazia). Não repita o que já foi dito.');
+      if (p.isImp) lines.push('Lembre: você é impostor e ninguém sabe. Não se entregue nem entregue o parceiro sem motivo. Concordar com a maioria contra um inocente é uma boa saída; acusar sem nenhum motivo chama atenção.');
+      else lines.push('Pense como detetive: mude de ideia só com FATO novo (alguém viu algo, um álibi que outro confirma, uma contradição), nunca só porque várias pessoas repetiram a mesma acusação: impostor acusa com confiança e entra na onda. Não acredite em quem só diz "confia". Se o que é certo para você contradiz o chat, fique com o que é certo. Sem prova e com dúvida, pular é melhor que ejetar um inocente (a não ser que o aviso acima diga o contrário).');
       const voteTxt = mt.votes[p.id] !== undefined ? 'null (você já votou)'
         : mt.phase === 'voting' ? '"Nome de quem você vota" ou "pular" (ou null se ainda quer esperar a conversa; o tempo acaba)'
         : '"Nome" ou "pular": em quem você votaria se fosse agora (ou null se ainda não sabe)';
-      lines.push('Responda SÓ com um JSON: {"mensagens": ["..."], "voto": ' + voteTxt + ', "notas": "o que quer lembrar (vazio mantém as anteriores)"}');
+      lines.push('Responda SÓ com um JSON: {"mensagens": ["..."], "voto": ' + voteTxt + ', "suspeitas": {"Nome": "mais" ou "menos"} (só quem mudou com esta conversa, com motivo; pode ser {}), "notas": "o que quer lembrar (vazio mantém as anteriores)"}');
       return lines.join('\n');
     }
   }
@@ -13210,7 +13763,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const g = this.g;
       const ej = result && result.ejected != null ? g.players[result.ejected] : null;
       let txt = 'REUNIÃO ' + (mt.info.index || g.meetings) + ' terminou: ';
-      if (ej) txt += who(g, ej.id) + ' foi ejetado' + (g.S.rules.confirmEjects ? (ej.isImp ? ' — ERA impostor' : ' — NÃO era impostor') : ' (não confirmam se era impostor)');
+      if (ej) txt += who(g, ej.id) + (ej.gender === 'n' ? ' saiu na votação' : ' foi ' + C.agree(ej, 'ejetado', 'ejetada')) + (g.S.rules.confirmEjects ? (ej.isImp ? ' — ERA impostor' : ' — NÃO era impostor') : ' (não confirmam se era impostor)');
       else txt += 'ninguém foi ejetado' + (result && result.tie ? ' (empate)' : '');
       if (!g.S.rules.anonymousVotes && result && result.votes) {
         const v = Object.keys(result.votes).map((id) => g.players[+id].name + '→' + (result.votes[id] === 'skip' ? 'pulou' : g.players[result.votes[id]] ? g.players[result.votes[id]].name : '?'));
@@ -13351,6 +13904,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       hub.failStreak = 0;
       hub.stats.ok++;
       if (typeof j.notas === 'string' && tidy(j.notas, 700)) m.notes = tidy(j.notas, 700);
+      m.applyLean(j.suspeitas);
       const said = new Set(mt.msgs.filter((x) => x.from === p.id).map((x) => U.norm(x.text)));
       const msgs = (Array.isArray(j.mensagens) ? j.mensagens : typeof j.mensagens === 'string' ? [j.mensagens] : []).map((s) => tidy(s, 160)).filter((s) => s && !said.has(U.norm(s)) && !(AU.Voice && AU.Voice.misrule && AU.Voice.misrule(s, g.S, p))).slice(0, 2);
       let delay = 0.4;
@@ -13406,7 +13960,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   const LINES = {
     greet: ['rip {vn}', 'bem-vindo ao clube, {vn}', 'mais um aqui kkk', 'ih, pegaram {v}', 'quem te pegou, {vn}?', 'f {vn}', '{vn} chegou', 'nãao, {v} também'],
     greetHuman: ['bem-vindo, {vn}', 'rip {vn}', 'quem te matou, {vn}?', 'pegaram você também, {vn}?', 'f {vn}', 'e aí {vn}, quem foi?'],
-    selfKiller: ['foi {k}', '{k} me matou {a}', '{k} é impostor, me pegou {a}', 'morri, foi {k} kkk', 'tava sozinho {a} e {k} veio', '{k}... nem vi chegar'],
+    selfKiller: ['foi {k}', '{k} me matou {a}', '{k} é impostor, me pegou {a}', 'morri, foi {k} kkk', 'tava sozinh{o} {a} e {k} veio', '{k}... nem vi chegar'],
     selfUnknown: ['nem vi quem foi', 'morri do nada', 'nem sei quem me pegou'],
     sawKill: ['{k} acabou de matar {v}!!', 'vish, {k} pegou {v} {a}', 'eu vi, foi {k} que pegou {v}', 'caramba, {k} matou {v} {a}'],
     sawKillAgain: ['{k} de novo...', 'de novo {kn}, que isso', '{k} pegou mais um'],
@@ -13414,7 +13968,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     ejCrew: ['eu era inocente!!', 'votaram errado, que raiva', 'não era eu gente', 'sério que me ejetaram?', 'tô bravo, eu fazendo task'],
     reactEjImp: ['boa, acertaram', 'finalmente', 'aee', 'mandaram bem'],
     reactEjCrew: ['votaram errado...', 'coitado', 'sabia que ia dar ruim', 'não acredito'],
-    tellHuman: ['foi {k} que me pegou', 'quem me pegou foi {k}, {a}', '{k} me matou, tomara que votem nele'],
+    tellHuman: ['foi {k} que me pegou', 'quem me pegou foi {k}, {a}', '{k} me matou, tomara que votem {nk}'],
     whoKnown: ['foi {k}', '{k}, certeza', '{k} me pegou {a}', '{k}, {a}'],
     whoAgain: ['já falei, foi {k}', '{k}, já disse', '{k}, eu falei ali em cima', 'foi {k} mesmo'],
     whoSaw: ['vi {k} matando {v}', '{k}, vi pegar {v}'],
@@ -13473,7 +14027,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     doingWith: ['te seguindo', 'indo com você'],
     whereWatch: ['tô {a} assistindo {xn}', '{a}, atrás de {xn}', 'tô {a} de olho em {xn}'],
     doingWatch: ['assistindo {xn}', 'seguindo {xn} pra ver no que dá', 'vendo o que {xn} faz'],
-    amDead: ['sim, morri', 'morri sim kkk', 'tô morto, igual você'],
+    amDead: ['sim, morri', 'morri sim kkk', 'tô mort{o}, igual você'],
     amDeadEj: ['sim, me ejetaram', 'fui ejetado'],
     shieldHit: ['o escudo salvou {x}!!', 'kkk o escudo funcionou em {xn}', 'salvei {x}'],
   };
@@ -13731,7 +14285,19 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     fill(s, ctx) {
       const r = {};
       const R = (key) => (r[key] || (r[key] = this.ref(ctx[key])));
+      const sp = this._sp;
+      /* "nele/nela": segue o jeito que a pessoa foi chamada (pela cor = "o rosa" → nele; pelo nome → o gênero dela) */
+      const em = (key) => {
+        const q = this.g.players[ctx[key]];
+        if (!q) return 'nele';
+        const ref = R(key);
+        if (ref !== q.name || q.gender === 'm') return 'nele';
+        return q.gender === 'f' ? 'nela' : 'em ' + q.name;
+      };
       return s
+        /* {o}: concorda com quem fala ("tava sozinh{o}" → sozinho/sozinha) */
+        .replace(/\{o\}/g, () => (sp && sp.gender === 'f' ? 'a' : 'o'))
+        .replace(/\{nk\}/g, () => em('k'))
         .replace(/\{kn\}/g, () => this.name(ctx.k))
         .replace(/\{vn\}/g, () => this.name(ctx.v))
         .replace(/\{xn\}/g, () => this.name(ctx.x))
@@ -13744,6 +14310,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         .replace(/\{xem\}/g, () => (ctx.x != null && this.g.players[ctx.x] ? (U.chance(0.5) ? 'em ' + this.name(ctx.x) : 'no ' + C.COLOR[this.g.players[ctx.x].color].name.toLowerCase()) : 'nele'));
     }
     choose(list, ctx) {
+      /* quem prefere neutro não usa frase com {o} (se houver outra) */
+      if (this._sp && this._sp.gender === 'n') {
+        const neutral = list.filter((s) => !s.includes('{o}'));
+        if (neutral.length) list = neutral;
+      }
       const fresh = list.map((s) => this.fill(s, ctx)).filter((s) => !this.used.has(s));
       const s = fresh.length ? U.pick(fresh) : this.fill(U.pick(list), ctx);
       this.used.add(s);
@@ -13751,6 +14322,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     }
     template(p, ctx) {
       const g = this.g, kp = this.k(p.id);
+      this._sp = p;
       const liveKiller = () => {
         if (kp.killer != null && g.players[kp.killer] && g.players[kp.killer].alive) return { k: kp.killer, a: kp.area };
         const s = kp.saw.find((x) => g.players[x.killer] && g.players[x.killer].alive);
@@ -13915,8 +14487,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const hp = g.human;
       switch (c.kind) {
         case 'reply':
-          if (c.come) return AU.Voice.who(g, hp.id) + ' (fantasma) escreveu: "' + c.text + '" e ' + p.name + ' está indo ' + (c.a ? this.room(c.a) : 'até ele') + ' agora (fantasmas atravessam paredes). ' + p.name + ' responde que está indo.';
-          if (c.stop) return AU.Voice.who(g, hp.id) + ' escreveu: "' + c.text + '" e ' + p.name + ' parou de segui-lo. Responde curto.';
+          if (c.come) return AU.Voice.who(g, hp.id) + ' (fantasma) escreveu: "' + c.text + '" e ' + p.name + ' está indo ' + (c.a ? this.room(c.a) : hp.gender === 'f' ? 'até ela' : hp.gender === 'n' ? 'até ' + hp.name : 'até ele') + ' agora (fantasmas atravessam paredes). ' + p.name + ' responde que está indo.';
+          if (c.stop) return AU.Voice.who(g, hp.id) + ' escreveu: "' + c.text + '" e ' + p.name + ' parou de ' + (hp.gender === 'f' ? 'segui-la' : hp.gender === 'n' ? 'seguir ' + hp.name : 'segui-lo') + '. Responde curto.';
           return AU.Voice.who(g, hp.id) + ' escreveu: "' + c.text + '". ' + p.name + ' responde a isso.';
         case 'comeOk': return this.name(c.x) + ' (fantasma) fez sinal de "vem comigo" e ' + p.name + ' vai junto. Responde curto.';
         case 'greet': return this.name(c.v) + ' acabou de morrer e chegou no chat dos fantasmas. ' + p.name + ' recebe.';
@@ -13985,6 +14557,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         '- Cada um sabe onde está e o que está fazendo (está no bloco dele): se perguntarem, responde com isso. Entre fantasmas ninguém é suspeito — a partida já acabou para eles; se outro fantasma chama ("me segue", "vem aqui"), vai junto sem desconfiar.',
         '- Entenda erros de digitação e ditado de voz pelo sentido mais provável.',
         '- Nunca diga que é IA ou bot.',
+        '- ' + V.genderRule(g),
       ].join('\n');
       let text = null;
       try {
@@ -14212,7 +14785,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const persona = (r) => {
         const pb = (r._voice = r._voice || { g: { S: this.S }, p: r });
         const pers = C.PERSONALITIES[r.personality] || C.PERSONALITIES.analitico;
-        return '### ' + r.name + ' (' + C.COLOR[r.color].name + ') — ' + pers.name + ': ' + pers.desc + ' Jeito de escrever: ' + (V && V.voiceOf ? V.voiceOf(pb) : 'natural');
+        const G = C.GENDER[r.gender] || C.GENDER[C.genderOf(r)];
+        return '### ' + r.name + ' (' + G.pron + ', ' + C.COLOR[r.color].name + ') — ' + pers.name + ': ' + pers.desc + ' Jeito de escrever: ' + (V && V.voiceOf ? V.voiceOf(pb) : 'natural');
       };
       const prompt = [
         'Lobby de uma partida igual a Among Us (nave The Skeld), ANTES de começar: ninguém sabe ainda quem é impostor. Os jogadores se cumprimentam, comentam as regras e brincam.',
@@ -14221,7 +14795,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         'Chat do lobby até agora:',
         this.msgs.slice(-12).map((m) => m.from.name + ': ' + m.text).join('\n'),
         '',
-        h.name + ' (o jogador) acabou de escrever: "' + text + '". Quem responde:',
+        h.name + ' (' + (C.GENDER[h.gender] || C.GENDER[C.genderOf(h)]).pron + ', o jogador) acabou de escrever: "' + text + '". Quem responde:',
+        'Gênero combinado: ' + this.roster.map((r) => r.name + ' = ' + (C.GENDER[r.gender] || C.GENDER[C.genderOf(r)]).pron).join(', ') + '. Use esse gênero ao falar de cada um e de si (neutro = sem o/a nem adjetivo com gênero); nunca chute pelo nome.',
         ...who.map(persona),
         '',
         'Escreva 1 mensagem curta para cada um, no formato "Nome: mensagem".',
@@ -14626,6 +15201,15 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
       this.msgs.push(msg);
       this.lastMsgT = this.t;
+      /* quem foi citado por último: "vota nela" numa mensagem seguinte acha a pessoa certa pelo gênero */
+      const refs = (this.recentRefs = this.recentRefs || []);
+      for (const it of msg.intents) {
+        if (it.who == null || it.who === p.id) continue;
+        const k = refs.indexOf(it.who);
+        if (k >= 0) refs.splice(k, 1);
+        refs.unshift(it.who);
+      }
+      if (refs.length > 8) refs.length = 8;
       if (p.isHuman) {
         this.humanSpoke = true;
         this.nextSlot = Math.max(this.nextSlot || 0, this.t + 1.2 * this.pace);
@@ -15006,7 +15590,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       h('span', { class: 'mt-card-text' },
         /* "você" vai na linha de baixo: no celular o nome inteiro cabe no cartão */
         h('span', { class: 'mt-card-name' }, p.name),
-        h('span', { class: 'mt-card-col' }, C.COLOR[p.color].name + (p.isHuman ? ' · você' : '') + (dead ? (p.ejected ? ' · ejetado' : ' · morto') : ''))),
+        h('span', { class: 'mt-card-col' }, C.COLOR[p.color].name + ' · ' + (C.GENDER[p.gender] || C.GENDER.n).pron + (p.isHuman ? ' · você' : '') + (dead ? (p.ejected ? ' · ' + C.agree(p, 'ejetado', 'ejetada', 'fora') : ' · ' + C.agree(p, 'morto', 'morta', 'fora')) : ''))),
       mt.info.caller === p.id ? h('span', { class: 'mt-mega', title: 'Chamou a reunião' }, '📣') : null,
       badge, conf, voters);
       this.cards.appendChild(card);
@@ -15233,7 +15817,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (conf) {
           line1 = `${p.name} ${p.isImp ? 'era' : 'não era'} ${g.S.room.impostors > 1 ? 'um Impostor' : 'o Impostor'}.`;
           line2 = `${remaining} Impostor${remaining === 1 ? '' : 'es'} restante${remaining === 1 ? '' : 's'}.`;
-        } else line1 = `${p.name} foi ejetado.`;
+        } else line1 = p.gender === 'n' ? `${p.name} saiu na votação.` : `${p.name} foi ${C.agree(p, 'ejetado', 'ejetada')}.`;
       }
       this.eject.innerHTML = '';
       this.eject.appendChild(h('div', { class: 'mt-eject-space' }));
@@ -15320,7 +15904,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     const title = info.kind === 'report' ? `Reunião ${info.index}: ${g.players[info.caller].name} reportou o corpo de ${g.players[info.body.pid].name}` : `Reunião ${info.index}: emergência chamada por ${g.players[info.caller].name}`;
     const r = mt.result;
     let res = '';
-    if (r) res = r.ejected != null ? `${g.players[r.ejected].name} foi ejetado.` : r.tie ? 'Empate: ninguém ejetado.' : 'Ninguém ejetado (pulado).';
+    if (r) res = r.ejected != null ? (g.players[r.ejected].gender === 'n' ? `${g.players[r.ejected].name} saiu na votação.` : `${g.players[r.ejected].name} foi ${C.agree(g.players[r.ejected], 'ejetado', 'ejetada')}.`) : r.tie ? 'Empate: ninguém ejetado.' : 'Ninguém ejetado (pulado).';
     const log = h('div', { class: 'hist-log' });
     mt.msgs.forEach((m) => log.appendChild(msgElement(g, m)));
     if (!mt.msgs.length) log.appendChild(h('p', { class: 'fine' }, 'Ninguém falou nesta reunião.'));
@@ -31093,11 +31677,13 @@ float auBayer(vec2 p) {
       const hat = this.select('cfg-hat', C.HATS.map((x) => [x.id, x.name]), () => S.profile.hat, (v) => { S.profile.hat = v; drawPrev(); change(); });
       const visor = this.select('cfg-visor', C.VISORS.map((x) => [x.id, x.name]), () => S.profile.visor, (v) => { S.profile.visor = v; drawPrev(); change(); });
       const pet = this.select('cfg-pet', C.PETS.map((x) => [x.id, x.name]), () => S.profile.pet, (v) => { S.profile.pet = v; drawPrev(); change(); });
+      const gender = this.seg('cfg-gender', C.GENDERS.map((x) => [x.id, x.name]), () => C.genderOf(S.profile), (v) => { S.profile.gender = v; change(); });
       drawPrev();
-      return this.sec('perfil', 'Seu perfil', 'Os bots podem citar sua cor e seus cosméticos no chat.',
+      return this.sec('perfil', 'Seu perfil', 'Os bots podem citar sua cor e seus cosméticos no chat. O gênero diz como bots, IAs e amigos falam de você ("ele está suspeito", "ela estava comigo").',
         h('div', { class: 'profile' }, preview,
           h('div', { class: 'profile-fields' },
             this.field('Nome', name),
+            this.field('Como falar de você', gender),
             this.field('Cor', sw),
             h('div', { class: 'row3' }, this.field('Chapéu', hat), this.field('Visor', visor), this.field('Pet', pet)))));
     },
@@ -31427,7 +32013,7 @@ float auBayer(vec2 p) {
     /* ---------------- lobby ---------------- */
     buildRoster(S, keep) {
       const n = S.room.players;
-      const human = { name: S.profile.name || 'Jogador', color: S.profile.color, hat: S.profile.hat, visor: S.profile.visor, pet: S.profile.pet, isHuman: true };
+      const human = { name: S.profile.name || 'Jogador', color: S.profile.color, hat: S.profile.hat, visor: S.profile.visor, pet: S.profile.pet, gender: C.genderOf(S.profile), isHuman: true };
       let names = S.bots.names === 'custom' ? S.bots.customNames.split(',').map((x) => x.trim()).filter(Boolean) : [];
       names = names.concat(U.shuffle(C.BOT_NAMES)).filter((x, i, a) => a.indexOf(x) === i && U.norm(x) !== U.norm(human.name));
       const colors = U.shuffle(C.COLORS.map((c) => c.id).filter((c) => c !== human.color));
@@ -31440,8 +32026,10 @@ float auBayer(vec2 p) {
       for (let i = 0; i < n - 1; i++) {
         if (!bag.length) bag = U.shuffle(pool);
         const prev = keep && keep[i + 1];
+        const nm = prev ? prev.name : names[i % names.length];
         roster.push({
-          name: prev ? prev.name : names[i % names.length],
+          name: nm,
+          gender: prev && prev.gender ? prev.gender : C.guessGender(nm),
           color: prev && prev.color !== human.color ? prev.color : colors[i % colors.length],
           personality: prev && prev.personality ? prev.personality : bag.pop(),
           hat: prev ? prev.hat : U.chance(0.45) ? U.pick(C.HATS.slice(1)).id : 'nenhum',
@@ -31466,11 +32054,30 @@ float auBayer(vec2 p) {
       roster.forEach((r, i) => {
         const card = h('div', { class: 'lobby-card' + (r.isHuman ? ' me' : '') });
         card.appendChild(h('div', { class: 'lobby-bean', html: AU.Render.beanSVG(r.color, { size: 56, visor: r.visor }) }));
+        /* gênero combinado antes de começar: todo mundo (bots, IAs, amigos) fala de cada um do mesmo jeito */
+        const gen = h('select', { class: 'lobby-gender', id: 'gender-' + i, 'aria-label': 'Gênero de ' + r.name, title: 'Como falar desse jogador: ele, ela ou neutro (sem palavra com gênero)' });
+        if (!C.GENDER[r.gender]) r.gender = C.genderOf(r);
+        for (const x of C.GENDERS) gen.appendChild(h('option', { value: x.id, selected: x.id === r.gender }, x.name));
+        gen.addEventListener('change', () => {
+          r.gender = gen.value;
+          r.genderSet = true;
+          if (r.isHuman) {
+            S.profile.gender = gen.value;
+            this.save();
+          }
+        });
         if (r.isHuman) {
-          card.appendChild(h('div', { class: 'lobby-info' }, h('strong', {}, r.name + ' (você)'), h('span', {}, C.COLOR[r.color].name)));
+          card.appendChild(h('div', { class: 'lobby-info' }, h('strong', {}, r.name + ' (você)'), h('div', { class: 'lobby-row' }, h('span', { class: 'lobby-pers-label' }, C.COLOR[r.color].name), gen)));
         } else {
           const nm = h('input', { type: 'text', class: 'lobby-name', id: 'bot-name-' + i, maxlength: '12', value: r.name, 'aria-label': 'Nome do bot' });
-          nm.addEventListener('input', () => (r.name = nm.value.trim() || r.name));
+          nm.addEventListener('input', () => {
+            r.name = nm.value.trim() || r.name;
+            /* nome novo sem gênero escolhido à mão: chuta pelo nome (Joana → ela), e dá para trocar ao lado */
+            if (!r.genderSet) {
+              r.gender = C.guessGender(r.name);
+              gen.value = r.gender;
+            }
+          });
           const col = h('select', { class: 'lobby-color', id: 'bot-color-' + i, 'aria-label': 'Cor do bot' });
           const taken = new Set(roster.filter((x) => x !== r).map((x) => x.color));
           for (const c of C.COLORS) if (!taken.has(c.id)) col.appendChild(h('option', { value: c.id, selected: c.id === r.color }, c.name));
@@ -31484,7 +32091,7 @@ float auBayer(vec2 p) {
             for (const id of C.PERSONALITY_IDS) pers.appendChild(h('option', { value: id, selected: id === r.personality }, C.PERSONALITIES[id].name));
             pers.addEventListener('change', () => (r.personality = pers.value));
           } else pers = h('span', { class: 'lobby-pers-label', title: C.PERSONALITIES[r.personality].desc }, C.PERSONALITIES[r.personality].name);
-          card.appendChild(h('div', { class: 'lobby-info' }, nm, h('div', { class: 'lobby-row' }, col, pers)));
+          card.appendChild(h('div', { class: 'lobby-info' }, nm, h('div', { class: 'lobby-row' }, col, gen, pers)));
         }
         grid.appendChild(card);
       });
@@ -31525,6 +32132,7 @@ float auBayer(vec2 p) {
         h('header', { class: 'cfg-head' }, h('h2', {}, 'Lobby'), h('p', {}, this.summary())),
         h('div', { class: 'lobby-body' }, grid, h('aside', { class: 'lobby-side' }, h('h3', {}, 'Chat do lobby'), chat, form,
           h('p', { class: 'fine' }, manual ? 'Atribua a personalidade de cada bot antes de começar.' : 'As personalidades não mudam durante a partida. As funções só são sorteadas ao começar.'),
+          h('p', { class: 'fine' }, 'Ele / Ela / Neutro em cada card: é assim que os bots e as IAs vão falar de cada jogador (neutro = pelo nome, sem "o/a").'),
           h('h3', { class: 'lobby-ai-h' }, 'IA das conversas'), this.aiStatusEl(),
           h('p', { class: 'fine' }, 'Para trocar a fonte da IA, volte às configurações.'))),
         h('div', { class: 'cfg-foot' },
@@ -31541,7 +32149,8 @@ float auBayer(vec2 p) {
       const nImp = g.nImpKnown || g.players.filter((p) => p.isImp).length;
       const team = imp ? g.players.filter((p) => p.isImp) : g.players;
       const row = h('div', { class: 'reveal-row' });
-      team.forEach((p, i) => row.appendChild(h('div', { class: 'reveal-p' + (p === hp ? ' me' : ''), style: { animationDelay: 0.15 + i * 0.06 + 's' } }, h('span', { html: AU.Render.beanSVG(p.color, { size: p === hp ? 110 : 70, visor: p.visor }) }), h('span', { class: imp ? 'imp' : '' }, p.name))));
+      /* nome + "ele/ela/neutro": o combinado do lobby aparece de novo antes de começar */
+      team.forEach((p, i) => row.appendChild(h('div', { class: 'reveal-p' + (p === hp ? ' me' : ''), style: { animationDelay: 0.15 + i * 0.06 + 's' } }, h('span', { html: AU.Render.beanSVG(p.color, { size: p === hp ? 110 : 70, visor: p.visor }) }), h('span', { class: imp ? 'imp' : '' }, p.name), h('small', { class: 'reveal-pron' }, (C.GENDER[p.gender] || C.GENDER.n).pron))));
       const sp = hp.special ? C.ROLES[hp.special] : null;
       root.append(h('div', { class: 'reveal ' + (imp ? 'imp' : 'crew') },
         h('div', { class: 'reveal-sub' }, imp ? (nImp > 1 ? 'Você e seu parceiro' : 'Elimine a tripulação sem ser descoberto') : `Há ${nImp} impostor${nImp > 1 ? 'es' : ''} entre nós`),
@@ -31727,7 +32336,7 @@ float auBayer(vec2 p) {
     ready: null,
     state: 'checking',
     /* versão do jogo (aparece no diagnóstico: ajuda a saber se o amigo está com a página antiga) */
-    version: 39,
+    version: 40,
     async init() {
       if (this.ready) return this.ready;
       this.ready = (async () => {
@@ -32147,7 +32756,8 @@ float auBayer(vec2 p) {
       return clean(AU.Menu.S.profile.name || 'Anfitrião');
     }
     setPres(extra) {
-      const pres = Object.assign({ app: 'au', v: V, role: 'host', code: this.code, hpk: this.keys ? this.keys.pub : null, st: this.g ? 'play' : 'lobby', nick: this.nick() }, extra || {});
+      const P = AU.Menu.S.profile;
+      const pres = Object.assign({ app: 'au', v: V, role: 'host', code: this.code, hpk: this.keys ? this.keys.pub : null, st: this.g ? 'play' : 'lobby', nick: this.nick(), look: { color: P.color, gender: C.genderOf(P) } }, extra || {});
       this.gr.presence(pres).catch(() => {});
     }
     /* anuncia a sala (presença da sala geral + banco) só quando algo muda, ou a cada ~10 s. Antes isto rodava a cada
@@ -32180,7 +32790,7 @@ float auBayer(vec2 p) {
           this.peers.set(p.peer, e);
           changed = true;
         }
-        if (!this.g && e.pres && e.pres.nick !== pr.nick) changed = true;
+        if (!this.g && e.pres && (e.pres.nick !== pr.nick || JSON.stringify(e.pres.look || {}) !== JSON.stringify(pr.look || {}))) changed = true;
         e.pres = pr;
         e.seen = performance.now();
         if (pr.pk && pr.pk !== e.pk) {
@@ -32232,7 +32842,9 @@ float auBayer(vec2 p) {
         let color = C.COLOR[lk.color] ? lk.color : null;
         if (!color || used.has(color)) color = C.COLORS.map((c) => c.id).find((c) => !used.has(c));
         used.add(color);
-        base[slot] = { name: clean(pr.nick) || 'Amigo ' + slot, color, hat: C.HATS.some((x) => x.id === lk.hat) ? lk.hat : 'nenhum', visor: C.VISORS.some((x) => x.id === lk.visor) ? lk.visor : 'classico', pet: C.PETS.some((x) => x.id === lk.pet) ? lk.pet : 'nenhum', remote: e.peer };
+        /* o gênero que o amigo escolheu no perfil dele (ele/ela/neutro) vale para os bots e as IAs desta sala */
+        const nick = clean(pr.nick) || 'Amigo ' + slot;
+        base[slot] = { name: nick, gender: C.GENDER[lk.gender] ? lk.gender : C.guessGender(nick), color, hat: C.HATS.some((x) => x.id === lk.hat) ? lk.hat : 'nenhum', visor: C.VISORS.some((x) => x.id === lk.visor) ? lk.visor : 'classico', pet: C.PETS.some((x) => x.id === lk.pet) ? lk.pet : 'nenhum', remote: e.peer };
         e.slot = slot;
         slot++;
       }
@@ -32251,7 +32863,7 @@ float auBayer(vec2 p) {
       g.netHost = this;
       this.setPres();
       this.advertise();
-      const pub = g.players.map((p) => ({ name: p.name, color: p.color, hat: p.hat, visor: p.visor, pet: p.pet, remote: p.remote ? 1 : 0 }));
+      const pub = g.players.map((p) => ({ name: p.name, gender: p.gender, color: p.color, hat: p.hat, visor: p.visor, pet: p.pet, remote: p.remote ? 1 : 0 }));
       const slots = {};
       for (const e of this.players()) if (e.slot != null) slots[e.peer] = e.slot;
       const S = U.clone(g.S);
@@ -32669,7 +33281,7 @@ float auBayer(vec2 p) {
       const h0 = this.g && this.g.human;
       const pres = {
         app: 'au', v: V, role: 'cl', nick: clean(S.profile.name || 'Jogador'),
-        look: { color: S.profile.color, hat: S.profile.hat, visor: S.profile.visor, pet: S.profile.pet },
+        look: { color: S.profile.color, hat: S.profile.hat, visor: S.profile.visor, pet: S.profile.pet, gender: C.genderOf(S.profile) },
         pk: this.keys ? this.keys.pub : null,
         have: this.have,
         cmd: this.cmds.slice(-12),
@@ -33219,10 +33831,22 @@ float auBayer(vec2 p) {
     fill();
     return box;
   }
+  /* "ele" / "ela" / "neutro" ao lado do nome na sala: todo mundo vê como cada um quer ser chamado */
+  function genTag(gid) {
+    const G = C.GENDER[gid] || C.GENDER.n;
+    return h('span', { class: 'gender-tag', title: 'Como os bots e as IAs falam dessa pessoa' }, G.pron);
+  }
   function lobbyMenu(card, title, S) {
     const nick = h('input', { type: 'text', maxlength: '16', value: S.profile.name || '', placeholder: 'Seu nome no jogo' });
+    const gen = h('select', { 'aria-label': 'Como falar de você' });
+    for (const x of C.GENDERS) gen.appendChild(h('option', { value: x.id, selected: x.id === C.genderOf(S.profile) }, x.name));
     nick.addEventListener('change', () => {
       S.profile.name = clean(nick.value, 16) || S.profile.name;
+      if (!S.profile.gender) gen.value = C.genderOf(S.profile);
+      AU.Menu.save();
+    });
+    gen.addEventListener('change', () => {
+      S.profile.gender = gen.value;
       AU.Menu.save();
     });
     const code = h('input', { type: 'text', maxlength: '4', placeholder: 'ABCD', class: 'code-in', autocapitalize: 'characters' });
@@ -33239,7 +33863,7 @@ float auBayer(vec2 p) {
     };
     card.append(
       h('div', { class: 'grid2' },
-        h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Seu nome'), nick),
+        h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Seu nome e como falar de você'), h('div', { class: 'row-btns' }, nick, gen)),
         h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Entrar com código'), h('div', { class: 'row-btns' }, code, h('button', { class: 'btn', onclick: () => join(code.value) }, 'Entrar')))),
       h('div', { class: 'row-btns' },
         h('button', { class: 'btn primary', onclick: () => Net.hostRoom(card) }, 'Criar sala'),
@@ -33322,10 +33946,11 @@ float auBayer(vec2 p) {
       if (!players.isConnected) return;
       players.innerHTML = '';
       const S = AU.Menu.S;
-      players.append(h('div', { class: 'room-row' }, h('span', { html: AU.Render.beanSVG(S.profile.color, { size: 28 }) }), h('span', {}, clean(S.profile.name) + ' (você, anfitrião)')));
+      players.append(h('div', { class: 'room-row' }, h('span', { html: AU.Render.beanSVG(S.profile.color, { size: 28 }) }), h('span', {}, clean(S.profile.name) + ' (você, anfitrião)'), genTag(C.genderOf(S.profile))));
       for (const e of host.players()) {
         const lk = (e.pres && e.pres.look) || {};
-        players.append(h('div', { class: 'room-row' }, h('span', { html: AU.Render.beanSVG(C.COLOR[lk.color] ? lk.color : 'branco', { size: 28 }) }), h('span', {}, clean(e.pres.nick) || 'Amigo')));
+        const nk = clean(e.pres.nick) || 'Amigo';
+        players.append(h('div', { class: 'room-row' }, h('span', { html: AU.Render.beanSVG(C.COLOR[lk.color] ? lk.color : 'branco', { size: 28 }) }), h('span', {}, nk), genTag(C.GENDER[lk.gender] ? lk.gender : C.guessGender(nk))));
       }
       const left = S.room.players - 1 - host.players().length;
       if (left > 0) players.append(h('p', { class: 'fine' }, left + ' lugar' + (left > 1 ? 'es' : '') + ' com bot' + (left > 1 ? 's' : '') + '.'));
@@ -33378,7 +34003,7 @@ float auBayer(vec2 p) {
         const pr = p.presence || {};
         if (pr.app !== 'au') continue;
         const lk = pr.look || {};
-        players.append(h('div', { class: 'room-row' }, h('span', { html: AU.Render.beanSVG(C.COLOR[lk.color] ? lk.color : 'vermelho', { size: 28 }) }), h('span', {}, (clean(pr.nick) || 'Jogador') + (pr.role === 'host' ? ' (anfitrião)' : '') + (p.isMe ? ' (você)' : ''))));
+        players.append(h('div', { class: 'room-row' }, h('span', { html: AU.Render.beanSVG(C.COLOR[lk.color] ? lk.color : 'vermelho', { size: 28 }) }), h('span', {}, (clean(pr.nick) || 'Jogador') + (pr.role === 'host' ? ' (anfitrião)' : '') + (p.isMe ? ' (você)' : '')), genTag(C.GENDER[lk.gender] ? lk.gender : C.guessGender(clean(pr.nick)))));
       }
     };
     cl.onStart = (d) => AU.App.startOnlineClient(cl, d);
@@ -33470,7 +34095,7 @@ float auBayer(vec2 p) {
       if (fresh || !this.roster || this.roster.length !== AU.Menu.S.room.players) this.roster = AU.Menu.buildRoster(AU.Menu.S);
       else {
         const S = AU.Menu.S;
-        Object.assign(this.roster[0], { name: S.profile.name, color: S.profile.color, hat: S.profile.hat, visor: S.profile.visor, pet: S.profile.pet });
+        Object.assign(this.roster[0], { name: S.profile.name, color: S.profile.color, hat: S.profile.hat, visor: S.profile.visor, pet: S.profile.pet, gender: AU.C.genderOf(S.profile) });
       }
       this.show('lobby');
       AU.Menu.lobby(this.el.lobby, this.roster);
@@ -33492,7 +34117,7 @@ float auBayer(vec2 p) {
     startOnlineClient(cl, d) {
       const S = U.clone(d.S);
       S.ui = U.clone(AU.Menu.S.ui);
-      const roster = d.roster.map((r, i) => ({ name: r.name, color: r.color, hat: r.hat, visor: r.visor, pet: r.pet, isHuman: i === cl.mySlot }));
+      const roster = d.roster.map((r, i) => ({ name: r.name, gender: r.gender, color: r.color, hat: r.hat, visor: r.visor, pet: r.pet, isHuman: i === cl.mySlot }));
       this.teardown(true);
       this.online = { role: 'client', cl };
       const g = new AU.Game(S, roster, { ui: this.makeUi(), client: true });

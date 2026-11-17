@@ -52,6 +52,8 @@
     'sinal NOME — chamar a pessoa com o zigue-zague ("vem comigo") e mostrar uma tarefa visual a ela',
     'responder NOME — devolver o zigue-zague (ok, tô indo) e ir junto de quem te chamou',
     'esperar — ficar onde está uns segundos olhando',
+    'observar SALA — parar num canto da sala e ficar de olho em quem entra e sai',
+    'grupo — ficar perto do pessoal',
     'patrulhar — rodar pelas salas vazias',
     'cameras — olhar as câmeras na Segurança',
     'admin — olhar o mapa no Admin',
@@ -65,6 +67,7 @@
     'seguir NOME — andar junto de alguém (parecer inocente)',
     'grupo — ficar no meio do pessoal',
     'esperar — ficar onde está uns segundos',
+    'observar SALA — parar num canto da sala e ficar olhando quem passa',
     'cacar NOME — ir atrás da pessoa e matar quando ela estiver sozinha e ninguém estiver vendo',
     'matar NOME — matar assim que alcançar, mesmo com risco de alguém ver',
     'procurar — matar o primeiro que encontrar sozinho, sem testemunha',
@@ -84,6 +87,31 @@
     metamorfo: ['transformar NOME — ficar com a aparência de outra pessoa', 'desfazer — voltar à sua aparência'],
     fantasma: ['sumir — ficar invisível por uns segundos (invisível não mata nem entra no duto)', 'aparecer — voltar a ficar visível'],
   };
+
+  /* Estilo de jogo próprio: cada mente recebe manias diferentes (sorteadas uma vez, coerentes com os hábitos e o nível
+     do corpo), para que dez bots com a mesma IA não joguem igual. */
+  function makeStyle(p, b) {
+    const pick = (xs) => xs[Math.floor(Math.random() * xs.length)];
+    const hab = (k) => b && b.hab && b.hab(k);
+    const pers = p.personality;
+    const out = [];
+    if (p.isImp) {
+      const L = (b && b.lvl) || {};
+      out.push(L.useVents > 0.5 ? 'foge pelo duto quando dá' : 'quase não usa duto (tem medo de ser visto)');
+      out.push(L.sabotage > 0.5 ? pick(['gosta de sabotar as luzes antes de atacar', 'sabota de um lado da nave e ataca do outro']) : 'sabota pouco, prefere não chamar atenção');
+      out.push(L.stalk > 0.5 ? 'escolhe uma vítima e vai atrás dela com paciência' : pick(['mata quem encontrar sozinho, sem planejar muito', 'espera o grupo se separar']));
+      out.push(pick(['finge tarefa com o tempo certo, de verdade', 'anda junto de alguém para ter álibi', 'fica perto da Cafeteria para parecer ocupado', 'circula entre salas fingindo procurar tarefa']));
+      if (L.selfReport > 0.4) out.push('às vezes reporta o próprio corpo para parecer inocente');
+      return out;
+    }
+    out.push(hab('solitario') ? 'faz tarefa sozinho, longe da muvuca' : hab('escolta') ? 'gosta de andar em dupla com quem confia' : pick(['anda perto dos outros, mas não segue ninguém', 'vai sozinho para as tarefas e volta para o grupo depois', 'gosta de terminar as tarefas de uma sala antes de sair']));
+    out.push(pers === 'inexperiente' ? 'às vezes se perde e demora a achar a sala' : pick(['evita a Elétrica e salas escuras quando está sozinho', 'não tem medo de sala nenhuma', 'sai de perto de quem acha suspeito na hora', 'fica de olho em quem desconfia, de longe']));
+    if (!hab('camper')) out.push(pick(['passa nas câmeras quando está perto da Segurança', 'dá uma olhada no Admin de vez em quando', 'quase nunca para em câmera ou Admin', 'olha em volta antes de começar uma tarefa']));
+    if (!hab('botao')) out.push(pers === 'impulsivo' || pers === 'caotico' ? 'aperta o botão quando algo parece estranho' : pick(['só aperta o botão com prova', 'prefere esperar alguém reportar a apertar o botão', 'guarda o botão para quando tiver certeza']));
+    out.push(pick(['para um segundo na porta antes de entrar numa sala', 'confere a barra de tarefas de vez em quando', 'presta atenção em quem anda junto', 'lembra bem das cores, esquece nomes', 'gosta de chegar primeiro no corpo para ver quem estava perto']));
+    return out;
+  }
+  const LEAN = { mais: 1, muito: 2, menos: -1, confio: -2, igual: 0, mesmo: 0, '+': 1, '-': -1 };
 
   /* Extrai o JSON da resposta (o modelo às vezes escreve algo antes ou depois). */
   function parseJSON(text) {
@@ -126,6 +154,9 @@
       this.calls = 0;
       this.planned = 0;
       this.idle = null;
+      /* impressão da própria mente sobre cada um (-2 confio ... +2 desconfio muito): vale para o corpo também */
+      this.lean = {};
+      this.style = makeStyle(p, p.brain);
     }
     get b() {
       return this.p.brain;
@@ -264,11 +295,87 @@
       }
       return out;
     }
+    /* Tabela de leitura de cada um, calculada FORA da IA a partir do que o personagem viveu (abates e dutos vistos,
+       tarefa visual, perto do corpo, mentiras), mais a impressão que a própria mente foi registrando. Estudos com
+       agentes de dedução social mostram que a IA sozinha esquece e "vai na onda" do chat; com a tabela pronta ela só
+       ajusta para mais ou para menos. */
+    readTable() {
+      const g = this.g, b = this.b, p = this.p, out = [], none = [];
+      if (!b) return out;
+      for (const q of g.players) {
+        if (q === p || !q.alive) continue;
+        let txt;
+        if (p.isImp && q.isImp) txt = 'seu parceiro';
+        else {
+          const s = b.liveSusp(q.id);
+          const hard = !p.isImp && b.hardCleared(q.id);
+          txt = hard ? 'INOCENTE com certeza (você viu tarefa visual)'
+            : s >= 85 ? 'IMPOSTOR com certeza (você viu)'
+              : s >= 45 ? 'desconfia muito'
+                : s >= 22 ? 'desconfia um pouco'
+                  : s <= -15 ? 'confia'
+                    : 'sem opinião ainda';
+          const l = this.lean[q.id] || 0;
+          if (l && !hard) txt += ' (sua impressão: ' + (l > 0 ? 'mais desconfiado' : 'mais confiante') + ')';
+          else if (txt === 'sem opinião ainda') {
+            none.push(who(g, q.id));
+            continue;
+          }
+        }
+        out.push(who(g, q.id) + ': ' + txt);
+      }
+      if (none.length) out.push('Sem opinião ainda: ' + none.join(', '));
+      return out;
+    }
+    /* O que é CERTO para este personagem e o que dá para deduzir disso (lógica de eliminação). */
+    certainties() {
+      const g = this.g, b = this.b, p = this.p, out = [];
+      if (!b || p.isImp) return out;
+      const alive = g.players.filter((q) => q.alive && q !== p);
+      const clean = alive.filter((q) => b.hardCleared(q.id));
+      const caught = alive.filter((q) => b.liveSusp(q.id) >= 85);
+      const left = b.impsAliveKnown ? b.impsAliveKnown() : g.S.room.impostors;
+      if (clean.length) out.push('Inocentes com certeza (tarefa visual que você viu): ' + clean.map((q) => q.name).join(', ') + '. Não vote neles e defenda se acusarem.');
+      if (caught.length) out.push('Impostor com certeza (você viu matar, entrar no duto ou mudar de forma): ' + caught.map((q) => q.name).join(', ') + '. Ninguém te convence do contrário.');
+      const pool = alive.filter((q) => !clean.includes(q));
+      if (left > 0 && pool.length && (clean.length || caught.length)) out.push('Impostores ainda vivos: até ' + left + '. Pelo que é certo, eles estão entre: ' + pool.map((q) => q.name).join(', ') + ' (' + pool.length + ' pessoa' + (pool.length > 1 ? 's' : '') + ').');
+      const all = g.players.filter((q) => q.alive).length;
+      if (left > 0 && all - left <= left + 1) out.push('ATENÇÃO: se ejetarem um tripulante agora, os impostores podem ficar em número igual e vencer. Pular é perigoso, errar também: vote em quem tem prova.');
+      return out;
+    }
+    /* "suspeitas": {"Kaio": "mais"} → a impressão da mente também muda o que o corpo faz (de quem se afasta, quem segue,
+       em quem vota se a IA cair) */
+    applyLean(sus) {
+      const g = this.g, b = this.b;
+      if (!sus || typeof sus !== 'object' || !b) return;
+      b.lean = b.lean || {};
+      for (const k of Object.keys(sus).slice(0, 8)) {
+        const nk = U.norm(k).replace(/[^a-z0-9 ]/g, ' ').trim();
+        const q = g.players.find((x) => x !== this.p && x.alive && (U.norm(x.name) === nk || nk.split(' ').includes(U.norm(x.name)) || nk.includes(U.norm(C.COLOR[x.color].name))));
+        if (!q) continue;
+        const v = U.norm(String(sus[k])).trim();
+        const d = LEAN[v.split(' ')[0]] != null ? LEAN[v.split(' ')[0]] : /confi|inocent|limp/.test(v) ? -1 : /impost|sus|descon/.test(v) ? 1 : 0;
+        if (!d) continue;
+        this.lean[q.id] = U.clamp((this.lean[q.id] || 0) + d, -2, 2);
+        b.lean[q.id] = this.lean[q.id] * 11;
+      }
+    }
+    applyMood(h) {
+      if (typeof h !== 'string' || !AU.Motor || !this.b) return;
+      const k = U.norm(h).replace(/[^a-z]/g, '');
+      const hit = AU.Motor.MOODS.find((m) => k.startsWith(U.norm(m).slice(0, 5)));
+      if (hit) AU.Motor.setMood(this.b, hit, U.rf(35, 70));
+    }
     memoryLines(n) {
       const g = this.g;
       const lines = [];
       let round = -1;
-      for (const d of this.diary.slice(-n)) {
+      /* memória enxuta: da rodada atual vai tudo (as últimas n); das anteriores só o que importa (corpos, abates,
+         dutos, tarefa visual, reuniões), para o que pesa não sumir debaixo de "entrou na sala X" */
+      const KEY = /REUNI|CORPO|MATA|MATOU|duto|DUTO|TRANSFORM|INVIS|visual|sinais vitais|rastre|alarme|DOIS|cara|seguindo|atrás de você|não subiu|sem a animação/;
+      const cur = this.diary.filter((d) => d.round === g.meetings).slice(-n);
+      const old = this.diary.filter((d) => d.round !== g.meetings && KEY.test(d.text)).slice(-Math.max(6, Math.round(n / 2)));
+      for (const d of old.concat(cur)) {
         if (d.round !== round) {
           round = d.round;
           lines.push(round === 0 ? '(começo da partida)' : '(depois da reunião ' + round + ')');
@@ -291,6 +398,7 @@
       const lines = [];
       lines.push('Você é ' + who(g, p.id) + ', um dos ' + g.players.length + ' jogadores de uma partida de Among Us na nave The Skeld. Você controla só esse personagem: decide sozinho para onde ir, o que fazer, o que falar e em quem votar. Ninguém te dá ordens.');
       lines.push('Seu jeito: ' + (V && V.persona ? V.persona(b) : (C.PERSONALITIES[p.personality] || {}).desc || ''));
+      if (this.style && this.style.length) lines.push('Suas manias de jogo (só suas; os outros jogam diferente): ' + this.style.join('; ') + '.');
       if (p.isImp) {
         const mates = g.players.filter((q) => q.isImp && q !== p).map((q) => who(g, q.id) + (q.alive ? '' : ' (morto)'));
         lines.push('SEGREDO: você é IMPOSTOR.' + (mates.length ? ' Seu parceiro: ' + mates.join(', ') + '.' : ' Você é o único impostor.') + ' Ninguém mais sabe. Você vence quando os impostores ficarem em número igual ao de tripulantes (ou se uma sabotagem crítica não for consertada).');
@@ -358,14 +466,18 @@
       const lines = [];
       lines.push(...this.now());
       lines.push('', 'Última vez que você viu cada um:', ...this.sightings().map((l) => '- ' + l));
+      lines.push('', 'Sua leitura de cada um (do que você viveu):', ...this.readTable().map((l) => '- ' + l));
+      const cert = this.certainties();
+      if (cert.length) lines.push('', 'O que é certo para você:', ...cert.map((l) => '- ' + l));
       lines.push('', 'Sua memória desta partida (o que você viveu):', ...this.memoryLines(26));
       lines.push('', 'Suas anotações (você mesmo escreveu): ' + (this.notes || '(nenhuma ainda)'));
       if (this.g.t - this.g.roundStart < 45) lines.push(...this.pastChatLines(10));
       if (this.why.length) lines.push('', 'O que acabou de acontecer: ' + this.why.join('; ') + '.');
       lines.push('', 'O que você pode fazer (escreva cada passo do plano assim):', ...acts.map((a) => '- ' + a));
       lines.push('', 'Decida o que fazer agora, como você jogaria. Responda SÓ com um JSON neste formato:');
-      lines.push('{"pensamento": "o que você está pensando, curto", "plano": ["primeiro passo", "segundo passo", "terceiro passo"], "depois": "o que fazer quando o plano acabar, enquanto pensa no próximo (um passo, ex.: ' + (p.isImp ? '\'fingir\', \'grupo\'' : '\'tarefa\', \'patrulhar\'') + ' ou \'seguir NOME\')", "notas": "o que quer lembrar daqui pra frente (suspeitas, álibis, planos); deixe vazio para manter as anteriores"}');
-      lines.push('O plano tem de 1 a 5 passos, na ordem (pense uns 30 a 60 segundos à frente). "tarefa" sem nome = a tarefa mais perto.');
+      lines.push('{"pensamento": "o que você está pensando, curto", "plano": ["primeiro passo", "segundo passo", "terceiro passo"], "depois": "o que fazer quando o plano acabar, enquanto pensa no próximo (um passo, ex.: ' + (p.isImp ? '\'fingir\', \'grupo\'' : '\'tarefa\', \'patrulhar\'') + ' ou \'seguir NOME\')", "suspeitas": {"Nome": "mais" ou "menos"}, "humor": "' + AU.Motor.MOODS.join('|') + '", "notas": "o que quer lembrar daqui pra frente (suspeitas, álibis, planos); deixe vazio para manter as anteriores"}');
+      lines.push('O plano tem de 1 a 5 passos, na ordem (pense uns 30 a 60 segundos à frente). "tarefa" sem nome = a tarefa mais perto. Jogue do SEU jeito (suas manias), não do jeito "certo" de manual: gente de verdade se distrai, muda de ideia, dá uma olhada no corredor, volta para buscar algo.');
+      lines.push('"suspeitas": só quem mudou na sua cabeça agora, com motivo (pode ser {}). "humor": como você está se sentindo (muda o seu jeito de andar).');
       return lines.join('\n');
     }
 
@@ -392,6 +504,7 @@
         reportar: 'report', botao: 'button', emergencia: 'button', consertar: 'fix', fingir: 'fake', grupo: 'group', cacar: 'hunt', matar: 'kill', procurar: 'prowl',
         atrair: 'lure', sabotar: 'sab', portas: 'doors', porta: 'doors', trancar: 'doors', duto: 'vent', ventar: 'vent', vitals: 'vitals', sinais: 'vitals',
         rastrear: 'track', transformar: 'shift', desfazer: 'unshift', sumir: 'vanish', aparecer: 'appear',
+        observar: 'watch', olhar: /camera/.test(rest) ? 'cams' : /admin|mapa/.test(rest) ? 'admin' : /vita|sinais/.test(rest) ? 'vitals' : 'watch',
       }[verb];
       if (!K) return null;
       const o = { kind: K, mind: true, label: txt };
@@ -404,14 +517,14 @@
         o.task = rest;
         o.room = findRoom();
       }
-      if (['go', 'doors', 'vent'].includes(K)) o.room = findRoom();
+      if (['go', 'doors', 'vent', 'watch'].includes(K)) o.room = findRoom();
       if (K === 'button') o.why = tidy(txt.replace(/^\S+\s*/, ''), 100);
       if (K === 'sab') {
         o.sab = /luz|luzes|light/.test(rest) ? 'lights' : /comm|comunic|coms/.test(rest) ? 'comms' : /reator|reactor/.test(rest) ? 'reactor' : /o2|oxigen/.test(rest) ? 'o2' : null;
         if (!o.sab) return null;
       }
       /* o que cada lado pode fazer (regras do jogo) */
-      const impOnly = ['fake', 'group', 'hunt', 'kill', 'prowl', 'lure', 'sab', 'doors'];
+      const impOnly = ['fake', 'hunt', 'kill', 'prowl', 'lure', 'sab', 'doors'];
       const crewOnly = ['task', 'signal', 'cams', 'admin', 'patrol'];
       if (!p.isImp && impOnly.includes(K)) return null;
       if (p.isImp && crewOnly.includes(K) && K !== 'cams' && K !== 'admin' && K !== 'patrol') return K === 'task' ? Object.assign(o, { kind: 'fake' }) : null;
@@ -427,6 +540,8 @@
       if (!j) return false;
       if (typeof j.notas === 'string' && tidy(j.notas, 700)) this.notes = tidy(j.notas, 700);
       if (typeof j.pensamento === 'string') this.thought = tidy(j.pensamento, 200);
+      this.applyLean(j.suspeitas);
+      this.applyMood(j.humor);
       const steps = Array.isArray(j.plano) ? j.plano : typeof j.plano === 'string' ? [j.plano] : [];
       const orders = steps.slice(0, 5).map((s) => this.parseStep(typeof s === 'string' ? s : s && (s.acao || s.passo || ''))).filter(Boolean);
       if (!orders.length) return false;
@@ -463,6 +578,9 @@
         lines.push('VOTAÇÃO aberta (faltam ' + left + 's). Já votaram: ' + (voted.length ? voted.join(', ') : 'ninguém') + '. Você ' + (mt.votes[p.id] !== undefined ? 'já votou.' : 'ainda NÃO votou: decida o seu voto agora.'));
       } else lines.push('Discussão (a votação abre em ' + Math.max(0, Math.round(mt.votingStart - mt.t)) + 's).');
       lines.push('', 'Última vez que você viu cada um nesta rodada:', ...this.sightings().map((l) => '- ' + l));
+      lines.push('', 'Sua leitura de cada um (do que você viveu, antes desta conversa):', ...this.readTable().map((l) => '- ' + l));
+      const cert = this.certainties();
+      if (cert.length) lines.push('', 'O que é certo para você:', ...cert.map((l) => '- ' + l));
       lines.push('', 'Sua memória (o que você viveu):', ...this.memoryLines(24));
       lines.push('', 'Suas anotações: ' + (this.notes || '(nenhuma)'));
       lines.push(...this.pastChatLines(12));
@@ -472,12 +590,13 @@
       for (const m of msgs) lines.push((m.from === p.id ? 'VOCÊ' : who(g, m.from)) + ': ' + m.text);
       const mine = mt.msgs.filter((m) => m.from === p.id).length;
       lines.push('');
-      lines.push('Escreva como no chat do jogo: mensagens curtas (até uns 100 caracteres), do seu jeito de escrever. Você já mandou ' + mine + ' mensagem(ns) nesta reunião. Mande de 0 a 2 mensagens novas: fale se tem algo a contar, perguntar, responder, acusar ou defender; se não tem nada útil, fique quieto (lista vazia). Não repita o que já foi dito.');
-      if (p.isImp) lines.push('Lembre: você é impostor e ninguém sabe. Não se entregue nem entregue o parceiro sem motivo.');
+      lines.push('Escreva como no chat do jogo: mensagens curtas (quase sempre 3 a 12 palavras, no máximo uns 100 caracteres), do seu jeito de escrever. Você já mandou ' + mine + ' mensagem(ns) nesta reunião. Mande de 0 a 2 mensagens novas: fale se tem algo a contar, perguntar, responder, acusar ou defender; se não tem nada útil, fique quieto (lista vazia). Não repita o que já foi dito.');
+      if (p.isImp) lines.push('Lembre: você é impostor e ninguém sabe. Não se entregue nem entregue o parceiro sem motivo. Concordar com a maioria contra um inocente é uma boa saída; acusar sem nenhum motivo chama atenção.');
+      else lines.push('Pense como detetive: mude de ideia só com FATO novo (alguém viu algo, um álibi que outro confirma, uma contradição), nunca só porque várias pessoas repetiram a mesma acusação: impostor acusa com confiança e entra na onda. Não acredite em quem só diz "confia". Se o que é certo para você contradiz o chat, fique com o que é certo. Sem prova e com dúvida, pular é melhor que ejetar um inocente (a não ser que o aviso acima diga o contrário).');
       const voteTxt = mt.votes[p.id] !== undefined ? 'null (você já votou)'
         : mt.phase === 'voting' ? '"Nome de quem você vota" ou "pular" (ou null se ainda quer esperar a conversa; o tempo acaba)'
         : '"Nome" ou "pular": em quem você votaria se fosse agora (ou null se ainda não sabe)';
-      lines.push('Responda SÓ com um JSON: {"mensagens": ["..."], "voto": ' + voteTxt + ', "notas": "o que quer lembrar (vazio mantém as anteriores)"}');
+      lines.push('Responda SÓ com um JSON: {"mensagens": ["..."], "voto": ' + voteTxt + ', "suspeitas": {"Nome": "mais" ou "menos"} (só quem mudou com esta conversa, com motivo; pode ser {}), "notas": "o que quer lembrar (vazio mantém as anteriores)"}');
       return lines.join('\n');
     }
   }
@@ -647,7 +766,7 @@
       const g = this.g;
       const ej = result && result.ejected != null ? g.players[result.ejected] : null;
       let txt = 'REUNIÃO ' + (mt.info.index || g.meetings) + ' terminou: ';
-      if (ej) txt += who(g, ej.id) + ' foi ejetado' + (g.S.rules.confirmEjects ? (ej.isImp ? ' — ERA impostor' : ' — NÃO era impostor') : ' (não confirmam se era impostor)');
+      if (ej) txt += who(g, ej.id) + (ej.gender === 'n' ? ' saiu na votação' : ' foi ' + C.agree(ej, 'ejetado', 'ejetada')) + (g.S.rules.confirmEjects ? (ej.isImp ? ' — ERA impostor' : ' — NÃO era impostor') : ' (não confirmam se era impostor)');
       else txt += 'ninguém foi ejetado' + (result && result.tie ? ' (empate)' : '');
       if (!g.S.rules.anonymousVotes && result && result.votes) {
         const v = Object.keys(result.votes).map((id) => g.players[+id].name + '→' + (result.votes[id] === 'skip' ? 'pulou' : g.players[result.votes[id]] ? g.players[result.votes[id]].name : '?'));
@@ -788,6 +907,7 @@
       hub.failStreak = 0;
       hub.stats.ok++;
       if (typeof j.notas === 'string' && tidy(j.notas, 700)) m.notes = tidy(j.notas, 700);
+      m.applyLean(j.suspeitas);
       const said = new Set(mt.msgs.filter((x) => x.from === p.id).map((x) => U.norm(x.text)));
       const msgs = (Array.isArray(j.mensagens) ? j.mensagens : typeof j.mensagens === 'string' ? [j.mensagens] : []).map((s) => tidy(s, 160)).filter((s) => s && !said.has(U.norm(s)) && !(AU.Voice && AU.Voice.misrule && AU.Voice.misrule(s, g.S, p))).slice(0, 2);
       let delay = 0.4;

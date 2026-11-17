@@ -11,6 +11,7 @@ O mapa pode ser jogado em **3D** (padrão: luz, sombra e reflexo de verdade, fei
 - **Direto do arquivo:** abra `index.html` no navegador. Não precisa de servidor nem de instalação.
 - **Arquivo único:** rode `python3 tools/build.py` e abra `dist/impostor-a-bordo.html`. Esse arquivo pode ser enviado para outra pessoa ou publicado no GitHub Pages.
 - **GitHub Pages:** em *Settings → Pages*, publique a branch com a pasta `among-us-skeld/` e acesse `…/among-us-skeld/`.
+- **Gênero de cada um:** em *Seu perfil* (ou ao lado do seu nome no online) você escolhe Ele, Ela ou Neutro; no lobby, cada bot tem o seu, e dá para trocar. Bots, IAs e amigos falam de cada jogador desse jeito ("a Duda tá suspeita", "o Kaio tava comigo"; neutro = pelo nome, sem o/a).
 
 ### Controles
 
@@ -85,6 +86,10 @@ Cada bot é uma IA separada, chamada sozinha (nunca dois personagens na mesma ch
 - **Fala e vota sozinha na reunião**: lê o chat e decide se fala (até duas mensagens curtas por vez, no jeito de escrever do personagem) ou fica quieta, responde quando é citada e vota quando quiser durante a votação.
 - **O corpo continua sendo o jogo**: andar, desviar, as regras (recarga do abate, portas, dutos) e os reflexos de qualquer pessoa (levar susto e fugir de quem matou na frente, sair de perto do próprio abate). Quando acha um corpo ou começa uma sabotagem crítica, o corpo avisa a mente; se ela não responder em alguns segundos, faz o óbvio (reportar, ir consertar).
 - Enquanto a próxima decisão não chega, o bot segue o que a própria mente disse para fazer nesse meio tempo (por exemplo, continuar as tarefas).
+- **Cada um joga do seu jeito**: além da personalidade, cada mente recebe manias próprias sorteadas no começo (faz tarefa sozinho ou em dupla, evita a Elétrica, passa nas câmeras, só aperta o botão com prova; o impostor foge pelo duto ou não, sabota antes de atacar ou não). E pode **observar uma sala** (parar num canto e ver quem entra e sai) e **ficar perto do grupo**.
+- **Tabela de leitura e certezas**: a cada decisão, a mente recebe uma leitura de cada jogador calculada do que o personagem viveu (confia, desconfia um pouco/muito, inocente ou impostor com certeza) e o que é certo para ela (quem fez tarefa visual na frente dela, quem ela viu matar, e entre quem os impostores ainda podem estar). Ela devolve só o que mudou ("suspeitas": mais/menos), e isso muda também o corpo (de quem se afasta, quem segue). Na reunião, o tripulante é orientado a mudar de ideia só com fato novo, nunca porque várias pessoas repetiram a mesma acusação.
+- **Humor**: a mente diz como está se sentindo (calma, nervosa, desconfiada, entediada, apressada, focada) e isso muda o jeito de andar do corpo.
+- **Corpo de gente**: cada bot "joga" num controle: no teclado anda em 8 direções e troca de tecla; no analógico faz curvas suaves com leve oscilação. Hesita antes de sair, passa do ponto do painel e volta, corta quina, olha em volta ao entrar numa sala, vira para quem passa e faz pequenos gestos enquanto espera.
 - **Custo**: usa bem mais IA (cerca de 12 a 15 chamadas por minuto de partida e umas 15 por reunião, uma por vez no Claude). Se a IA cair, atingir o limite ou falhar várias vezes seguidas, os bots voltam ao sistema de regras sozinhos e a mente volta quando a IA voltar. Dá para desligar em **Mente dos bots**.
 
 ### IA ajudando o motor
@@ -260,6 +265,7 @@ js/config.js      cores, personalidades, níveis, presets e padrões
 js/map.js         geometria da Skeld, estações, dutos e tarefas
 js/nav.js         A*, linha de visão e polígono de visão
 js/game.js        regras: abate, dutos, sabotagem, reuniões e vitória
+js/motor.js       corpo dos bots: teclado ou analógico, hesitação, curvas, gestos e humor
 js/brain.js       bots em campo: percepção, memória, tarefas e impostor
 js/mind.js        bots nas reuniões: evidências, fala, reações e voto
 js/talk.js        frases, tom do chat e leitura das mensagens do jogador
@@ -289,6 +295,12 @@ tools/build.py    gera a versão de arquivo único em dist/
 ```
 
 ## Testes
+
+- **Versão 40** (gênero, mente própria e corpo dos bots):
+  - Gênero: 15 partidas inteiras só de bots (5 presets, 6 a 15 jogadores, com jogadores ele/ela/neutro) sem erro; pela interface, o gênero escolhido no lobby aparece na revelação e nos cartões da votação, e "Fê tava sozinha na elétrica" seguido de "vota nela" acusa a Fê. Online com sala simulada (anfitrião + amiga): o gênero da amiga aparece na sala dos dois lados e chega igual à partida nos dois aparelhos.
+  - Leitura do chat: vírgula e ponto agora separam as frases. Em 61 mensagens típicas de reunião, 4 mudaram, todas para melhor ("vi o verde na nav, o azul é sus" antes acusava os dois; agora o verde foi visto e o azul é acusado).
+  - Mente própria com IA simulada (respostas variadas, inclusive JSON quebrado): 4 partidas inteiras, ~2.000 chamadas, sem erro; "observar SALA", "grupo", "suspeitas" e "humor" chegam ao corpo.
+  - Movimento (telemetria de 4 partidas de 150 s): no teclado, 89% do tempo andando numa das 8 direções; giros bruscos 7,6/min (quase todos 45°/90° de troca de tecla ou deslizando na parede); giros rápidos de rosto andando ~1/min (antes 1,7).
 
 - **Online travando** (versão 39). A imitação da sala usada nos testes não tinha o limite de envios (~40 por segundo por página) nem o atraso de uma rede de verdade. Com os dois, apareceram seis causas:
   - O anfitrião reanunciava a sala (presença da sala geral e gravação no banco) a cada atualização de qualquer amigo. Eram 39 a 66 envios e 27 a 54 gravações por segundo, a fila da sala enchia e os eventos se perdiam: 80 em 20 s com 3 amigos. Agora são 12 envios, 0,1 gravação por segundo e nenhum evento perdido.

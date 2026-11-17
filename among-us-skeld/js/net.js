@@ -72,7 +72,7 @@
     ready: null,
     state: 'checking',
     /* versão do jogo (aparece no diagnóstico: ajuda a saber se o amigo está com a página antiga) */
-    version: 39,
+    version: 40,
     async init() {
       if (this.ready) return this.ready;
       this.ready = (async () => {
@@ -526,7 +526,7 @@
           this.peers.set(p.peer, e);
           changed = true;
         }
-        if (!this.g && e.pres && e.pres.nick !== pr.nick) changed = true;
+        if (!this.g && e.pres && (e.pres.nick !== pr.nick || JSON.stringify(e.pres.look || {}) !== JSON.stringify(pr.look || {}))) changed = true;
         e.pres = pr;
         e.seen = performance.now();
         if (pr.pk && pr.pk !== e.pk) {
