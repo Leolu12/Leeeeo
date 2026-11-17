@@ -35,6 +35,18 @@
       if (form === 'no') return 'no ' + col;
       return col;
     };
+    /* pronome para quem já foi citado na frase: pela cor ("o roxo") é "ele"; pelo nome, o gênero combinado no lobby
+       (neutro: repete o nome, sem ele/ela) */
+    x.el = (pid) => {
+      const q = g.players[pid];
+      if (!q || named[pid] === false) return 'ele';
+      return q.gender === 'f' ? 'ela' : q.gender === 'n' ? q.name : 'ele';
+    };
+    /* palavra que concorda com quem fala: x.me('cansado', 'cansada', 'sem energia') */
+    x.me = (m, f, n) => {
+      const gd = sp && sp.p ? sp.p.gender : 'm';
+      return gd === 'f' ? f : gd === 'n' && n != null ? n : m;
+    };
     /* com adjetivo que muda com o gênero (morto, sozinho, suspeito, quieto) usa a cor: "o roxo", nunca "Mari morto" */
     x.Rc = (pid, form) => {
       const q = g.players[pid];
@@ -271,7 +283,7 @@
       if (d.who == null) return pick([`resumindo: ${lim}. do resto ninguém tem prova, eu pulo`, `então: ${lim}. sem prova contra mais ninguém, skip`]);
       return pick([`resumindo: ${lim ? lim + '. ' : ''}quem pesa é ${x.R(d.who, 'o')} (${d.why}). voto ${x.R(d.who, 'no')}`, `então: ${lim ? lim + '; ' : ''}contra ${x.R(d.who, 'o')}: ${d.why}. eu vou ${x.R(d.who, 'no')}`]);
     },
-    claimClash: (d, x) => pick([`${x.R(d.who, 'o')} disse que tava ${x.inA(d.claimed)}, mas ${d.by != null ? x.R(d.by, 'o') + ' viu ele' : 'viram ele'} ${x.inA(d.area)}`, `pera, ${x.R(d.who)} falou ${x.inA(d.claimed)}... e ${d.by != null ? x.R(d.by, 'o') : 'ele'} ${d.by != null ? 'viu' : 'foi visto'} ${x.inA(d.area)}? não bate`, `${x.R(d.who)}, você não disse que tava ${x.inA(d.claimed)}? como te viram ${x.inA(d.area)}?`]),
+    claimClash: (d, x) => pick([`${x.R(d.who, 'o')} disse que tava ${x.inA(d.claimed)}, mas ${d.by != null ? x.R(d.by, 'o') + ' viu ' + x.el(d.who) : 'viram ' + x.el(d.who)} ${x.inA(d.area)}`, `pera, ${x.R(d.who)} falou ${x.inA(d.claimed)}... e ${d.by != null ? x.R(d.by, 'o') + ' viu ' + x.el(d.who) : 'viram ' + x.el(d.who)} ${x.inA(d.area)}? não bate`, `${x.R(d.who)}, você não disse que tava ${x.inA(d.claimed)}? como te viram ${x.inA(d.area)}?`]),
     sawAgo: (d, x) => pick([`vi ${x.R(d.who, 'o')} ${x.inA(d.area)}, mas faz uns ${d.ago}s`, `${x.R(d.who, 'o')} tava ${x.inA(d.area)} uns ${d.ago}s antes, depois não vi mais`]),
     shiftDoubt: (d, x) => pick([`vi alguém igual a você ${x.inA(d.area)}, ${x.R(d.who)}... ou você mente, ou era o metamorfo com a sua cara`, `${x.R(d.who)}, te vi ${x.inA(d.area)}, não ${x.inA(d.claimed)}. se não era você, era o metamorfo disfarçado`]),
     /* vi dois iguais ao mesmo tempo (um era o metamorfo) */
@@ -370,12 +382,12 @@
       `alguém me espera na elétrica pfv`, `eu sempre morro primeiro`, `quem ainda tem task?`,
     ].concat(x.S && x.S.rules.taskBar !== 'nunca' ? [`a barra de task está enchendo`] : [])),
     panic: (d, x) => pick([`${x.R(d.who, 'o').toUpperCase()} ESTAVA ME SEGUINDO`, `gente, ${x.R(d.who, 'o')} ficou atrás de mim, fiquei com medo`]),
-    lost: (d, x) => pick([`eu me perdi kkk`, `demorei achando ${x.nA(d.area)}`, `fiquei perdido ${x.inA(d.area)}`]),
+    lost: (d, x) => pick([`eu me perdi kkk`, `demorei achando ${x.nA(d.area)}`, `fiquei ${x.me('perdido', 'perdida', 'rodando')} ${x.inA(d.area)}`]),
     ghost: (d, x) => pick([`foi ${x.R(d.who, 'o')} que me matou`, `${x.R(d.who, 'o')} impostor, confia`, `morri pro ${x.R(d.who)} kkk`]),
     ghostIdle: () => pick([`rip`, `ah não`, `vai tripulação`, `agora é com vocês`, `nãaao`]),
     defendPartner: (d, x) => pick([`sei lá, ${x.R(d.who, 'o')} estava fazendo task`, `vocês estão votando sem prova`, `acho que não é ${x.R(d.who, 'o')}`]),
     whoSus: (d, x) => (d.who == null ? pick([`não sei, sem info`, `ninguém ainda`]) : pick([`acho que é ${x.R(d.who, 'o')}`, `${x.R(d.who, 'o')} pra mim`])),
-    leaderVote: (d, x) => (d.who == null ? pick([`sem prova, todo mundo skip`, `ninguém tem certeza, skip`]) : pick([`vamos votar ${x.R(d.who, 'no')}, ninguém confirma ele`, `votem ${x.R(d.who, 'no')}`])),
+    leaderVote: (d, x) => (d.who == null ? pick([`sem prova, todo mundo skip`, `ninguém tem certeza, skip`]) : pick([`vamos votar ${x.R(d.who, 'no')}, ninguém confirma ${x.el(d.who)}`, `votem ${x.R(d.who, 'no')}`])),
     huh: () => pick([`como assim?`, `quê?`, `hã?`, `não entendi`]),
     offerVisual: (d, x) => pick([`tenho ${d.task ? x.task(d.task) : 'tarefa visual'}, posso fazer na frente de vocês`, `me segue na próxima que eu faço ${d.task ? x.task(d.task) : 'a visual'}`, `quem desconfiar me acompanha, eu provo com ${d.task ? x.task(d.task) : 'a visual'}`]),
     roleDup: (d, x) => pick([`só tem ${d.n} ${ROLE_TXT[d.role]} e ${x.R(d.who, 'o')} já disse que era`, `${ROLE_TXT[d.role]} de novo? ${x.R(d.who, 'o')} já falou que é`, `dois ${ROLE_TXT[d.role]}? só tem ${d.n} nessa partida, alguém tá mentindo`]),
@@ -408,7 +420,7 @@
     },
     roleDoubt: (d, x) => pick([`${x.R(d.who, 'o')} disse que é ${ROLE_TXT[d.role]}... sei não`, `${ROLE_TXT[d.role]}? conveniente né`, `qualquer um pode dizer que é ${ROLE_TXT[d.role]}`]),
     ack: () => pick([`ok`, `hmm`, `faz sentido`, `entendi`]),
-    thanks: () => pick([`valeu`, `obrigado`, `viu?`]),
+    thanks: (d, x) => pick([`valeu`, x.me(`obrigado`, `obrigada`, `valeu mesmo`), `viu?`]),
   };
 
   /* Converte o texto base para o tom do chat e a personalidade.
@@ -443,7 +455,7 @@
     [/^self ?report\?/gi, 'Será que reportou o próprio abate?'], [/\bself ?report\b/gi, 'reportar o próprio abate'], [/\bventou\b/gi, 'usou o duto'], [/\bventando\b/gi, 'usando o duto'], [/\bventar\b/gi, 'usar o duto'],
     [/\bvent\b/gi, 'duto'], [/\bimps\b/gi, 'impostores'], [/\bimp\b/gi, 'impostor'], [/\bvcs\b/gi, 'vocês'], [/\bvc\b/gi, 'você'],
     [/\btbm\b/gi, 'também'], [/\btb\b/gi, 'também'], [/\bpq\b/gi, 'por que'], [/\bmsm\b/gi, 'mesmo'], [/\bagr\b/gi, 'agora'], [/\bngm\b/gi, 'ninguém'],
-    [/\bblz\b/gi, 'certo'], [/\bvlw\b/gi, 'obrigado'], [/\bpfv\b/gi, 'por favor'], [/\bqm\b/gi, 'quem'], [/\btd\b/gi, 'tudo'], [/\bq\b/gi, 'que'],
+    [/\bblz\b/gi, 'certo'], [/\bvlw\b/gi, 'valeu'], [/\bpfv\b/gi, 'por favor'], [/\bqm\b/gi, 'quem'], [/\btd\b/gi, 'tudo'], [/\bq\b/gi, 'que'],
     [/\bcmg\b/gi, 'comigo'], [/\bdps\b/gi, 'depois'], [/\bmt\b/gi, 'muito'], [/\bss\b/gi, 'sim'], [/\bmds\b/gi, 'meu Deus'],
     [/\bsla\b/gi, 'sei lá'], [/\btlgd\b/gi, ''], [/\bt[aá] ligado\b/gi, ''], [/\bslk\b/gi, ''], [/\bpqp\b,?/gi, ''], [/\bmano\b,?/gi, ''], [/\bpô\b,?/gi, ''], [/\boxe\b,?/gi, ''], [/\bvéi\b,?/gi, ''], [/\bué\b,?/gi, ''],
     [/\bkk+\b/gi, ''], [/\brs\b/gi, ''], [/\bcams\b/gi, 'câmeras'], [/\bstack kill\b/gi, 'abate no meio do grupo'], [/\bcrew\b/gi, 'tripulação'],
@@ -708,7 +720,8 @@
     const me = ctx.self != null ? ctx.self : g.human ? g.human.id : -1;
     /* "é" (verbo) vira "eh" antes de tirar acentos, para não virar a conjunção "e" */
     const pre = String(text).replace(/(^|[^\p{L}])[éÉ](?=$|[^\p{L}])/gu, '$1 eh ');
-    const n = ' ' + U.norm(pre).replace(/[^a-z0-9?!\s]/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
+    /* vírgula, ponto e ponto e vírgula ficam (viram " , "): são eles que separam as frases ("vi o verde na nav, o azul é sus") */
+    const n = ' ' + U.norm(pre).replace(/[^a-z0-9?!,.;\s]/g, ' ').replace(/([,.;?!])/g, ' $1 ').replace(/\s+/g, ' ').trim() + ' ';
     const isQ = /\?/.test(text);
     const table = aliasTable(g);
     const intents = [];
@@ -723,7 +736,7 @@
     if (RX.deny.test(n)) intents.push({ type: 'deny' });
     if (RX.gaveUp.test(n)) intents.push({ type: 'explainTask' });
     if (RX.offer.test(n) || (RX.offerTask.test(n) && !/\b(fiz|fez|fizeram|fazendo|tava|estava)\b/.test(n))) intents.push({ type: 'offerVisual' });
-    if ((/^ (fechou|fechado|beleza|blz|ok|okay|pode ser|sim|claro|tranquilo|combinado|firmeza|show|demorou|s)\b/.test(n) || /^ (bora|vamo|vamos|pode)( sim| ja| entao)? $/.test(n)) && n.trim().split(' ').length <= 5 && !RX.pact.test(n) && !RX.vote.test(n) && !RX.sus.test(n) && !RX.skip.test(n)) intents.push({ type: 'yes', to: ctx.addressed != null ? ctx.addressed : null });
+    if ((/^ (fechou|fechado|beleza|blz|ok|okay|pode ser|sim|claro|tranquilo|combinado|firmeza|show|demorou|s)\b/.test(n) || /^ (bora|vamo|vamos|pode)( sim| ja| entao)? $/.test(n)) && n.trim().split(' ').filter((w) => /[a-z0-9]/.test(w)).length <= 5 && !RX.pact.test(n) && !RX.vote.test(n) && !RX.sus.test(n) && !RX.skip.test(n)) intents.push({ type: 'yes', to: ctx.addressed != null ? ctx.addressed : null });
     if (RX.pact.test(n) && !RX.pactNo.test(n)) {
       const o = all.players.find((x) => x.pid !== me);
       intents.push({ type: 'pact', who: o ? o.pid : null, to: o ? o.pid : ctx.addressed != null ? ctx.addressed : null, lead: RX.leadYou.test(n) ? 'addressee' : RX.leadMe.test(n) ? 'speaker' : null, scope: RX.scopeGame.test(n) ? 'game' : 'round' });
@@ -735,23 +748,49 @@
       intents.push({ type: 'window', area: all.rooms[0].area, ago: wm ? +wm[1] : 30 });
     }
 
-    let lastOthers = [];
-    for (const c of clauses) {
+    let lastOthers = [], voc = null, lastRooms = [];
+    const INTENT_RX = ['vi', 'kill', 'vent', 'sus', 'vote', 'safe', 'visual', 'comigo', 'been', 'deny', 'lie', 'skip', 'where', 'who', 'body', 'shift', 'vanish', 'follow', 'gaveUp', 'twin', 'selfrep', 'offer', 'offerTask', 'pact'];
+    clauses.forEach((c, ci) => (clauses[ci] = { c, last: ci === clauses.length - 1 }));
+    for (const { c, last } of clauses) {
       const ps = findAll(c, table, 'pid');
       const rooms = findAll(c, ROOM_ALIASES, 'area').map((r) => r.area);
       let others = ps.filter((x) => x.pid !== me).map((x) => x.pid);
       const selfNamed = ps.some((x) => x.pid === me);
       const has = (k) => RX[k].test(c);
-      if (!others.length && /\b(vc|voce|tu)\b/.test(c) && ctx.addressed != null) others = [ctx.addressed];
+      /* "verde, onde vc tava?": a primeira frase só chama alguém; o "vc" das seguintes é essa pessoa */
+      if (!last && others.length === 1 && ps.length === 1 && !rooms.length && c.trim().split(' ').length <= 3 && !INTENT_RX.some((k) => RX[k].test(c))) {
+        voc = others[0];
+        lastOthers = others;
+        intents.push({ type: 'mention', who: voc });
+        continue;
+      }
+      if (!others.length && /\b(vc|voce|tu)\b/.test(c) && (voc != null || ctx.addressed != null)) others = [voc != null ? voc : ctx.addressed];
+      /* "vota nela", "ele tava no duto", "vi ela matando": acha a pessoa pelo gênero combinado no lobby, entre quem foi
+         citado nesta mensagem e nas últimas da reunião ("ela" = só quem é "ela"; "ele" = ele, neutro ou chamado pela cor) */
+      const pr = !others.length && c.match(/\b(?:d|n)?(ele|ela)\b/);
+      if (pr) {
+        const fem = pr[1] === 'ela';
+        const fits = (pid) => {
+          const q = g.players[pid];
+          return !!q && pid !== me && (fem ? q.gender === 'f' : q.gender !== 'f');
+        };
+        const recent = ctx.recent || (g.meeting && g.meeting.recentRefs) || [];
+        const hit = lastOthers.concat(recent).find(fits);
+        if (hit != null) others = [hit];
+        else if (lastOthers.length === 1) others = lastOthers;
+      }
       /* "..., sus" / "..., vota nele": herda o jogador da oração anterior */
       if (!others.length && lastOthers.length && (has('sus') || has('vote') || has('safe') || has('lie') || has('kill') || has('vent')) && !rooms.length) others = lastOthers;
       if (others.length) lastOthers = others;
       const area = rooms[0] || null;
 
       if (has('where') && !has('body')) {
-        if (others.length) intents.push({ type: 'askWhere', who: others[0] });
+        if (others.length || voc != null) intents.push({ type: 'askWhere', who: others.length ? others[0] : voc });
         continue;
       }
+      /* "eu tava no reator. vi o verde passando": o "vi" sem sala é na sala que acabou de dizer */
+      const seenRoom = !rooms.length && has('vi') && lastRooms.length ? lastRooms[0] : null;
+      if (rooms.length) lastRooms = rooms;
       if (has('body') && rooms.length && !has('where') && !others.length) {
         intents.push({ type: 'bodyArea', area });
         continue;
@@ -781,7 +820,9 @@
         else if (has('follow') && !has('offer')) intents.push({ type: 'accuse', who, reason: 'follow', area });
         else if (has('selfrep')) intents.push({ type: 'accuse', who, reason: 'fastReport' });
         else if (has('body')) intents.push({ type: 'accuse', who, reason: 'nearBody', area });
-        else if (rooms.length && (has('vi') || has('been'))) intents.push({ type: 'sawAt', who, area });
+        /* "ele disse que tava na nav" é o que a pessoa contou, não onde foi vista */
+        else if (rooms.length && (has('vi') || has('been')) && !/\b(disse|falou|diz|fala|falando|dizendo|afirmou|alegou|contou)\b/.test(c)) intents.push({ type: 'sawAt', who, area });
+        else if (seenRoom) intents.push({ type: 'sawAt', who, area: seenRoom });
         else if (isQ && c.trim().split(' ').length <= 3) intents.push({ type: 'askWhere', who });
         else intents.push({ type: 'mention', who });
         continue;

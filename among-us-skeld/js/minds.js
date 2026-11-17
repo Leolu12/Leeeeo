@@ -21,9 +21,10 @@
     },
   };
 
+  /* "Duda (ela, Roxo)": o gênero combinado no lobby vai junto do nome */
   const who = (g, id) => {
     const q = g.players[id];
-    return q ? `${q.name} (${C.COLOR[q.color].name})` : 'alguém';
+    return q ? `${q.name} (${(C.GENDER[q.gender] || C.GENDER.n).pron}, ${C.COLOR[q.color].name})` : 'alguém';
   };
   const area = (a) => (M.AREA[a] ? M.AREA[a].name : a || '?');
   const roomName = (x, y) => {
@@ -297,6 +298,7 @@
       if (p.special && C.ROLES[p.special]) lines.push('Sua função: ' + C.ROLES[p.special].name + ' — ' + C.roleDesc(p.special, g.S) + '.');
       lines.push('Jogue como um jogador humano joga Among Us de verdade: preste atenção em quem anda com quem e onde, lembre do que viu, desconfie com motivo, chame reunião (aperte o botão) quando tiver um motivo forte, reporte corpo, ande com quem confia, faça a "chamadinha" (sinal de vem comigo) para mostrar tarefa visual, e na reunião defenda-se, acuse e vote. ' + (p.isImp ? 'Como impostor, finja tarefas, mate quando ninguém estiver vendo, fuja da cena, use dutos e sabotagens, e minta com cuidado na reunião.' : 'Como tripulante, faça suas tarefas, mas fique de olho.'));
       lines.push('Você só sabe o que o seu personagem viveu (a sua memória abaixo) e o que for dito no chat. Não invente o que não viu.');
+      if (V && V.genderRule) lines.push(V.genderRule(g, p));
       return lines.join('\n');
     }
     rules() {

@@ -150,9 +150,38 @@
     'Thay', 'Vini', 'Manu', 'Duda', 'Lari', 'Caio', 'Bruna', 'Fê', 'Gabs', 'Rê', 'Lipe', 'Tati', 'Otávio', 'Paulinha', 'Beto', 'Lia',
   ];
 
+  /* Gênero de cada jogador, combinado antes da partida (lobby): decide "ele/ela", "o/a", "suspeito/suspeita" no chat
+     dos bots e no que a IA escreve. Neutro = ninguém usa palavra com gênero para essa pessoa (chama pelo nome). */
+  C.GENDERS = [
+    { id: 'm', name: 'Ele', pron: 'ele', art: 'o' },
+    { id: 'f', name: 'Ela', pron: 'ela', art: 'a' },
+    { id: 'n', name: 'Neutro', pron: 'neutro', art: '' },
+  ];
+  C.GENDER = Object.fromEntries(C.GENDERS.map((x) => [x.id, x]));
+  /* os apelidos ambíguos (Rafa, Duda, Fê, Gabs, Rê, Manu) têm um gênero fixo, que aparece no lobby e pode ser trocado */
+  C.BOT_GENDER = {
+    Kaio: 'm', Mari: 'f', Dudu: 'm', 'Tiagão': 'm', Lulu: 'f', Nando: 'm', Bia: 'f', Rafa: 'm', Gui: 'm', Juju: 'f', Pedrinho: 'm', Carol: 'f',
+    'Zé': 'm', Nina: 'f', Thay: 'f', Vini: 'm', Manu: 'f', Duda: 'f', Lari: 'f', Caio: 'm', Bruna: 'f', 'Fê': 'f', Gabs: 'm', 'Rê': 'f',
+    Lipe: 'm', Tati: 'f', 'Otávio': 'm', Paulinha: 'f', Beto: 'm', Lia: 'f',
+  };
+  /* palpite para um nome digitado (só o ponto de partida: no lobby cada um escolhe o seu) */
+  C.guessGender = function (name) {
+    const raw = String(name || '').trim();
+    if (C.BOT_GENDER[raw]) return C.BOT_GENDER[raw];
+    const n = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (!n || n === 'jogador' || n === 'anfitriao') return 'n';
+    if (/^(gabi|dani|mari|lari|thay|tay|naty|nathy|paty|cami|lili|lulu|juju|bebel|isa|ju|lu|malu|babi|jaque|kelly|sol|ingrid|raquel|isabel|beatriz|thais|tais|ester|ruth|carmen|miriam|nicole|alice|clarice|liz|luz|flor|mel|cris|fer|rê|re|fê|fe|bia|duda|manu|lele|nanda|vivi|gi|ka|kah|lavinia|agnes|ines)$/.test(n)) return 'f';
+    if (/(inha|ete|ane|ine|iele|isa|ice|elle|aine|ah)$/.test(n)) return 'f';
+    if (/a$/.test(n) && !/(luca|joshua|nikita|isaia|elia|jonatha|matia|tobia|rocha|costa|sousa|souza|silva|garcia|batista|moura)$/.test(n)) return 'f';
+    return 'm';
+  };
+  C.genderOf = (o) => (o && C.GENDER[o.gender] ? o.gender : C.guessGender(o && o.name));
+  /* palavra que concorda com o jogador: C.agree(p, 'ejetado', 'ejetada', 'fora na votação') */
+  C.agree = (p, m, f, n) => (p && p.gender === 'f' ? f : p && p.gender === 'n' && n != null ? n : m);
+
   C.DEFAULTS = {
     preset: 'classico',
-    profile: { name: 'Jogador', color: 'ciano', hat: 'nenhum', visor: 'classico', pet: 'nenhum' },
+    profile: { name: 'Jogador', color: 'ciano', hat: 'nenhum', visor: 'classico', pet: 'nenhum', gender: '' },
     room: { players: 10, impostors: 2, draw: 'A', drawChance: 50 },
     rules: {
       confirmEjects: true, emergencyMeetings: 3, emergencyCooldown: 15, discussionTime: 15, votingTime: 120,

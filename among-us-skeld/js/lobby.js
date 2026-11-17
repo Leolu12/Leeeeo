@@ -165,7 +165,8 @@
       const persona = (r) => {
         const pb = (r._voice = r._voice || { g: { S: this.S }, p: r });
         const pers = C.PERSONALITIES[r.personality] || C.PERSONALITIES.analitico;
-        return '### ' + r.name + ' (' + C.COLOR[r.color].name + ') — ' + pers.name + ': ' + pers.desc + ' Jeito de escrever: ' + (V && V.voiceOf ? V.voiceOf(pb) : 'natural');
+        const G = C.GENDER[r.gender] || C.GENDER[C.genderOf(r)];
+        return '### ' + r.name + ' (' + G.pron + ', ' + C.COLOR[r.color].name + ') — ' + pers.name + ': ' + pers.desc + ' Jeito de escrever: ' + (V && V.voiceOf ? V.voiceOf(pb) : 'natural');
       };
       const prompt = [
         'Lobby de uma partida igual a Among Us (nave The Skeld), ANTES de começar: ninguém sabe ainda quem é impostor. Os jogadores se cumprimentam, comentam as regras e brincam.',
@@ -174,7 +175,8 @@
         'Chat do lobby até agora:',
         this.msgs.slice(-12).map((m) => m.from.name + ': ' + m.text).join('\n'),
         '',
-        h.name + ' (o jogador) acabou de escrever: "' + text + '". Quem responde:',
+        h.name + ' (' + (C.GENDER[h.gender] || C.GENDER[C.genderOf(h)]).pron + ', o jogador) acabou de escrever: "' + text + '". Quem responde:',
+        'Gênero combinado: ' + this.roster.map((r) => r.name + ' = ' + (C.GENDER[r.gender] || C.GENDER[C.genderOf(r)]).pron).join(', ') + '. Use esse gênero ao falar de cada um e de si (neutro = sem o/a nem adjetivo com gênero); nunca chute pelo nome.',
         ...who.map(persona),
         '',
         'Escreva 1 mensagem curta para cada um, no formato "Nome: mensagem".',

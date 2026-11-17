@@ -65,7 +65,7 @@
       if (fresh || !this.roster || this.roster.length !== AU.Menu.S.room.players) this.roster = AU.Menu.buildRoster(AU.Menu.S);
       else {
         const S = AU.Menu.S;
-        Object.assign(this.roster[0], { name: S.profile.name, color: S.profile.color, hat: S.profile.hat, visor: S.profile.visor, pet: S.profile.pet });
+        Object.assign(this.roster[0], { name: S.profile.name, color: S.profile.color, hat: S.profile.hat, visor: S.profile.visor, pet: S.profile.pet, gender: AU.C.genderOf(S.profile) });
       }
       this.show('lobby');
       AU.Menu.lobby(this.el.lobby, this.roster);
@@ -87,7 +87,7 @@
     startOnlineClient(cl, d) {
       const S = U.clone(d.S);
       S.ui = U.clone(AU.Menu.S.ui);
-      const roster = d.roster.map((r, i) => ({ name: r.name, color: r.color, hat: r.hat, visor: r.visor, pet: r.pet, isHuman: i === cl.mySlot }));
+      const roster = d.roster.map((r, i) => ({ name: r.name, gender: r.gender, color: r.color, hat: r.hat, visor: r.visor, pet: r.pet, isHuman: i === cl.mySlot }));
       this.teardown(true);
       this.online = { role: 'client', cl };
       const g = new AU.Game(S, roster, { ui: this.makeUi(), client: true });

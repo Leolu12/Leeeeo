@@ -241,11 +241,13 @@
       const hat = this.select('cfg-hat', C.HATS.map((x) => [x.id, x.name]), () => S.profile.hat, (v) => { S.profile.hat = v; drawPrev(); change(); });
       const visor = this.select('cfg-visor', C.VISORS.map((x) => [x.id, x.name]), () => S.profile.visor, (v) => { S.profile.visor = v; drawPrev(); change(); });
       const pet = this.select('cfg-pet', C.PETS.map((x) => [x.id, x.name]), () => S.profile.pet, (v) => { S.profile.pet = v; drawPrev(); change(); });
+      const gender = this.seg('cfg-gender', C.GENDERS.map((x) => [x.id, x.name]), () => C.genderOf(S.profile), (v) => { S.profile.gender = v; change(); });
       drawPrev();
-      return this.sec('perfil', 'Seu perfil', 'Os bots podem citar sua cor e seus cosméticos no chat.',
+      return this.sec('perfil', 'Seu perfil', 'Os bots podem citar sua cor e seus cosméticos no chat. O gênero diz como bots, IAs e amigos falam de você ("ele está suspeito", "ela estava comigo").',
         h('div', { class: 'profile' }, preview,
           h('div', { class: 'profile-fields' },
             this.field('Nome', name),
+            this.field('Como falar de você', gender),
             this.field('Cor', sw),
             h('div', { class: 'row3' }, this.field('Chapéu', hat), this.field('Visor', visor), this.field('Pet', pet)))));
     },
@@ -575,7 +577,7 @@
     /* ---------------- lobby ---------------- */
     buildRoster(S, keep) {
       const n = S.room.players;
-      const human = { name: S.profile.name || 'Jogador', color: S.profile.color, hat: S.profile.hat, visor: S.profile.visor, pet: S.profile.pet, isHuman: true };
+      const human = { name: S.profile.name || 'Jogador', color: S.profile.color, hat: S.profile.hat, visor: S.profile.visor, pet: S.profile.pet, gender: C.genderOf(S.profile), isHuman: true };
       let names = S.bots.names === 'custom' ? S.bots.customNames.split(',').map((x) => x.trim()).filter(Boolean) : [];
       names = names.concat(U.shuffle(C.BOT_NAMES)).filter((x, i, a) => a.indexOf(x) === i && U.norm(x) !== U.norm(human.name));
       const colors = U.shuffle(C.COLORS.map((c) => c.id).filter((c) => c !== human.color));
@@ -588,8 +590,10 @@
       for (let i = 0; i < n - 1; i++) {
         if (!bag.length) bag = U.shuffle(pool);
         const prev = keep && keep[i + 1];
+        const nm = prev ? prev.name : names[i % names.length];
         roster.push({
-          name: prev ? prev.name : names[i % names.length],
+          name: nm,
+          gender: prev && prev.gender ? prev.gender : C.guessGender(nm),
           color: prev && prev.color !== human.color ? prev.color : colors[i % colors.length],
           personality: prev && prev.personality ? prev.personality : bag.pop(),
           hat: prev ? prev.hat : U.chance(0.45) ? U.pick(C.HATS.slice(1)).id : 'nenhum',
@@ -614,11 +618,30 @@
       roster.forEach((r, i) => {
         const card = h('div', { class: 'lobby-card' + (r.isHuman ? ' me' : '') });
         card.appendChild(h('div', { class: 'lobby-bean', html: AU.Render.beanSVG(r.color, { size: 56, visor: r.visor }) }));
+        /* gênero combinado antes de começar: todo mundo (bots, IAs, amigos) fala de cada um do mesmo jeito */
+        const gen = h('select', { class: 'lobby-gender', id: 'gender-' + i, 'aria-label': 'Gênero de ' + r.name, title: 'Como falar desse jogador: ele, ela ou neutro (sem palavra com gênero)' });
+        if (!C.GENDER[r.gender]) r.gender = C.genderOf(r);
+        for (const x of C.GENDERS) gen.appendChild(h('option', { value: x.id, selected: x.id === r.gender }, x.name));
+        gen.addEventListener('change', () => {
+          r.gender = gen.value;
+          r.genderSet = true;
+          if (r.isHuman) {
+            S.profile.gender = gen.value;
+            this.save();
+          }
+        });
         if (r.isHuman) {
-          card.appendChild(h('div', { class: 'lobby-info' }, h('strong', {}, r.name + ' (você)'), h('span', {}, C.COLOR[r.color].name)));
+          card.appendChild(h('div', { class: 'lobby-info' }, h('strong', {}, r.name + ' (você)'), h('div', { class: 'lobby-row' }, h('span', { class: 'lobby-pers-label' }, C.COLOR[r.color].name), gen)));
         } else {
           const nm = h('input', { type: 'text', class: 'lobby-name', id: 'bot-name-' + i, maxlength: '12', value: r.name, 'aria-label': 'Nome do bot' });
-          nm.addEventListener('input', () => (r.name = nm.value.trim() || r.name));
+          nm.addEventListener('input', () => {
+            r.name = nm.value.trim() || r.name;
+            /* nome novo sem gênero escolhido à mão: chuta pelo nome (Joana → ela), e dá para trocar ao lado */
+            if (!r.genderSet) {
+              r.gender = C.guessGender(r.name);
+              gen.value = r.gender;
+            }
+          });
           const col = h('select', { class: 'lobby-color', id: 'bot-color-' + i, 'aria-label': 'Cor do bot' });
           const taken = new Set(roster.filter((x) => x !== r).map((x) => x.color));
           for (const c of C.COLORS) if (!taken.has(c.id)) col.appendChild(h('option', { value: c.id, selected: c.id === r.color }, c.name));
@@ -632,7 +655,7 @@
             for (const id of C.PERSONALITY_IDS) pers.appendChild(h('option', { value: id, selected: id === r.personality }, C.PERSONALITIES[id].name));
             pers.addEventListener('change', () => (r.personality = pers.value));
           } else pers = h('span', { class: 'lobby-pers-label', title: C.PERSONALITIES[r.personality].desc }, C.PERSONALITIES[r.personality].name);
-          card.appendChild(h('div', { class: 'lobby-info' }, nm, h('div', { class: 'lobby-row' }, col, pers)));
+          card.appendChild(h('div', { class: 'lobby-info' }, nm, h('div', { class: 'lobby-row' }, col, gen, pers)));
         }
         grid.appendChild(card);
       });
@@ -673,6 +696,7 @@
         h('header', { class: 'cfg-head' }, h('h2', {}, 'Lobby'), h('p', {}, this.summary())),
         h('div', { class: 'lobby-body' }, grid, h('aside', { class: 'lobby-side' }, h('h3', {}, 'Chat do lobby'), chat, form,
           h('p', { class: 'fine' }, manual ? 'Atribua a personalidade de cada bot antes de começar.' : 'As personalidades não mudam durante a partida. As funções só são sorteadas ao começar.'),
+          h('p', { class: 'fine' }, 'Ele / Ela / Neutro em cada card: é assim que os bots e as IAs vão falar de cada jogador (neutro = pelo nome, sem "o/a").'),
           h('h3', { class: 'lobby-ai-h' }, 'IA das conversas'), this.aiStatusEl(),
           h('p', { class: 'fine' }, 'Para trocar a fonte da IA, volte às configurações.'))),
         h('div', { class: 'cfg-foot' },
@@ -689,7 +713,8 @@
       const nImp = g.nImpKnown || g.players.filter((p) => p.isImp).length;
       const team = imp ? g.players.filter((p) => p.isImp) : g.players;
       const row = h('div', { class: 'reveal-row' });
-      team.forEach((p, i) => row.appendChild(h('div', { class: 'reveal-p' + (p === hp ? ' me' : ''), style: { animationDelay: 0.15 + i * 0.06 + 's' } }, h('span', { html: AU.Render.beanSVG(p.color, { size: p === hp ? 110 : 70, visor: p.visor }) }), h('span', { class: imp ? 'imp' : '' }, p.name))));
+      /* nome + "ele/ela/neutro": o combinado do lobby aparece de novo antes de começar */
+      team.forEach((p, i) => row.appendChild(h('div', { class: 'reveal-p' + (p === hp ? ' me' : ''), style: { animationDelay: 0.15 + i * 0.06 + 's' } }, h('span', { html: AU.Render.beanSVG(p.color, { size: p === hp ? 110 : 70, visor: p.visor }) }), h('span', { class: imp ? 'imp' : '' }, p.name), h('small', { class: 'reveal-pron' }, (C.GENDER[p.gender] || C.GENDER.n).pron))));
       const sp = hp.special ? C.ROLES[hp.special] : null;
       root.append(h('div', { class: 'reveal ' + (imp ? 'imp' : 'crew') },
         h('div', { class: 'reveal-sub' }, imp ? (nImp > 1 ? 'Você e seu parceiro' : 'Elimine a tripulação sem ser descoberto') : `Há ${nImp} impostor${nImp > 1 ? 'es' : ''} entre nós`),

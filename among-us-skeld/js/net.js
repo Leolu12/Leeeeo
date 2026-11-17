@@ -492,7 +492,8 @@
       return clean(AU.Menu.S.profile.name || 'Anfitrião');
     }
     setPres(extra) {
-      const pres = Object.assign({ app: 'au', v: V, role: 'host', code: this.code, hpk: this.keys ? this.keys.pub : null, st: this.g ? 'play' : 'lobby', nick: this.nick() }, extra || {});
+      const P = AU.Menu.S.profile;
+      const pres = Object.assign({ app: 'au', v: V, role: 'host', code: this.code, hpk: this.keys ? this.keys.pub : null, st: this.g ? 'play' : 'lobby', nick: this.nick(), look: { color: P.color, gender: C.genderOf(P) } }, extra || {});
       this.gr.presence(pres).catch(() => {});
     }
     /* anuncia a sala (presença da sala geral + banco) só quando algo muda, ou a cada ~10 s. Antes isto rodava a cada
@@ -577,7 +578,9 @@
         let color = C.COLOR[lk.color] ? lk.color : null;
         if (!color || used.has(color)) color = C.COLORS.map((c) => c.id).find((c) => !used.has(c));
         used.add(color);
-        base[slot] = { name: clean(pr.nick) || 'Amigo ' + slot, color, hat: C.HATS.some((x) => x.id === lk.hat) ? lk.hat : 'nenhum', visor: C.VISORS.some((x) => x.id === lk.visor) ? lk.visor : 'classico', pet: C.PETS.some((x) => x.id === lk.pet) ? lk.pet : 'nenhum', remote: e.peer };
+        /* o gênero que o amigo escolheu no perfil dele (ele/ela/neutro) vale para os bots e as IAs desta sala */
+        const nick = clean(pr.nick) || 'Amigo ' + slot;
+        base[slot] = { name: nick, gender: C.GENDER[lk.gender] ? lk.gender : C.guessGender(nick), color, hat: C.HATS.some((x) => x.id === lk.hat) ? lk.hat : 'nenhum', visor: C.VISORS.some((x) => x.id === lk.visor) ? lk.visor : 'classico', pet: C.PETS.some((x) => x.id === lk.pet) ? lk.pet : 'nenhum', remote: e.peer };
         e.slot = slot;
         slot++;
       }
@@ -596,7 +599,7 @@
       g.netHost = this;
       this.setPres();
       this.advertise();
-      const pub = g.players.map((p) => ({ name: p.name, color: p.color, hat: p.hat, visor: p.visor, pet: p.pet, remote: p.remote ? 1 : 0 }));
+      const pub = g.players.map((p) => ({ name: p.name, gender: p.gender, color: p.color, hat: p.hat, visor: p.visor, pet: p.pet, remote: p.remote ? 1 : 0 }));
       const slots = {};
       for (const e of this.players()) if (e.slot != null) slots[e.peer] = e.slot;
       const S = U.clone(g.S);
@@ -1014,7 +1017,7 @@
       const h0 = this.g && this.g.human;
       const pres = {
         app: 'au', v: V, role: 'cl', nick: clean(S.profile.name || 'Jogador'),
-        look: { color: S.profile.color, hat: S.profile.hat, visor: S.profile.visor, pet: S.profile.pet },
+        look: { color: S.profile.color, hat: S.profile.hat, visor: S.profile.visor, pet: S.profile.pet, gender: C.genderOf(S.profile) },
         pk: this.keys ? this.keys.pub : null,
         have: this.have,
         cmd: this.cmds.slice(-12),
@@ -1564,10 +1567,22 @@
     fill();
     return box;
   }
+  /* "ele" / "ela" / "neutro" ao lado do nome na sala: todo mundo vê como cada um quer ser chamado */
+  function genTag(gid) {
+    const G = C.GENDER[gid] || C.GENDER.n;
+    return h('span', { class: 'gender-tag', title: 'Como os bots e as IAs falam dessa pessoa' }, G.pron);
+  }
   function lobbyMenu(card, title, S) {
     const nick = h('input', { type: 'text', maxlength: '16', value: S.profile.name || '', placeholder: 'Seu nome no jogo' });
+    const gen = h('select', { 'aria-label': 'Como falar de você' });
+    for (const x of C.GENDERS) gen.appendChild(h('option', { value: x.id, selected: x.id === C.genderOf(S.profile) }, x.name));
     nick.addEventListener('change', () => {
       S.profile.name = clean(nick.value, 16) || S.profile.name;
+      if (!S.profile.gender) gen.value = C.genderOf(S.profile);
+      AU.Menu.save();
+    });
+    gen.addEventListener('change', () => {
+      S.profile.gender = gen.value;
       AU.Menu.save();
     });
     const code = h('input', { type: 'text', maxlength: '4', placeholder: 'ABCD', class: 'code-in', autocapitalize: 'characters' });
@@ -1584,7 +1599,7 @@
     };
     card.append(
       h('div', { class: 'grid2' },
-        h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Seu nome'), nick),
+        h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Seu nome e como falar de você'), h('div', { class: 'row-btns' }, nick, gen)),
         h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Entrar com código'), h('div', { class: 'row-btns' }, code, h('button', { class: 'btn', onclick: () => join(code.value) }, 'Entrar')))),
       h('div', { class: 'row-btns' },
         h('button', { class: 'btn primary', onclick: () => Net.hostRoom(card) }, 'Criar sala'),
@@ -1667,10 +1682,11 @@
       if (!players.isConnected) return;
       players.innerHTML = '';
       const S = AU.Menu.S;
-      players.append(h('div', { class: 'room-row' }, h('span', { html: AU.Render.beanSVG(S.profile.color, { size: 28 }) }), h('span', {}, clean(S.profile.name) + ' (você, anfitrião)')));
+      players.append(h('div', { class: 'room-row' }, h('span', { html: AU.Render.beanSVG(S.profile.color, { size: 28 }) }), h('span', {}, clean(S.profile.name) + ' (você, anfitrião)'), genTag(C.genderOf(S.profile))));
       for (const e of host.players()) {
         const lk = (e.pres && e.pres.look) || {};
-        players.append(h('div', { class: 'room-row' }, h('span', { html: AU.Render.beanSVG(C.COLOR[lk.color] ? lk.color : 'branco', { size: 28 }) }), h('span', {}, clean(e.pres.nick) || 'Amigo')));
+        const nk = clean(e.pres.nick) || 'Amigo';
+        players.append(h('div', { class: 'room-row' }, h('span', { html: AU.Render.beanSVG(C.COLOR[lk.color] ? lk.color : 'branco', { size: 28 }) }), h('span', {}, nk), genTag(C.GENDER[lk.gender] ? lk.gender : C.guessGender(nk))));
       }
       const left = S.room.players - 1 - host.players().length;
       if (left > 0) players.append(h('p', { class: 'fine' }, left + ' lugar' + (left > 1 ? 'es' : '') + ' com bot' + (left > 1 ? 's' : '') + '.'));
@@ -1723,7 +1739,7 @@
         const pr = p.presence || {};
         if (pr.app !== 'au') continue;
         const lk = pr.look || {};
-        players.append(h('div', { class: 'room-row' }, h('span', { html: AU.Render.beanSVG(C.COLOR[lk.color] ? lk.color : 'vermelho', { size: 28 }) }), h('span', {}, (clean(pr.nick) || 'Jogador') + (pr.role === 'host' ? ' (anfitrião)' : '') + (p.isMe ? ' (você)' : ''))));
+        players.append(h('div', { class: 'room-row' }, h('span', { html: AU.Render.beanSVG(C.COLOR[lk.color] ? lk.color : 'vermelho', { size: 28 }) }), h('span', {}, (clean(pr.nick) || 'Jogador') + (pr.role === 'host' ? ' (anfitrião)' : '') + (p.isMe ? ' (você)' : '')), genTag(C.GENDER[lk.gender] ? lk.gender : C.guessGender(clean(pr.nick)))));
       }
     };
     cl.onStart = (d) => AU.App.startOnlineClient(cl, d);

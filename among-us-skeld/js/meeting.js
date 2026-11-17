@@ -363,6 +363,15 @@
       }
       this.msgs.push(msg);
       this.lastMsgT = this.t;
+      /* quem foi citado por último: "vota nela" numa mensagem seguinte acha a pessoa certa pelo gênero */
+      const refs = (this.recentRefs = this.recentRefs || []);
+      for (const it of msg.intents) {
+        if (it.who == null || it.who === p.id) continue;
+        const k = refs.indexOf(it.who);
+        if (k >= 0) refs.splice(k, 1);
+        refs.unshift(it.who);
+      }
+      if (refs.length > 8) refs.length = 8;
       if (p.isHuman) {
         this.humanSpoke = true;
         this.nextSlot = Math.max(this.nextSlot || 0, this.t + 1.2 * this.pace);
@@ -743,7 +752,7 @@
       h('span', { class: 'mt-card-text' },
         /* "você" vai na linha de baixo: no celular o nome inteiro cabe no cartão */
         h('span', { class: 'mt-card-name' }, p.name),
-        h('span', { class: 'mt-card-col' }, C.COLOR[p.color].name + (p.isHuman ? ' · você' : '') + (dead ? (p.ejected ? ' · ejetado' : ' · morto') : ''))),
+        h('span', { class: 'mt-card-col' }, C.COLOR[p.color].name + ' · ' + (C.GENDER[p.gender] || C.GENDER.n).pron + (p.isHuman ? ' · você' : '') + (dead ? (p.ejected ? ' · ' + C.agree(p, 'ejetado', 'ejetada', 'fora') : ' · ' + C.agree(p, 'morto', 'morta', 'fora')) : ''))),
       mt.info.caller === p.id ? h('span', { class: 'mt-mega', title: 'Chamou a reunião' }, '📣') : null,
       badge, conf, voters);
       this.cards.appendChild(card);
@@ -970,7 +979,7 @@
         if (conf) {
           line1 = `${p.name} ${p.isImp ? 'era' : 'não era'} ${g.S.room.impostors > 1 ? 'um Impostor' : 'o Impostor'}.`;
           line2 = `${remaining} Impostor${remaining === 1 ? '' : 'es'} restante${remaining === 1 ? '' : 's'}.`;
-        } else line1 = `${p.name} foi ejetado.`;
+        } else line1 = p.gender === 'n' ? `${p.name} saiu na votação.` : `${p.name} foi ${C.agree(p, 'ejetado', 'ejetada')}.`;
       }
       this.eject.innerHTML = '';
       this.eject.appendChild(h('div', { class: 'mt-eject-space' }));
@@ -1057,7 +1066,7 @@
     const title = info.kind === 'report' ? `Reunião ${info.index}: ${g.players[info.caller].name} reportou o corpo de ${g.players[info.body.pid].name}` : `Reunião ${info.index}: emergência chamada por ${g.players[info.caller].name}`;
     const r = mt.result;
     let res = '';
-    if (r) res = r.ejected != null ? `${g.players[r.ejected].name} foi ejetado.` : r.tie ? 'Empate: ninguém ejetado.' : 'Ninguém ejetado (pulado).';
+    if (r) res = r.ejected != null ? (g.players[r.ejected].gender === 'n' ? `${g.players[r.ejected].name} saiu na votação.` : `${g.players[r.ejected].name} foi ${C.agree(g.players[r.ejected], 'ejetado', 'ejetada')}.`) : r.tie ? 'Empate: ninguém ejetado.' : 'Ninguém ejetado (pulado).';
     const log = h('div', { class: 'hist-log' });
     mt.msgs.forEach((m) => log.appendChild(msgElement(g, m)));
     if (!mt.msgs.length) log.appendChild(h('p', { class: 'fine' }, 'Ninguém falou nesta reunião.'));

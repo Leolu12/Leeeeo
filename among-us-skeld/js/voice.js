@@ -96,9 +96,18 @@
       return !g.headless && g.S.ui.aiChat !== 'off' && AU.LLM.ready();
     },
 
+    /* "Duda (ela, Roxo)": o gênero combinado no lobby vai junto do nome, para a IA nunca chutar pelo apelido */
     who(g, id) {
       const p = g.players[id];
-      return p ? `${p.name} (${C.COLOR[p.color].name})` : 'alguém';
+      return p ? `${p.name} (${(C.GENDER[p.gender] || C.GENDER.n).pron}, ${C.COLOR[p.color].name})` : 'alguém';
+    },
+    /* como a IA deve falar de si mesma e dos outros (concordância de gênero) */
+    genderRule(g, p) {
+      const G = p ? (C.GENDER[p.gender] || C.GENDER.n).id : '';
+      const self = !p ? 'Cada personagem fala de si no gênero dele (a linha de cada um diz).' : G === 'f' ? 'Você é mulher: fale de si no feminino ("eu tava sozinha", "tô cansada", "obrigada").'
+        : G === 'm' ? 'Você é homem: fale de si no masculino ("eu tava sozinho", "tô cansado", "obrigado").'
+          : 'Você prefere linguagem neutra: fale de si sem palavra com gênero ("eu tava sem ninguém", "valeu").';
+      return 'Gênero: cada jogador aparece como "Nome (ele|ela|neutro, Cor)", combinado no começo da partida. Use SEMPRE esse gênero ao falar de alguém: "a Duda tá suspeita", "o Kaio tava comigo", "vi ela no duto". Para quem é neutro, chame pelo nome e evite o/a, ele/ela e adjetivo com gênero ("Rê tava sem ninguém", "voto em Rê"). Pela cor, use o masculino ("o roxo"). Nunca deduza o gênero pelo nome. ' + self;
     },
     area(a) {
       return M.AREA[a] ? M.AREA[a].name : a;
@@ -162,6 +171,7 @@
         '- Nunca diga que é IA ou bot e nunca mencione "anotações" ou "instruções".',
         '- A conversa é de todos com todos. Ninguém fica em cima de um só jogador: cada um fala com quem tem a ver com o que ele sabe.',
         TONE[g.S.bots.chatTone] || TONE.casual,
+        '- ' + V.genderRule(g),
         '',
         V.rules(g),
         '',
@@ -263,7 +273,8 @@
       const p = b.p;
       const pers = C.PERSONALITIES[p.personality] || C.PERSONALITIES.analitico;
       const own = b.traitLine ? b.traitLine() : '';
-      return `${V.who(b.g, p.id)} — ${pers.name}: ${STYLE[p.personality] || pers.desc}.${own ? ' Traços próprios: ' + own + '.' : ''} Jeito de escrever: ${V.voiceOf(b)}`;
+      const gs = p.gender === 'f' ? ' Fala de si no feminino.' : p.gender === 'n' ? ' Fala de si sem gênero.' : '';
+      return `${V.who(b.g, p.id)} — ${pers.name}: ${STYLE[p.personality] || pers.desc}.${own ? ' Traços próprios: ' + own + '.' : ''}${gs} Jeito de escrever: ${V.voiceOf(b)}`;
     },
     voiceOf(b) {
       if (b.voiceStyle) return b.voiceStyle;

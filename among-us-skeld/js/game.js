@@ -18,6 +18,8 @@
       this.id = id;
       this.name = o.name;
       this.color = o.color;
+      /* 'm' | 'f' | 'n': combinado no lobby; decide ele/ela e o/a no chat e nas IAs */
+      this.gender = AU.C.genderOf(o);
       this.isHuman = !!o.isHuman;
       this.hat = o.hat || 'nenhum';
       this.pet = o.pet || 'nenhum';

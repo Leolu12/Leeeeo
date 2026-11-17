@@ -77,7 +77,7 @@
 
     who(id) {
       const p = this.g.players[id];
-      return p ? `${p.name} (${C.COLOR[p.color].name})` : 'alguém';
+      return p ? `${p.name} (${(C.GENDER[p.gender] || C.GENDER.n).pron}, ${C.COLOR[p.color].name})` : 'alguém';
     }
     room(p) {
       const a = M.areaAt(p.x, p.y);
