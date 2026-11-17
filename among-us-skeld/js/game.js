@@ -344,7 +344,8 @@
       const r = 0.3;
       return M.walkAt(x - r, y - r) && M.walkAt(x + r, y - r) && M.walkAt(x - r, y + r) && M.walkAt(x + r, y + r) && M.chamferGap(x, y) >= r && M.propGap(x, y) >= r;
     }
-    moveEntity(p, vx, vy, dt) {
+    /* keepFacing: o lado para onde o boneco olha é decidido por quem chama (o corpo dos bots, ver Motor.face) */
+    moveEntity(p, vx, vy, dt, keepFacing) {
       const ghost = !p.alive;
       const nx = p.x + vx * dt, ny = p.y + vy * dt;
       let moved = false;
@@ -365,7 +366,7 @@
           }
         }
       }
-      if (Math.abs(vx) > 0.01) p.facing = vx < 0 ? -1 : 1;
+      if (!keepFacing && Math.abs(vx) > 0.01) p.facing = vx < 0 ? -1 : 1;
       p.moving = moved && (Math.abs(vx) + Math.abs(vy) > 0.01);
       if (p.moving) {
         p.walkT += dt;

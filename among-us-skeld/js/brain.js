@@ -3,6 +3,10 @@
   'use strict';
   const AU = window.AU;
   const U = AU.U, C = AU.C, M = AU.Map, Nav = AU.Nav;
+  /* planos que não esperam a pessoa se decidir (sai correndo na hora) */
+  const URGENT = new Set(['flee', 'report', 'button', 'kill', 'hunt', 'vent', 'escape', 'leave']);
+  /* planos em que o personagem fica parado de verdade (no painel, nas câmeras, escondido, mirando alguém) */
+  const STILL = new Set(['task', 'fake', 'fix', 'cams', 'admin', 'report', 'kill', 'hunt', 'vent', 'wiggle', 'visual', 'noscan', 'stalk', 'prowl', 'flee']);
 
   /* estações onde a tarefa mostra animação o tempo todo (os escudos só piscam no fim; não servem para "não escaneou") */
   const VISUAL_ST = ['scan', 'asteroids'];
@@ -164,7 +168,9 @@
       this.sabThink = U.rf(8, 16);
       this.vitalsT = U.rf(15, 30);
       this.lastVitals = 0;
-      this.speedMul = U.rf(0.93, 1.02);
+      /* o corpo: jeito próprio de mexer o personagem (teclado ou joystick, hesitação, inquietação; ver Motor) */
+      this.motor = AU.Motor.make(this);
+      this.speedMul = this.motor.speed;
       /* jeito próprio de andar: faixa no corredor e preferência de caminho (cada um vai por um lado) */
       this.lane = U.rf(-0.85, 0.85);
       this.routeSeed = U.rint(1, 99991);
@@ -220,6 +226,7 @@
       }
       /* dentro do duto ninguém anda (o corpo fica escondido no duto até sair) */
       if (!p.inVent) this.act(dt);
+      this.body(dt);
       /* acabou o plano: decide o próximo já (gente não congela meio segundo entre uma coisa e outra) */
       if (this.plan) this.hadPlan = true;
       else if (this.hadPlan) {
@@ -228,6 +235,25 @@
       }
     }
 
+    /* o corpo entre um plano e outro: olhar em volta ao entrar numa sala com gente, e os gestos de quem espera parado */
+    body(dt) {
+      const g = this.g, p = this.p, Mo = AU.Motor;
+      if (p.inVent || !this.motor) return;
+      const a = M.areaAt(p.x, p.y);
+      const aid = a ? (a.kind === 'room' ? a.id : 'hall') : null;
+      if (aid !== this.bodyArea) {
+        if (this.bodyArea && a && a.kind === 'room' && p.moving && !(this.plan && URGENT.has(this.plan.type))) Mo.enterRoom(this, this.seenNow.some((q) => q.alive));
+        this.bodyArea = aid;
+      }
+      if (p.moving && !this.micro) {
+        Mo.stopIdle(this);
+        return;
+      }
+      const pl = this.plan;
+      const idleOK = !p.busy && !p.onCams && !p.onAdmin && (!pl || ((pl.stage === 'wait' || pl.stage === 'do') && !STILL.has(pl.type)));
+      if (idleOK) Mo.idle(this, dt);
+      else if (this.micro || this.spin) Mo.stopIdle(this);
+    }
     setPlan(pl) {
       const p = this.p;
       this.engHop = null;
@@ -239,6 +265,9 @@
       this.pi = 0;
       this.dest = null;
       this.dynT = 0;
+      AU.Motor.stopIdle(this);
+      /* um instante para decidir e sair (cada um no seu ritmo); urgência sai na hora */
+      if (pl && pl.x != null) AU.Motor.hesitate(this, URGENT.has(pl.type) || (pl.type === 'fix' && this.g.sabCritical()));
       if (pl && pl.x != null) this.routeTo(pl.x, pl.y);
       if (pl && !pl.stage) pl.stage = 'go';
     }
@@ -250,6 +279,16 @@
       const plain = !p.alive || this.plainUntil > this.g.t;
       this.path = Nav.find(p.x, p.y, x, y, !p.alive, plain ? null : { seed: this.routeSeed + (U.chance(0.3) ? U.rint(1, 5000) : 0), vary: 0.9, lane }) || [];
       this.pi = 0;
+      /* chegando num painel, quem joga no teclado solta a tecla um pouco tarde: passa do ponto e volta um passinho */
+      const st = this.motor, pl = this.plan;
+      if (!plain && st && st.overshoot > 0.05 && pl && (pl.type === 'task' || pl.type === 'fake') && this.path.length && U.chance(0.7)) {
+        const last = this.path[this.path.length - 1], prev = this.path.length > 1 ? this.path[this.path.length - 2] : { x: p.x, y: p.y };
+        const dd = Math.hypot(last.x - prev.x, last.y - prev.y);
+        if (dd > 0.5) {
+          const k = (st.overshoot * U.rf(0.5, 1.25)) / dd, ox = last.x + (last.x - prev.x) * k, oy = last.y + (last.y - prev.y) * k;
+          if (this.g.canStand(ox, oy, !p.alive) && Nav.clearLine(last.x, last.y, ox, oy, !p.alive)) this.path.push({ x: ox, y: oy }, { x: last.x, y: last.y });
+        }
+      }
     }
     /* Lugar para ficar em volta de um painel: cada um num ponto um pouco diferente (não todos no mesmo pixel). */
     standNear(x, y, r) {
@@ -340,24 +379,74 @@
         }
         return false;
       }
-      const pt = this.path[this.pi];
-      const dx = pt.x - p.x, dy = pt.y - p.y, d = Math.hypot(dx, dy);
+      const Mo = AU.Motor, st = this.motor, plain = this.plainUntil > g.t;
+      /* decidindo para onde ir: fica um instante parado (cada um no seu ritmo) */
+      if (Mo.holding(this)) return false;
+      let pt = this.path[this.pi];
+      let dx = pt.x - p.x, dy = pt.y - p.y, d = Math.hypot(dx, dy);
+      const stick = st.input !== 'teclado' && !plain;
+      /* joystick: o ponto do caminho já passou do lado (ou está pertinho): segue para o próximo sem ir até ele */
+      if (stick && this.pi < this.path.length - 1 && d < 0.45) {
+        this.pi++;
+        pt = this.path[this.pi];
+        dx = pt.x - p.x;
+        dy = pt.y - p.y;
+        d = Math.hypot(dx, dy);
+      }
+      /* corta a quina como gente: perto do ponto, com o seguinte à vista, já mira nele */
+      if (!plain && !stick && this.pi < this.path.length - 1 && d < st.cut * Mo.k(this, 4)) {
+        const nx = this.path[this.pi + 1];
+        if (Nav.clearLine(p.x, p.y, nx.x, nx.y, !p.alive)) {
+          this.pi++;
+          pt = nx;
+          dx = pt.x - p.x;
+          dy = pt.y - p.y;
+          d = Math.hypot(dx, dy);
+        }
+      }
       const sp = g.speedOf(p) * this.speedMul;
       const step = sp * dt;
-      if (Math.abs(dx) > 0.02) p.facing = dx < 0 ? -1 : 1;
+      /* no teclado o boneco não acerta o ponto exato (8 direções): chegar perto já basta, menos no último */
+      const reach = st.input === 'teclado' && !plain && this.pi < this.path.length - 1 ? 0.3 : 0.05;
       /* com alguém parado em cima do ponto, chegar perto já basta (não fica rodeando) */
-      if (d <= step || d < 0.05 || (d < 0.55 && this.sepOn && this.pi < this.path.length - 1)) {
-        if (d <= step && g.canStand(pt.x, pt.y, !p.alive)) {
+      if (d <= step || d < reach || (d < 0.55 && this.sepOn && this.pi < this.path.length - 1)) {
+        if (d <= step && !stick && g.canStand(pt.x, pt.y, !p.alive)) {
           p.x = pt.x;
           p.y = pt.y;
         }
         this.pi++;
         p.moving = true;
         p.walkT += dt;
-        return this.pi >= this.path.length && U.d2(p.x, p.y, this.dest.x, this.dest.y) < 0.9;
+        const done = this.pi >= this.path.length && U.d2(p.x, p.y, this.dest.x, this.dest.y) < 0.9;
+        if (done) Mo.release(this);
+        return done;
       }
       const bx = p.x, by = p.y;
       let vx = dx / d, vy = dy / d;
+      /* joystick: mira um ponto um pouco à frente no caminho (quem joga olha adiante): a curva sai por dentro do
+         corredor, sem raspar a quina */
+      if (stick) {
+        const ahead = 0.7 + st.cut * 0.6;
+        let left = ahead, cx = p.x, cy = p.y, k = this.pi;
+        while (k < this.path.length && left > 0) {
+          const q = this.path[k], sl = Math.hypot(q.x - cx, q.y - cy);
+          if (sl >= left) {
+            cx += ((q.x - cx) * left) / sl;
+            cy += ((q.y - cy) * left) / sl;
+            left = 0;
+            break;
+          }
+          left -= sl;
+          cx = q.x;
+          cy = q.y;
+          k++;
+        }
+        const ax = cx - p.x, ay = cy - p.y, al = Math.hypot(ax, ay);
+        if (al > 0.05 && Nav.clearLine(p.x, p.y, cx, cy, !p.alive)) {
+          vx = ax / al;
+          vy = ay / al;
+        }
+      }
       if (p.alive && !(this.plan && this.plan.type === 'hunt') && !(this.plainUntil > g.t)) {
         const s = this.sepVec();
         this.sepOn = !!(s.x || s.y);
@@ -369,7 +458,20 @@
           vy /= n;
         }
       }
-      g.moveEntity(p, vx * sp, vy * sp, dt);
+      /* o controle de cada um: 8 direções no teclado, curva e balanço no joystick (preso, vai reto pelo caminho) */
+      if (!plain) {
+        const s2 = Mo.steer(this, dt, vx, vy);
+        vx = s2.x;
+        vy = s2.y;
+      }
+      g.moveEntity(p, vx * sp, vy * sp, dt, true);
+      Mo.face(this, vx);
+      /* raspou na parede (só um eixo andou): o polegar acompanha a parede, o teclado escolhe a tecla de novo */
+      const mx = p.x - bx, my = p.y - by, ml = Math.hypot(mx, my);
+      if (!plain && ml > step * 0.3 && (Math.abs(mx - vx * step) > step * 0.35 || Math.abs(my - vy * step) > step * 0.35)) {
+        if (stick) this.heading = Math.atan2(my, mx);
+        else Mo.release(this);
+      }
       if (Math.hypot(p.x - bx, p.y - by) < step * 0.3) {
         this.stuck += dt;
         if (this.stuck > 0.5) {
@@ -3273,7 +3375,7 @@
       this.shownVisual = false;
       this.camsRound = false;
       this.patrolRoute = null;
-      this.startDelay = U.rf(0.2, 1.1);
+      this.startDelay = this.motor ? this.motor.startLag * U.rf(0.6, 1.5) : U.rf(0.2, 1.1);
       this.lostCount = Math.max(0, this.lostCount - 1);
     }
   }
