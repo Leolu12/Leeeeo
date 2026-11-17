@@ -444,7 +444,7 @@
       } else if (sp === 'cientista') this.openVitals();
       else if (sp === 'anjo') {
         const near = g.players.filter((q) => q.alive && U.dist(q, hp) <= 4);
-        this.openPicker('Proteger quem?', near, (q) => g.protect(hp, q.id) && this.toast(q.name + ' está protegido por ' + g.ro('anjo', 'dur', 10) + 's.'));
+        this.openPicker('Proteger quem?', near, (q) => g.protect(hp, q.id) && this.toast(q.name + (q.gender === 'n' ? ' tem escudo por ' : ' está ' + C.agree(q, 'protegido', 'protegida') + ' por ') + g.ro('anjo', 'dur', 10) + 's.'));
       }
     },
 
@@ -502,7 +502,7 @@
         if (b.gone || this.seenBodies.has(b.id)) continue;
         if (AU.Render.visibleToHuman(g, b.x, b.y) && hp.alive) {
           this.seenBodies.add(b.id);
-          if (b.killer !== hp.id) this.narrate('Um corpo. ' + g.players[b.pid].name + ' está caído ' + (M.AREA[b.area].kind === 'room' ? 'em ' + M.AREA[b.area].name : 'no ' + M.AREA[b.area].name) + '. Reporte!', 'event');
+          if (b.killer !== hp.id) this.narrate('Um corpo. ' + (g.players[b.pid].gender === 'n' ? 'É ' + g.players[b.pid].name + ', ' : g.players[b.pid].name + ' está ' + C.agree(g.players[b.pid], 'caído', 'caída') + ' ') + (M.AREA[b.area].kind === 'room' ? 'em ' + M.AREA[b.area].name : 'no ' + M.AREA[b.area].name) + '. Reporte!', 'event');
         }
       }
       this.ambientT -= dt;
@@ -762,7 +762,7 @@
              (ou ejetado) */
           for (const q of g.players) {
             const fresh = !q.alive && !q.ejected && q.deathT != null && q.deathT >= g.roundStart;
-            list.appendChild(h('div', { class: 'vital ' + (q.alive ? 'ok' : fresh ? 'dead' : 'old'), title: q.alive ? 'vivo' : fresh ? 'morreu nesta rodada' : 'morto em rodada anterior' },
+            list.appendChild(h('div', { class: 'vital ' + (q.alive ? 'ok' : fresh ? 'dead' : 'old'), title: q.alive ? 'com vida' : fresh ? 'morreu nesta rodada' : 'morreu numa rodada anterior' },
               h('span', { html: AU.Render.beanSVG(q.color, { size: 30, visor: q.visor }) }), h('span', { class: 'nm' }, q.name),
               h('span', { class: 'st' }, q.alive ? 'OK' : 'MORTO'), h('span', { class: 'wave' })));
           }
@@ -796,7 +796,7 @@
             this.closeOverlay();
             fn(q);
           },
-        }, h('span', { html: AU.Render.beanSVG(q.color, { size: 34, visor: q.visor }) }), h('span', {}, q.name + (q.alive ? '' : ' (morto)'))));
+        }, h('span', { html: AU.Render.beanSVG(q.color, { size: 34, visor: q.visor }) }), h('span', {}, q.name + (q.alive ? '' : ' (' + C.agree(q, 'morto', 'morta', 'fora') + ')'))));
       }
       this.openOverlay(title, h('div', { class: 'ov-body' }, list), { kind: 'picker' });
     },
@@ -853,7 +853,7 @@
       const hp = this.g.human;
       /* cena do abate como no original: o impostor entra, ataca (faca ou língua) e o corpo se parte */
       const cv = h('canvas', { class: 'killed-cv', 'aria-hidden': 'true' });
-      const el = h('div', { class: 'killed', role: 'alert', 'aria-label': 'Você foi morto por ' + killer.name }, cv);
+      const el = h('div', { class: 'killed', role: 'alert', 'aria-label': (hp && hp.gender === 'n' ? killer.name + ' te matou' : 'Você foi ' + C.agree(hp, 'morto', 'morta') + ' por ' + killer.name) }, cv);
       layer.appendChild(el);
       /* enquanto a cena passa, uma reunião que comece (um bot reportou logo depois) espera ela acabar */
       this.cinemaUntil = performance.now() + 3200;

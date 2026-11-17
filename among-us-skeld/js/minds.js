@@ -302,11 +302,25 @@
     readTable() {
       const g = this.g, b = this.b, p = this.p, out = [], none = [];
       if (!b) return out;
+      /* quem te acusou nas reuniões e (impostor) quem pode ter visto você matar */
+      const acc = this.accusedBy || {};
+      const saw = {};
+      if (p.isImp) for (const e of b.mem.events) if (e.type === 'myKill') for (const id of e.seenBy || []) if (id !== e.victim) saw[id] = true;
       for (const q of g.players) {
         if (q === p || !q.alive) continue;
         let txt;
         if (p.isImp && q.isImp) txt = 'seu parceiro';
-        else {
+        else if (p.isImp) {
+          /* o impostor sabe quem é tripulante: o que importa é quem pode te entregar */
+          const bits = [];
+          if (saw[q.id]) bits.push('PODE TER VISTO você matar');
+          if (acc[q.id]) bits.push('te acusou na reunião' + (acc[q.id] > 1 ? ' (' + acc[q.id] + ' vezes)' : ''));
+          if (!bits.length) {
+            none.push(who(g, q.id));
+            continue;
+          }
+          txt = bits.join('; ');
+        } else {
           const s = b.liveSusp(q.id);
           const hard = !p.isImp && b.hardCleared(q.id);
           txt = hard ? 'INOCENTE com certeza (você viu tarefa visual)'
@@ -316,6 +330,7 @@
                   : s <= -15 ? 'confia'
                     : 'sem opinião ainda';
           const l = this.lean[q.id] || 0;
+          if (acc[q.id]) txt += '; te acusou na reunião';
           if (l && !hard) txt += ' (sua impressão: ' + (l > 0 ? 'mais desconfiado' : 'mais confiante') + ')';
           else if (txt === 'sem opinião ainda') {
             none.push(who(g, q.id));
@@ -324,7 +339,7 @@
         }
         out.push(who(g, q.id) + ': ' + txt);
       }
-      if (none.length) out.push('Sem opinião ainda: ' + none.join(', '));
+      if (none.length) out.push((p.isImp ? 'Sem ameaça conhecida: ' : 'Sem opinião ainda: ') + none.join(', '));
       return out;
     }
     /* O que é CERTO para este personagem e o que dá para deduzir disso (lógica de eliminação). */
@@ -373,8 +388,11 @@
       /* memória enxuta: da rodada atual vai tudo (as últimas n); das anteriores só o que importa (corpos, abates,
          dutos, tarefa visual, reuniões), para o que pesa não sumir debaixo de "entrou na sala X" */
       const KEY = /REUNI|CORPO|MATA|MATOU|duto|DUTO|TRANSFORM|INVIS|visual|sinais vitais|rastre|alarme|DOIS|cara|seguindo|atrás de você|não subiu|sem a animação/;
-      const cur = this.diary.filter((d) => d.round === g.meetings).slice(-n);
-      const old = this.diary.filter((d) => d.round !== g.meetings && KEY.test(d.text)).slice(-Math.max(6, Math.round(n / 2)));
+      /* "rodada atual" pelo relógio: g.roundStart só muda quando a reunião termina, então na reunião a rodada que acabou
+         de terminar (por onde andou, quem viu) entra inteira — é dela que saem os álibis */
+      const rs = g.roundStart - 0.01;
+      const cur = this.diary.filter((d) => d.t >= rs).slice(-n);
+      const old = this.diary.filter((d) => d.t < rs && KEY.test(d.text)).slice(-Math.max(6, Math.round(n / 2)));
       for (const d of old.concat(cur)) {
         if (d.round !== round) {
           round = d.round;
@@ -447,6 +465,8 @@
         const vents = M.VENTS.filter((v) => U.d2(v.x, v.y, p.x, p.y) < 7);
         if (vents.length) out.push('Duto aqui perto (' + area(vents[0].area) + '), liga com: ' + vents[0].links.map((id) => area(M.VENT[id].area)).join(', ') + '.');
       }
+      /* a barra que todo mundo vê na tela (quando a regra mostra): diz quanto falta e se alguém está fingindo */
+      if (g.S.rules.taskBar === 'sempre' && !g.commsDown()) out.push('Barra de tarefas da tripulação: ' + Math.round(g.taskProgress().ratio * 100) + '%.');
       if (p.special === 'cientista') out.push('Bateria dos sinais vitais: ' + Math.round(p.battery || 0) + 's.');
       if (p.special === 'metamorfo') out.push(p.shiftAs != null ? 'Você está disfarçado de ' + who(g, p.shiftAs) + '.' : 'Transformação: ' + (p.abilityCd > 0 ? 'em recarga (' + Math.ceil(p.abilityCd) + 's)' : 'pronta') + '.');
       if (p.special === 'fantasma') out.push(p.invisUntil > g.t ? 'Você está invisível.' : 'Sumir: ' + (p.abilityCd > 0 ? 'em recarga (' + Math.ceil(p.abilityCd) + 's)' : 'pronto') + '.');
@@ -466,7 +486,7 @@
       const lines = [];
       lines.push(...this.now());
       lines.push('', 'Última vez que você viu cada um:', ...this.sightings().map((l) => '- ' + l));
-      lines.push('', 'Sua leitura de cada um (do que você viveu):', ...this.readTable().map((l) => '- ' + l));
+      lines.push('', p.isImp ? 'Quem pode te entregar (do que você viveu):' : 'Sua leitura de cada um (do que você viveu):', ...this.readTable().map((l) => '- ' + l));
       const cert = this.certainties();
       if (cert.length) lines.push('', 'O que é certo para você:', ...cert.map((l) => '- ' + l));
       lines.push('', 'Sua memória desta partida (o que você viveu):', ...this.memoryLines(26));
@@ -572,13 +592,14 @@
       const dead = g.players.filter((q) => !q.alive).map((q) => who(g, q.id) + (q.ejected ? ' (ejetado)' : ''));
       lines.push('Vivos: ' + alive.join(', ') + '.');
       if (dead.length) lines.push('Fora do jogo: ' + dead.join(', ') + '.');
+      if (g.S.rules.taskBar !== 'nunca' && !g.commsDown()) lines.push('Barra de tarefas da tripulação: ' + Math.round(g.taskProgress().ratio * 100) + '%.');
       if (mt.phase === 'voting') {
         const left = Math.max(0, Math.round(mt.votingEnd - mt.t));
         const voted = mt.alive.filter((id) => mt.votes[id] !== undefined).map((id) => g.players[id].name);
         lines.push('VOTAÇÃO aberta (faltam ' + left + 's). Já votaram: ' + (voted.length ? voted.join(', ') : 'ninguém') + '. Você ' + (mt.votes[p.id] !== undefined ? 'já votou.' : 'ainda NÃO votou: decida o seu voto agora.'));
       } else lines.push('Discussão (a votação abre em ' + Math.max(0, Math.round(mt.votingStart - mt.t)) + 's).');
       lines.push('', 'Última vez que você viu cada um nesta rodada:', ...this.sightings().map((l) => '- ' + l));
-      lines.push('', 'Sua leitura de cada um (do que você viveu, antes desta conversa):', ...this.readTable().map((l) => '- ' + l));
+      lines.push('', p.isImp ? 'Quem pode te entregar (antes desta conversa):' : 'Sua leitura de cada um (do que você viveu, antes desta conversa):', ...this.readTable().map((l) => '- ' + l));
       const cert = this.certainties();
       if (cert.length) lines.push('', 'O que é certo para você:', ...cert.map((l) => '- ' + l));
       lines.push('', 'Sua memória (o que você viveu):', ...this.memoryLines(24));
@@ -776,6 +797,9 @@
         if (!m.p.alive) continue;
         m.log(txt, g.t);
         m.callWhy = null;
+        /* quem acusou este personagem (em qualquer reunião): entra na leitura de cada um */
+        m.accusedBy = m.accusedBy || {};
+        for (const x of mt.msgs) if (!x.ghost && x.from !== m.p.id && (x.intents || []).some((it) => it.type === 'accuse' && it.who === m.p.id)) m.accusedBy[x.from] = (m.accusedBy[x.from] || 0) + 1;
       }
       /* o que foi dito (todo mundo ouviu): as últimas falas ficam para a rodada seguinte e a próxima reunião */
       this.pastChat = mt.msgs.filter((x) => !x.ghost).slice(-16).map((x) => ({ from: x.from, text: tidy(x.text, 110), index: mt.info.index || g.meetings }));

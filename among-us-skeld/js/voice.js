@@ -274,7 +274,7 @@
       const pers = C.PERSONALITIES[p.personality] || C.PERSONALITIES.analitico;
       const own = b.traitLine ? b.traitLine() : '';
       const gs = p.gender === 'f' ? ' Fala de si no feminino.' : p.gender === 'n' ? ' Fala de si sem gênero.' : '';
-      return `${V.who(b.g, p.id)} — ${pers.name}: ${STYLE[p.personality] || pers.desc}.${own ? ' Traços próprios: ' + own + '.' : ''}${gs} Jeito de escrever: ${V.voiceOf(b)}`;
+      return `${V.who(b.g, p.id)} — ${pers.name}: ${STYLE[p.personality] || pers.desc}.${own ? ' Traços próprios (em comparação com o normal do seu tipo): ' + own + '.' : ''}${gs} Jeito de escrever: ${V.voiceOf(b)}`;
     },
     voiceOf(b) {
       if (b.voiceStyle) return b.voiceStyle;

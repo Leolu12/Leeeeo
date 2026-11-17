@@ -9,34 +9,34 @@
   /* {k} {v} {x}: nome ("Carol") ou cor com artigo ("o rosa"); {kn} {vn} {xn}: só o nome (depois de preposição
      ou chamando a pessoa); {a}: sala com preposição ("na Elétrica", "no Motor Superior"). */
   const LINES = {
-    greet: ['rip {vn}', 'bem-vindo ao clube, {vn}', 'mais um aqui kkk', 'ih, pegaram {v}', 'quem te pegou, {vn}?', 'f {vn}', '{vn} chegou', 'nãao, {v} também'],
-    greetHuman: ['bem-vindo, {vn}', 'rip {vn}', 'quem te matou, {vn}?', 'pegaram você também, {vn}?', 'f {vn}', 'e aí {vn}, quem foi?'],
+    greet: ['rip {vn}', 'bem-vind{o:v} ao clube, {vn}', 'mais um aqui kkk', 'ih, pegaram {v}', 'quem te pegou, {vn}?', 'f {vn}', '{vn} chegou', 'nãao, {v} também'],
+    greetHuman: ['bem-vind{o:v}, {vn}', 'rip {vn}', 'quem te matou, {vn}?', 'pegaram você também, {vn}?', 'f {vn}', 'e aí {vn}, quem foi?'],
     selfKiller: ['foi {k}', '{k} me matou {a}', '{k} é impostor, me pegou {a}', 'morri, foi {k} kkk', 'tava sozinh{o} {a} e {k} veio', '{k}... nem vi chegar'],
     selfUnknown: ['nem vi quem foi', 'morri do nada', 'nem sei quem me pegou'],
     sawKill: ['{k} acabou de matar {v}!!', 'vish, {k} pegou {v} {a}', 'eu vi, foi {k} que pegou {v}', 'caramba, {k} matou {v} {a}'],
     sawKillAgain: ['{k} de novo...', 'de novo {kn}, que isso', '{k} pegou mais um'],
     ejImp: ['gg, era eu mesmo', 'fui pego kkk', 'é, era eu', 'me pegaram, bem jogado', 'ok ok, era eu'],
-    ejCrew: ['eu era inocente!!', 'votaram errado, que raiva', 'não era eu gente', 'sério que me ejetaram?', 'tô bravo, eu fazendo task'],
+    ejCrew: ['eu era inocente!!', 'votaram errado, que raiva', 'não era eu gente', 'sério que me ejetaram?', 'tô brav{o}, eu fazendo task'],
     reactEjImp: ['boa, acertaram', 'finalmente', 'aee', 'mandaram bem'],
-    reactEjCrew: ['votaram errado...', 'coitado', 'sabia que ia dar ruim', 'não acredito'],
+    reactEjCrew: ['votaram errado...', 'coitad{o:v}', 'sabia que ia dar ruim', 'não acredito'],
     tellHuman: ['foi {k} que me pegou', 'quem me pegou foi {k}, {a}', '{k} me matou, tomara que votem {nk}'],
     whoKnown: ['foi {k}', '{k}, certeza', '{k} me pegou {a}', '{k}, {a}'],
     whoAgain: ['já falei, foi {k}', '{k}, já disse', '{k}, eu falei ali em cima', 'foi {k} mesmo'],
     whoSaw: ['vi {k} matando {v}', '{k}, vi pegar {v}'],
     whoUnknown: ['não vi', 'sei não', 'não faço ideia', 'nem imagino'],
-    whoUnknownEj: ['fui ejetado, não sei de nada', 'sei não, me votaram antes'],
+    whoUnknownEj: ['fui ejetad{o}, não sei de nada', 'sei não, me votaram antes'],
     hello: ['oi', 'eai', 'salve', 'opa', 'fala'],
     agree: ['verdade', 'pois é', 'é isso', 'kkk', 'total', 'também acho', 'faz sentido'],
     nameReact: ['sabia', 'vish, {x}?', '{x}? não esperava', 'faz sentido, tava estranho', 'hmm, {x}'],
     idleKnown: ['{k} tá solto ainda', 'tomara que votem em {kn}', 'ninguém desconfia de {kn}...', 'se alguém pegasse {kn}...'],
     idle: ['vamo tripulação', 'tomara que terminem as tasks', 'que partida', 'tô torcendo aqui', 'esse jogo tá tenso', 'bora fazer as tasks de fantasma'],
     impIdle: ['vai parceiro', 'ainda dá pra ganhar', 'kkk tão perdidos', 'tá indo bem'],
-    greetHumanEj: ['ih, te ejetaram, {vn}?', 'bem-vindo, {vn}. te tiraram na votação né', 'votaram em você, {vn}? que isso', 'f {vn}, ejetado', 'chegou mais um ejetado'],
+    greetHumanEj: ['ih, te ejetaram, {vn}?', 'bem-vindo, {vn}. te tiraram na votação né', 'votaram em você, {vn}? que isso', 'f {vn}, ejetad{o:v}', 'mais um tirado na votação'],
     greetHumanEjCrew: ['votaram errado em você, {vn}... era inocente', 'te ejetaram e você era inocente, que raiva', 'f {vn}, votaram no inocente de novo'],
     greetHumanEjImp: ['kkk era você, {vn}', 'te pegaram, impostor', 'eu sabia que era você, {vn}'],
     greetHumanEjMate: ['f parceiro', 'nos pegaram kkk', 'fomos descobertos, {vn}'],
     greetHumanKilledMe: ['foi você que me matou, {vn}!', 'olha quem chegou, quem me matou kkk'],
-    youWereEjected: ['você foi ejetado, ninguém te matou kkk', 'te votaram, lembra? ninguém te matou', 'você saiu na votação'],
+    youWereEjected: ['você foi ejetad{o:h}, ninguém te matou kkk', 'te votaram, lembra? ninguém te matou', 'você saiu na votação'],
     youKilledBy: ['{k} te matou, eu vi', 'foi {k}, vi daqui', '{k} te pegou {a}'],
     youUnknown: ['não vi quem te pegou', 'não vi, você não viu quem foi?', 'sei não, não tava perto'],
     ejectedAgree: ['votaram errado mesmo', 'é, te tiraram injustamente', 'foi mal da galera'],
@@ -46,15 +46,15 @@
     impsLeft: ['falta {n} impostor', 'ainda tem {n} impostor vivo'],
     impsLeftPl: ['faltam {n} impostores', 'ainda tem {n} impostores vivos'],
     knowImp: ['{x} é impostor, eu vi', '{x} matou, eu vi daqui', 'é {x} sim, vi matando'],
-    knowSafe: ['{x} é inocente, vi fazer a visual quando eu tava vivo', '{x} é safe, vi a visual', 'não é {xn}, vi fazer tarefa visual'],
-    knowSus: ['eu desconfiava {xde} mesmo', '{x} tava estranho quando eu tava vivo', 'hmm, eu já tava de olho {xem}'],
+    knowSafe: ['{x} é inocente, vi fazer a visual quando eu tava viv{o}', '{x} é safe, vi a visual', 'não é {xn}, vi fazer tarefa visual'],
+    knowSus: ['eu desconfiava {xde} mesmo', '{x} tava estranh{o:x} quando eu tava viv{o}', 'hmm, eu já tava de olho {xem}'],
     knowNothing: ['{x}? sei não', 'não sei nada {xde}', '{x}? não vi nada'],
     iWasCrew: ['não, eu era tripulante', 'eu era inocente', 'não era eu não'],
     iWasImp: ['era eu sim kkk', 'é, era eu', 'fui eu kkk'],
     selfFaced: ['quem me matou tava com a minha cara, foi o metamorfo', 'era alguém igual a mim... metamorfo', 'me matei? kkk não, foi o metamorfo com a minha cara'],
     wrongVote: ['não!! foi {k}', 'tão votando errado, foi {k}', 'não é esse, foi {k} que me matou', 'aaa vota em {kn}'],
     rightVote: ['isso, vota em {kn}', 'isso!! é {k}', 'vai, tira {kn}'],
-    notEjected: ['ejetado? você foi morto, não ejetado', 'não, te mataram... ninguém votou em você', 'você morreu, não foi votação'],
+    notEjected: ['ejetad{o:h}? você foi mort{o:h}, não ejetad{o:h}', 'não, te mataram... ninguém votou em você', 'você morreu, não foi votação'],
     mate: ['{x} é meu parceiro kkk', 'é {x}, o outro impostor', 'shh, {x} é dos meus kkk'],
     killerGone: ['foi {k}, mas já ejetaram', '{k} me matou, e já saiu na votação'],
     protect: ['protegi {x}', 'escudo em {xn}', 'tô cuidando de {xn}', 'coloquei escudo em {xn}'],
@@ -79,7 +79,7 @@
     whereWatch: ['tô {a} assistindo {xn}', '{a}, atrás de {xn}', 'tô {a} de olho em {xn}'],
     doingWatch: ['assistindo {xn}', 'seguindo {xn} pra ver no que dá', 'vendo o que {xn} faz'],
     amDead: ['sim, morri', 'morri sim kkk', 'tô mort{o}, igual você'],
-    amDeadEj: ['sim, me ejetaram', 'fui ejetado'],
+    amDeadEj: ['sim, me ejetaram', 'fui ejetad{o}'],
     shieldHit: ['o escudo salvou {x}!!', 'kkk o escudo funcionou em {xn}', 'salvei {x}'],
   };
 
@@ -346,8 +346,6 @@
         return q.gender === 'f' ? 'nela' : 'em ' + q.name;
       };
       return s
-        /* {o}: concorda com quem fala ("tava sozinh{o}" → sozinho/sozinha) */
-        .replace(/\{o\}/g, () => (sp && sp.gender === 'f' ? 'a' : 'o'))
         .replace(/\{nk\}/g, () => em('k'))
         .replace(/\{kn\}/g, () => this.name(ctx.k))
         .replace(/\{vn\}/g, () => this.name(ctx.v))
@@ -358,14 +356,30 @@
         .replace(/\{a\}/g, () => this.room(ctx.a))
         .replace(/\{n\}/g, () => String(ctx.n))
         .replace(/\{xde\}/g, () => (ctx.x != null && this.g.players[ctx.x] ? (U.chance(0.5) ? 'de ' + this.name(ctx.x) : 'do ' + C.COLOR[this.g.players[ctx.x].color].name.toLowerCase()) : 'dele'))
-        .replace(/\{xem\}/g, () => (ctx.x != null && this.g.players[ctx.x] ? (U.chance(0.5) ? 'em ' + this.name(ctx.x) : 'no ' + C.COLOR[this.g.players[ctx.x].color].name.toLowerCase()) : 'nele'));
+        .replace(/\{xem\}/g, () => (ctx.x != null && this.g.players[ctx.x] ? (U.chance(0.5) ? 'em ' + this.name(ctx.x) : 'no ' + C.COLOR[this.g.players[ctx.x].color].name.toLowerCase()) : 'nele'))
+        /* por último, quando já se sabe se cada um foi chamado pelo nome ou pela cor: {o} concorda com quem fala
+           ("tava sozinh{o}"); {o:v}, {o:k}, {o:x} com essa pessoa (pela cor, "o rosa", é o masculino); {o:h} com o jogador */
+        .replace(/\{o\}/g, () => (sp && sp.gender === 'f' ? 'a' : 'o'))
+        .replace(/\{o:([vkxh])\}/g, (m, key) => {
+          const q = key === 'h' ? this.g.human : this.g.players[ctx[key]];
+          if (!q || q.gender !== 'f') return 'o';
+          const said = key === 'h' ? null : r[key];
+          return said && said !== q.name ? 'o' : 'a';
+        });
     }
     choose(list, ctx) {
-      /* quem prefere neutro não usa frase com {o} (se houver outra) */
-      if (this._sp && this._sp.gender === 'n') {
-        const neutral = list.filter((s) => !s.includes('{o}'));
-        if (neutral.length) list = neutral;
-      }
+      /* quem prefere neutro (quem fala ou de quem se fala) não ganha frase com o/a, se houver outra */
+      const g = this.g;
+      const neutralOf = (s) => {
+        if (this._sp && this._sp.gender === 'n' && s.includes('{o}')) return false;
+        for (const m of s.matchAll(/\{o:([vkxh])\}/g)) {
+          const q = m[1] === 'h' ? g.human : g.players[ctx[m[1]]];
+          if (q && q.gender === 'n') return false;
+        }
+        return true;
+      };
+      const neutral = list.filter(neutralOf);
+      if (neutral.length) list = neutral;
       const fresh = list.map((s) => this.fill(s, ctx)).filter((s) => !this.used.has(s));
       const s = fresh.length ? U.pick(fresh) : this.fill(U.pick(list), ctx);
       this.used.add(s);
@@ -419,8 +433,8 @@
             return this.choose(LINES.youUnknown, {});
           }
           /* "me tiraram", "fui ejetado" (e quem foi morto e acha que foi votação) */
-          if (!hk.ejected && /\b(me (tiraram|votaram|expulsaram|ejetaram)|fui (ejetado|expulso|votado))\b/.test(n)) return this.choose(LINES.notEjected, {});
-          if (hk.ejected && /\b(me (tiraram|votaram|expulsaram|ejetaram)|fui (ejetado|expulso|votado))\b/.test(n)) {
+          if (!hk.ejected && /\b(me (tiraram|votaram|expulsaram|ejetaram)|fui (ejetad[oa]|expuls[oa]|votad[oa]))\b/.test(n)) return this.choose(LINES.notEjected, {});
+          if (hk.ejected && /\b(me (tiraram|votaram|expulsaram|ejetaram)|fui (ejetad[oa]|expuls[oa]|votad[oa]))\b/.test(n)) {
             if (g.S.rules.confirmEjects) return this.choose(hp.isImp ? LINES.ejectedImp : LINES.ejectedAgree, {});
             return this.choose(LINES.ejectedPlain, {});
           }
@@ -543,7 +557,7 @@
           return AU.Voice.who(g, hp.id) + ' escreveu: "' + c.text + '". ' + p.name + ' responde a isso.';
         case 'comeOk': return this.name(c.x) + ' (fantasma) fez sinal de "vem comigo" e ' + p.name + ' vai junto. Responde curto.';
         case 'greet': return this.name(c.v) + ' acabou de morrer e chegou no chat dos fantasmas. ' + p.name + ' recebe.';
-        case 'greetHuman': return this.name(c.v) + ' (o jogador) acabou de ser morto e chegou aqui. ' + p.name + ' recebe e talvez pergunte quem matou.';
+        case 'greetHuman': return this.name(c.v) + ' (o jogador) acabou de morrer e chegou aqui. ' + p.name + ' recebe e talvez pergunte quem matou.';
         case 'greetHumanKilledMe': return this.name(c.v) + ' (o jogador, que era impostor e matou ' + p.name + ') acabou de chegar aqui. ' + p.name + ' comenta isso.';
         case 'greetHumanEj': case 'greetHumanEjCrew': case 'greetHumanEjImp': case 'greetHumanEjMate':
           return this.name(c.v) + ' (o jogador) foi EJETADO na votação (ninguém o matou)' + (g.S.rules.confirmEjects ? ' e ' + (hp.isImp ? 'era impostor' : 'era inocente') : '') + '. ' + p.name + ' recebe comentando a votação — não pergunte quem matou.';
@@ -554,7 +568,7 @@
         case 'selfUnknown': return p.name + ' acabou de morrer sem ver quem foi.';
         case 'sawKill': return p.name + ' (fantasma) acabou de ver ' + this.name(c.k) + ' matar ' + this.name(c.v) + ' ' + this.room(c.a) + '.';
         case 'ejImp': case 'ejCrew': return p.name + ' acabou de ser ejetado e comenta.';
-        case 'reactEjImp': case 'reactEjCrew': case 'agree': return this.name(c.v) + ' foi ejetado; ' + p.name + ' comenta.';
+        case 'reactEjImp': case 'reactEjCrew': case 'agree': return this.name(c.v) + ' saiu na votação; ' + p.name + ' comenta.';
         case 'tellHuman': return p.name + ' conta ao jogador recém-chegado o que sabe.';
         case 'protect': return p.name + ' (anjo) acabou de pôr escudo em ' + this.name(c.x) + '.';
         case 'shieldHit': return 'O escudo que ' + p.name + ' pôs em ' + this.name(c.x) + ' acabou de bloquear um abate!';
@@ -570,7 +584,7 @@
       this.aiBusy = true;
       this.aiCalls++;
       const tp = g.taskProgress();
-      const dead = g.players.filter((q) => !q.alive).map((q) => q.name + (q.ejected ? ' (ejetado' + (g.S.rules.confirmEjects ? (q.isImp ? ', era impostor' : ', era inocente') : '') + ')' : ''));
+      const dead = g.players.filter((q) => !q.alive).map((q) => q.name + (q.ejected ? ' (' + C.agree(q, 'ejetado', 'ejetada', 'saiu na votação') + (g.S.rules.confirmEjects ? (q.isImp ? ', era impostor' : ', era inocente') : '') + ')' : ''));
       const prompt = [
         'Partida estilo Among Us na nave The Skeld. Este é o CHAT DOS FANTASMAS: só os mortos leem; os vivos não veem nada daqui e os fantasmas não podem votar nem avisar os vivos.',
         'Fase: ' + (g.phase === 'meeting' ? 'reunião em andamento (os vivos estão discutindo)' : 'rodada em andamento') + '. Barra de tarefas: ' + (tp.total ? Math.round((tp.done / tp.total) * 100) : 0) + '%.',

@@ -8,13 +8,13 @@
   const GREET = ['oi', 'eai', 'salve galera', 'opa', 'olá pessoal', 'fala', 'oi oi', 'boa noite, gente'];
   const BANTER = [
     'alguém faz as tasks comigo?', 'se eu for imp já peço desculpa', 'não matem no café pfv', 'sem self report hein',
-    'eu sempre sou o primeiro a morrer', 'ninguém vai pra elétrica sozinho', 'boa sorte a todos', 'bora bora',
+    'eu sempre morro primeiro', 'ninguém vai pra elétrica sozinho', 'boa sorte a todos', 'bora bora',
     'vou direto fazer minhas tasks', 'quem morrer primeiro fica de fantasma kkk', 'hoje eu pego o impostor',
     'se chamar reunião sem motivo eu voto em quem chamou kkk', 'confia em mim', 'vou ficar de olho em todo mundo',
   ];
   const REPLY = {
-    hello: ['oi, {h}', 'eai {h}', 'salve', 'opa, bem-vindo', 'oi oi'],
-    go: ['bora', 'vamo', 'só esperando começar kkk', 'bora que eu tô pronto'],
+    hello: ['oi, {h}', 'eai {h}', 'salve', 'opa, bem-vind{o:h}', 'oi oi'],
+    go: ['bora', 'vamo', 'só esperando começar kkk', 'bora que eu tô pront{o}'],
     imp: ['saberemos kkk', 'não sou eu, confia', 'eu nem sei ainda kkk', 'o impostor é sempre quem pergunta', 'vai descobrir na hora'],
     named: ['oi?', 'fala, {h}', 'eu?', 'que foi, {h}?', 'tô aqui'],
     tip: ['faz o scan na frente de alguém que ajuda', 'anda em dupla que é mais seguro', 'olha as câmeras quando terminar as tasks'],
@@ -58,8 +58,14 @@
       }
       return out;
     }
+    /* {h}: nome do jogador; {o}: concorda com quem fala; {o:h}: com o jogador (neutro: só frase sem o/a, se houver) */
     pick(list, vars) {
-      const fill = (s) => s.replace(/\{h\}/g, (vars && vars.h) || '');
+      vars = vars || {};
+      const gOf = (r) => (r ? C.GENDER[r.gender] ? r.gender : C.genderOf(r) : 'm');
+      const sg = gOf(vars.sp), hg = gOf(vars.hp);
+      const ok = list.filter((s) => !(sg === 'n' && s.includes('{o}')) && !(hg === 'n' && s.includes('{o:h}')));
+      if (ok.length) list = ok;
+      const fill = (s) => s.replace(/\{h\}/g, vars.h || '').replace(/\{o\}/g, sg === 'f' ? 'a' : 'o').replace(/\{o:h\}/g, hg === 'f' ? 'a' : 'o');
       const fresh = list.filter((s) => !this.used.has(fill(s)));
       const s = fill(U.pick(fresh.length ? fresh : list));
       this.used.add(s);
@@ -82,7 +88,7 @@
       this.started = true;
       const bots = U.shuffle(this.bots());
       const plan = [];
-      bots.slice(0, 3).forEach((b, i) => plan.push({ at: 0.8 + i * U.rf(0.9, 1.6), who: b, text: () => this.pick(GREET) }));
+      bots.slice(0, 3).forEach((b, i) => plan.push({ at: 0.8 + i * U.rf(0.9, 1.6), who: b, text: () => this.pick(GREET, { sp: b }) }));
       const sl = U.shuffle(this.settingsLines()).slice(0, 2);
       sl.forEach((t, i) => plan.push({ at: 4.5 + i * U.rf(2, 3.5), who: U.pick(bots), text: () => t }));
       plan.sort((a, b) => a.at - b.at);
@@ -103,7 +109,7 @@
         this.idle++;
         if (this.idle < 14) {
           const b = U.pick(this.bots());
-          this.queue.push({ at: now + U.rf(4, 7) * (1 + this.idle * 0.25), who: b, text: () => this.pick(BANTER) });
+          this.queue.push({ at: now + U.rf(4, 7) * (1 + this.idle * 0.25), who: b, text: () => this.pick(BANTER, { sp: b }) });
         }
       }
       /* sem nada na fila e a conversa já rareou: para o relógio até alguém falar */
@@ -150,7 +156,7 @@
       who.forEach((b, i) => {
         const list = kinds[i % kinds.length];
         const b0 = b;
-        this.queue.push({ at: now + U.rf(1.2, 2.6) + i * U.rf(1.2, 2.2), who: b0, text: () => this.pick(list, { h: h.name }) });
+        this.queue.push({ at: now + U.rf(1.2, 2.6) + i * U.rf(1.2, 2.2), who: b0, text: () => this.pick(list, { h: h.name, hp: h, sp: b0 }) });
       });
       this.queue.sort((a, b) => a.at - b.at);
     }

@@ -777,7 +777,7 @@
         this.tabs.classList.add('flash');
         this.setTab('players');
       }
-      this.status.textContent = !hp || !hp.alive ? 'Você está morto: só pode assistir e falar no chat dos fantasmas.' : mt.phase === 'discussion' ? 'Discussão: a votação ainda não abriu. Toque num jogador para citá-lo no chat.' : mt.phase === 'voting' ? (canVote ? 'Clique num jogador para votar, ou pule.' : 'Voto registrado.') : '';
+      this.status.textContent = !hp || !hp.alive ? (hp && hp.gender === 'n' ? 'Você morreu' : 'Você está ' + C.agree(hp, 'morto', 'morta')) + ': só pode assistir e falar no chat dos fantasmas.' : mt.phase === 'discussion' ? 'Discussão: a votação ainda não abriu. Toque num jogador para citá-lo no chat.' : mt.phase === 'voting' ? (canVote ? 'Clique num jogador para votar, ou pule.' : 'Voto registrado.') : '';
     }
     onPause() {
       const p = this.mt.paused;

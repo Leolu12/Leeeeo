@@ -746,8 +746,8 @@
       const area = (a) => (M.AREA[a] ? M.AREA[a].name : a);
       const fate = (p) => {
         if (p.alive) return 'Sobreviveu';
-        if (p.ejected) return 'Ejetado aos ' + U.fmtTime(p.deathT);
-        return (p.killerId == null ? 'Morreu' : 'Morto por ' + name(p.killerId)) + ' aos ' + U.fmtTime(p.deathT);
+        if (p.ejected) return C.agree(p, 'Ejetado', 'Ejetada', 'Saiu na votação') + ' aos ' + U.fmtTime(p.deathT);
+        return (p.killerId == null ? 'Morreu' : p.gender === 'n' ? 'Morreu para ' + name(p.killerId) : C.agree(p, 'Morto', 'Morta') + ' por ' + name(p.killerId)) + ' aos ' + U.fmtTime(p.deathT);
       };
       const rows = g.players.map((p) => {
         const done = p.tasks.filter((t) => t.done).length;
@@ -777,7 +777,7 @@
           case 'vote': {
             if (e.ejected != null) {
               const p = g.players[e.ejected];
-              txt = `Reunião ${e.index}: ${p.name} foi ejetado (${p.isImp ? 'impostor' : 'tripulante'}).`;
+              txt = `Reunião ${e.index}: ${p.name} ${p.gender === 'n' ? 'saiu na votação' : 'foi ' + C.agree(p, 'ejetado', 'ejetada')} (${p.isImp ? 'impostor' : 'tripulante'}).`;
             } else txt = `Reunião ${e.index}: ninguém foi ejetado${e.tie ? ' (empate)' : ''}.`;
             const who = Object.keys(e.votes || {}).map((v) => `${name(+v)}→${e.votes[v] === 'skip' ? 'pulou' : name(e.votes[v])}`);
             if (who.length) txt += ' Votos: ' + who.join(', ') + '.';
