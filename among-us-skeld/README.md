@@ -296,6 +296,12 @@ tools/build.py    gera a versão de arquivo único em dist/
 
 ## Testes
 
+- **Versão 41** (revisão de tudo: andar, abates, mente e textos):
+  - Andar, quadro a quadro em 80 minutos de bots: nenhum andando no lugar nem empilhado; teleporte só no abate (o impostor encosta na vítima, como no original). No 3D, o corpo seguia cada mudança mínima de direção (vai-e-vem entre duas teclas, balanço do polegar): 14 viradas bruscas por minuto em cada bot; seguindo a média do andar, ~1,3, com atraso médio de 10° no giro. Bot travado a menos de 0,6 do painel (até 12 s parado) agora para ali; caminho de 2 pontos suavizado (meia-volta até o centro da célula); perna piscando 0,58 → 0,34 por minuto.
+  - Abates: 545 auditados em 100 partidas, nenhum fora da regra (recarga, alcance, linha de visão, vítima tripulante viva, fora do duto); o abate agora também exige linha de visão (pelo online, a ordem atrasada podia atravessar parede). Vitórias da tripulação por nível (100 partidas cada): Iniciante 46%, Competente 42%, Implacável 32%.
+  - Regras em 60 partidas variadas: 167 reuniões com a contagem certa, nenhum voto de morto, 51 sabotagens críticas todas resolvidas, ninguém preso no duto, nenhum corpo sobrando, vencedor sempre de acordo com o estado.
+  - Mente própria: na reunião, a memória da rodada que acabou ficava vazia (erro da versão 40); corrigido e conferido no pedido de verdade.
+
 - **Versão 40** (gênero, mente própria e corpo dos bots):
   - Gênero: 15 partidas inteiras só de bots (5 presets, 6 a 15 jogadores, com jogadores ele/ela/neutro) sem erro; pela interface, o gênero escolhido no lobby aparece na revelação e nos cartões da votação, e "Fê tava sozinha na elétrica" seguido de "vota nela" acusa a Fê. Online com sala simulada (anfitrião + amiga): o gênero da amiga aparece na sala dos dois lados e chega igual à partida nos dois aparelhos.
   - Leitura do chat: vírgula e ponto agora separam as frases. Em 61 mensagens típicas de reunião, 4 mudaram, todas para melhor ("vi o verde na nav, o azul é sus" antes acusava os dois; agora o verde foi visto e o azul é acusado).

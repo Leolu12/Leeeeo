@@ -72,7 +72,7 @@
     ready: null,
     state: 'checking',
     /* versão do jogo (aparece no diagnóstico: ajuda a saber se o amigo está com a página antiga) */
-    version: 40,
+    version: 41,
     async init() {
       if (this.ready) return this.ready;
       this.ready = (async () => {

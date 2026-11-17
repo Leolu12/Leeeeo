@@ -591,6 +591,9 @@
       if (this.phase !== 'play' || !k.alive || !k.isImp || k.killCd > 0 || !v || !v.alive || v.isImp || k.inVent || v.inVent) return false;
       if (k.invisUntil > t) return false;
       if (U.dist(k, v) > this.killDist + 0.05) return false;
+      /* parede ou porta fechada no meio não deixa matar (pelo online, a ordem do amigo chega atrasada e o alvo pode
+         ter passado para o outro lado da parede) */
+      if (!Nav.los(k.x, k.y, v.x, v.y)) return false;
       if (this.S.house.noDoubleKill && this.partnerKilledRecently(k)) return false;
       if (v.protectedUntil > t) {
         v.protectedUntil = 0;

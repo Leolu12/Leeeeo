@@ -1149,7 +1149,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   };
 
   C.IMP_LEVELS = {
-    iniciante: { name: 'Iniciante', desc: 'Arrisca abates com gente por perto e mente mal.', need: 0.4, eager: 0.95, miss: 0.35, riskTol: 0.3, useVents: 0.35, sabotage: 0.25, lie: 0.3, selfReport: 0.15, bus: 0, stalk: 0.2, fakeVisual: 0.45, camsAware: false, sabKill: false },
+    iniciante: { name: 'Iniciante', desc: 'Arrisca abates com gente por perto e mente mal.', need: 0.2, eager: 0.95, miss: 0.6, riskTol: 0.3, useVents: 0.35, sabotage: 0.25, lie: 0.3, selfReport: 0.15, bus: 0, stalk: 0.2, fakeVisual: 0.45, camsAware: false, sabKill: false },
     competente: { name: 'Competente', desc: 'Só mata sem testemunhas e cria álibis simples.', need: 0.25, eager: 0.92, miss: 0.2, riskTol: 0.1, useVents: 0.6, sabotage: 0.5, lie: 0.6, selfReport: 0.3, bus: 0.1, stalk: 0.4, fakeVisual: 0.1, camsAware: false, sabKill: false },
     veterano: { name: 'Veterano', desc: 'Checa câmeras, usa dutos com calma e sabe entregar o parceiro.', need: 0.1, eager: 0.9, miss: 0.09, riskTol: 0.04, useVents: 0.75, sabotage: 0.7, lie: 0.8, selfReport: 0.4, bus: 0.35, stalk: 0.6, fakeVisual: 0, camsAware: true, sabKill: false },
     implacavel: { name: 'Implacável', desc: 'Usa sabotagens para isolar vítimas e mente com detalhes.', need: 0.08, eager: 0.95, miss: 0.02, riskTol: 0.02, useVents: 0.85, sabotage: 0.9, lie: 0.95, selfReport: 0.5, bus: 0.5, stalk: 0.9, fakeVisual: 0, camsAware: true, sabKill: true },
@@ -2068,7 +2068,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   }
 
   function smooth(start, pts, ghost) {
-    if (pts.length < 3) return pts;
+    /* com 2 pontos também: o 1º é o centro de uma célula vizinha, que pode ficar atrás de quem já está andando
+       (o bot dava meia-volta até ele e depois seguia) */
+    if (pts.length < 2) return pts;
     const out = [];
     let anchor = start, i = 0;
     while (i < pts.length) {
@@ -3289,7 +3291,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     askConfirm: (d, x) => pick([`alguém confirma ${x.R(d.who, 'o')}?`, `quem estava ${x.R(d.who, 'com')}?`, `alguém viu ${x.R(d.who, 'o')} lá?`]),
     quiet: (d, x) => pick([`${x.Rc(d.who, 'o')} está quieto hein`, `${x.R(d.who)}, fala alguma coisa`, `${x.R(d.who, 'o')} não falou nada`]),
     skip: () => pick([`sem info, skip`, `skip`, `vamos de skip`, `sem certeza, vou pular`, `sem prova, skip`]),
-    agree: (d, x) => pick([`+1`, `concordo`, `vota ${x.R(d.who, 'no')}`, `bora ${x.R(d.who, 'o')}`, `faz sentido`, `eu também acho`]),
+    agree: (d, x) => pick([`+1`, `concordo`, `vota ${x.R(d.who, 'no')}`, `bora votar ${x.R(d.who, 'no')}`, `faz sentido`, `eu também acho`]),
     alsoSaw: (d, x) => pick([`é verdade, eu também vi`, `confirmo, vi também`, `eu vi a mesma coisa`]),
     disagree: (d, x) => pick([`não acho que é ${x.R(d.who, 'o')}`, `${x.R(d.who, 'o')}? sei não`, `calma, ${x.R(d.who, 'o')} pode ser inocente`]),
     voteSay: (d, x) => (d.who == null ? pick([`skipei`, `votei skip`, `pulei`]) : pick([`votei ${x.R(d.who, 'no')}`, `meu voto é ${x.R(d.who, 'o')}`])),
@@ -4681,6 +4683,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         }
       }
       for (const p of this.players) if (p.brain) p.brain.update(dt);
+      /* perna sem engasgo: um bot que parou por um ou dois quadros no meio da caminhada (travou num ombro, trocou de
+         ponto do caminho) continua com o passo; parada de verdade (mais de 0,1 s) aparece normal */
+      for (const p of this.players) {
+        if (!p.brain) continue;
+        if (p.moving) p.lastMoveT = this.t;
+        else if (p.alive && !p.inVent && !p.busy && p.brain.dest && this.t - (p.lastMoveT || -9) < 0.1 && p.brain.path && p.brain.pi < p.brain.path.length) p.moving = true;
+      }
       /* online: o estado da nave sai agora, com todo mundo já andado neste quadro */
       if (this.net) this.net.post(dt);
       if (this.phase !== 'play') return;
@@ -4777,6 +4786,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (this.phase !== 'play' || !k.alive || !k.isImp || k.killCd > 0 || !v || !v.alive || v.isImp || k.inVent || v.inVent) return false;
       if (k.invisUntil > t) return false;
       if (U.dist(k, v) > this.killDist + 0.05) return false;
+      /* parede ou porta fechada no meio não deixa matar (pelo online, a ordem do amigo chega atrasada e o alvo pode
+         ter passado para o outro lado da parede) */
+      if (!Nav.los(k.x, k.y, v.x, v.y)) return false;
       if (this.S.house.noDoubleKill && this.partnerKilledRecently(k)) return false;
       if (v.protectedUntil > t) {
         v.protectedUntil = 0;
@@ -5490,7 +5502,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         /* quanto antes da quina já começa a virar (tiles) */
         cut: U.rf(0.35, 1.0),
         /* teclado: solta a tecla um pouco tarde e passa do ponto */
-        overshoot: keyboard ? U.rf(0.08, 0.32) * lostish : U.rf(0, 0.1),
+        overshoot: keyboard ? U.rf(0.06, 0.22) * lostish : U.rf(0, 0.08),
         /* parar para decidir o próximo passo (s) */
         hesitate: U.rf(0.12, 0.7) * t[0] * lostish,
         /* não fica parado quieto: frequência dos gestos */
@@ -5580,7 +5592,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     enterRoom(b, people) {
       const st = b.motor;
       const pr = Math.min(0.55, st.look * Motor.k(b, 2) * (people ? 0.35 : 0.12));
-      if (Math.random() < pr) b.holdUntil = Math.max(b.holdUntil || 0, b.g.t + U.rf(0.25, 0.8));
+      if (Math.random() < pr) {
+        b.holdUntil = Math.max(b.holdUntil || 0, b.g.t + U.rf(0.25, 0.8));
+        /* parou na porta: olha quem está na sala, ou dá uma olhada para um lado (no 3D o corpo vira) */
+        const q = (b.seenNow || []).find((x) => x.alive && x !== b.p);
+        const h = b.heading != null ? b.heading : b.keyDir != null ? b.keyDir : 0;
+        b.p.look = q ? { x: q.x, y: q.y, until: b.holdUntil + 0.15 } : { a: Math.PI / 2 - h + U.rf(-1.1, 1.1), until: b.holdUntil + 0.15 };
+      }
     },
 
     /* parado esperando (não numa tarefa): gestos de quem segura o controle sem ter o que fazer */
@@ -5608,6 +5626,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       if (near.length && Math.random() < Math.min(0.8, lookK)) {
         const q = U.pick(near);
         if (Math.abs(q.x - p.x) > 0.2) p.facing = q.x < p.x ? -1 : 1;
+        /* no 3D o corpo inteiro vira para a pessoa (no 2D basta o lado) */
+        p.look = { x: q.x, y: q.y, until: g.t + U.rf(1, 2.4) };
         return;
       }
       const bored = Motor.mood(b) === 'entediado';
@@ -5615,7 +5635,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       let gst = U.pick(gs);
       /* rodar pela sala só quem é bem inquieto ou está entediado (andar à toa sem motivo parece robô) */
       if (gst === 'rodar' && !bored && fid < 0.9) gst = 'passinho';
-      if (gst === 'olhar') p.facing = -p.facing;
+      if (gst === 'olhar') {
+        p.facing = -p.facing;
+        /* 3D: olha para um lado da sala por um instante */
+        p.look = { a: Math.random() * TAU - Math.PI, until: g.t + U.rf(0.8, 2) };
+      }
       else if (gst === 'girar') b.spin = { n: U.rint(2, 6), t: 0.1 };
       else if (gst === 'passinho' || gst === 'rodar') {
         const r = gst === 'rodar' ? U.rf(0.8, 1.8) : U.rf(0.2, 0.5);
@@ -5637,7 +5661,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         return;
       }
       const dx = pt.x - p.x, dy = pt.y - p.y, d = Math.hypot(dx, dy);
-      const sp = g.speedOf(p) * (b.motor.input === 'teclado' ? 1 : 0.7);
+      /* passinho é arrastar o pé, não andar: mais devagar que a caminhada */
+      const sp = g.speedOf(p) * (b.motor.input === 'teclado' ? 0.55 : 0.4);
       if (d < 0.06 || d < sp * dt) {
         m.i++;
         if (m.i >= m.pts.length) b.micro = null;
@@ -5652,6 +5677,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     stopIdle(b) {
       b.micro = null;
       b.spin = null;
+      if (b.p) b.p.look = null;
     },
   };
 
@@ -5943,7 +5969,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.pi = 0;
       /* chegando num painel, quem joga no teclado solta a tecla um pouco tarde: passa do ponto e volta um passinho */
       const st = this.motor, pl = this.plan;
-      if (!plain && st && st.overshoot > 0.05 && pl && (pl.type === 'task' || pl.type === 'fake') && this.path.length && U.chance(0.7)) {
+      if (!plain && st && st.overshoot > 0.05 && pl && (pl.type === 'task' || pl.type === 'fake') && this.path.length && U.chance(0.3)) {
         const last = this.path[this.path.length - 1], prev = this.path.length > 1 ? this.path[this.path.length - 2] : { x: p.x, y: p.y };
         const dd = Math.hypot(last.x - prev.x, last.y - prev.y);
         if (dd > 0.5) {
@@ -6068,6 +6094,22 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
       const sp = g.speedOf(p) * this.speedMul;
       const step = sp * dt;
+      /* reta final travada: a menos de 0,6 do ponto e sem chegar mais perto por 0,8 s (encostado num móvel ou em
+         alguém, deslizando de um lado para o outro): já está no lugar, para ali mesmo */
+      if (this.pi === this.path.length - 1 && d < 0.6) {
+        if (this.finPt !== pt || d < this.finD - 0.05) {
+          this.finPt = pt;
+          this.finD = d;
+          this.finT = 0;
+        } else if ((this.finT += dt) > 0.8) {
+          this.finPt = null;
+          this.pi++;
+          p.moving = false;
+          const done = U.d2(p.x, p.y, this.dest.x, this.dest.y) < 0.9;
+          if (done) Mo.release(this);
+          return done;
+        }
+      }
       /* no teclado o boneco não acerta o ponto exato (8 direções): chegar perto já basta, menos no último */
       const reach = st.input === 'teclado' && !plain && this.pi < this.path.length - 1 ? 0.3 : 0.05;
       /* com alguém parado em cima do ponto, chegar perto já basta (não fica rodeando) */
@@ -11794,7 +11836,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const pers = C.PERSONALITIES[p.personality] || C.PERSONALITIES.analitico;
       const own = b.traitLine ? b.traitLine() : '';
       const gs = p.gender === 'f' ? ' Fala de si no feminino.' : p.gender === 'n' ? ' Fala de si sem gênero.' : '';
-      return `${V.who(b.g, p.id)} — ${pers.name}: ${STYLE[p.personality] || pers.desc}.${own ? ' Traços próprios: ' + own + '.' : ''}${gs} Jeito de escrever: ${V.voiceOf(b)}`;
+      return `${V.who(b.g, p.id)} — ${pers.name}: ${STYLE[p.personality] || pers.desc}.${own ? ' Traços próprios (em comparação com o normal do seu tipo): ' + own + '.' : ''}${gs} Jeito de escrever: ${V.voiceOf(b)}`;
     },
     voiceOf(b) {
       if (b.voiceStyle) return b.voiceStyle;
@@ -13299,11 +13341,25 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     readTable() {
       const g = this.g, b = this.b, p = this.p, out = [], none = [];
       if (!b) return out;
+      /* quem te acusou nas reuniões e (impostor) quem pode ter visto você matar */
+      const acc = this.accusedBy || {};
+      const saw = {};
+      if (p.isImp) for (const e of b.mem.events) if (e.type === 'myKill') for (const id of e.seenBy || []) if (id !== e.victim) saw[id] = true;
       for (const q of g.players) {
         if (q === p || !q.alive) continue;
         let txt;
         if (p.isImp && q.isImp) txt = 'seu parceiro';
-        else {
+        else if (p.isImp) {
+          /* o impostor sabe quem é tripulante: o que importa é quem pode te entregar */
+          const bits = [];
+          if (saw[q.id]) bits.push('PODE TER VISTO você matar');
+          if (acc[q.id]) bits.push('te acusou na reunião' + (acc[q.id] > 1 ? ' (' + acc[q.id] + ' vezes)' : ''));
+          if (!bits.length) {
+            none.push(who(g, q.id));
+            continue;
+          }
+          txt = bits.join('; ');
+        } else {
           const s = b.liveSusp(q.id);
           const hard = !p.isImp && b.hardCleared(q.id);
           txt = hard ? 'INOCENTE com certeza (você viu tarefa visual)'
@@ -13313,6 +13369,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
                   : s <= -15 ? 'confia'
                     : 'sem opinião ainda';
           const l = this.lean[q.id] || 0;
+          if (acc[q.id]) txt += '; te acusou na reunião';
           if (l && !hard) txt += ' (sua impressão: ' + (l > 0 ? 'mais desconfiado' : 'mais confiante') + ')';
           else if (txt === 'sem opinião ainda') {
             none.push(who(g, q.id));
@@ -13321,7 +13378,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         }
         out.push(who(g, q.id) + ': ' + txt);
       }
-      if (none.length) out.push('Sem opinião ainda: ' + none.join(', '));
+      if (none.length) out.push((p.isImp ? 'Sem ameaça conhecida: ' : 'Sem opinião ainda: ') + none.join(', '));
       return out;
     }
     /* O que é CERTO para este personagem e o que dá para deduzir disso (lógica de eliminação). */
@@ -13370,8 +13427,11 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       /* memória enxuta: da rodada atual vai tudo (as últimas n); das anteriores só o que importa (corpos, abates,
          dutos, tarefa visual, reuniões), para o que pesa não sumir debaixo de "entrou na sala X" */
       const KEY = /REUNI|CORPO|MATA|MATOU|duto|DUTO|TRANSFORM|INVIS|visual|sinais vitais|rastre|alarme|DOIS|cara|seguindo|atrás de você|não subiu|sem a animação/;
-      const cur = this.diary.filter((d) => d.round === g.meetings).slice(-n);
-      const old = this.diary.filter((d) => d.round !== g.meetings && KEY.test(d.text)).slice(-Math.max(6, Math.round(n / 2)));
+      /* "rodada atual" pelo relógio: g.roundStart só muda quando a reunião termina, então na reunião a rodada que acabou
+         de terminar (por onde andou, quem viu) entra inteira — é dela que saem os álibis */
+      const rs = g.roundStart - 0.01;
+      const cur = this.diary.filter((d) => d.t >= rs).slice(-n);
+      const old = this.diary.filter((d) => d.t < rs && KEY.test(d.text)).slice(-Math.max(6, Math.round(n / 2)));
       for (const d of old.concat(cur)) {
         if (d.round !== round) {
           round = d.round;
@@ -13444,6 +13504,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         const vents = M.VENTS.filter((v) => U.d2(v.x, v.y, p.x, p.y) < 7);
         if (vents.length) out.push('Duto aqui perto (' + area(vents[0].area) + '), liga com: ' + vents[0].links.map((id) => area(M.VENT[id].area)).join(', ') + '.');
       }
+      /* a barra que todo mundo vê na tela (quando a regra mostra): diz quanto falta e se alguém está fingindo */
+      if (g.S.rules.taskBar === 'sempre' && !g.commsDown()) out.push('Barra de tarefas da tripulação: ' + Math.round(g.taskProgress().ratio * 100) + '%.');
       if (p.special === 'cientista') out.push('Bateria dos sinais vitais: ' + Math.round(p.battery || 0) + 's.');
       if (p.special === 'metamorfo') out.push(p.shiftAs != null ? 'Você está disfarçado de ' + who(g, p.shiftAs) + '.' : 'Transformação: ' + (p.abilityCd > 0 ? 'em recarga (' + Math.ceil(p.abilityCd) + 's)' : 'pronta') + '.');
       if (p.special === 'fantasma') out.push(p.invisUntil > g.t ? 'Você está invisível.' : 'Sumir: ' + (p.abilityCd > 0 ? 'em recarga (' + Math.ceil(p.abilityCd) + 's)' : 'pronto') + '.');
@@ -13463,7 +13525,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const lines = [];
       lines.push(...this.now());
       lines.push('', 'Última vez que você viu cada um:', ...this.sightings().map((l) => '- ' + l));
-      lines.push('', 'Sua leitura de cada um (do que você viveu):', ...this.readTable().map((l) => '- ' + l));
+      lines.push('', p.isImp ? 'Quem pode te entregar (do que você viveu):' : 'Sua leitura de cada um (do que você viveu):', ...this.readTable().map((l) => '- ' + l));
       const cert = this.certainties();
       if (cert.length) lines.push('', 'O que é certo para você:', ...cert.map((l) => '- ' + l));
       lines.push('', 'Sua memória desta partida (o que você viveu):', ...this.memoryLines(26));
@@ -13569,13 +13631,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       const dead = g.players.filter((q) => !q.alive).map((q) => who(g, q.id) + (q.ejected ? ' (ejetado)' : ''));
       lines.push('Vivos: ' + alive.join(', ') + '.');
       if (dead.length) lines.push('Fora do jogo: ' + dead.join(', ') + '.');
+      if (g.S.rules.taskBar !== 'nunca' && !g.commsDown()) lines.push('Barra de tarefas da tripulação: ' + Math.round(g.taskProgress().ratio * 100) + '%.');
       if (mt.phase === 'voting') {
         const left = Math.max(0, Math.round(mt.votingEnd - mt.t));
         const voted = mt.alive.filter((id) => mt.votes[id] !== undefined).map((id) => g.players[id].name);
         lines.push('VOTAÇÃO aberta (faltam ' + left + 's). Já votaram: ' + (voted.length ? voted.join(', ') : 'ninguém') + '. Você ' + (mt.votes[p.id] !== undefined ? 'já votou.' : 'ainda NÃO votou: decida o seu voto agora.'));
       } else lines.push('Discussão (a votação abre em ' + Math.max(0, Math.round(mt.votingStart - mt.t)) + 's).');
       lines.push('', 'Última vez que você viu cada um nesta rodada:', ...this.sightings().map((l) => '- ' + l));
-      lines.push('', 'Sua leitura de cada um (do que você viveu, antes desta conversa):', ...this.readTable().map((l) => '- ' + l));
+      lines.push('', p.isImp ? 'Quem pode te entregar (antes desta conversa):' : 'Sua leitura de cada um (do que você viveu, antes desta conversa):', ...this.readTable().map((l) => '- ' + l));
       const cert = this.certainties();
       if (cert.length) lines.push('', 'O que é certo para você:', ...cert.map((l) => '- ' + l));
       lines.push('', 'Sua memória (o que você viveu):', ...this.memoryLines(24));
@@ -13773,6 +13836,9 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         if (!m.p.alive) continue;
         m.log(txt, g.t);
         m.callWhy = null;
+        /* quem acusou este personagem (em qualquer reunião): entra na leitura de cada um */
+        m.accusedBy = m.accusedBy || {};
+        for (const x of mt.msgs) if (!x.ghost && x.from !== m.p.id && (x.intents || []).some((it) => it.type === 'accuse' && it.who === m.p.id)) m.accusedBy[x.from] = (m.accusedBy[x.from] || 0) + 1;
       }
       /* o que foi dito (todo mundo ouviu): as últimas falas ficam para a rodada seguinte e a próxima reunião */
       this.pastChat = mt.msgs.filter((x) => !x.ghost).slice(-16).map((x) => ({ from: x.from, text: tidy(x.text, 110), index: mt.info.index || g.meetings }));
@@ -13958,34 +14024,34 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   /* {k} {v} {x}: nome ("Carol") ou cor com artigo ("o rosa"); {kn} {vn} {xn}: só o nome (depois de preposição
      ou chamando a pessoa); {a}: sala com preposição ("na Elétrica", "no Motor Superior"). */
   const LINES = {
-    greet: ['rip {vn}', 'bem-vindo ao clube, {vn}', 'mais um aqui kkk', 'ih, pegaram {v}', 'quem te pegou, {vn}?', 'f {vn}', '{vn} chegou', 'nãao, {v} também'],
-    greetHuman: ['bem-vindo, {vn}', 'rip {vn}', 'quem te matou, {vn}?', 'pegaram você também, {vn}?', 'f {vn}', 'e aí {vn}, quem foi?'],
+    greet: ['rip {vn}', 'bem-vind{o:v} ao clube, {vn}', 'mais um aqui kkk', 'ih, pegaram {v}', 'quem te pegou, {vn}?', 'f {vn}', '{vn} chegou', 'nãao, {v} também'],
+    greetHuman: ['bem-vind{o:v}, {vn}', 'rip {vn}', 'quem te matou, {vn}?', 'pegaram você também, {vn}?', 'f {vn}', 'e aí {vn}, quem foi?'],
     selfKiller: ['foi {k}', '{k} me matou {a}', '{k} é impostor, me pegou {a}', 'morri, foi {k} kkk', 'tava sozinh{o} {a} e {k} veio', '{k}... nem vi chegar'],
     selfUnknown: ['nem vi quem foi', 'morri do nada', 'nem sei quem me pegou'],
     sawKill: ['{k} acabou de matar {v}!!', 'vish, {k} pegou {v} {a}', 'eu vi, foi {k} que pegou {v}', 'caramba, {k} matou {v} {a}'],
     sawKillAgain: ['{k} de novo...', 'de novo {kn}, que isso', '{k} pegou mais um'],
     ejImp: ['gg, era eu mesmo', 'fui pego kkk', 'é, era eu', 'me pegaram, bem jogado', 'ok ok, era eu'],
-    ejCrew: ['eu era inocente!!', 'votaram errado, que raiva', 'não era eu gente', 'sério que me ejetaram?', 'tô bravo, eu fazendo task'],
+    ejCrew: ['eu era inocente!!', 'votaram errado, que raiva', 'não era eu gente', 'sério que me ejetaram?', 'tô brav{o}, eu fazendo task'],
     reactEjImp: ['boa, acertaram', 'finalmente', 'aee', 'mandaram bem'],
-    reactEjCrew: ['votaram errado...', 'coitado', 'sabia que ia dar ruim', 'não acredito'],
+    reactEjCrew: ['votaram errado...', 'coitad{o:v}', 'sabia que ia dar ruim', 'não acredito'],
     tellHuman: ['foi {k} que me pegou', 'quem me pegou foi {k}, {a}', '{k} me matou, tomara que votem {nk}'],
     whoKnown: ['foi {k}', '{k}, certeza', '{k} me pegou {a}', '{k}, {a}'],
     whoAgain: ['já falei, foi {k}', '{k}, já disse', '{k}, eu falei ali em cima', 'foi {k} mesmo'],
     whoSaw: ['vi {k} matando {v}', '{k}, vi pegar {v}'],
     whoUnknown: ['não vi', 'sei não', 'não faço ideia', 'nem imagino'],
-    whoUnknownEj: ['fui ejetado, não sei de nada', 'sei não, me votaram antes'],
+    whoUnknownEj: ['fui ejetad{o}, não sei de nada', 'sei não, me votaram antes'],
     hello: ['oi', 'eai', 'salve', 'opa', 'fala'],
     agree: ['verdade', 'pois é', 'é isso', 'kkk', 'total', 'também acho', 'faz sentido'],
     nameReact: ['sabia', 'vish, {x}?', '{x}? não esperava', 'faz sentido, tava estranho', 'hmm, {x}'],
     idleKnown: ['{k} tá solto ainda', 'tomara que votem em {kn}', 'ninguém desconfia de {kn}...', 'se alguém pegasse {kn}...'],
     idle: ['vamo tripulação', 'tomara que terminem as tasks', 'que partida', 'tô torcendo aqui', 'esse jogo tá tenso', 'bora fazer as tasks de fantasma'],
     impIdle: ['vai parceiro', 'ainda dá pra ganhar', 'kkk tão perdidos', 'tá indo bem'],
-    greetHumanEj: ['ih, te ejetaram, {vn}?', 'bem-vindo, {vn}. te tiraram na votação né', 'votaram em você, {vn}? que isso', 'f {vn}, ejetado', 'chegou mais um ejetado'],
+    greetHumanEj: ['ih, te ejetaram, {vn}?', 'bem-vindo, {vn}. te tiraram na votação né', 'votaram em você, {vn}? que isso', 'f {vn}, ejetad{o:v}', 'mais um tirado na votação'],
     greetHumanEjCrew: ['votaram errado em você, {vn}... era inocente', 'te ejetaram e você era inocente, que raiva', 'f {vn}, votaram no inocente de novo'],
     greetHumanEjImp: ['kkk era você, {vn}', 'te pegaram, impostor', 'eu sabia que era você, {vn}'],
     greetHumanEjMate: ['f parceiro', 'nos pegaram kkk', 'fomos descobertos, {vn}'],
     greetHumanKilledMe: ['foi você que me matou, {vn}!', 'olha quem chegou, quem me matou kkk'],
-    youWereEjected: ['você foi ejetado, ninguém te matou kkk', 'te votaram, lembra? ninguém te matou', 'você saiu na votação'],
+    youWereEjected: ['você foi ejetad{o:h}, ninguém te matou kkk', 'te votaram, lembra? ninguém te matou', 'você saiu na votação'],
     youKilledBy: ['{k} te matou, eu vi', 'foi {k}, vi daqui', '{k} te pegou {a}'],
     youUnknown: ['não vi quem te pegou', 'não vi, você não viu quem foi?', 'sei não, não tava perto'],
     ejectedAgree: ['votaram errado mesmo', 'é, te tiraram injustamente', 'foi mal da galera'],
@@ -13995,15 +14061,15 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     impsLeft: ['falta {n} impostor', 'ainda tem {n} impostor vivo'],
     impsLeftPl: ['faltam {n} impostores', 'ainda tem {n} impostores vivos'],
     knowImp: ['{x} é impostor, eu vi', '{x} matou, eu vi daqui', 'é {x} sim, vi matando'],
-    knowSafe: ['{x} é inocente, vi fazer a visual quando eu tava vivo', '{x} é safe, vi a visual', 'não é {xn}, vi fazer tarefa visual'],
-    knowSus: ['eu desconfiava {xde} mesmo', '{x} tava estranho quando eu tava vivo', 'hmm, eu já tava de olho {xem}'],
+    knowSafe: ['{x} é inocente, vi fazer a visual quando eu tava viv{o}', '{x} é safe, vi a visual', 'não é {xn}, vi fazer tarefa visual'],
+    knowSus: ['eu desconfiava {xde} mesmo', '{x} tava estranh{o:x} quando eu tava viv{o}', 'hmm, eu já tava de olho {xem}'],
     knowNothing: ['{x}? sei não', 'não sei nada {xde}', '{x}? não vi nada'],
     iWasCrew: ['não, eu era tripulante', 'eu era inocente', 'não era eu não'],
     iWasImp: ['era eu sim kkk', 'é, era eu', 'fui eu kkk'],
     selfFaced: ['quem me matou tava com a minha cara, foi o metamorfo', 'era alguém igual a mim... metamorfo', 'me matei? kkk não, foi o metamorfo com a minha cara'],
     wrongVote: ['não!! foi {k}', 'tão votando errado, foi {k}', 'não é esse, foi {k} que me matou', 'aaa vota em {kn}'],
     rightVote: ['isso, vota em {kn}', 'isso!! é {k}', 'vai, tira {kn}'],
-    notEjected: ['ejetado? você foi morto, não ejetado', 'não, te mataram... ninguém votou em você', 'você morreu, não foi votação'],
+    notEjected: ['ejetad{o:h}? você foi mort{o:h}, não ejetad{o:h}', 'não, te mataram... ninguém votou em você', 'você morreu, não foi votação'],
     mate: ['{x} é meu parceiro kkk', 'é {x}, o outro impostor', 'shh, {x} é dos meus kkk'],
     killerGone: ['foi {k}, mas já ejetaram', '{k} me matou, e já saiu na votação'],
     protect: ['protegi {x}', 'escudo em {xn}', 'tô cuidando de {xn}', 'coloquei escudo em {xn}'],
@@ -14028,7 +14094,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
     whereWatch: ['tô {a} assistindo {xn}', '{a}, atrás de {xn}', 'tô {a} de olho em {xn}'],
     doingWatch: ['assistindo {xn}', 'seguindo {xn} pra ver no que dá', 'vendo o que {xn} faz'],
     amDead: ['sim, morri', 'morri sim kkk', 'tô mort{o}, igual você'],
-    amDeadEj: ['sim, me ejetaram', 'fui ejetado'],
+    amDeadEj: ['sim, me ejetaram', 'fui ejetad{o}'],
     shieldHit: ['o escudo salvou {x}!!', 'kkk o escudo funcionou em {xn}', 'salvei {x}'],
   };
 
@@ -14295,8 +14361,6 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         return q.gender === 'f' ? 'nela' : 'em ' + q.name;
       };
       return s
-        /* {o}: concorda com quem fala ("tava sozinh{o}" → sozinho/sozinha) */
-        .replace(/\{o\}/g, () => (sp && sp.gender === 'f' ? 'a' : 'o'))
         .replace(/\{nk\}/g, () => em('k'))
         .replace(/\{kn\}/g, () => this.name(ctx.k))
         .replace(/\{vn\}/g, () => this.name(ctx.v))
@@ -14307,14 +14371,30 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         .replace(/\{a\}/g, () => this.room(ctx.a))
         .replace(/\{n\}/g, () => String(ctx.n))
         .replace(/\{xde\}/g, () => (ctx.x != null && this.g.players[ctx.x] ? (U.chance(0.5) ? 'de ' + this.name(ctx.x) : 'do ' + C.COLOR[this.g.players[ctx.x].color].name.toLowerCase()) : 'dele'))
-        .replace(/\{xem\}/g, () => (ctx.x != null && this.g.players[ctx.x] ? (U.chance(0.5) ? 'em ' + this.name(ctx.x) : 'no ' + C.COLOR[this.g.players[ctx.x].color].name.toLowerCase()) : 'nele'));
+        .replace(/\{xem\}/g, () => (ctx.x != null && this.g.players[ctx.x] ? (U.chance(0.5) ? 'em ' + this.name(ctx.x) : 'no ' + C.COLOR[this.g.players[ctx.x].color].name.toLowerCase()) : 'nele'))
+        /* por último, quando já se sabe se cada um foi chamado pelo nome ou pela cor: {o} concorda com quem fala
+           ("tava sozinh{o}"); {o:v}, {o:k}, {o:x} com essa pessoa (pela cor, "o rosa", é o masculino); {o:h} com o jogador */
+        .replace(/\{o\}/g, () => (sp && sp.gender === 'f' ? 'a' : 'o'))
+        .replace(/\{o:([vkxh])\}/g, (m, key) => {
+          const q = key === 'h' ? this.g.human : this.g.players[ctx[key]];
+          if (!q || q.gender !== 'f') return 'o';
+          const said = key === 'h' ? null : r[key];
+          return said && said !== q.name ? 'o' : 'a';
+        });
     }
     choose(list, ctx) {
-      /* quem prefere neutro não usa frase com {o} (se houver outra) */
-      if (this._sp && this._sp.gender === 'n') {
-        const neutral = list.filter((s) => !s.includes('{o}'));
-        if (neutral.length) list = neutral;
-      }
+      /* quem prefere neutro (quem fala ou de quem se fala) não ganha frase com o/a, se houver outra */
+      const g = this.g;
+      const neutralOf = (s) => {
+        if (this._sp && this._sp.gender === 'n' && s.includes('{o}')) return false;
+        for (const m of s.matchAll(/\{o:([vkxh])\}/g)) {
+          const q = m[1] === 'h' ? g.human : g.players[ctx[m[1]]];
+          if (q && q.gender === 'n') return false;
+        }
+        return true;
+      };
+      const neutral = list.filter(neutralOf);
+      if (neutral.length) list = neutral;
       const fresh = list.map((s) => this.fill(s, ctx)).filter((s) => !this.used.has(s));
       const s = fresh.length ? U.pick(fresh) : this.fill(U.pick(list), ctx);
       this.used.add(s);
@@ -14368,8 +14448,8 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
             return this.choose(LINES.youUnknown, {});
           }
           /* "me tiraram", "fui ejetado" (e quem foi morto e acha que foi votação) */
-          if (!hk.ejected && /\b(me (tiraram|votaram|expulsaram|ejetaram)|fui (ejetado|expulso|votado))\b/.test(n)) return this.choose(LINES.notEjected, {});
-          if (hk.ejected && /\b(me (tiraram|votaram|expulsaram|ejetaram)|fui (ejetado|expulso|votado))\b/.test(n)) {
+          if (!hk.ejected && /\b(me (tiraram|votaram|expulsaram|ejetaram)|fui (ejetad[oa]|expuls[oa]|votad[oa]))\b/.test(n)) return this.choose(LINES.notEjected, {});
+          if (hk.ejected && /\b(me (tiraram|votaram|expulsaram|ejetaram)|fui (ejetad[oa]|expuls[oa]|votad[oa]))\b/.test(n)) {
             if (g.S.rules.confirmEjects) return this.choose(hp.isImp ? LINES.ejectedImp : LINES.ejectedAgree, {});
             return this.choose(LINES.ejectedPlain, {});
           }
@@ -14492,7 +14572,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
           return AU.Voice.who(g, hp.id) + ' escreveu: "' + c.text + '". ' + p.name + ' responde a isso.';
         case 'comeOk': return this.name(c.x) + ' (fantasma) fez sinal de "vem comigo" e ' + p.name + ' vai junto. Responde curto.';
         case 'greet': return this.name(c.v) + ' acabou de morrer e chegou no chat dos fantasmas. ' + p.name + ' recebe.';
-        case 'greetHuman': return this.name(c.v) + ' (o jogador) acabou de ser morto e chegou aqui. ' + p.name + ' recebe e talvez pergunte quem matou.';
+        case 'greetHuman': return this.name(c.v) + ' (o jogador) acabou de morrer e chegou aqui. ' + p.name + ' recebe e talvez pergunte quem matou.';
         case 'greetHumanKilledMe': return this.name(c.v) + ' (o jogador, que era impostor e matou ' + p.name + ') acabou de chegar aqui. ' + p.name + ' comenta isso.';
         case 'greetHumanEj': case 'greetHumanEjCrew': case 'greetHumanEjImp': case 'greetHumanEjMate':
           return this.name(c.v) + ' (o jogador) foi EJETADO na votação (ninguém o matou)' + (g.S.rules.confirmEjects ? ' e ' + (hp.isImp ? 'era impostor' : 'era inocente') : '') + '. ' + p.name + ' recebe comentando a votação — não pergunte quem matou.';
@@ -14503,7 +14583,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         case 'selfUnknown': return p.name + ' acabou de morrer sem ver quem foi.';
         case 'sawKill': return p.name + ' (fantasma) acabou de ver ' + this.name(c.k) + ' matar ' + this.name(c.v) + ' ' + this.room(c.a) + '.';
         case 'ejImp': case 'ejCrew': return p.name + ' acabou de ser ejetado e comenta.';
-        case 'reactEjImp': case 'reactEjCrew': case 'agree': return this.name(c.v) + ' foi ejetado; ' + p.name + ' comenta.';
+        case 'reactEjImp': case 'reactEjCrew': case 'agree': return this.name(c.v) + ' saiu na votação; ' + p.name + ' comenta.';
         case 'tellHuman': return p.name + ' conta ao jogador recém-chegado o que sabe.';
         case 'protect': return p.name + ' (anjo) acabou de pôr escudo em ' + this.name(c.x) + '.';
         case 'shieldHit': return 'O escudo que ' + p.name + ' pôs em ' + this.name(c.x) + ' acabou de bloquear um abate!';
@@ -14519,7 +14599,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.aiBusy = true;
       this.aiCalls++;
       const tp = g.taskProgress();
-      const dead = g.players.filter((q) => !q.alive).map((q) => q.name + (q.ejected ? ' (ejetado' + (g.S.rules.confirmEjects ? (q.isImp ? ', era impostor' : ', era inocente') : '') + ')' : ''));
+      const dead = g.players.filter((q) => !q.alive).map((q) => q.name + (q.ejected ? ' (' + C.agree(q, 'ejetado', 'ejetada', 'saiu na votação') + (g.S.rules.confirmEjects ? (q.isImp ? ', era impostor' : ', era inocente') : '') + ')' : ''));
       const prompt = [
         'Partida estilo Among Us na nave The Skeld. Este é o CHAT DOS FANTASMAS: só os mortos leem; os vivos não veem nada daqui e os fantasmas não podem votar nem avisar os vivos.',
         'Fase: ' + (g.phase === 'meeting' ? 'reunião em andamento (os vivos estão discutindo)' : 'rodada em andamento') + '. Barra de tarefas: ' + (tp.total ? Math.round((tp.done / tp.total) * 100) : 0) + '%.',
@@ -14628,13 +14708,13 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
   const GREET = ['oi', 'eai', 'salve galera', 'opa', 'olá pessoal', 'fala', 'oi oi', 'boa noite, gente'];
   const BANTER = [
     'alguém faz as tasks comigo?', 'se eu for imp já peço desculpa', 'não matem no café pfv', 'sem self report hein',
-    'eu sempre sou o primeiro a morrer', 'ninguém vai pra elétrica sozinho', 'boa sorte a todos', 'bora bora',
+    'eu sempre morro primeiro', 'ninguém vai pra elétrica sozinho', 'boa sorte a todos', 'bora bora',
     'vou direto fazer minhas tasks', 'quem morrer primeiro fica de fantasma kkk', 'hoje eu pego o impostor',
     'se chamar reunião sem motivo eu voto em quem chamou kkk', 'confia em mim', 'vou ficar de olho em todo mundo',
   ];
   const REPLY = {
-    hello: ['oi, {h}', 'eai {h}', 'salve', 'opa, bem-vindo', 'oi oi'],
-    go: ['bora', 'vamo', 'só esperando começar kkk', 'bora que eu tô pronto'],
+    hello: ['oi, {h}', 'eai {h}', 'salve', 'opa, bem-vind{o:h}', 'oi oi'],
+    go: ['bora', 'vamo', 'só esperando começar kkk', 'bora que eu tô pront{o}'],
     imp: ['saberemos kkk', 'não sou eu, confia', 'eu nem sei ainda kkk', 'o impostor é sempre quem pergunta', 'vai descobrir na hora'],
     named: ['oi?', 'fala, {h}', 'eu?', 'que foi, {h}?', 'tô aqui'],
     tip: ['faz o scan na frente de alguém que ajuda', 'anda em dupla que é mais seguro', 'olha as câmeras quando terminar as tasks'],
@@ -14678,8 +14758,14 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       }
       return out;
     }
+    /* {h}: nome do jogador; {o}: concorda com quem fala; {o:h}: com o jogador (neutro: só frase sem o/a, se houver) */
     pick(list, vars) {
-      const fill = (s) => s.replace(/\{h\}/g, (vars && vars.h) || '');
+      vars = vars || {};
+      const gOf = (r) => (r ? C.GENDER[r.gender] ? r.gender : C.genderOf(r) : 'm');
+      const sg = gOf(vars.sp), hg = gOf(vars.hp);
+      const ok = list.filter((s) => !(sg === 'n' && s.includes('{o}')) && !(hg === 'n' && s.includes('{o:h}')));
+      if (ok.length) list = ok;
+      const fill = (s) => s.replace(/\{h\}/g, vars.h || '').replace(/\{o\}/g, sg === 'f' ? 'a' : 'o').replace(/\{o:h\}/g, hg === 'f' ? 'a' : 'o');
       const fresh = list.filter((s) => !this.used.has(fill(s)));
       const s = fill(U.pick(fresh.length ? fresh : list));
       this.used.add(s);
@@ -14702,7 +14788,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       this.started = true;
       const bots = U.shuffle(this.bots());
       const plan = [];
-      bots.slice(0, 3).forEach((b, i) => plan.push({ at: 0.8 + i * U.rf(0.9, 1.6), who: b, text: () => this.pick(GREET) }));
+      bots.slice(0, 3).forEach((b, i) => plan.push({ at: 0.8 + i * U.rf(0.9, 1.6), who: b, text: () => this.pick(GREET, { sp: b }) }));
       const sl = U.shuffle(this.settingsLines()).slice(0, 2);
       sl.forEach((t, i) => plan.push({ at: 4.5 + i * U.rf(2, 3.5), who: U.pick(bots), text: () => t }));
       plan.sort((a, b) => a.at - b.at);
@@ -14723,7 +14809,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         this.idle++;
         if (this.idle < 14) {
           const b = U.pick(this.bots());
-          this.queue.push({ at: now + U.rf(4, 7) * (1 + this.idle * 0.25), who: b, text: () => this.pick(BANTER) });
+          this.queue.push({ at: now + U.rf(4, 7) * (1 + this.idle * 0.25), who: b, text: () => this.pick(BANTER, { sp: b }) });
         }
       }
       /* sem nada na fila e a conversa já rareou: para o relógio até alguém falar */
@@ -14770,7 +14856,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
       who.forEach((b, i) => {
         const list = kinds[i % kinds.length];
         const b0 = b;
-        this.queue.push({ at: now + U.rf(1.2, 2.6) + i * U.rf(1.2, 2.2), who: b0, text: () => this.pick(list, { h: h.name }) });
+        this.queue.push({ at: now + U.rf(1.2, 2.6) + i * U.rf(1.2, 2.2), who: b0, text: () => this.pick(list, { h: h.name, hp: h, sp: b0 }) });
       });
       this.queue.sort((a, b) => a.at - b.at);
     }
@@ -15615,7 +15701,7 @@ input[type='password'] { background: var(--bg-2); border: 1px solid var(--line-2
         this.tabs.classList.add('flash');
         this.setTab('players');
       }
-      this.status.textContent = !hp || !hp.alive ? 'Você está morto: só pode assistir e falar no chat dos fantasmas.' : mt.phase === 'discussion' ? 'Discussão: a votação ainda não abriu. Toque num jogador para citá-lo no chat.' : mt.phase === 'voting' ? (canVote ? 'Clique num jogador para votar, ou pule.' : 'Voto registrado.') : '';
+      this.status.textContent = !hp || !hp.alive ? (hp && hp.gender === 'n' ? 'Você morreu' : 'Você está ' + C.agree(hp, 'morto', 'morta')) + ': só pode assistir e falar no chat dos fantasmas.' : mt.phase === 'discussion' ? 'Discussão: a votação ainda não abriu. Toque num jogador para citá-lo no chat.' : mt.phase === 'voting' ? (canVote ? 'Clique num jogador para votar, ou pule.' : 'Voto registrado.') : '';
     }
     onPause() {
       const p = this.mt.paused;
@@ -26241,15 +26327,43 @@ float auBayer(vec2 p) {
           a.pz = p.y;
           continue;
         }
-        /* direção: para onde anda (suave) */
-        const dx = p.x - a.px, dz = p.y - a.pz;
-        const moving = p.moving || Math.hypot(dx, dz) > 0.004;
-        if (Math.hypot(dx, dz) > 0.004) {
-          const want = Math.atan2(dx, dz);
+        /* direção: para onde anda de verdade (suave). Empurrãozinho de lado (desviar de alguém, raspar na parede) e os
+           passinhos de quem espera não giram o corpo (girava 180° num passinho para trás e parecia tremedeira).
+           Parado, olha para onde o bot está olhando (alguém que passa, um lado da sala) ou para o lado que virou. */
+        const dx = p.x - a.px, dz = p.y - a.pz, md = Math.hypot(dx, dz);
+        const moving = p.moving || md > 0.004;
+        const br = p.brain, side = !!(br && (br.micro || br.spin));
+        /* o corpo segue a média do andar dos últimos ~0,2 s: no teclado, o vai-e-vem entre duas teclas (0° e 45°) num
+           corredor em diagonal, e no joystick o balanço do polegar, faziam o corpo inteiro tremer (14 viradas por
+           minuto em cada bot; com a média, ~1) */
+        /* salto (duto, abate, mesa da reunião): não é andar, não vira o corpo */
+        const walk = md > 0.004 && md < 1 && !side && md / Math.max(dt, 1 / 240) > 1.2;
+        const kk = Math.min(1, dt / 0.2);
+        if (walk) {
+          a.vx = (a.vx || 0) + (dx / Math.max(dt, 1 / 240) - (a.vx || 0)) * kk;
+          a.vz = (a.vz || 0) + (dz / Math.max(dt, 1 / 240) - (a.vz || 0)) * kk;
+        } else {
+          a.vx = (a.vx || 0) * (1 - kk);
+          a.vz = (a.vz || 0) * (1 - kk);
+        }
+        let want = null, rate = 9;
+        if (walk && Math.hypot(a.vx, a.vz) > 1.2) want = Math.atan2(a.vx, a.vz);
+        else if (!p.moving || side) {
+          if (a.lastFacing != null && a.lastFacing !== p.facing) a.faceUntil = g.t + 1.6;
+          if (p.look && p.look.until > g.t) {
+            want = p.look.a != null ? p.look.a : Math.atan2(p.look.x - p.x, p.look.y - p.y);
+            rate = 7;
+          } else if (a.faceUntil > g.t) {
+            want = p.facing > 0 ? Math.PI / 2 : -Math.PI / 2;
+            rate = 10;
+          }
+        }
+        a.lastFacing = p.facing;
+        if (want != null) {
           let d = want - a.yaw;
           while (d > Math.PI) d -= Math.PI * 2;
           while (d < -Math.PI) d += Math.PI * 2;
-          a.yaw += d * Math.min(1, dt * 14);
+          a.yaw += d * Math.min(1, dt * rate);
         }
         a.px = p.x;
         a.pz = p.y;
@@ -30964,7 +31078,7 @@ float auBayer(vec2 p) {
       } else if (sp === 'cientista') this.openVitals();
       else if (sp === 'anjo') {
         const near = g.players.filter((q) => q.alive && U.dist(q, hp) <= 4);
-        this.openPicker('Proteger quem?', near, (q) => g.protect(hp, q.id) && this.toast(q.name + ' está protegido por ' + g.ro('anjo', 'dur', 10) + 's.'));
+        this.openPicker('Proteger quem?', near, (q) => g.protect(hp, q.id) && this.toast(q.name + (q.gender === 'n' ? ' tem escudo por ' : ' está ' + C.agree(q, 'protegido', 'protegida') + ' por ') + g.ro('anjo', 'dur', 10) + 's.'));
       }
     },
 
@@ -31022,7 +31136,7 @@ float auBayer(vec2 p) {
         if (b.gone || this.seenBodies.has(b.id)) continue;
         if (AU.Render.visibleToHuman(g, b.x, b.y) && hp.alive) {
           this.seenBodies.add(b.id);
-          if (b.killer !== hp.id) this.narrate('Um corpo. ' + g.players[b.pid].name + ' está caído ' + (M.AREA[b.area].kind === 'room' ? 'em ' + M.AREA[b.area].name : 'no ' + M.AREA[b.area].name) + '. Reporte!', 'event');
+          if (b.killer !== hp.id) this.narrate('Um corpo. ' + (g.players[b.pid].gender === 'n' ? 'É ' + g.players[b.pid].name + ', ' : g.players[b.pid].name + ' está ' + C.agree(g.players[b.pid], 'caído', 'caída') + ' ') + (M.AREA[b.area].kind === 'room' ? 'em ' + M.AREA[b.area].name : 'no ' + M.AREA[b.area].name) + '. Reporte!', 'event');
         }
       }
       this.ambientT -= dt;
@@ -31282,7 +31396,7 @@ float auBayer(vec2 p) {
              (ou ejetado) */
           for (const q of g.players) {
             const fresh = !q.alive && !q.ejected && q.deathT != null && q.deathT >= g.roundStart;
-            list.appendChild(h('div', { class: 'vital ' + (q.alive ? 'ok' : fresh ? 'dead' : 'old'), title: q.alive ? 'vivo' : fresh ? 'morreu nesta rodada' : 'morto em rodada anterior' },
+            list.appendChild(h('div', { class: 'vital ' + (q.alive ? 'ok' : fresh ? 'dead' : 'old'), title: q.alive ? 'com vida' : fresh ? 'morreu nesta rodada' : 'morreu numa rodada anterior' },
               h('span', { html: AU.Render.beanSVG(q.color, { size: 30, visor: q.visor }) }), h('span', { class: 'nm' }, q.name),
               h('span', { class: 'st' }, q.alive ? 'OK' : 'MORTO'), h('span', { class: 'wave' })));
           }
@@ -31316,7 +31430,7 @@ float auBayer(vec2 p) {
             this.closeOverlay();
             fn(q);
           },
-        }, h('span', { html: AU.Render.beanSVG(q.color, { size: 34, visor: q.visor }) }), h('span', {}, q.name + (q.alive ? '' : ' (morto)'))));
+        }, h('span', { html: AU.Render.beanSVG(q.color, { size: 34, visor: q.visor }) }), h('span', {}, q.name + (q.alive ? '' : ' (' + C.agree(q, 'morto', 'morta', 'fora') + ')'))));
       }
       this.openOverlay(title, h('div', { class: 'ov-body' }, list), { kind: 'picker' });
     },
@@ -31373,7 +31487,7 @@ float auBayer(vec2 p) {
       const hp = this.g.human;
       /* cena do abate como no original: o impostor entra, ataca (faca ou língua) e o corpo se parte */
       const cv = h('canvas', { class: 'killed-cv', 'aria-hidden': 'true' });
-      const el = h('div', { class: 'killed', role: 'alert', 'aria-label': 'Você foi morto por ' + killer.name }, cv);
+      const el = h('div', { class: 'killed', role: 'alert', 'aria-label': (hp && hp.gender === 'n' ? killer.name + ' te matou' : 'Você foi ' + C.agree(hp, 'morto', 'morta') + ' por ' + killer.name) }, cv);
       layer.appendChild(el);
       /* enquanto a cena passa, uma reunião que comece (um bot reportou logo depois) espera ela acabar */
       this.cinemaUntil = performance.now() + 3200;
@@ -32182,8 +32296,8 @@ float auBayer(vec2 p) {
       const area = (a) => (M.AREA[a] ? M.AREA[a].name : a);
       const fate = (p) => {
         if (p.alive) return 'Sobreviveu';
-        if (p.ejected) return 'Ejetado aos ' + U.fmtTime(p.deathT);
-        return (p.killerId == null ? 'Morreu' : 'Morto por ' + name(p.killerId)) + ' aos ' + U.fmtTime(p.deathT);
+        if (p.ejected) return C.agree(p, 'Ejetado', 'Ejetada', 'Saiu na votação') + ' aos ' + U.fmtTime(p.deathT);
+        return (p.killerId == null ? 'Morreu' : p.gender === 'n' ? 'Morreu para ' + name(p.killerId) : C.agree(p, 'Morto', 'Morta') + ' por ' + name(p.killerId)) + ' aos ' + U.fmtTime(p.deathT);
       };
       const rows = g.players.map((p) => {
         const done = p.tasks.filter((t) => t.done).length;
@@ -32213,7 +32327,7 @@ float auBayer(vec2 p) {
           case 'vote': {
             if (e.ejected != null) {
               const p = g.players[e.ejected];
-              txt = `Reunião ${e.index}: ${p.name} foi ejetado (${p.isImp ? 'impostor' : 'tripulante'}).`;
+              txt = `Reunião ${e.index}: ${p.name} ${p.gender === 'n' ? 'saiu na votação' : 'foi ' + C.agree(p, 'ejetado', 'ejetada')} (${p.isImp ? 'impostor' : 'tripulante'}).`;
             } else txt = `Reunião ${e.index}: ninguém foi ejetado${e.tie ? ' (empate)' : ''}.`;
             const who = Object.keys(e.votes || {}).map((v) => `${name(+v)}→${e.votes[v] === 'skip' ? 'pulou' : name(e.votes[v])}`);
             if (who.length) txt += ' Votos: ' + who.join(', ') + '.';
@@ -32336,7 +32450,7 @@ float auBayer(vec2 p) {
     ready: null,
     state: 'checking',
     /* versão do jogo (aparece no diagnóstico: ajuda a saber se o amigo está com a página antiga) */
-    version: 40,
+    version: 41,
     async init() {
       if (this.ready) return this.ready;
       this.ready = (async () => {
