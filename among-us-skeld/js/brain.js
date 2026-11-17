@@ -281,7 +281,7 @@
       this.pi = 0;
       /* chegando num painel, quem joga no teclado solta a tecla um pouco tarde: passa do ponto e volta um passinho */
       const st = this.motor, pl = this.plan;
-      if (!plain && st && st.overshoot > 0.05 && pl && (pl.type === 'task' || pl.type === 'fake') && this.path.length && U.chance(0.7)) {
+      if (!plain && st && st.overshoot > 0.05 && pl && (pl.type === 'task' || pl.type === 'fake') && this.path.length && U.chance(0.3)) {
         const last = this.path[this.path.length - 1], prev = this.path.length > 1 ? this.path[this.path.length - 2] : { x: p.x, y: p.y };
         const dd = Math.hypot(last.x - prev.x, last.y - prev.y);
         if (dd > 0.5) {
@@ -406,6 +406,22 @@
       }
       const sp = g.speedOf(p) * this.speedMul;
       const step = sp * dt;
+      /* reta final travada: a menos de 0,6 do ponto e sem chegar mais perto por 0,8 s (encostado num móvel ou em
+         alguém, deslizando de um lado para o outro): já está no lugar, para ali mesmo */
+      if (this.pi === this.path.length - 1 && d < 0.6) {
+        if (this.finPt !== pt || d < this.finD - 0.05) {
+          this.finPt = pt;
+          this.finD = d;
+          this.finT = 0;
+        } else if ((this.finT += dt) > 0.8) {
+          this.finPt = null;
+          this.pi++;
+          p.moving = false;
+          const done = U.d2(p.x, p.y, this.dest.x, this.dest.y) < 0.9;
+          if (done) Mo.release(this);
+          return done;
+        }
+      }
       /* no teclado o boneco não acerta o ponto exato (8 direções): chegar perto já basta, menos no último */
       const reach = st.input === 'teclado' && !plain && this.pi < this.path.length - 1 ? 0.3 : 0.05;
       /* com alguém parado em cima do ponto, chegar perto já basta (não fica rodeando) */

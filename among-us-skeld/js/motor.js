@@ -58,7 +58,7 @@
         /* quanto antes da quina já começa a virar (tiles) */
         cut: U.rf(0.35, 1.0),
         /* teclado: solta a tecla um pouco tarde e passa do ponto */
-        overshoot: keyboard ? U.rf(0.08, 0.32) * lostish : U.rf(0, 0.1),
+        overshoot: keyboard ? U.rf(0.06, 0.22) * lostish : U.rf(0, 0.08),
         /* parar para decidir o próximo passo (s) */
         hesitate: U.rf(0.12, 0.7) * t[0] * lostish,
         /* não fica parado quieto: frequência dos gestos */
@@ -148,7 +148,13 @@
     enterRoom(b, people) {
       const st = b.motor;
       const pr = Math.min(0.55, st.look * Motor.k(b, 2) * (people ? 0.35 : 0.12));
-      if (Math.random() < pr) b.holdUntil = Math.max(b.holdUntil || 0, b.g.t + U.rf(0.25, 0.8));
+      if (Math.random() < pr) {
+        b.holdUntil = Math.max(b.holdUntil || 0, b.g.t + U.rf(0.25, 0.8));
+        /* parou na porta: olha quem está na sala, ou dá uma olhada para um lado (no 3D o corpo vira) */
+        const q = (b.seenNow || []).find((x) => x.alive && x !== b.p);
+        const h = b.heading != null ? b.heading : b.keyDir != null ? b.keyDir : 0;
+        b.p.look = q ? { x: q.x, y: q.y, until: b.holdUntil + 0.15 } : { a: Math.PI / 2 - h + U.rf(-1.1, 1.1), until: b.holdUntil + 0.15 };
+      }
     },
 
     /* parado esperando (não numa tarefa): gestos de quem segura o controle sem ter o que fazer */
@@ -176,6 +182,8 @@
       if (near.length && Math.random() < Math.min(0.8, lookK)) {
         const q = U.pick(near);
         if (Math.abs(q.x - p.x) > 0.2) p.facing = q.x < p.x ? -1 : 1;
+        /* no 3D o corpo inteiro vira para a pessoa (no 2D basta o lado) */
+        p.look = { x: q.x, y: q.y, until: g.t + U.rf(1, 2.4) };
         return;
       }
       const bored = Motor.mood(b) === 'entediado';
@@ -183,7 +191,11 @@
       let gst = U.pick(gs);
       /* rodar pela sala só quem é bem inquieto ou está entediado (andar à toa sem motivo parece robô) */
       if (gst === 'rodar' && !bored && fid < 0.9) gst = 'passinho';
-      if (gst === 'olhar') p.facing = -p.facing;
+      if (gst === 'olhar') {
+        p.facing = -p.facing;
+        /* 3D: olha para um lado da sala por um instante */
+        p.look = { a: Math.random() * TAU - Math.PI, until: g.t + U.rf(0.8, 2) };
+      }
       else if (gst === 'girar') b.spin = { n: U.rint(2, 6), t: 0.1 };
       else if (gst === 'passinho' || gst === 'rodar') {
         const r = gst === 'rodar' ? U.rf(0.8, 1.8) : U.rf(0.2, 0.5);
@@ -205,7 +217,8 @@
         return;
       }
       const dx = pt.x - p.x, dy = pt.y - p.y, d = Math.hypot(dx, dy);
-      const sp = g.speedOf(p) * (b.motor.input === 'teclado' ? 1 : 0.7);
+      /* passinho é arrastar o pé, não andar: mais devagar que a caminhada */
+      const sp = g.speedOf(p) * (b.motor.input === 'teclado' ? 0.55 : 0.4);
       if (d < 0.06 || d < sp * dt) {
         m.i++;
         if (m.i >= m.pts.length) b.micro = null;
@@ -220,6 +233,7 @@
     stopIdle(b) {
       b.micro = null;
       b.spin = null;
+      if (b.p) b.p.look = null;
     },
   };
 

@@ -358,15 +358,43 @@
           a.pz = p.y;
           continue;
         }
-        /* direção: para onde anda (suave) */
-        const dx = p.x - a.px, dz = p.y - a.pz;
-        const moving = p.moving || Math.hypot(dx, dz) > 0.004;
-        if (Math.hypot(dx, dz) > 0.004) {
-          const want = Math.atan2(dx, dz);
+        /* direção: para onde anda de verdade (suave). Empurrãozinho de lado (desviar de alguém, raspar na parede) e os
+           passinhos de quem espera não giram o corpo (girava 180° num passinho para trás e parecia tremedeira).
+           Parado, olha para onde o bot está olhando (alguém que passa, um lado da sala) ou para o lado que virou. */
+        const dx = p.x - a.px, dz = p.y - a.pz, md = Math.hypot(dx, dz);
+        const moving = p.moving || md > 0.004;
+        const br = p.brain, side = !!(br && (br.micro || br.spin));
+        /* o corpo segue a média do andar dos últimos ~0,2 s: no teclado, o vai-e-vem entre duas teclas (0° e 45°) num
+           corredor em diagonal, e no joystick o balanço do polegar, faziam o corpo inteiro tremer (14 viradas por
+           minuto em cada bot; com a média, ~1) */
+        /* salto (duto, abate, mesa da reunião): não é andar, não vira o corpo */
+        const walk = md > 0.004 && md < 1 && !side && md / Math.max(dt, 1 / 240) > 1.2;
+        const kk = Math.min(1, dt / 0.2);
+        if (walk) {
+          a.vx = (a.vx || 0) + (dx / Math.max(dt, 1 / 240) - (a.vx || 0)) * kk;
+          a.vz = (a.vz || 0) + (dz / Math.max(dt, 1 / 240) - (a.vz || 0)) * kk;
+        } else {
+          a.vx = (a.vx || 0) * (1 - kk);
+          a.vz = (a.vz || 0) * (1 - kk);
+        }
+        let want = null, rate = 9;
+        if (walk && Math.hypot(a.vx, a.vz) > 1.2) want = Math.atan2(a.vx, a.vz);
+        else if (!p.moving || side) {
+          if (a.lastFacing != null && a.lastFacing !== p.facing) a.faceUntil = g.t + 1.6;
+          if (p.look && p.look.until > g.t) {
+            want = p.look.a != null ? p.look.a : Math.atan2(p.look.x - p.x, p.look.y - p.y);
+            rate = 7;
+          } else if (a.faceUntil > g.t) {
+            want = p.facing > 0 ? Math.PI / 2 : -Math.PI / 2;
+            rate = 10;
+          }
+        }
+        a.lastFacing = p.facing;
+        if (want != null) {
           let d = want - a.yaw;
           while (d > Math.PI) d -= Math.PI * 2;
           while (d < -Math.PI) d += Math.PI * 2;
-          a.yaw += d * Math.min(1, dt * 14);
+          a.yaw += d * Math.min(1, dt * rate);
         }
         a.px = p.x;
         a.pz = p.y;

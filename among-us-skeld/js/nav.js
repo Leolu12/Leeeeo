@@ -164,7 +164,9 @@
   }
 
   function smooth(start, pts, ghost) {
-    if (pts.length < 3) return pts;
+    /* com 2 pontos também: o 1º é o centro de uma célula vizinha, que pode ficar atrás de quem já está andando
+       (o bot dava meia-volta até ele e depois seguia) */
+    if (pts.length < 2) return pts;
     const out = [];
     let anchor = start, i = 0;
     while (i < pts.length) {

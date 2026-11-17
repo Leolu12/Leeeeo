@@ -488,6 +488,13 @@
         }
       }
       for (const p of this.players) if (p.brain) p.brain.update(dt);
+      /* perna sem engasgo: um bot que parou por um ou dois quadros no meio da caminhada (travou num ombro, trocou de
+         ponto do caminho) continua com o passo; parada de verdade (mais de 0,1 s) aparece normal */
+      for (const p of this.players) {
+        if (!p.brain) continue;
+        if (p.moving) p.lastMoveT = this.t;
+        else if (p.alive && !p.inVent && !p.busy && p.brain.dest && this.t - (p.lastMoveT || -9) < 0.1 && p.brain.path && p.brain.pi < p.brain.path.length) p.moving = true;
+      }
       /* online: o estado da nave sai agora, com todo mundo já andado neste quadro */
       if (this.net) this.net.post(dt);
       if (this.phase !== 'play') return;
