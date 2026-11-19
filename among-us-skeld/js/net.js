@@ -72,7 +72,7 @@
     ready: null,
     state: 'checking',
     /* versão do jogo (aparece no diagnóstico: ajuda a saber se o amigo está com a página antiga) */
-    version: 41,
+    version: 42,
     async init() {
       if (this.ready) return this.ready;
       this.ready = (async () => {
@@ -570,9 +570,12 @@
       const S = AU.Menu.S;
       const base = AU.Menu.buildRoster(S);
       const used = new Set([base[0].color]);
-      let slot = 1;
+      /* amigo entra no lugar de um bot sorteado; os bots que a pessoa editou (salvos) ficam por último */
+      const order = base.map((r, i) => i).filter((i) => i > 0).sort((a, b) => (base[a].custom ? 1 : 0) - (base[b].custom ? 1 : 0));
+      let k = 0;
       for (const e of this.players()) {
-        if (slot >= base.length) break;
+        if (k >= order.length) break;
+        const slot = order[k++];
         const pr = e.pres;
         const lk = pr.look || {};
         let color = C.COLOR[lk.color] ? lk.color : null;
@@ -582,7 +585,6 @@
         const nick = clean(pr.nick) || 'Amigo ' + slot;
         base[slot] = { name: nick, gender: C.GENDER[lk.gender] ? lk.gender : C.guessGender(nick), color, hat: C.HATS.some((x) => x.id === lk.hat) ? lk.hat : 'nenhum', visor: C.VISORS.some((x) => x.id === lk.visor) ? lk.visor : 'classico', pet: C.PETS.some((x) => x.id === lk.pet) ? lk.pet : 'nenhum', remote: e.peer };
         e.slot = slot;
-        slot++;
       }
       /* bots sem repetir cor de ninguém */
       for (let i = 1; i < base.length; i++) {

@@ -149,6 +149,16 @@
         if (off.length) out.push('Funções que NÃO existem nesta partida: ' + off.map((r) => C.ROLES[r].name).join(', ') + '. Se alguém falar delas, dá para corrigir.');
       } else out.push('Nesta partida não há funções especiais (nada de metamorfo, fantasma, engenheiro, cientista etc.). Se alguém falar disso, dá para corrigir: não tem isso nessa partida.');
       out.push('Os personagens conhecem bem o jogo: usam essas regras para argumentar, levam a sério teorias que fazem sentido (inclusive sobre as funções) e discordam das que não fazem.');
+      /* o "meta": o que jogador experiente faz (o jogo não é só achar o impostor) */
+      out.push(
+        'Como gente experiente joga (o meta, todos conhecem):',
+        '- O jogo não é só achar o impostor: a tripulação também vence COMPLETANDO A BARRA DE TAREFAS. Tripulante passa a maior parte da rodada fazendo tarefa e investiga no caminho (quem anda com quem, quem fica parado sem fazer nada, quem segue os outros). Quem terminou as suas ajuda: anda junto de alguém, patrulha as salas isoladas, olha Admin ou câmeras.',
+        '- Andar em dupla ou em grupo protege (o impostor não mata dois de uma vez). No apagão, fica perto de alguém. Sabotagem crítica (reator, O2) é prioridade: larga a tarefa e conserta, com gente nos dois painéis.',
+        '- Álibi bom é dizer QUAIS tarefas fez e onde, e quem viu. Tarefa visual feita na frente de alguém prova inocência. Quem só diz a sala, ou não lembra das próprias tarefas, levanta suspeita.',
+        '- Reunião: quem achou o corpo diz onde estava e quem estava perto ou vinha de lá. Sem prova, pula (skip) — ejetar inocente aproxima os impostores da vitória. Com a barra alta e sem prova, pular e terminar as tarefas é a jogada. Conte os vivos: se um abate ou uma ejeção errada dá a vitória aos impostores, não dá para errar nem pular à toa.',
+        '- Botão de emergência é para informação forte (viu algo, alguém mentiu, achou algo no Admin/câmeras/vitals), não para nada.',
+        '- Impostor: finge tarefa com o tempo certo (e nunca a visual na frente dos outros), mata quem está sozinho e longe das câmeras, foge pelo duto ou anda normal até o grupo, sabota para separar a tripulação ou parar a barra quando ela está alta (reator/O2 puxa todo mundo; luzes ajudam a matar), tranca portas para prender a vítima, e às vezes reporta o próprio corpo. Na reunião, entra na onda da acusação de outro em vez de acusar do nada.'
+      );
       return out.join('\n');
     },
 

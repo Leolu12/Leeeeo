@@ -171,13 +171,45 @@
       if (why && !this.why.includes(why)) this.why.push(why);
       if (this.why.length > 4) this.why.shift();
     }
+    /* O objetivo do jogo não é só achar o impostor: a tripulação vence completando a barra de tarefas. Uma mente que
+       só vigia, segue e observa joga contra o próprio time (numa IA simulada assim, a tripulação passava 3% do tempo
+       em tarefa). Tripulante com tarefa à mão que passou ~30 s sem fazer nenhuma volta para uma, entre um passo e
+       outro do plano (nunca no lugar de reportar, apertar o botão ou consertar sabotagem). */
+    needsTask() {
+      const g = this.g, p = this.p;
+      if (p.isImp || !p.alive || g.sabCritical()) return false;
+      return p.tasks.some((tk) => !tk.done && g.taskAvailable(tk));
+    }
+    taskGap() {
+      const k = this.p.personality;
+      return k === 'lider' || k === 'cetico' || k === 'analitico' ? 34 : k === 'impulsivo' || k === 'caotico' ? 30 : 26;
+    }
+    metaTask(next) {
+      const g = this.g;
+      if (this.p.busy) this.lastTaskAt = g.t;
+      if (this.lastTaskAt == null || this.lastTaskAt < g.roundStart) this.lastTaskAt = g.roundStart;
+      if (!this.needsTask() || g.t - this.lastTaskAt <= this.taskGap()) return null;
+      if (next && ['task', 'report', 'button', 'fix'].includes(next.kind)) return null;
+      this.lastTaskAt = g.t;
+      this.forcedTasks = (this.forcedTasks || 0) + 1;
+      this.log('você voltou para as suas tarefas (a tripulação também vence completando a barra)');
+      return { kind: 'task', mind: true, label: 'tarefa (o objetivo da tripulação)', forced: true };
+    }
     /* próximo passo do plano para o corpo executar */
     nextOrder() {
+      const g = this.g;
+      const meta = this.metaTask(this.queue[0]);
+      if (meta) {
+        meta.until = g.t + 70;
+        meta.at = g.t;
+        return meta;
+      }
       while (this.queue.length) {
         const o = this.queue.shift();
         if (!o) continue;
-        o.until = this.g.t + (o.kind === 'task' || o.kind === 'fake' ? 70 : o.kind === 'go' || o.kind === 'patrol' ? 40 : 28);
-        o.at = this.g.t;
+        o.until = g.t + (o.kind === 'task' || o.kind === 'fake' ? 70 : o.kind === 'go' || o.kind === 'patrol' ? 40 : 28);
+        o.at = g.t;
+        if (o.kind === 'task') this.lastTaskAt = g.t;
         return o;
       }
       return null;
@@ -186,6 +218,8 @@
        tempo ("depois"), como quem continua fazendo tarefa enquanto pensa */
     idleOrder() {
       const g = this.g, p = this.p;
+      const meta = this.metaTask(this.idle);
+      if (meta) return Object.assign(meta, { done: false, at: g.t, idle: true, until: g.t + 70 });
       let base = this.idle;
       if (!base) base = p.isImp ? { kind: 'fake', mind: true, label: 'fingir tarefa' } : p.tasks.some((tk) => !tk.done && g.taskAvailable(tk)) ? { kind: 'task', mind: true, label: 'tarefas' } : { kind: 'patrol', mind: true, label: 'patrulhar' };
       const o = Object.assign({}, base, { done: false, at: g.t, idle: true });
@@ -203,6 +237,7 @@
     /* --- o que a mente lembra --- */
     observe() {
       const g = this.g, b = this.b, p = this.p, mem = b.mem;
+      if (p.busy) this.lastTaskAt = g.t;
       /* por onde eu andei (só salas, para não encher de corredor) */
       const a = M.areaAt(p.x, p.y);
       const rm = M.roomOf(a, p.x, p.y);
@@ -433,8 +468,29 @@
     }
 
     /* --- o que está acontecendo agora --- */
+    /* objetivo e situação: o que está em jogo agora (barra, contas de vivos, abate, sabotagem) */
+    goal() {
+      const g = this.g, p = this.p, out = [];
+      const alive = g.players.filter((q) => q.alive), nImp = alive.filter((q) => q.isImp).length, nCrew = alive.length - nImp;
+      const bar = g.S.rules.taskBar === 'sempre' && !g.commsDown() ? Math.round(g.taskProgress().ratio * 100) : null;
+      const mine = p.tasks.filter((tk) => !tk.done).length;
+      if (p.isImp) {
+        const need = nCrew - nImp;
+        out.push('OBJETIVO dos impostores: ficar em número igual ao da tripulação (vivos agora: ' + nCrew + ' tripulantes e ' + nImp + ' impostor' + (nImp > 1 ? 'es' : '') + '; faltam ' + need + ' abate' + (need > 1 ? 's' : '') + ') ou vencer com uma sabotagem crítica que ninguém conserta. Se a barra de tarefas encher, vocês PERDEM.');
+        if (need <= 1) out.push('UM abate agora vence o jogo.');
+        if (bar != null) out.push('Barra de tarefas da tripulação: ' + bar + '%.' + (bar >= 70 ? ' Está alta: sabote o reator ou o O2 (todo mundo larga a tarefa e corre) ou mate logo, senão vocês perdem por tarefas.' : ''));
+      } else {
+        out.push('OBJETIVO da tripulação: completar a barra de tarefas ou ejetar todos os impostores. Tarefa é metade do jogo: faça as suas e investigue no caminho.' + (mine ? ' Você ainda tem ' + mine + ' tarefa' + (mine > 1 ? 's' : '') + '.' : ' Você já terminou as suas: agora ajude (ande junto de alguém, patrulhe as salas isoladas, olhe Admin ou câmeras).'));
+        if (bar != null) out.push('Barra de tarefas: ' + bar + '%.' + (bar >= 75 && mine ? ' Está quase cheia: terminar as tarefas que faltam vence o jogo.' : ''));
+        const left = p.isImp ? 0 : this.b && this.b.impsAliveKnown ? this.b.impsAliveKnown() : g.S.room.impostors;
+        if (left > 0 && alive.length - left <= left + 1) out.push('RETA FINAL: ' + alive.length + ' vivos e até ' + left + ' impostor' + (left > 1 ? 'es' : '') + '. Mais um abate pode acabar o jogo: não fique sozinho com ninguém de quem não tem certeza.');
+      }
+      if (g.sab && (g.sab.type === 'reactor' || g.sab.type === 'o2')) out.push(p.isImp ? 'A sua sabotagem crítica está correndo: atrapalhe o conserto sem dar na cara.' : 'SABOTAGEM CRÍTICA: largue o que estiver fazendo e vá consertar (precisa de gente nos dois painéis).');
+      return out;
+    }
     now() {
       const g = this.g, p = this.p, b = this.b, out = [];
+      out.push(...this.goal());
       out.push('Agora: ' + Math.round(g.t - g.roundStart) + 's desde ' + (g.meetings ? 'a última reunião' : 'o começo') + '. Você está em ' + roomName(p.x, p.y) + (p.busy ? ', no meio de uma tarefa' : '') + '.');
       const seen = b.seenNow.filter((q) => q.alive);
       if (seen.length) {
@@ -465,8 +521,6 @@
         const vents = M.VENTS.filter((v) => U.d2(v.x, v.y, p.x, p.y) < 7);
         if (vents.length) out.push('Duto aqui perto (' + area(vents[0].area) + '), liga com: ' + vents[0].links.map((id) => area(M.VENT[id].area)).join(', ') + '.');
       }
-      /* a barra que todo mundo vê na tela (quando a regra mostra): diz quanto falta e se alguém está fingindo */
-      if (g.S.rules.taskBar === 'sempre' && !g.commsDown()) out.push('Barra de tarefas da tripulação: ' + Math.round(g.taskProgress().ratio * 100) + '%.');
       if (p.special === 'cientista') out.push('Bateria dos sinais vitais: ' + Math.round(p.battery || 0) + 's.');
       if (p.special === 'metamorfo') out.push(p.shiftAs != null ? 'Você está disfarçado de ' + who(g, p.shiftAs) + '.' : 'Transformação: ' + (p.abilityCd > 0 ? 'em recarga (' + Math.ceil(p.abilityCd) + 's)' : 'pronta') + '.');
       if (p.special === 'fantasma') out.push(p.invisUntil > g.t ? 'Você está invisível.' : 'Sumir: ' + (p.abilityCd > 0 ? 'em recarga (' + Math.ceil(p.abilityCd) + 's)' : 'pronto') + '.');
@@ -496,7 +550,7 @@
       lines.push('', 'O que você pode fazer (escreva cada passo do plano assim):', ...acts.map((a) => '- ' + a));
       lines.push('', 'Decida o que fazer agora, como você jogaria. Responda SÓ com um JSON neste formato:');
       lines.push('{"pensamento": "o que você está pensando, curto", "plano": ["primeiro passo", "segundo passo", "terceiro passo"], "depois": "o que fazer quando o plano acabar, enquanto pensa no próximo (um passo, ex.: ' + (p.isImp ? '\'fingir\', \'grupo\'' : '\'tarefa\', \'patrulhar\'') + ' ou \'seguir NOME\')", "suspeitas": {"Nome": "mais" ou "menos"}, "humor": "' + AU.Motor.MOODS.join('|') + '", "notas": "o que quer lembrar daqui pra frente (suspeitas, álibis, planos); deixe vazio para manter as anteriores"}');
-      lines.push('O plano tem de 1 a 5 passos, na ordem (pense uns 30 a 60 segundos à frente). "tarefa" sem nome = a tarefa mais perto. Jogue do SEU jeito (suas manias), não do jeito "certo" de manual: gente de verdade se distrai, muda de ideia, dá uma olhada no corredor, volta para buscar algo.');
+      lines.push('O plano tem de 1 a 5 passos, na ordem (pense uns 30 a 60 segundos à frente). "tarefa" sem nome = a tarefa mais perto. Jogue do SEU jeito (suas manias), não do jeito "certo" de manual: gente de verdade se distrai, muda de ideia, dá uma olhada no corredor, volta para buscar algo.' + (p.isImp ? ' Impostor: finja tarefas entre uma oportunidade e outra, para ter álibi.' : ' Com tarefa sobrando, a maior parte dos passos é tarefa (vigiar e seguir são de vez em quando): a tripulação também vence pela barra.'));
       lines.push('"suspeitas": só quem mudou na sua cabeça agora, com motivo (pode ser {}). "humor": como você está se sentindo (muda o seu jeito de andar).');
       return lines.join('\n');
     }
@@ -592,7 +646,14 @@
       const dead = g.players.filter((q) => !q.alive).map((q) => who(g, q.id) + (q.ejected ? ' (ejetado)' : ''));
       lines.push('Vivos: ' + alive.join(', ') + '.');
       if (dead.length) lines.push('Fora do jogo: ' + dead.join(', ') + '.');
-      if (g.S.rules.taskBar !== 'nunca' && !g.commsDown()) lines.push('Barra de tarefas da tripulação: ' + Math.round(g.taskProgress().ratio * 100) + '%.');
+      if (g.S.rules.taskBar !== 'nunca' && !g.commsDown()) {
+        const bar = Math.round(g.taskProgress().ratio * 100);
+        lines.push('Barra de tarefas da tripulação: ' + bar + '%.' + (bar >= 75 ? (p.isImp ? ' Está alta: se a reunião acabar sem ejeção, a tripulação pode vencer por tarefas — ajuda vocês ejetar um tripulante agora.' : ' Está alta: sem prova, pular e terminar as tarefas é a jogada (a tripulação vence assim).') : ''));
+      }
+      if (!p.isImp) {
+        const done = [...this.doneTasks].map((id) => (p.tasks.find((tk) => tk.id === id) || {}).def).filter(Boolean).map((d) => d.name);
+        if (done.length) lines.push('Tarefas que você completou (bom álibi é dizer quais e onde): ' + done.slice(-6).join(', ') + '.');
+      }
       if (mt.phase === 'voting') {
         const left = Math.max(0, Math.round(mt.votingEnd - mt.t));
         const voted = mt.alive.filter((id) => mt.votes[id] !== undefined).map((id) => g.players[id].name);

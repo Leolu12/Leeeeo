@@ -11,7 +11,7 @@ O mapa pode ser jogado em **3D** (padrão: luz, sombra e reflexo de verdade, fei
 - **Direto do arquivo:** abra `index.html` no navegador. Não precisa de servidor nem de instalação.
 - **Arquivo único:** rode `python3 tools/build.py` e abra `dist/impostor-a-bordo.html`. Esse arquivo pode ser enviado para outra pessoa ou publicado no GitHub Pages.
 - **GitHub Pages:** em *Settings → Pages*, publique a branch com a pasta `among-us-skeld/` e acesse `…/among-us-skeld/`.
-- **Gênero de cada um:** em *Seu perfil* (ou ao lado do seu nome no online) você escolhe Ele, Ela ou Neutro; no lobby, cada bot tem o seu, e dá para trocar. Bots, IAs e amigos falam de cada jogador desse jeito ("a Duda tá suspeita", "o Kaio tava comigo"; neutro = pelo nome, sem o/a).
+- **Gênero de cada um:** em *Seu perfil* (ou ao lado do seu nome no online) você escolhe Ele, Ela ou Neutro; no lobby, cada bot tem o seu, e dá para trocar. Bot que você editar no lobby (nome, cor, gênero, personalidade) fica salvo (✎) para as próximas partidas. Bots, IAs e amigos falam de cada jogador desse jeito ("a Duda tá suspeita", "o Kaio tava comigo"; neutro = pelo nome, sem o/a).
 
 ### Controles
 
@@ -295,6 +295,11 @@ tools/build.py    gera a versão de arquivo único em dist/
 ```
 
 ## Testes
+
+- **Versão 42** (o jogo inteiro na cabeça dos bots e personagens salvos):
+  - Com uma IA simulada "detetive" (só vigia, segue e observa), a tripulação passava 3% do tempo em tarefa e chegava a 23% da barra em 4 minutos; com a volta automática às tarefas (tripulante com tarefa à mão, ~30 s sem fazer nenhuma), 46% (o motor sozinho chega a 53%). Com uma mente equilibrada, 97%.
+  - O pedido da IA começa pelo objetivo: barra de tarefas, quantas tarefas faltam, quantos abates faltam ao impostor, reta final, sabotagem crítica; e traz o "meta" (como gente experiente joga) para os dois lados. Na reunião, as tarefas completadas viram álibi.
+  - Bots editados no lobby (nome, cor, gênero, personalidade) voltam iguais depois de recarregar a página; "Sortear bots de novo" troca só os outros; o gênero e a cor escolhidos para um nome valem quando ele sai sorteado de novo.
 
 - **Versão 41** (revisão de tudo: andar, abates, mente e textos):
   - Andar, quadro a quadro em 80 minutos de bots: nenhum andando no lugar nem empilhado; teleporte só no abate (o impostor encosta na vítima, como no original). No 3D, o corpo seguia cada mudança mínima de direção (vai-e-vem entre duas teclas, balanço do polegar): 14 viradas bruscas por minuto em cada bot; seguindo a média do andar, ~1,3, com atraso médio de 10° no giro. Bot travado a menos de 0,6 do painel (até 12 s parado) agora para ali; caminho de 2 pontos suavizado (meia-volta até o centro da célula); perna piscando 0,58 → 0,34 por minuto.

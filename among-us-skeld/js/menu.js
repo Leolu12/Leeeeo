@@ -5,6 +5,9 @@
   const U = AU.U, C = AU.C, M = AU.Map;
   const h = U.h;
   const STORE_KEY = 'skeld-dedução-config-v1';
+  /* elenco: os bots que você editou no lobby (voltam iguais nas próximas partidas) e o gênero/cor preferidos de cada
+     nome (valem também quando o nome sai sorteado de novo). Fica fora das configurações: trocar de preset não apaga */
+  const CAST_KEY = 'skeld-elenco-v1';
 
   const Menu = {
     S: null,
@@ -575,11 +578,43 @@
     },
 
     /* ---------------- lobby ---------------- */
-    buildRoster(S, keep) {
+    loadCast() {
+      const c = U.store.get(CAST_KEY, null);
+      return c && typeof c === 'object' ? { bots: Array.isArray(c.bots) ? c.bots : [], byName: c.byName && typeof c.byName === 'object' ? c.byName : {} } : { bots: [], byName: {} };
+    },
+    /* guarda o que a pessoa editou: o bot inteiro (marcado) e a preferência do nome */
+    saveCast(roster) {
+      const cast = this.loadCast();
+      const mine = roster.filter((r) => !r.isHuman && !r.remote && r.custom);
+      cast.bots = mine.map((r) => ({ name: r.name, color: r.color, gender: r.gender, personality: r.personality, hat: r.hat, pet: r.pet }));
+      for (const r of roster) {
+        if (r.isHuman || r.remote || !(r.genderSet || r.colorSet)) continue;
+        const k = U.norm(r.name);
+        cast.byName[k] = Object.assign(cast.byName[k] || {}, r.genderSet ? { gender: r.gender } : {}, r.colorSet ? { color: r.color } : {});
+      }
+      const keys = Object.keys(cast.byName);
+      if (keys.length > 60) for (const k of keys.slice(0, keys.length - 60)) delete cast.byName[k];
+      U.store.set(CAST_KEY, cast);
+    },
+    /* reroll: sorteia de novo só os bots que a pessoa não editou */
+    buildRoster(S, keep, reroll) {
       const n = S.room.players;
+      const cast = this.loadCast();
+      if (!keep || reroll) {
+        const old = keep;
+        keep = [null];
+        const saved = cast.bots.filter((b) => b && b.name && U.norm(b.name) !== U.norm(S.profile.name || ''));
+        for (let i = 0; i < n - 1; i++) {
+          const o = old && old[i + 1];
+          if (reroll && o && o.custom) keep.push(o);
+          else if (!reroll && saved.length) keep.push(Object.assign({ custom: true }, saved.shift()));
+          else keep.push(null);
+        }
+      }
       const human = { name: S.profile.name || 'Jogador', color: S.profile.color, hat: S.profile.hat, visor: S.profile.visor, pet: S.profile.pet, gender: C.genderOf(S.profile), isHuman: true };
       let names = S.bots.names === 'custom' ? S.bots.customNames.split(',').map((x) => x.trim()).filter(Boolean) : [];
-      names = names.concat(U.shuffle(C.BOT_NAMES)).filter((x, i, a) => a.indexOf(x) === i && U.norm(x) !== U.norm(human.name));
+      const taken = new Set((keep || []).filter(Boolean).map((r) => U.norm(r.name)));
+      names = names.concat(U.shuffle(C.BOT_NAMES)).filter((x, i, a) => a.indexOf(x) === i && U.norm(x) !== U.norm(human.name) && !taken.has(U.norm(x)));
       const colors = U.shuffle(C.COLORS.map((c) => c.id).filter((c) => c !== human.color));
       let pool;
       if (S.bots.personalities === 'escolher') pool = S.bots.allowed.slice();
@@ -590,19 +625,25 @@
       for (let i = 0; i < n - 1; i++) {
         if (!bag.length) bag = U.shuffle(pool);
         const prev = keep && keep[i + 1];
-        const nm = prev ? prev.name : names[i % names.length];
+        const nm = prev ? prev.name : names.shift() || 'Bot ' + (i + 1);
+        const pref = cast.byName[U.norm(nm)] || {};
         roster.push({
           name: nm,
-          gender: prev && prev.gender ? prev.gender : C.guessGender(nm),
-          color: prev && prev.color !== human.color ? prev.color : colors[i % colors.length],
+          custom: !!(prev && prev.custom),
+          genderSet: !!(prev && prev.genderSet) || !!pref.gender,
+          colorSet: !!(prev && prev.colorSet) || !!pref.color,
+          gender: prev && prev.gender ? prev.gender : pref.gender || C.guessGender(nm),
+          color: prev && prev.color !== human.color ? prev.color : pref.color && pref.color !== human.color ? pref.color : colors[i % colors.length],
           personality: prev && prev.personality ? prev.personality : bag.pop(),
           hat: prev ? prev.hat : U.chance(0.45) ? U.pick(C.HATS.slice(1)).id : 'nenhum',
           visor: 'classico',
           pet: prev ? prev.pet : U.chance(0.15) ? U.pick(C.PETS.slice(1)).id : 'nenhum',
         });
       }
+      /* cor repetida: quem tem cor escolhida (editada ou preferida) fica com ela; os outros trocam */
       const used = new Set([human.color]);
-      for (const r of roster.slice(1)) {
+      const order = roster.slice(1).sort((a, b) => (b.custom || b.colorSet ? 1 : 0) - (a.custom || a.colorSet ? 1 : 0));
+      for (const r of order) {
         if (used.has(r.color)) r.color = C.COLORS.map((c) => c.id).find((c) => !used.has(c));
         used.add(r.color);
       }
@@ -628,6 +669,9 @@
           if (r.isHuman) {
             S.profile.gender = gen.value;
             this.save();
+          } else {
+            r.custom = true;
+            this.saveCast(roster);
           }
         });
         if (r.isHuman) {
@@ -636,26 +680,37 @@
           const nm = h('input', { type: 'text', class: 'lobby-name', id: 'bot-name-' + i, maxlength: '12', value: r.name, 'aria-label': 'Nome do bot' });
           nm.addEventListener('input', () => {
             r.name = nm.value.trim() || r.name;
-            /* nome novo sem gênero escolhido à mão: chuta pelo nome (Joana → ela), e dá para trocar ao lado */
+            /* nome novo sem gênero escolhido à mão: o preferido desse nome, ou um chute (Joana → ela); dá para trocar */
             if (!r.genderSet) {
-              r.gender = C.guessGender(r.name);
+              const pref = this.loadCast().byName[U.norm(r.name)];
+              r.gender = (pref && pref.gender) || C.guessGender(r.name);
               gen.value = r.gender;
             }
+            r.custom = true;
+            this.saveCast(roster);
           });
           const col = h('select', { class: 'lobby-color', id: 'bot-color-' + i, 'aria-label': 'Cor do bot' });
           const taken = new Set(roster.filter((x) => x !== r).map((x) => x.color));
           for (const c of C.COLORS) if (!taken.has(c.id)) col.appendChild(h('option', { value: c.id, selected: c.id === r.color }, c.name));
           col.addEventListener('change', () => {
             r.color = col.value;
+            r.colorSet = true;
+            r.custom = true;
+            this.saveCast(roster);
             redraw();
           });
           let pers;
           if (manual) {
             pers = h('select', { class: 'lobby-pers', id: 'bot-pers-' + i, 'aria-label': 'Personalidade' });
             for (const id of C.PERSONALITY_IDS) pers.appendChild(h('option', { value: id, selected: id === r.personality }, C.PERSONALITIES[id].name));
-            pers.addEventListener('change', () => (r.personality = pers.value));
+            pers.addEventListener('change', () => {
+              r.personality = pers.value;
+              r.custom = true;
+              this.saveCast(roster);
+            });
           } else pers = h('span', { class: 'lobby-pers-label', title: C.PERSONALITIES[r.personality].desc }, C.PERSONALITIES[r.personality].name);
           card.appendChild(h('div', { class: 'lobby-info' }, nm, h('div', { class: 'lobby-row' }, col, gen, pers)));
+          if (r.custom) card.appendChild(h('span', { class: 'lobby-saved', title: 'Você editou este bot: ele fica salvo para as próximas partidas' }, '✎'));
         }
         grid.appendChild(card);
       });
@@ -696,12 +751,12 @@
         h('header', { class: 'cfg-head' }, h('h2', {}, 'Lobby'), h('p', {}, this.summary())),
         h('div', { class: 'lobby-body' }, grid, h('aside', { class: 'lobby-side' }, h('h3', {}, 'Chat do lobby'), chat, form,
           h('p', { class: 'fine' }, manual ? 'Atribua a personalidade de cada bot antes de começar.' : 'As personalidades não mudam durante a partida. As funções só são sorteadas ao começar.'),
-          h('p', { class: 'fine' }, 'Ele / Ela / Neutro em cada card: é assim que os bots e as IAs vão falar de cada jogador (neutro = pelo nome, sem "o/a").'),
+          h('p', { class: 'fine' }, 'Ele / Ela / Neutro em cada card: é assim que os bots e as IAs vão falar de cada jogador (neutro = pelo nome, sem "o/a"). Bot que você editar (nome, cor, gênero) fica salvo (✎) para as próximas partidas.'),
           h('h3', { class: 'lobby-ai-h' }, 'IA das conversas'), this.aiStatusEl(),
           h('p', { class: 'fine' }, 'Para trocar a fonte da IA, volte às configurações.'))),
         h('div', { class: 'cfg-foot' },
           h('button', { class: 'btn ghost', onclick: () => { lc.stop(); this._lobbyChat = null; AU.App.show('create'); } }, '← Configurações'),
-          h('button', { class: 'btn', onclick: () => { AU.App.roster = this.buildRoster(S); this.lobby(root, AU.App.roster); } }, 'Sortear bots de novo'),
+          h('button', { class: 'btn', title: 'Os bots que você editou (✎) ficam; os outros são sorteados de novo', onclick: () => { AU.App.roster = this.buildRoster(S, roster, true); this.lobby(root, AU.App.roster); } }, 'Sortear bots de novo'),
           h('button', { class: 'btn primary', onclick: () => { lc.stop(); this._lobbyChat = null; AU.App.startGame(); } }, 'Começar partida →')));
     },
 
